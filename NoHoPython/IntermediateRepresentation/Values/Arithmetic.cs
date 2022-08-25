@@ -108,12 +108,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right)
         {
-            if(left.Type is RecordType record)
+            if (left.Type is RecordType record && record.HasProperty(operatorOverloadIdentifiers[operation]))
             {
-                RecordDeclaration.RecordProperty recordProperty =  
+                RecordDeclaration.RecordProperty overloadMethod = record.FindProperty(operatorOverloadIdentifiers[operation]);
+                if (overloadMethod.Type is not ProcedureType)
+                    throw new UnexpectedTypeException(overloadMethod.Type);
+                return new AnonymousProcedureCall(new GetPropertyValue(left, overloadMethod), new List<IRValue>()
+                {
+                    right
+                });
             }
             else
-
+                return new ArithmeticOperator(operation, left, right);
         }
 
         public ArithmeticOperation Operation { get; private set; }

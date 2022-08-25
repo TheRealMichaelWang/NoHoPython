@@ -14,7 +14,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             IfTrueBlock = ifTrueBlock;
             IfFalseBlock = ifFalseBlock;
 
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type, true))
+            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
                 throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
         }
     }
@@ -29,7 +29,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Condition = condition;
             IfTrueblock = ifTrueblock;
 
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type, true))
+            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
                 throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
         }
     }
@@ -44,7 +44,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Condition = condition;
             this.whileTrueBlock = whileTrueBlock;
 
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type, true))
+            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
                 throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
         }
     }
@@ -52,7 +52,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
-    public sealed class IfElseValue : IRValue
+    public sealed partial class IfElseValue : IRValue
     {
         public IType Type { get; private set; }
 
@@ -67,11 +67,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
             IfTrueValue = ifTrueValue;
             IfFalseValue = ifFalseValue;
 
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type, true))
+            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
                 throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
-            else if (!Type.IsCompatibleWith(IfTrueValue.Type, true))
+            else if (!Type.IsCompatibleWith(IfTrueValue.Type))
                 throw new UnexpectedTypeException(Type, IfTrueValue.Type);
-            else if (!Type.IsCompatibleWith(IfFalseValue.Type, true))
+            else if (!Type.IsCompatibleWith(IfFalseValue.Type))
                 throw new UnexpectedTypeException(Type, IfFalseValue.Type);
         }
     }

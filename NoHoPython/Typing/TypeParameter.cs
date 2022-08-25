@@ -1,6 +1,4 @@
-﻿using NoHoPython.IntermediateRepresentation;
-using NoHoPython.IntermediateRepresentation.Values;
-using NoHoPython.Scoping;
+﻿using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
 namespace NoHoPython.Typing
@@ -119,6 +117,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class AllocRecord
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AllocRecord((RecordType)RecordPrototype.SubstituteWithTypearg(typeargs), ConstructorArguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
+    }
+
+    partial class IfElseValue
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new IfElseValue(Type.SubstituteWithTypearg(typeargs), Condition.SubstituteWithTypearg(typeargs), IfTrueValue.SubstituteWithTypearg(typeargs), IfFalseValue.SubstituteWithTypearg(typeargs));
     }
 
     partial class ArithmeticCast

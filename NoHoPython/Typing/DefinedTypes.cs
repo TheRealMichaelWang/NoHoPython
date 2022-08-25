@@ -89,6 +89,10 @@ namespace NoHoPython.Typing
                 identifierPropertyMap.Add(property.Name, property);
         }
 
+        public bool HasProperty(string identifier) => identifierPropertyMap.ContainsKey(identifier);
+
+        public RecordDeclaration.RecordProperty FindProperty(string identifier) => identifierPropertyMap[identifier];
+
         public bool IsCompatibleWith(IType type)
         {
             if (type is RecordType recordType)

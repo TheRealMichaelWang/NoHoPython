@@ -53,7 +53,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             this.supportedInterfaces = supportedInterfaces;
 
             foreach (InterfaceType interfaceType in supportedInterfaces)
-                interfaceType.ValidateSupportForRecord(this);
+                interfaceType.ValidateSupportForRecord(properties, this);
         }
 
         public List<InterfaceType> GetSupportedInterfaces(RecordType recordType)

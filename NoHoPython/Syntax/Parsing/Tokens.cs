@@ -13,7 +13,6 @@
         Module,
         Record,
         Proc,
-        Def,
         While,
         For,
         If,
@@ -22,15 +21,21 @@
         Break,
         Continue,
         Return,
+        In,
+        And,
+        Or,
 
         //symbols
-        OpenBrackets,
-        CloseBrackets,
-        OpenParens,
-        CloseParens,
-        OpenBraces,
-        CloseBraces,
+        OpenBracket,
+        CloseBracket,
+        OpenParen,
+        CloseParen,
+        OpenBrace,
+        CloseBrace,
         Comma,
+        Colon,
+        Semicolon,
+        Set,
 
         //operators
         Add,
@@ -40,6 +45,17 @@
         Modulo,
         Exponentiate,
 
+        //comparison operators
+        Equals,
+        NotEquals,
+        More,
+        Less,
+        MoreEqual,
+        LessEqual,
+        Not,
+
+        Tab,
+        Newline,
         EndOfFile
     }
 

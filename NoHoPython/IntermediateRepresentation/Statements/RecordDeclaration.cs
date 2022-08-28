@@ -1,40 +1,60 @@
-﻿using NoHoPython.Scoping;
+﻿using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public sealed class CannotMutateReadonlyPropertyException : Exception
     {
-        public RecordDeclaration.RecordProperty Property { get; private set; }
+        public Property Property { get; private set; }
 
-        public CannotMutateReadonlyPropertyException(RecordDeclaration.RecordProperty property) : base($"Cannot mutate read-only property {property.Name}.")
+        public CannotMutateReadonlyPropertyException(Property property) : base($"Cannot mutate read-only property {property.Name}.")
         {
             Property = property;
+            Debug.Assert(Property.IsReadOnly);
+        }
+    }
+
+    public interface IPropertyContainer
+    {
+        public bool HasProperty(string identifier);
+        public Property FindProperty(string identifier);
+    }
+
+    public abstract class Property
+    {
+        public abstract bool IsReadOnly { get; }
+
+        public readonly string Name;
+        public IType Type { get; private set; }
+
+        public Property(string name, IType type)
+        {
+            Name = name;
+            Type = type;
         }
     }
 
     public sealed partial class RecordDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
-        public sealed partial class RecordProperty
+        public sealed partial class RecordProperty : Property
         {
-            public string Name { get; private set; }
-            public IType Type { get; private set; }
-
-            public bool IsReadonly { get; private set; }
+            public override bool IsReadOnly => isReadOnly; 
             public IRValue? DefaultValue { get; private set; }
 
-            public RecordProperty(string name, IType type, bool isReadonly, IRValue? defaultValue)
+            private bool isReadOnly;
+
+            public RecordProperty(string name, IType type, bool isReadOnly, IRValue? defaultValue) : base(name, type)
             {
-                Name = name;
-                Type = type;
-                IsReadonly = isReadonly;
+                this.isReadOnly = isReadOnly;
                 DefaultValue = defaultValue;
 
-                if (defaultValue != null && !Type.IsCompatibleWith(defaultValue.Type))
-                    throw new UnexpectedTypeException(Type, defaultValue.Type);
+                if (defaultValue != null)
+                    DefaultValue = ArithmeticCast.CastTo(defaultValue, type);
             }
 
-            public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), IsReadonly, DefaultValue == null ? null : DefaultValue.SubstituteWithTypearg(typeargs));
+            public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), isReadOnly, DefaultValue == null ? null : DefaultValue.SubstituteWithTypearg(typeargs));
         }
 
         public bool IsGloballyNavigable => false;

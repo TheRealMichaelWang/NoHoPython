@@ -2,6 +2,21 @@
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
+namespace NoHoPython.IntermediateRepresentation
+{
+    public sealed class UnexpectedArgumentsException : Exception
+    {
+        public readonly List<IType> ArgumentTypes;
+        public readonly List<IType> ParameterTypes;
+
+        public UnexpectedArgumentsException(List<IType> argumentTypes, List<IType> parameterTypes) : base($"Procedure expected ({string.Join(", ", parameterTypes.Select((IType param) => param.TypeName))}), but got ({string.Join(", ", argumentTypes.Select((IType argument) => argument.TypeName))}) instead.")
+        {
+            ArgumentTypes = argumentTypes;
+            ParameterTypes = parameterTypes;
+        }
+    }
+}
+
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public sealed class ProcedureDeclaration : CodeBlock, IScopeSymbol, IRStatement
@@ -57,12 +72,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     public abstract class ProcedureCall : IRValue
     {
-        public abstract IType Type { get; }
+        public IType Type => ReturnType;
 
         public readonly List<IRValue> Arguments;
+        public IType ReturnType { get; private set; }
 
-        public ProcedureCall(List<IRValue> arguments)
+        public ProcedureCall(List<IRValue> arguments, List<IType> expectedParameterTypes, IType returnType)
         {
+            ReturnType = returnType;
+
+            if (arguments.Count != expectedParameterTypes.Count)
+                throw new UnexpectedArgumentsException(arguments.Select((IRValue argument) => argument.Type).ToList(), expectedParameterTypes);
+
+            for (int i = 0; i < expectedParameterTypes.Count; i++)
+                arguments[i] = ArithmeticCast.CastTo(arguments[i], expectedParameterTypes[i]);
+                
             Arguments = arguments;
         }
 
@@ -71,15 +95,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed class LinkedProcedureCall : ProcedureCall
     {
-        public override IType Type => Procedure.ReturnType;
         public ProcedureReference Procedure { get; private set; }
 
-        public LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments) : base(arguments)
+        public LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments) : base(arguments, procedure.ParameterTypes, procedure.ReturnType)
         {
             Procedure = procedure;
-            for (int i = 0; i < arguments.Count; i++)
-                if (!procedure.ParameterTypes[i].IsCompatibleWith(arguments[i].Type))
-                    throw new UnexpectedTypeException(procedure.ParameterTypes[i], arguments[i].Type);
         }
 
         public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new LinkedProcedureCall(Procedure.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
@@ -87,21 +107,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed class AnonymousProcedureCall : ProcedureCall
     {
-        public override IType Type => procedureType.ReturnType;
-
         public IRValue ProcedureValue { get; private set; }
-        private ProcedureType procedureType;
 
-        public AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments) : base(arguments)
+        public AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments) : base(arguments, procedureValue.Type is ProcedureType procedureType ? 
+                                                                                         procedureType.ParameterTypes :
+                                                                                         throw new UnexpectedTypeException(procedureValue.Type), procedureType.ReturnType)
         {
             ProcedureValue = procedureValue;
-            procedureType = (ProcedureType)procedureValue.Type;
-
-            if (arguments.Count != procedureType.ParameterTypes.Count)
-                throw new UnexpectedTypeArgumentsException(arguments.Count, procedureType.ParameterTypes.Count);
-            for (int i = 0; i < arguments.Count; i++)
-                if (!procedureType.ParameterTypes[i].IsCompatibleWith(arguments[i].Type))
-                    throw new UnexpectedTypeException(procedureType.ParameterTypes[i], arguments[i].Type);
         }
 
         public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AnonymousProcedureCall(ProcedureValue.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());

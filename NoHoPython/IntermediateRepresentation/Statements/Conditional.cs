@@ -1,4 +1,5 @@
-﻿using NoHoPython.Typing;
+﻿using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
@@ -10,12 +11,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public IfElseBlock(IRValue condition, CodeBlock ifTrueBlock, CodeBlock ifFalseBlock)
         {
-            Condition = condition;
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
             IfTrueBlock = ifTrueBlock;
             IfFalseBlock = ifFalseBlock;
-
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
         }
     }
 
@@ -26,11 +24,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public IfBlock(IRValue condition, CodeBlock ifTrueblock)
         {
-            Condition = condition;
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
             IfTrueblock = ifTrueblock;
-
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
         }
     }
 
@@ -41,11 +36,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public WhileBlock(IRValue condition, CodeBlock whileTrueBlock)
         {
-            Condition = condition;
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
             this.whileTrueBlock = whileTrueBlock;
-
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
         }
     }
 }
@@ -63,16 +55,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IfElseValue(IType type, IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue)
         {
             Type = type;
-            Condition = condition;
-            IfTrueValue = ifTrueValue;
-            IfFalseValue = ifFalseValue;
-
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
-            else if (!Type.IsCompatibleWith(IfTrueValue.Type))
-                throw new UnexpectedTypeException(Type, IfTrueValue.Type);
-            else if (!Type.IsCompatibleWith(IfFalseValue.Type))
-                throw new UnexpectedTypeException(Type, IfFalseValue.Type);
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
+            IfTrueValue = ArithmeticCast.CastTo(ifTrueValue, Type);
+            IfFalseValue = ArithmeticCast.CastTo(ifFalseValue, Type);
         }
     }
 }

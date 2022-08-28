@@ -22,17 +22,19 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Left { get; private set; }
         public IRValue Right { get; private set; }
 
-        private bool isFinal;
-
         public ComparativeOperator(CompareOperation operation, IRValue left, IRValue right)
         {
             Operation = operation;
             Left = left;
             Right = right;
 
-            if(left.Type is RecordType)
+            if(left.Type is IPropertyContainer propertyContainer && !propertyContainer.HasProperty("compare"))
             {
-                
+                Left = ArithmeticCast.CastTo(new AnonymousProcedureCall(new GetPropertyValue(left, "compare"), new List<IRValue>()
+                {
+                    right
+                }), Primitive.Integer);
+                Right = new IntegerLiteral(0);
             }
             else
             {
@@ -62,18 +64,24 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public LogicalOperator(LogicalOperation operation, IRValue right, IRValue left)
         {
             Operation = operation;
-            Right = right;
-            Left = left;
-
-            if (!Primitive.Boolean.IsCompatibleWith(Left.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, Left.Type);
-            if (!Primitive.Boolean.IsCompatibleWith(Right.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, Right.Type);
+            Right = ArithmeticCast.CastTo(right, Primitive.Boolean);
+            Left = ArithmeticCast.CastTo(left, Primitive.Boolean);
         }
     }
 
     public sealed partial class GetValueAtIndex : IRValue
     {
+        public static IRValue ComposeGetValueAtIndex(IRValue array, IRValue index)
+        {
+            if (array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("getAtIndex"))
+                return new AnonymousProcedureCall(new GetPropertyValue(array, "getAtIndex"), new List<IRValue>()
+                {
+                    index
+                });
+            else
+                return new GetValueAtIndex(array, index);
+        }
+
         public IType Type { get; private set; }
 
         public IRValue Array { get; private set; }
@@ -95,6 +103,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class SetValueAtIndex : IRValue
     {
+        public static IRValue ComposeSetValueAtIndex(IRValue array, IRValue index, IRValue value)
+        {
+            if (array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("setAtIndex"))
+                return new AnonymousProcedureCall(new GetPropertyValue(array, "setAtIndex"), new List<IRValue>()
+                {
+                    index,
+                    value
+                });
+            else
+                return new SetValueAtIndex(array, index, value);
+        }
+
         public IType Type => Value.Type;
 
         public IRValue Array { get; private set; }
@@ -105,16 +125,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public SetValueAtIndex(IRValue array, IRValue index, IRValue value)
         {
             Array = array;
-            Index = index;
-            Value = value;
 
-            if (Array.Type is not ArrayType)
-                throw new UnexpectedTypeException(Array.Type);
-            if (Index.Type is not IntegerType)
-                throw new UnexpectedTypeException(Array.Type);
+            if (array.Type is ArrayType arrayType)
+                Value = ArithmeticCast.CastTo(value, arrayType.ElementType);
+            else
+                throw new UnexpectedTypeException(array.Type);
 
-            if (!((ArrayType)Array.Type).ElementType.IsCompatibleWith(value.Type))
-                throw new UnexpectedTypeException(Value.Type);
+            Index = ArithmeticCast.CastTo(index, Primitive.Integer);
         }
     }
 
@@ -123,12 +140,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IType Type => Property.Type;
 
         public IRValue Record { get; private set; }
-        public RecordDeclaration.RecordProperty Property { get; private set; }
+        public Property Property { get; private set; }
 
-        public GetPropertyValue(IRValue record, RecordDeclaration.RecordProperty property)
+        public GetPropertyValue(IRValue record, string propertyName)
         {
             Record = record;
-            Property = property;
+            if (record.Type is IPropertyContainer propertyContainer)
+                Property = propertyContainer.FindProperty(propertyName);
+            else
+                throw new UnexpectedTypeException(record.Type);
         }
     }
 
@@ -137,20 +157,24 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IType Type => Property.Type;
 
         public IRValue Record { get; private set; }
-        public RecordDeclaration.RecordProperty Property { get; private set; }
+        public Property Property { get; private set; }
 
         public IRValue Value { get; private set; }
 
-        public SetPropertyValue(IRValue record, RecordDeclaration.RecordProperty property, IRValue value)
+        public SetPropertyValue(IRValue record, string propertyName, IRValue value)
         {
             Record = record;
-            Property = property;
-            Value = value;
 
-            if (Property.IsReadonly)
-                throw new CannotMutateReadonlyPropertyException(Property);
-            if (!Property.Type.IsCompatibleWith(Value.Type))
-                throw new UnexpectedTypeException(Property.Type, Value.Type);
+            if (record.Type is IPropertyContainer propertyContainer)
+            {
+                Property = propertyContainer.FindProperty(propertyName);
+
+                if (Property.IsReadOnly)
+                    throw new CannotMutateReadonlyPropertyException(Property);
+                Value = ArithmeticCast.CastTo(value, Property.Type);
+            }
+            else
+                throw new UnexpectedTypeException(record.Type);
         }
     }
 }

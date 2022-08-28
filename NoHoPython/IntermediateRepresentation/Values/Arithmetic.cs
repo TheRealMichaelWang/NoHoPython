@@ -49,7 +49,26 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ArithmeticCastOperation.IntToBoolean
         };
 
-        public static IRValue PrimitiveCast(IRValue primitive, Primitive targetType)
+        public static IRValue CastTo(IRValue value, IType typeTarget)
+        {
+            if (typeTarget.IsCompatibleWith(value.Type))
+                return value;
+            else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to{typeTarget.TypeName}"))
+                return new AnonymousProcedureCall(new GetPropertyValue(value, $"to{typeTarget.TypeName}"), new List<IRValue>());
+            else if(typeTarget is RecordType recordType)
+            {
+                return new AllocRecord(recordType, new List<IRValue>()
+                {
+                    value
+                });
+            }
+            else if (typeTarget is Primitive primitive)
+                return PrimitiveCast(value, primitive);
+            else
+                throw new UnexpectedTypeException(typeTarget, value.Type);
+        }
+
+        private static IRValue PrimitiveCast(IRValue primitive, Primitive targetType)
         {
             if (primitive.Type is not Primitive)
                 throw new UnexpectedTypeException(primitive.Type);
@@ -108,12 +127,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right)
         {
-            if (left.Type is RecordType record && record.HasProperty(operatorOverloadIdentifiers[operation]))
+            if (left.Type is IPropertyContainer container && container.HasProperty(operatorOverloadIdentifiers[operation]))
             {
-                RecordDeclaration.RecordProperty overloadMethod = record.FindProperty(operatorOverloadIdentifiers[operation]);
-                if (overloadMethod.Type is not ProcedureType)
-                    throw new UnexpectedTypeException(overloadMethod.Type);
-                return new AnonymousProcedureCall(new GetPropertyValue(left, overloadMethod), new List<IRValue>()
+                return new AnonymousProcedureCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation]), new List<IRValue>()
                 {
                     right
                 });

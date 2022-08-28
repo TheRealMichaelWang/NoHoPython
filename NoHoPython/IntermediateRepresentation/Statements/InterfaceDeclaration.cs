@@ -17,15 +17,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     public sealed partial class InterfaceDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
-        public sealed class InterfaceProperty
+        public sealed class InterfaceProperty : Property
         {
-            public string Name { get; private set; }
-            public IType Type { get; private set; }
+            public override bool IsReadOnly => true;
 
-            public InterfaceProperty(string name, IType type)
+            public InterfaceProperty(string name, IType type) : base(name, type)
             {
-                Name = name;
-                Type = type;
+
             }
 
             public bool SatisfiesRequirement(RecordDeclaration.RecordProperty recordProperty)

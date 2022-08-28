@@ -62,7 +62,7 @@ namespace NoHoPython.Typing
     }
 
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
-    public sealed partial class RecordType : IType
+    public sealed partial class RecordType : IType, IPropertyContainer
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public string TypeName { get => RecordPrototype.Name; }
@@ -91,7 +91,7 @@ namespace NoHoPython.Typing
 
         public bool HasProperty(string identifier) => identifierPropertyMap.ContainsKey(identifier);
 
-        public RecordDeclaration.RecordProperty FindProperty(string identifier) => identifierPropertyMap[identifier];
+        public Property FindProperty(string identifier) => identifierPropertyMap[identifier];
 
         public bool IsCompatibleWith(IType type)
         {
@@ -125,14 +125,16 @@ namespace NoHoPython.Typing
     }
 
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
-    public sealed partial class InterfaceType : IType
+    public sealed partial class InterfaceType : IType, IPropertyContainer
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public string TypeName { get => InterfaceDeclaration.Name; }
 
         public InterfaceDeclaration InterfaceDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;
-        public readonly List<InterfaceDeclaration.InterfaceProperty> RequiredImplementedProperties; 
+        public readonly List<InterfaceDeclaration.InterfaceProperty> RequiredImplementedProperties;
+
+        private Dictionary<string, InterfaceDeclaration.InterfaceProperty> identifierPropertyMap;
 
         public InterfaceType(InterfaceDeclaration interfaceDeclaration, List<IType> typeArguments)
         {
@@ -141,7 +143,15 @@ namespace NoHoPython.Typing
             TypeParameter.ValidateTypeArguments(interfaceDeclaration.TypeParameters, typeArguments);
 
             RequiredImplementedProperties = interfaceDeclaration.GetRequiredProperties(this);
+
+            identifierPropertyMap = new(RequiredImplementedProperties.Count);
+            foreach (InterfaceDeclaration.InterfaceProperty property in RequiredImplementedProperties)
+                identifierPropertyMap.Add(property.Name, property);
         }
+
+        public bool HasProperty(string identifier) => identifierPropertyMap.ContainsKey(identifier);
+
+        public Property FindProperty(string identifier) => identifierPropertyMap[identifier];
 
         public void ValidateSupportForRecord(List<RecordDeclaration.RecordProperty> recordProperties, RecordDeclaration recordDeclaration)
         {

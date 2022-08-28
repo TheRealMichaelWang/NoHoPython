@@ -43,10 +43,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public SetVariable(Variable variable, IRValue value)
         {
             Variable = variable;
-            Value = value;
-
-            if (!variable.Type.IsCompatibleWith(value.Type))
-                throw new UnexpectedTypeException(Variable.Type, value.Type);
+            Value = ArithmeticCast.CastTo(value, Variable.Type);
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => throw new InvalidOperationException();

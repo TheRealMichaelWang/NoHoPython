@@ -51,9 +51,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ElementType = elementType;
             Elements = elements;
 
-            foreach (IRValue element in elements)
-                if (!Type.IsCompatibleWith(element.Type))
-                    throw new UnexpectedTypeException(Type, element.Type);
+            for (int i = 0; i < elements.Count; i++)
+                elements[i] = ArithmeticCast.CastTo(elements[i], ElementType);
         }
     }
 
@@ -67,10 +66,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public AllocArray(IType elementType, IRValue size)
         {
             ElementType = elementType;
-            Size = size;
-
-            if (!Primitive.Integer.IsCompatibleWith(size.Type))
-                throw new UnexpectedTypeException(Primitive.Integer, size.Type);
+            Size = ArithmeticCast.CastTo(size, Primitive.Integer);
         }
     }
 

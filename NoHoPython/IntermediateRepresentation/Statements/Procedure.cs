@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
@@ -65,6 +66,16 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
 
         public ProcedureReference SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureReference(procedureDeclaration, TypeArguments.Select((IType argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
+    }
+
+    public sealed class ReturnStatement
+    {
+        public IRValue ToReturn { get; private set; }
+
+        public ReturnStatement(IRValue toReturn, ProcedureDeclaration procedureDeclaration)
+        {
+            ToReturn = ArithmeticCast.CastTo(toReturn, procedureDeclaration.ReturnType);
+        }
     }
 }
 

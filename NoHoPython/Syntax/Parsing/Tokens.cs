@@ -33,8 +33,9 @@
         OpenBrace,
         CloseBrace,
         Comma,
-        Colon,
         Semicolon,
+        Colon,
+        Period,
         Set,
 
         //operators

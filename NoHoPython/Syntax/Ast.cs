@@ -4,12 +4,12 @@ namespace NoHoPython.Syntax
 {
     public interface IAstValue : ISourceLocatable
     {
-        public IRValue GenerateIntermediateRepresentation();
+        //public IRValue GenerateIntermediateRepresentation();
     }
 
     public interface IAstStatement : ISourceLocatable
     {
-        public IRStatement GenerateIntermediateRepresentation();
+        //public IRStatement GenerateIntermediateRepresentation();
     }
     
     public struct SourceLocation

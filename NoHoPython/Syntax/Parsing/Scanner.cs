@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NoHoPython.Syntax.Parsing
+﻿namespace NoHoPython.Syntax.Parsing
 {
     public sealed class UnrecognizedEscapeCharacterException : Exception
     {
@@ -38,6 +32,8 @@ namespace NoHoPython.Syntax.Parsing
     {
         private sealed class FileVisitor
         {
+            public SourceLocation CurrentLocation => new SourceLocation(Row, Column, FileName);
+
             public readonly string FileName;
             public int Row { get; private set; }
             public int Column { get; private set; }
@@ -49,7 +45,7 @@ namespace NoHoPython.Syntax.Parsing
             {
                 FileName = fileName;
 
-                if(!File.Exists(fileName))
+                if (!File.Exists(fileName))
                     throw new FileNotFoundException(fileName);
                 source = File.ReadAllText(fileName);
 
@@ -60,16 +56,18 @@ namespace NoHoPython.Syntax.Parsing
 
             public char ScanChar()
             {
-                if(position < source.Length)
+                if (position < source.Length)
                     return source[position++];
                 return '\0';
             }
         }
 
+        public SourceLocation CurrentLocation => visitorStack.Peek().CurrentLocation;
+
         private Stack<FileVisitor> visitorStack;
         private SortedSet<string> visitedFiles;
 
-        private Token LastToken;
+        public Token LastToken { get; private set; }
         private char lastChar;
 
         public Scanner(string firstFileToVisit)
@@ -79,6 +77,7 @@ namespace NoHoPython.Syntax.Parsing
 
             IncludeFile(firstFileToVisit);
             ScanChar();
+            ScanToken();
         }
 
         public void IncludeFile(string fileName)
@@ -168,7 +167,9 @@ namespace NoHoPython.Syntax.Parsing
                 case ';':
                     return TokenType.Semicolon;
                 case ':':
-                    return TokenType.Comma;
+                    return TokenType.Colon;
+                case '.':
+                    return TokenType.Period;
                 case '+':
                     return TokenType.Add;
                 case '-':
@@ -277,11 +278,11 @@ namespace NoHoPython.Syntax.Parsing
             else if(lastChar == '\'')
             {
                 ScanChar();
-                Token tok = new Token(TokenType.CharacterLiteral, ScanCharLiteral().ToString());
+                LastToken = new Token(TokenType.CharacterLiteral, ScanCharLiteral().ToString());
                 if (lastChar != '\'')
                     throw new UnexpectedCharacterException('\'', lastChar);
                 ScanChar();
-                return tok;
+                return LastToken;
             }
             else if(lastChar == '\"')
             {
@@ -290,10 +291,10 @@ namespace NoHoPython.Syntax.Parsing
                 while (lastChar != '\"')
                     buffer += ScanCharLiteral();
                 ScanChar();
-                return new Token(TokenType.StringLiteral, buffer);
+                return LastToken = new Token(TokenType.StringLiteral, buffer);
             }
             else
-                return new Token(ScanSymbol(), string.Empty);
+                return LastToken = new Token(ScanSymbol(), string.Empty);
         }
     }
 }

@@ -1,22 +1,6 @@
 ﻿using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
-namespace NoHoPython.IntermediateRepresentation.Statements
-{
-    public sealed partial class VariableDeclaration : IRStatement
-    {
-        public Variable Variable { get; private set; }
-
-        public IRValue SetValue { get; private set; }
-
-        public VariableDeclaration(string name, IRValue setValue, SymbolContainer parentContainer)
-        {
-            parentContainer.DeclareSymbol(Variable = new Variable(setValue.Type, name));
-            SetValue = setValue;
-        }
-    }
-}
-
 namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class VariableReference : IRValue
@@ -33,17 +17,33 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => throw new InvalidOperationException();
     }
 
-    public sealed partial class SetVariable : IRValue
+    public sealed partial class VariableDeclaration : IRValue
     {
-        public IType Type { get => Variable.Type; }
+        public IType Type { get => InitialValue.Type; }
 
         public Variable Variable { get; private set; }
-        public IRValue Value { get; private set; }
+        public IRValue InitialValue { get; private set; }
+
+        public VariableDeclaration(string name, IRValue setValue, SymbolContainer parentContainer)
+        {
+            parentContainer.DeclareSymbol(Variable = new Variable(setValue.Type, name));
+            InitialValue = setValue;
+        }
+
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => throw new InvalidOperationException();
+    }
+
+    public sealed partial class SetVariable : IRValue
+    {
+        public IType Type { get => SetValue.Type; }
+
+        public Variable Variable { get; private set; }
+        public IRValue SetValue { get; private set; }
 
         public SetVariable(Variable variable, IRValue value)
         {
             Variable = variable;
-            Value = ArithmeticCast.CastTo(value, Variable.Type);
+            SetValue = ArithmeticCast.CastTo(value, Variable.Type);
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => throw new InvalidOperationException();

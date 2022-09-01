@@ -17,7 +17,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => throw new InvalidOperationException();
     }
 
-    public sealed partial class VariableDeclaration : IRValue
+    public sealed partial class VariableDeclaration : IRValue, IRStatement
     {
         public IType Type { get => InitialValue.Type; }
 
@@ -33,7 +33,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => throw new InvalidOperationException();
     }
 
-    public sealed partial class SetVariable : IRValue
+    public sealed partial class SetVariable : IRValue, IRStatement
     {
         public IType Type { get => SetValue.Type; }
 

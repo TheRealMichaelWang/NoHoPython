@@ -248,6 +248,7 @@
                     "false" => TokenType.False,
                     "module" => TokenType.Module,
                     "mod" => TokenType.Module,
+                    "class" => TokenType.Record,
                     "record" => TokenType.Record,
                     "proc" => TokenType.Proc,
                     "def" => TokenType.Proc,

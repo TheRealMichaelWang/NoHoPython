@@ -68,7 +68,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public ProcedureReference SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureReference(procedureDeclaration, TypeArguments.Select((IType argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
     }
 
-    public sealed class ReturnStatement
+    public sealed class ReturnStatement : IRStatement
     {
         public IRValue ToReturn { get; private set; }
 

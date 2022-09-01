@@ -101,7 +101,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public sealed partial class SetValueAtIndex : IRValue
+    public sealed partial class SetValueAtIndex : IRValue, IRStatement
     {
         public static IRValue ComposeSetValueAtIndex(IRValue array, IRValue index, IRValue value)
         {
@@ -152,7 +152,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public sealed partial class SetPropertyValue : IRValue
+    public sealed partial class SetPropertyValue : IRValue, IRStatement
     {
         public IType Type => Property.Type;
 

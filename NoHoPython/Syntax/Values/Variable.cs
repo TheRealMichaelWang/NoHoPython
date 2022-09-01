@@ -12,7 +12,7 @@
         }
     }
 
-    public sealed partial class SetVariable : IAstValue
+    public sealed partial class SetVariable : IAstValue, IAstStatement
     {
         public SourceLocation SourceLocation { get; private set; }
         public readonly string Name;

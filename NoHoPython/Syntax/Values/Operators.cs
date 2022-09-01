@@ -55,7 +55,7 @@ namespace NoHoPython.Syntax.Values
         }
     }
 
-    public sealed partial class SetValueAtIndex : IAstValue
+    public sealed partial class SetValueAtIndex : IAstValue, IAstStatement
     {
         public SourceLocation SourceLocation { get; private set; }
 
@@ -87,7 +87,7 @@ namespace NoHoPython.Syntax.Values
         }
     }
 
-    public sealed partial class SetPropertyValue : IAstValue
+    public sealed partial class SetPropertyValue : IAstValue, IAstStatement
     {
         public SourceLocation SourceLocation { get; private set; }
 

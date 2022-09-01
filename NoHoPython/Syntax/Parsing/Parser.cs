@@ -1,9 +1,6 @@
-﻿using NoHoPython.Syntax.Values;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using NoHoPython.Syntax.Statements;
+using NoHoPython.Syntax.Values;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace NoHoPython.Syntax.Parsing
 {
@@ -37,7 +34,7 @@ namespace NoHoPython.Syntax.Parsing
         }
     }
 
-    public sealed class AstParser
+    public sealed partial class AstParser
     {
         private Scanner scanner;
         private int currentExpectedIndents;
@@ -73,7 +70,34 @@ namespace NoHoPython.Syntax.Parsing
             return idBuilder.ToString();
         }
 
-        private List<IAstStatement> parseStatements()
+        IAstStatement parseStatement()
+        {
+            SourceLocation location = scanner.CurrentLocation;
+            switch (scanner.LastToken.Type)
+            {
+                case TokenType.If:
+                    return parseIfElseBlock();
+                case TokenType.While:
+                    return parseWhileBlock();
+                case TokenType.Identifier:
+                    {
+                        IAstValue value = parseExpression();
+                        if (value is IAstStatement statement)
+                            return statement;
+                        throw new UnexpectedTokenException(scanner.LastToken);
+                    }
+                case TokenType.Proc:
+                    return parseProcedureDeclaration();
+                case TokenType.Return:
+                    scanner.ScanToken();
+                    return new ReturnStatement(parseExpression(), location);
+                default:
+                    throw new UnexpectedTokenException(scanner.LastToken);
+            }
+        }
+
+        private bool skipIndentCounting = false;
+        private List<IAstStatement> parseCodeBlock()
         {
             int countIndent()
             {
@@ -83,13 +107,7 @@ namespace NoHoPython.Syntax.Parsing
                 return count;
             }
 
-            bool skipIndentCounting = false;
-
-            IAstStatement parseStatement()
-            {
-
-            }
-
+            currentExpectedIndents++;
             List<IAstStatement> statements = new List<IAstStatement>();
             while (true)
             {
@@ -99,13 +117,21 @@ namespace NoHoPython.Syntax.Parsing
                 {
                     int indentLevel = countIndent();
                     if (indentLevel == currentExpectedIndents)
+                    {
                         statements.Add(parseStatement());
+                        MatchToken(TokenType.Newline);
+                        scanner.ScanToken();
+                    }
                     else if (indentLevel == currentExpectedIndents - 1)
                         break;
                     else
                         throw new IndentationLevelException(currentExpectedIndents, indentLevel);
                 }
             }
+            currentExpectedIndents--;
+            skipIndentCounting = true;
+
+            return statements;
         }
 
         private IAstValue parseExpression(int minPrec = 0)

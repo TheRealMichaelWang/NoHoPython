@@ -5,7 +5,6 @@
         public string TypeName { get; }
 
         public bool IsCompatibleWith(IType type);
-        public bool Equals(IType type);
 
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
         public IType Clone();

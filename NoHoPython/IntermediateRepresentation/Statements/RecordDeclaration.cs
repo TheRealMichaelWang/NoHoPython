@@ -1,4 +1,5 @@
-﻿using NoHoPython.IntermediateRepresentation.Values;
+﻿using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Diagnostics;
@@ -20,6 +21,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public bool HasProperty(string identifier);
         public Property FindProperty(string identifier);
+
+        public List<Property> GetProperties();
     }
 
     public abstract class Property
@@ -63,33 +66,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public readonly List<TypeParameter> TypeParameters;
 
         private readonly List<RecordProperty> properties;
-        private readonly List<InterfaceType> supportedInterfaces;
 
-        public RecordDeclaration(string name, List<TypeParameter> typeParameters, List<RecordProperty> properties, List<InterfaceType> supportedInterfaces) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
+        public RecordDeclaration(string name, List<TypeParameter> typeParameters, List<RecordProperty> properties) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
         {
             Name = name;
             TypeParameters = typeParameters;
             this.properties = properties;
-            this.supportedInterfaces = supportedInterfaces;
-
-            foreach (InterfaceType interfaceType in supportedInterfaces)
-                interfaceType.ValidateSupportForRecord(properties, this);
-        }
-
-        public List<InterfaceType> GetSupportedInterfaces(RecordType recordType)
-        {
-            if (recordType.RecordPrototype != this)
-                throw new InvalidOperationException();
-
-            Dictionary<TypeParameter, IType> typeargs = new(TypeParameters.Count);
-            for (int i = 0; i < TypeParameters.Count; i++)
-                typeargs.Add(TypeParameters[i], recordType.TypeArguments[i]);
-
-            List<InterfaceType> typeSupportedInterfaces = new(supportedInterfaces.Count);
-            foreach (InterfaceType supportedInterface in supportedInterfaces)
-                typeSupportedInterfaces.Add((InterfaceType)supportedInterface.SubstituteWithTypearg(typeargs));
-
-            return typeSupportedInterfaces;
         }
 
         public List<RecordProperty> GetRecordProperties(RecordType recordType)
@@ -106,6 +88,57 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 typeProperties.Add(recordProperty.SubstituteWithTypearg(typeargs));
 
             return typeProperties;
+        }
+    }
+}
+
+namespace NoHoPython.Typing
+{
+
+#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
+    public sealed partial class RecordType : IType, IPropertyContainer
+#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
+    {
+        public string TypeName { get => RecordPrototype.Name; }
+
+        public RecordDeclaration RecordPrototype;
+        public readonly List<IType> TypeArguments;
+
+        public readonly List<RecordDeclaration.RecordProperty> Properties;
+
+        private Dictionary<string, RecordDeclaration.RecordProperty> identifierPropertyMap;
+
+        public RecordType(RecordDeclaration recordPrototype, List<IType> typeArguments)
+        {
+            RecordPrototype = recordPrototype;
+            TypeArguments = typeArguments;
+            TypeParameter.ValidateTypeArguments(recordPrototype.TypeParameters, typeArguments);
+
+            Properties = recordPrototype.GetRecordProperties(this);
+
+            identifierPropertyMap = new Dictionary<string, RecordDeclaration.RecordProperty>(Properties.Count);
+            foreach (RecordDeclaration.RecordProperty property in Properties)
+                identifierPropertyMap.Add(property.Name, property);
+        }
+
+        public bool HasProperty(string identifier) => identifierPropertyMap.ContainsKey(identifier);
+
+        public Property FindProperty(string identifier) => identifierPropertyMap[identifier];
+
+        public List<Property> GetProperties() => Properties.ConvertAll((RecordDeclaration.RecordProperty property) => (Property)property);
+
+        public bool IsCompatibleWith(IType type)
+        {
+            if (type is RecordType recordType)
+            {
+                if (this.RecordPrototype != recordType.RecordPrototype)
+                    return false;
+                for (int i = 0; i < TypeArguments.Count; i++)
+                    if (!this.TypeArguments[i].IsCompatibleWith(recordType.TypeArguments[i]))
+                        return false;
+                return true;
+            }
+            return false;
         }
     }
 }

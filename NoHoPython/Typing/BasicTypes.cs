@@ -18,8 +18,6 @@
         public abstract IType Clone();
         public abstract IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeArgs);
 
-        public bool Equals(IType type) => IsCompatibleWith(type);
-
         public override int GetHashCode() => Id;
     }
 
@@ -87,13 +85,9 @@
         public bool IsCompatibleWith(IType type)
         {
             if(type is ArrayType arrayType)
-            {
-                return ElementType.Equals(arrayType.ElementType);
-            }
+                return ElementType.IsCompatibleWith(arrayType.ElementType);
             return false;
         }
-
-        public bool Equals(IType type) => IsCompatibleWith(type);
     }
 
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
@@ -115,16 +109,14 @@
         {
             if(type is ProcedureType procedureType)
             {
-                if (!ReturnType.Equals(procedureType.ReturnType))
+                if (!ReturnType.IsCompatibleWith(procedureType.ReturnType))
                     return false;
                 for (int i = 0; i < ParameterTypes.Count; i++)
-                    if (!procedureType.ParameterTypes[i].Equals(ParameterTypes[i]))
+                    if (!procedureType.ParameterTypes[i].IsCompatibleWith(ParameterTypes[i]))
                         return false;
                 return true;
             }
             return false;
         }
-
-        public bool Equals(IType type) => IsCompatibleWith(type);
     }
 }

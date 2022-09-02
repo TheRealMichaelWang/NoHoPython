@@ -55,6 +55,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return value;
             else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to{typeTarget.TypeName}"))
                 return new AnonymousProcedureCall(new GetPropertyValue(value, $"to{typeTarget.TypeName}"), new List<IRValue>());
+            else if(typeTarget is EnumType enumType)
+                return new MarshalIntoEnum(enumType, value);
+            else if(typeTarget is InterfaceType interfaceType)
+                return new MarshalIntoInterface(interfaceType, value);
             else if(typeTarget is RecordType recordType)
             {
                 return new AllocRecord(recordType, new List<IRValue>()
@@ -72,7 +76,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             if (primitive.Type is not Primitive)
                 throw new UnexpectedTypeException(primitive.Type);
-            if (targetType.Equals(primitive.Type))
+            if (targetType.IsCompatibleWith(primitive.Type))
                 throw new UnexpectedTypeException(primitive.Type);
 
             Primitive input = (Primitive)primitive;
@@ -89,12 +93,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public ArithmeticCastOperation Operation { get; private set; }
         public IRValue Input { get; private set; }
 
-        public ArithmeticCast(ArithmeticCastOperation operation, IRValue input)
+        private ArithmeticCast(ArithmeticCastOperation operation, IRValue input)
         {
             Operation = operation;
             Input = input;
 
-            if (!inputTypes[Operation].Equals(input.Type))
+            if (!inputTypes[Operation].IsCompatibleWith(input.Type))
                 throw new UnexpectedTypeException(inputTypes[Operation], input.Type);
         }
     }
@@ -153,17 +157,25 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (left.Type is DecimalType)
             {
                 Type = new DecimalType();
-                if (right.Type is IntegerType)
-                    Right = new ArithmeticCast(ArithmeticCast.ArithmeticCastOperation.IntToDecimal, right);
+                Right = ArithmeticCast.CastTo(right, Primitive.Decimal);
             }
             else if (right.Type is DecimalType)
             {
                 Type = new DecimalType();
-                if (left.Type is IntegerType)
-                    Left = new ArithmeticCast(ArithmeticCast.ArithmeticCastOperation.IntToDecimal, left);
+                Left = ArithmeticCast.CastTo(left, Primitive.Decimal);
+            }
+            else if (left.Type is IntegerType)
+            {
+                Type = new IntegerType();
+                Right = ArithmeticCast.CastTo(right, Primitive.Integer);
+            }
+            else if (right.Type is IntegerType)
+            {
+                Type = new IntegerType();
+                Left = ArithmeticCast.CastTo(left, Primitive.Integer);
             }
             else
-                Type = new IntegerType();
+                throw new UnexpectedTypeException(left.Type);
         }
     }
 }

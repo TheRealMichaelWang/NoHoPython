@@ -90,19 +90,16 @@ namespace NoHoPython.Syntax.Values
 
 namespace NoHoPython.Syntax.Parsing
 {
-    public partial class AstParser
+    partial class AstParser
     {
         private IfBlock parseIfBlock()
         {
             SourceLocation location = scanner.CurrentLocation;
-            MatchToken(TokenType.If);
-            scanner.ScanToken();
+            MatchAndScanToken(TokenType.If);
 
             IAstValue condititon = parseExpression();
-            MatchToken(TokenType.Colon);
-            scanner.ScanToken();
-            MatchToken(TokenType.Newline);
-            scanner.ScanToken();
+            MatchAndScanToken(TokenType.Colon);
+            MatchAndScanToken(TokenType.Newline);
 
             return new IfBlock(condititon, parseCodeBlock(), location);
         }
@@ -110,14 +107,11 @@ namespace NoHoPython.Syntax.Parsing
         private IfBlock parseElifBlock(IfBlock parentBlock)
         {
             SourceLocation location = scanner.CurrentLocation;
-            MatchToken(TokenType.Elif);
-            scanner.ScanToken();
+            MatchAndScanToken(TokenType.Elif);
 
             IAstValue condititon = parseExpression();
-            MatchToken(TokenType.Colon);
-            scanner.ScanToken();
-            MatchToken(TokenType.Newline);
-            scanner.ScanToken();
+            MatchAndScanToken(TokenType.Colon);
+            MatchAndScanToken(TokenType.Newline);
 
             IfBlock elifBlock = new IfBlock(condititon, parseCodeBlock(), location);
             parentBlock.SetNextIf(elifBlock);
@@ -127,19 +121,19 @@ namespace NoHoPython.Syntax.Parsing
         private ElseBlock parseElseBlock(IfBlock parentBlock)
         {
             SourceLocation location = scanner.CurrentLocation;
-            MatchToken(TokenType.Else);
-            scanner.ScanToken();
-            MatchToken(TokenType.Colon);
-            scanner.ScanToken();
-            MatchToken(TokenType.Newline);
-            scanner.ScanToken();
+            MatchAndScanToken(TokenType.Else);
+            MatchAndScanToken(TokenType.Colon);
+            MatchAndScanToken(TokenType.Newline);
 
-            return new ElseBlock(parseCodeBlock(), location);
+            ElseBlock elseBlock = new ElseBlock(parseCodeBlock(), location);
+            parentBlock.SetNextElse(elseBlock);
+            return elseBlock;
         }
 
         private IfBlock parseIfElseBlock()
         {
-            IfBlock currentBlock = parseIfBlock();
+            IfBlock head = parseIfBlock();
+            IfBlock currentBlock = head;
             while (true)
             {
                 if (scanner.LastToken.Type == TokenType.Elif)
@@ -156,20 +150,17 @@ namespace NoHoPython.Syntax.Parsing
                 else
                     break;
             }
-            return currentBlock;
+            return head;
         }
 
         private WhileBlock parseWhileBlock()
         {
             SourceLocation location = scanner.CurrentLocation;
-            MatchToken(TokenType.While);
-            scanner.ScanToken();
+            MatchAndScanToken(TokenType.While);
 
             IAstValue condition = parseExpression();
-            MatchToken(TokenType.Colon);
-            scanner.ScanToken();
-            MatchToken(TokenType.Newline);
-            scanner.ScanToken();
+            MatchAndScanToken(TokenType.Colon);
+            MatchAndScanToken(TokenType.Newline);
 
             return new WhileBlock(condition, parseCodeBlock(), location);
         }

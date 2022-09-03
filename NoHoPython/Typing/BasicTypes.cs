@@ -18,6 +18,12 @@
         public abstract IType Clone();
         public abstract IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeArgs);
 
+        public void MatchTypeArgument(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        {
+            if (!IsCompatibleWith(argument))
+                throw new UnexpectedTypeException(this, argument);
+        }
+
         public override int GetHashCode() => Id;
     }
 

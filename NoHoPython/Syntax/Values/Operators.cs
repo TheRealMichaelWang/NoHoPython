@@ -18,7 +18,7 @@ namespace NoHoPython.Syntax.Values
             {TokenType.Divide, 4},
             {TokenType.Modulo, 4},
             {TokenType.Exponentiate, 5},
-            {TokenType.Add, 1},
+            {TokenType.And, 1},
             {TokenType.Or, 1}
         };
 

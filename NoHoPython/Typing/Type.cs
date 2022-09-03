@@ -7,6 +7,8 @@
         public bool IsCompatibleWith(IType type);
 
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
+        public void MatchTypeArgument(Dictionary<TypeParameter, IType> typeargs, IType argument);
+
         public IType Clone();
 
         public string ToString() => TypeName;

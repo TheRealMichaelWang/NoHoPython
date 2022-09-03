@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "NoHoPython": {
+      "commandName": "Project",
+      "commandLineArgs": "tests/test.nhp"
+    }
+  }
+}

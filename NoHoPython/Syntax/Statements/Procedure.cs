@@ -19,15 +19,17 @@ namespace NoHoPython.Syntax.Statements
         public SourceLocation SourceLocation { get; private set; }
 
         public readonly string Name;
+        public readonly List<TypeParameter> TypeParameters;
         public readonly List<ProcedureParameter> Parameters;
         public readonly List<IAstStatement> Statements;
 
-        public ProcedureDeclaration(string name, List<ProcedureParameter> parameters, List<IAstStatement> statements, SourceLocation sourceLocation)
+        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, List<ProcedureParameter> parameters, List<IAstStatement> statements, SourceLocation sourceLocation)
         {
             Name = name;
             Statements = statements;
             SourceLocation = sourceLocation;
             Parameters = parameters;
+            TypeParameters = typeParameters;
         }
     }
 
@@ -52,11 +54,13 @@ namespace NoHoPython.Syntax.Values
         public SourceLocation SourceLocation { get; private set; }
 
         public readonly string Name;
+        public readonly List<AstType> TypeArguments;
         public readonly List<IAstValue> Arguments;
 
-        public NamedFunctionCall(string name, List<IAstValue> arguments, SourceLocation sourceLocation)
+        public NamedFunctionCall(string name, List<AstType> typeArguments, List<IAstValue> arguments, SourceLocation sourceLocation)
         {
             Name = name;
+            TypeArguments = typeArguments;
             Arguments = arguments;
             SourceLocation = sourceLocation;
         }
@@ -80,21 +84,21 @@ namespace NoHoPython.Syntax.Values
 
 namespace NoHoPython.Syntax.Parsing
 {
-    public partial class AstParser
+    partial class AstParser
     {
         private ProcedureDeclaration parseProcedureDeclaration()
         {
             SourceLocation location = scanner.CurrentLocation;
 
-            MatchToken(TokenType.Proc);
-            scanner.ScanToken();
+            MatchAndScanToken(TokenType.Define);
 
             MatchToken(TokenType.Identifier);
             string identifer = scanner.LastToken.Identifier;
             scanner.ScanToken();
 
-            MatchToken(TokenType.OpenParen);
-            scanner.ScanToken();
+            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.OpenBrace) ? parseTypeParameters() : new List<TypeParameter>();
+            
+            MatchAndScanToken(TokenType.OpenParen);
 
             List<ProcedureDeclaration.ProcedureParameter> parameters = new List<ProcedureDeclaration.ProcedureParameter>();
             while(scanner.LastToken.Type != TokenType.CloseParen)
@@ -104,18 +108,13 @@ namespace NoHoPython.Syntax.Parsing
                 parameters.Add(new ProcedureDeclaration.ProcedureParameter(scanner.LastToken.Identifier, paramType));
                 scanner.ScanToken();
 
-
                 if (scanner.LastToken.Type != TokenType.CloseParen)
-                {
-                    MatchToken(TokenType.Comma);
-                    scanner.ScanToken();
-                }
+                    MatchAndScanToken(TokenType.Comma);
             }
             scanner.ScanToken();
-            MatchToken(TokenType.Colon);
-            scanner.ScanToken();
-            MatchToken(TokenType.Newline);
-            return new ProcedureDeclaration(identifer, parameters, parseCodeBlock(), location);
+            MatchAndScanToken(TokenType.Colon);
+            MatchAndScanToken(TokenType.Newline);
+            return new ProcedureDeclaration(identifer, typeParameters, parameters, parseCodeBlock(), location);
         }
     }
 }

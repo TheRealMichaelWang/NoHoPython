@@ -2,6 +2,7 @@
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.IntermediateRepresentation
 {
@@ -44,28 +45,40 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     public sealed class ProcedureReference
     {
-        public readonly List<IType> TypeArguments;
         public readonly List<IType> ParameterTypes;
         public IType ReturnType { get; private set; }
+
+        private Dictionary<TypeParameter, IType> typeArguments;
 
         private ProcedureDeclaration procedureDeclaration;
 
         public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IType> typeArguments)
         {
             this.procedureDeclaration = procedureDeclaration;
-            TypeArguments = typeArguments;
+            this.typeArguments = new Dictionary<TypeParameter, IType>();
 
             TypeParameter.ValidateTypeArguments(this.procedureDeclaration.TypeParameters, typeArguments);
-
-            Dictionary<TypeParameter, IType> typeargs = new Dictionary<TypeParameter, IType>(TypeArguments.Count);
-            for (int i = 0; i < TypeArguments.Count; i++)
-                typeargs.Add(procedureDeclaration.TypeParameters[i], TypeArguments[i]);
+            for (int i = 0; i < typeArguments.Count; i++)
+                this.typeArguments.Add(procedureDeclaration.TypeParameters[i], typeArguments[i]);
             
-            ParameterTypes = procedureDeclaration.Parameters.Select((Variable param) => param.Type.SubstituteWithTypearg(typeargs)).ToList();
-            ReturnType = procedureDeclaration.ReturnType.SubstituteWithTypearg(typeargs);
+            ParameterTypes = procedureDeclaration.Parameters.Select((Variable param) => param.Type.SubstituteWithTypearg(this.typeArguments)).ToList();
+            ReturnType = procedureDeclaration.ReturnType.SubstituteWithTypearg(this.typeArguments);
         }
 
-        public ProcedureReference SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureReference(procedureDeclaration, TypeArguments.Select((IType argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
+        public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments)
+        {
+            this.procedureDeclaration = procedureDeclaration;
+            typeArguments = new Dictionary<TypeParameter, IType>();
+
+            Debug.Assert(procedureDeclaration.Parameters.Count == arguments.Count);
+            for (int i = 0; i < procedureDeclaration.Parameters.Count; i++)
+                procedureDeclaration.Parameters[i].Type.MatchTypeArgument(typeArguments, arguments[i].Type);
+
+            ParameterTypes = procedureDeclaration.Parameters.Select((Variable param) => param.Type.SubstituteWithTypearg(typeArguments)).ToList();
+            ReturnType = procedureDeclaration.ReturnType.SubstituteWithTypearg(typeArguments);
+        }
+
+        public ProcedureReference SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureReference(procedureDeclaration, this.typeArguments.Select((KeyValuePair<TypeParameter, IType> argument) => argument.Value.SubstituteWithTypearg(typeargs)).ToList());
     }
 
     public sealed class ReturnStatement : IRStatement
@@ -111,6 +124,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments) : base(arguments, procedure.ParameterTypes, procedure.ReturnType)
         {
             Procedure = procedure;
+        }
+
+        public LinkedProcedureCall(ProcedureDeclaration procedure, List<IRValue> arguments) : this(new ProcedureReference(procedure, arguments), arguments)
+        {
+
         }
 
         public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new LinkedProcedureCall(Procedure.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());

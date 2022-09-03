@@ -1,5 +1,14 @@
-﻿int main()
-{
+﻿using NoHoPython.Syntax;
+using NoHoPython.Syntax.Parsing;
 
-    return 0;
+public static class Program 
+{
+    public static int Main(string[] args)
+    {
+        AstParser parser = new AstParser(new Scanner(args[0], Environment.CurrentDirectory));
+
+        List<IAstStatement> statements = parser.ParseAll();
+
+        return 0;
+    }
 }

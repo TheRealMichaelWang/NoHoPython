@@ -12,7 +12,9 @@
         False,
         Module,
         Record,
-        Proc,
+        Interface,
+        Enum,
+        Define,
         While,
         For,
         If,
@@ -21,9 +23,11 @@
         Break,
         Continue,
         Return,
+        Include,
         In,
         And,
         Or,
+        Readonly,
 
         //symbols
         OpenBracket,

@@ -94,7 +94,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
 namespace NoHoPython.Typing
 {
-
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class RecordType : IType, IPropertyContainer
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).

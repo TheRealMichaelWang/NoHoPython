@@ -14,6 +14,14 @@ namespace NoHoPython.Typing
                     throw new UnexpectedTypeException(new TypeParameterReference(typeParameters[i]), typeArguments[i]);
         }
 
+        public static void MatchTypeargs(Dictionary<TypeParameter, IType> typeargs, List<IType> existingTypeArguments, List<IType> arguments)
+        {
+            if (existingTypeArguments.Count != arguments.Count)
+                throw new UnexpectedTypeArgumentsException(existingTypeArguments.Count, arguments.Count);
+            for (int i = 0; i < existingTypeArguments.Count; i++)
+                existingTypeArguments[i].MatchTypeArgument(typeargs, arguments[i]);
+        }
+
         public static string GetMangledTypeArgumentNames(List<IType> typeArguments) => string.Join('_', typeArguments.Select((IType type) => type.TypeName));
 
         public bool IsGloballyNavigable => false;
@@ -36,14 +44,55 @@ namespace NoHoPython.Typing
         }
     }
 
-    partial class TypeParameterReference
+#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
+    public sealed partial class TypeParameterReference : IType
+#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
+        public string TypeName { get => TypeParameter.Name; }
+
+        public TypeParameter TypeParameter { get; private set; }
+
+        public TypeParameterReference(TypeParameter typeParameter)
+        {
+            TypeParameter = typeParameter;
+        }
+
+        public bool IsCompatibleWith(IType type)
+        {
+            if (type is TypeParameterReference typeParameterReference)
+                return TypeParameter == typeParameterReference.TypeParameter;
+            return false;
+        }
+
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => typeargs[TypeParameter].Clone();
+
+        public void MatchTypeArgument(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        {
+            if (typeargs.ContainsKey(this.TypeParameter))
+            {
+                if (!typeargs[this.TypeParameter].IsCompatibleWith(argument))
+                    throw new UnexpectedTypeException(typeargs[this.TypeParameter], argument);
+            }
+            else
+            {
+                if (!this.TypeParameter.SupportsType(argument))
+                    throw new UnexpectedTypeException(argument);
+                typeargs.Add(this.TypeParameter, argument);
+            }
+        }
     }
 
     partial class ArrayType
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArrayType(ElementType.SubstituteWithTypearg(typeargs));
+
+        public void MatchTypeArgument(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        {
+            if (argument is ArrayType arrayType)
+                ElementType.MatchTypeArgument(typeargs, arrayType.ElementType);
+            else
+                throw new UnexpectedTypeException(argument);
+        }
     }
 
     partial class BooleanType
@@ -69,21 +118,56 @@ namespace NoHoPython.Typing
     partial class EnumType
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new EnumType(EnumDeclaration, TypeArguments.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList()); 
+
+        public void MatchTypeArgument(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        {
+            if (argument is EnumType enumType)
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, enumType.TypeArguments);
+            else
+                throw new UnexpectedTypeException(argument);
+        }
     }
 
     partial class RecordType
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new RecordType(RecordPrototype, TypeArguments.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList());
+
+        public void MatchTypeArgument(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        {
+            if (argument is RecordType recordType)
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, recordType.TypeArguments);
+            else
+                throw new UnexpectedTypeException(argument);
+        }
     }
 
     partial class InterfaceType
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new InterfaceType(InterfaceDeclaration, TypeArguments.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList());
+
+        public void MatchTypeArgument(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        {
+            if (argument is InterfaceType interfaceType)
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, interfaceType.TypeArguments);
+            else
+                throw new UnexpectedTypeException(argument);
+        }
     }
 
     partial class ProcedureType
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureType(ReturnType.SubstituteWithTypearg(typeargs), ParameterTypes.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList());
+
+        public void MatchTypeArgument(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        {
+            if (argument is ProcedureType procedureType)
+            {
+                ReturnType.MatchTypeArgument(typeargs, procedureType.ReturnType);
+                TypeParameter.MatchTypeargs(typeargs, ParameterTypes, procedureType.ParameterTypes);
+            }
+            else
+                throw new UnexpectedTypeException(argument);
+        }
     }
 }
 

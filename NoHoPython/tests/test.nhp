@@ -1,0 +1,21 @@
+﻿class person:
+	string name = "michael"
+	int age
+	
+	def __init__(person self, string name):
+		self.name = name
+	
+	def sayHi(person self):
+		print("Hello, bitch!")
+
+def main():
+	michael = person("Michael Wang")
+	print(michael)
+
+def fun(int a):
+	if a == 1:
+		print("fuck")
+	elif a == 2:
+		print("bitch")
+	else:
+		print("michael")

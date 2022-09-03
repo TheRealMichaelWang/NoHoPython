@@ -35,19 +35,29 @@
             public SourceLocation CurrentLocation => new SourceLocation(Row, Column, FileName);
 
             public readonly string FileName;
+            public readonly string WorkingDirectory;
+
             public int Row { get; private set; }
             public int Column { get; private set; }
 
             private readonly string source;
             private int position;
 
-            public FileVisitor(string fileName)
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+            public FileVisitor(string fileName, Scanner scanner)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
             {
-                FileName = fileName;
-
-                if (!File.Exists(fileName))
+                if(File.Exists(scanner.standardLibraryDirectory + "\\" + fileName))
+                    fileName = scanner.standardLibraryDirectory + "\\" + fileName;
+                else if (!File.Exists(fileName))
                     throw new FileNotFoundException(fileName);
+                fileName = Path.GetFullPath(fileName);
+
+                FileName = fileName;
                 source = File.ReadAllText(fileName);
+#pragma warning disable CS8601 // Possible null reference assignment.
+                WorkingDirectory = Path.GetDirectoryName(fileName);
+#pragma warning restore CS8601 // Possible null reference assignment.
 
                 Row = 1;
                 Column = 1;
@@ -63,6 +73,7 @@
         }
 
         public SourceLocation CurrentLocation => visitorStack.Peek().CurrentLocation;
+        private string CurrentWorkingDirectory => visitorStack.Peek().WorkingDirectory;
 
         private Stack<FileVisitor> visitorStack;
         private SortedSet<string> visitedFiles;
@@ -70,8 +81,11 @@
         public Token LastToken { get; private set; }
         private char lastChar;
 
-        public Scanner(string firstFileToVisit)
+        private readonly string standardLibraryDirectory;
+
+        public Scanner(string firstFileToVisit, string standardLibraryDirectory)
         {
+            this.standardLibraryDirectory = standardLibraryDirectory;
             visitorStack = new Stack<FileVisitor>();
             visitedFiles = new SortedSet<string>();
 
@@ -82,10 +96,11 @@
 
         public void IncludeFile(string fileName)
         {
-            if (visitedFiles.Contains(fileName))
+            FileVisitor visitor = new FileVisitor(fileName, this);
+            if (visitedFiles.Contains(visitor.FileName))
                 return;
 
-            visitorStack.Push(new FileVisitor(fileName));
+            visitorStack.Push(visitor);
             visitedFiles.Add(fileName);
         }
 
@@ -99,7 +114,7 @@
                     visitorStack.Pop();
                     return ScanChar();
                 }
-                return '\0';
+                return lastChar = '\0';
             }
             else
                 return lastChar = c;
@@ -167,7 +182,14 @@
                 case ';':
                     return TokenType.Semicolon;
                 case ':':
-                    return TokenType.Colon;
+                    {
+                        if (lastChar == '=') //walrus operator
+                        {
+                            ScanChar();
+                            return TokenType.Set;
+                        }
+                        return TokenType.Colon;
+                    }
                 case '.':
                     return TokenType.Period;
                 case '+':
@@ -248,10 +270,12 @@
                     "false" => TokenType.False,
                     "module" => TokenType.Module,
                     "mod" => TokenType.Module,
+                    "interface" => TokenType.Interface,
+                    "enum" => TokenType.Enum,
                     "class" => TokenType.Record,
                     "record" => TokenType.Record,
-                    "proc" => TokenType.Proc,
-                    "def" => TokenType.Proc,
+                    "readonly" => TokenType.Readonly,
+                    "def" => TokenType.Define,
                     "while" => TokenType.While,
                     "for" => TokenType.For,
                     "if" => TokenType.If,

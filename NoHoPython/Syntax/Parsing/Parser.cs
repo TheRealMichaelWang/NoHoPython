@@ -222,6 +222,12 @@ namespace NoHoPython.Syntax.Parsing
                                 scanner.ScanToken();
                                 return stringLiteral;
                             }
+                        case TokenType.True:
+                            scanner.ScanToken();
+                            return new TrueLiteral(location);
+                        case TokenType.False:
+                            scanner.ScanToken();
+                            return new FalseLiteral(location);
                         default:
                             throw new UnexpectedTokenException(scanner.LastToken);
                     }

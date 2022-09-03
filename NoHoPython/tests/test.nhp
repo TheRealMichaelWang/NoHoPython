@@ -19,3 +19,6 @@ def fun(int a):
 		print("bitch")
 	else:
 		print("michael")
+	
+	while True:
+		eatMyAss()

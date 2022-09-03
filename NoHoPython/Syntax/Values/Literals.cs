@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NoHoPython.Syntax.Values
+﻿namespace NoHoPython.Syntax.Values
 {
     public sealed class IntegerLiteral : IAstValue
     {
@@ -60,6 +54,26 @@ namespace NoHoPython.Syntax.Values
         public ArrayLiteral(string stringLiteral, SourceLocation sourceLocation) : this(stringLiteral.ToList().ConvertAll((char c) => (IAstValue)(new CharacterLiteral(c, sourceLocation))), sourceLocation)
         {
 
+        }
+    }
+
+    public sealed partial class TrueLiteral : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public TrueLiteral(SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+        }
+    }
+
+    public sealed partial class FalseLiteral : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public FalseLiteral(SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
         }
     }
 }

@@ -38,6 +38,20 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    public sealed partial class TrueLiteral : IRValue
+    {
+        public IType Type => new BooleanType();
+
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new TrueLiteral();
+    }
+
+    public sealed partial class FalseLiteral : IRValue
+    {
+        public IType Type => new BooleanType();
+
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new FalseLiteral();
+    }
+
     public sealed partial class ArrayLiteral : IRValue
     {
         public IType Type { get => new ArrayType(ElementType); }

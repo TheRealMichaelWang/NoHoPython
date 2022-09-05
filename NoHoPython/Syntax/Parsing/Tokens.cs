@@ -27,6 +27,7 @@
         In,
         And,
         Or,
+        As,
         Readonly,
 
         //symbols

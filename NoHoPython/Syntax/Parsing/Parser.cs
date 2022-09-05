@@ -187,9 +187,9 @@ namespace NoHoPython.Syntax.Parsing
                             {
                                 string identifier = parseIdentifier();
                                 if (scanner.LastToken.Type == TokenType.OpenBrace)
-                                    return new NamedFunctionCall(identifier, parseTypeArguments(), parseArguments(), location);
+                                    return new NamedFunctionCall(identifier, parseArguments(), location);
                                 else if (scanner.LastToken.Type == TokenType.OpenParen) //is function call
-                                    return new NamedFunctionCall(identifier, new List<AstType>(), parseArguments(), location);
+                                    return new NamedFunctionCall(identifier, parseArguments(), location);
                                 else if (scanner.LastToken.Type == TokenType.Set)
                                 {
                                     scanner.ScanToken();
@@ -273,6 +273,11 @@ namespace NoHoPython.Syntax.Parsing
                         MatchAndScanToken(TokenType.Else);
 
                         value = new IfElseValue(value, ifTrue, parseExpression(), value.SourceLocation);
+                    }
+                    else if(scanner.LastToken.Type == TokenType.As)
+                    {
+                        scanner.ScanToken();
+                        value = new ExplicitCast(value, parseType(), value.SourceLocation);
                     }
                     else
                         break;

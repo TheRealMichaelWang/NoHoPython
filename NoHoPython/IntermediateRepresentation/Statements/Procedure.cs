@@ -50,35 +50,39 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         private Dictionary<TypeParameter, IType> typeArguments;
 
-        private ProcedureDeclaration procedureDeclaration;
+        public ProcedureDeclaration ProcedureDeclaration { get; private set; }
 
-        public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IType> typeArguments)
+        private static Dictionary<TypeParameter, IType> MatchTypeArguments(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments)
         {
-            this.procedureDeclaration = procedureDeclaration;
-            this.typeArguments = new Dictionary<TypeParameter, IType>();
-
-            TypeParameter.ValidateTypeArguments(this.procedureDeclaration.TypeParameters, typeArguments);
-            for (int i = 0; i < typeArguments.Count; i++)
-                this.typeArguments.Add(procedureDeclaration.TypeParameters[i], typeArguments[i]);
-            
-            ParameterTypes = procedureDeclaration.Parameters.Select((Variable param) => param.Type.SubstituteWithTypearg(this.typeArguments)).ToList();
-            ReturnType = procedureDeclaration.ReturnType.SubstituteWithTypearg(this.typeArguments);
-        }
-
-        public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments)
-        {
-            this.procedureDeclaration = procedureDeclaration;
-            typeArguments = new Dictionary<TypeParameter, IType>();
+            Dictionary<TypeParameter, IType> typeArguments = new();
 
             Debug.Assert(procedureDeclaration.Parameters.Count == arguments.Count);
             for (int i = 0; i < procedureDeclaration.Parameters.Count; i++)
-                procedureDeclaration.Parameters[i].Type.MatchTypeArgument(typeArguments, arguments[i].Type);
+                arguments[i] = procedureDeclaration.Parameters[i].Type.MatchTypeArgumentWithValue(typeArguments, arguments[i]);
 
+            return typeArguments;
+        }
+
+        public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments) : this(MatchTypeArguments(procedureDeclaration, arguments), procedureDeclaration)
+        {
+
+        }
+
+        private ProcedureReference(Dictionary<TypeParameter, IType> typeArguments, ProcedureDeclaration procedureDeclaration)
+        {
+            ProcedureDeclaration = procedureDeclaration;
+            this.typeArguments = typeArguments;
             ParameterTypes = procedureDeclaration.Parameters.Select((Variable param) => param.Type.SubstituteWithTypearg(typeArguments)).ToList();
             ReturnType = procedureDeclaration.ReturnType.SubstituteWithTypearg(typeArguments);
         }
 
-        public ProcedureReference SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureReference(procedureDeclaration, this.typeArguments.Select((KeyValuePair<TypeParameter, IType> argument) => argument.Value.SubstituteWithTypearg(typeargs)).ToList());
+        public ProcedureReference SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs)
+        {
+            Dictionary<TypeParameter, IType> newTypeargs = new Dictionary<TypeParameter, IType>(typeargs.Count);
+            foreach (KeyValuePair<TypeParameter, IType> typearg in this.typeArguments)
+                newTypeargs.Add(typearg.Key, typearg.Value.SubstituteWithTypearg(typeargs));
+            return new ProcedureReference(newTypeargs, ProcedureDeclaration);
+        }
     }
 
     public sealed class ReturnStatement : IRStatement
@@ -94,58 +98,50 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
-    public abstract class ProcedureCall : IRValue
+    public sealed class LinkedProcedureCall : IRValue
     {
-        public IType Type => ReturnType;
+        public IType Type => Procedure.ReturnType;
 
-        public readonly List<IRValue> Arguments;
-        public IType ReturnType { get; private set; }
-
-        public ProcedureCall(List<IRValue> arguments, List<IType> expectedParameterTypes, IType returnType)
-        {
-            ReturnType = returnType;
-
-            if (arguments.Count != expectedParameterTypes.Count)
-                throw new UnexpectedArgumentsException(arguments.Select((IRValue argument) => argument.Type).ToList(), expectedParameterTypes);
-
-            for (int i = 0; i < expectedParameterTypes.Count; i++)
-                arguments[i] = ArithmeticCast.CastTo(arguments[i], expectedParameterTypes[i]);
-                
-            Arguments = arguments;
-        }
-
-        public abstract IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
-    }
-
-    public sealed class LinkedProcedureCall : ProcedureCall
-    {
         public ProcedureReference Procedure { get; private set; }
-
-        public LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments) : base(arguments, procedure.ParameterTypes, procedure.ReturnType)
-        {
-            Procedure = procedure;
-        }
+        public readonly List<IRValue> Arguments;
 
         public LinkedProcedureCall(ProcedureDeclaration procedure, List<IRValue> arguments) : this(new ProcedureReference(procedure, arguments), arguments)
         {
 
         }
 
-        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new LinkedProcedureCall(Procedure.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
-    }
-
-    public sealed class AnonymousProcedureCall : ProcedureCall
-    {
-        public IRValue ProcedureValue { get; private set; }
-
-        public AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments) : base(arguments, procedureValue.Type is ProcedureType procedureType ? 
-                                                                                         procedureType.ParameterTypes :
-                                                                                         throw new UnexpectedTypeException(procedureValue.Type), procedureType.ReturnType)
+        private LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments)
         {
-            ProcedureValue = procedureValue;
+            Procedure = procedure;
+            Arguments = arguments;
         }
 
-        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AnonymousProcedureCall(ProcedureValue.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new LinkedProcedureCall(Procedure.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
+    }
+
+    public sealed class AnonymousProcedureCall : IRValue
+    {
+        public IType Type => ProcedureType.ReturnType;
+
+        public IRValue ProcedureValue { get; private set; }
+        public readonly List<IRValue> Arguments;
+        public ProcedureType ProcedureType { get; private set; }
+
+        public AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments)
+        {
+            ProcedureValue = procedureValue;
+            if (procedureValue.Type is ProcedureType procedureType)
+            {
+                ProcedureType = procedureType;
+                for (int i = 0; i < procedureType.ParameterTypes.Count; i++)
+                    arguments[i] = ArithmeticCast.CastTo(arguments[i], procedureType.ParameterTypes[i]);
+                Arguments = arguments;
+            }
+            else
+                throw new UnexpectedTypeException(procedureValue.Type);
+        }
+
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AnonymousProcedureCall(ProcedureValue.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
     }
 
     public sealed class AnonymizeProcedure : IRValue

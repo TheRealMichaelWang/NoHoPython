@@ -1,4 +1,5 @@
 ﻿using NoHoPython.Syntax.Statements;
+using System.Text;
 
 namespace NoHoPython.Syntax.Statements
 {
@@ -17,6 +18,19 @@ namespace NoHoPython.Syntax.Statements
             TypeParameters = typeParameters;
             Options = options;
         }
+
+        public string ToString(int indent)
+        {
+            StringBuilder builder = new StringBuilder();
+            builder.Append($"{IAstStatement.Indent(indent)}enum {Identifier}");
+            if (TypeParameters.Count > 0)
+                builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            builder.Append(':');
+
+            foreach (AstType option in Options)
+                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{option}");
+            return builder.ToString();
+        }
     }
 
     public sealed partial class InterfaceDeclaration : IAstStatement
@@ -31,6 +45,8 @@ namespace NoHoPython.Syntax.Statements
                 Type = type;
                 Identifier = identifier;
             }
+
+            public override string ToString() => $"{Type} {Identifier}";
         }
 
         public SourceLocation SourceLocation { get; private set; }
@@ -45,6 +61,19 @@ namespace NoHoPython.Syntax.Statements
             Identifier = identifier;
             TypeParameters = typeParameters;
             Properties = properties;
+        }
+
+        public string ToString(int indent)
+        {
+            StringBuilder builder = new StringBuilder();
+            builder.Append($"{IAstStatement.Indent(indent)}interface {Identifier}");
+            if (TypeParameters.Count > 0)
+                builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            builder.Append(':');
+
+            foreach (InterfaceProperty property in Properties)
+                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
+            return builder.ToString();
         }
     }
 
@@ -65,6 +94,24 @@ namespace NoHoPython.Syntax.Statements
                 IsReadOnly = isReadOnly;
                 DefaultValue = defaultValue;
             }
+
+            public override string ToString()
+            {
+                StringBuilder builder = new StringBuilder();
+                if (IsReadOnly)
+                    builder.Append("readonly ");
+                
+                builder.Append(Type);
+                builder.Append(' ');
+                builder.Append(Identifier);
+                
+                if(DefaultValue != null)
+                {
+                    builder.Append(" = ");
+                    builder.Append(DefaultValue.ToString());
+                }
+                return builder.ToString();
+            }
         }
 
         public SourceLocation SourceLocation { get; private set; }
@@ -81,6 +128,18 @@ namespace NoHoPython.Syntax.Statements
             Properties = properties;
             MessageRecievers = messageRecievers;
             SourceLocation = sourceLocation;
+        }
+    
+        public string ToString(int indent)
+        {
+            StringBuilder builder = new StringBuilder();
+            builder.Append($"{IAstStatement.Indent(indent)}class {Identifier}");
+            if (TypeParameters.Count > 0)
+                builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            builder.Append(':');
+            foreach (RecordProperty property in Properties)
+                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
+            return builder.ToString();
         }
     }
 }

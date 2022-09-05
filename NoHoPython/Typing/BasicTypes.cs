@@ -1,4 +1,7 @@
-﻿namespace NoHoPython.Typing
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Values;
+
+namespace NoHoPython.Typing
 {
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public abstract class Primitive : IType
@@ -18,11 +21,13 @@
         public abstract IType Clone();
         public abstract IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeArgs);
 
-        public void MatchTypeArgument(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
         {
             if (!IsCompatibleWith(argument))
                 throw new UnexpectedTypeException(this, argument);
         }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
 
         public override int GetHashCode() => Id;
     }

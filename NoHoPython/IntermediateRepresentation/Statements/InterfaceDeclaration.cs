@@ -91,10 +91,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if(value.Type is TypeParameterReference typeParameterReference)
             {
-                foreach (IType requriedType in typeParameterReference.TypeParameter.RequiredSupportedTypes)
-                    if (requriedType is IPropertyContainer requriedContainer && TargetType.SupportsProperties(requriedContainer.GetProperties()))
-                        return;
-                throw new UnexpectedTypeException(typeParameterReference);
+                if(typeParameterReference.TypeParameter.RequiredImplementedInterface is not null && typeParameterReference.TypeParameter.RequiredImplementedInterface is IPropertyContainer requiredContainer)
+                {
+                    if(!TargetType.SupportsProperties(requiredContainer.GetProperties()))
+                        throw new UnexpectedTypeException(typeParameterReference);
+                }
+                else
+                    throw new UnexpectedTypeException(typeParameterReference);
             }
             if (value.Type is IPropertyContainer propertyContainer)
             {

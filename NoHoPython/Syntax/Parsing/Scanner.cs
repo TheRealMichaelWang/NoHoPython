@@ -67,7 +67,16 @@
             public char ScanChar()
             {
                 if (position < source.Length)
+                {
+                    if (source[position] == '\n')
+                    {
+                        Row++;
+                        Column = 1;
+                    }
+                    else
+                        Column++;
                     return source[position++];
+                }
                 return '\0';
             }
         }

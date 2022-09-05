@@ -10,6 +10,8 @@
             Name = name;
             SourceLocation = sourceLocation;
         }
+
+        public override string ToString() => Name;
     }
 
     public sealed partial class SetVariable : IAstValue, IAstStatement
@@ -24,5 +26,8 @@
             SetValue = setValue;
             SourceLocation = sourceLocation;
         }
+
+        public override string ToString() => $"{Name} = {SetValue}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{this}";
     }
 }

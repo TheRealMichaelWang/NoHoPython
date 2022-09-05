@@ -3,13 +3,15 @@
     public sealed class TypeParameter
     {
         public readonly string Identifier;
-        public readonly List<AstType> RequiredImplementedTypes;
+        public AstType? RequiredImplementedType { get; private set; }
 
-        public TypeParameter(string identifier, List<AstType> requiredImplementedTypes)
+        public TypeParameter(string identifier, AstType? requiredImplementedType)
         {
             Identifier = identifier;
-            RequiredImplementedTypes = requiredImplementedTypes;
+            RequiredImplementedType = requiredImplementedType; 
         }
+
+        public override string ToString() => Identifier + RequiredImplementedType == null ? string.Empty : $": {RequiredImplementedType}";
     }
 
     public sealed class AstType
@@ -22,6 +24,34 @@
             Identifier = identifier;
             TypeArguments = typeArguments;
         }
+
+        public override string ToString()
+        {
+            if (TypeArguments.Count == 0)
+                return Identifier;
+            else
+                return $"{Identifier}<{string.Join(", ", TypeArguments)}>";
+        }
+    }
+}
+
+namespace NoHoPython.Syntax.Values
+{
+    public sealed partial class ExplicitCast : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+        
+        public IAstValue ToCast { get; private set; }
+        public AstType TargetType { get; private set; }
+        
+        public ExplicitCast(IAstValue toCast, AstType targetType, SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+            ToCast = toCast;
+            TargetType = targetType;
+        }
+
+        public override string ToString() => $"{ToCast} as {TargetType}";
     }
 }
 
@@ -39,16 +69,11 @@ namespace NoHoPython.Syntax.Parsing
 
                 if (scanner.LastToken.Type == TokenType.Colon)
                 {
-                    List<AstType> requiredImplementedTypes = new List<AstType>();
-                    do
-                    {
-                        scanner.ScanToken();
-                        requiredImplementedTypes.Add(parseType());
-                    } while (scanner.LastToken.Type == TokenType.Comma);
-                    return new TypeParameter(identifier, requiredImplementedTypes);
+                    scanner.ScanToken();
+                    return new TypeParameter(identifier, parseType());
                 }
                 else
-                    return new TypeParameter(identifier, new List<AstType>());
+                    return new TypeParameter(identifier, null);
             }
 
             MatchToken(TokenType.OpenBrace);
@@ -70,14 +95,14 @@ namespace NoHoPython.Syntax.Parsing
 
         private List<AstType> parseTypeArguments()
         {
-            MatchToken(TokenType.OpenBrace);
+            MatchToken(TokenType.Less);
 
             List<AstType> typeArguments = new List<AstType>();
             while (true)
             {
                 scanner.ScanToken();
                 typeArguments.Add(parseType());
-                if (scanner.LastToken.Type == TokenType.CloseBrace)
+                if (scanner.LastToken.Type == TokenType.More)
                     break;
                 else
                     MatchToken(TokenType.Comma);
@@ -92,7 +117,7 @@ namespace NoHoPython.Syntax.Parsing
             string identifier = scanner.LastToken.Identifier;
             scanner.ScanToken();
 
-            if (scanner.LastToken.Type == TokenType.OpenBrace)
+            if (scanner.LastToken.Type == TokenType.Less)
                 return new AstType(identifier, parseTypeArguments());
             else
                 return new AstType(identifier, new List<AstType>());

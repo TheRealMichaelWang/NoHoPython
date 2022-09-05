@@ -22,6 +22,24 @@ namespace NoHoPython.Syntax.Values
             {TokenType.Or, 1}
         };
 
+        private static readonly Dictionary<TokenType, string> OperatorSymbol = new Dictionary<TokenType, string>()
+        {
+            {TokenType.Equals, "=="},
+            {TokenType.NotEquals, "!="},
+            {TokenType.More, ">"},
+            {TokenType.Less, "<"},
+            {TokenType.MoreEqual, ">="},
+            {TokenType.LessEqual, "<="},
+            {TokenType.Add, "+"},
+            {TokenType.Subtract, "-"},
+            {TokenType.Multiply, "*"},
+            {TokenType.Divide, "/"},
+            {TokenType.Modulo, "%"},
+            {TokenType.Exponentiate, "^"},
+            {TokenType.And, "and"},
+            {TokenType.Or, "or"}
+        };
+
         public SourceLocation SourceLocation { get; private set; }
 
         public TokenType Operator { get; private set; }
@@ -38,6 +56,8 @@ namespace NoHoPython.Syntax.Values
             Left = left;
             Right = right;
         }
+
+        public override string ToString() => $"{Left} {OperatorSymbol[Operator]} {Right}";
     }
 
     public sealed partial class GetValueAtIndex : IAstValue
@@ -53,6 +73,8 @@ namespace NoHoPython.Syntax.Values
             Array = array;
             Index = index;
         }
+
+        public override string ToString() => $"{Array}[{Index}]";
     }
 
     public sealed partial class SetValueAtIndex : IAstValue, IAstStatement
@@ -70,6 +92,9 @@ namespace NoHoPython.Syntax.Values
             Value = value;
             Index = index;
         }
+
+        public override string ToString() => $"{Array}[{Index}] = {Value}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{this}";
     }
 
     public sealed partial class GetPropertyValue : IAstValue
@@ -85,6 +110,8 @@ namespace NoHoPython.Syntax.Values
             Record = record;
             Property = property;
         }
+
+        public override string ToString() => $"{Record}.{Property}";
     }
 
     public sealed partial class SetPropertyValue : IAstValue, IAstStatement
@@ -102,5 +129,8 @@ namespace NoHoPython.Syntax.Values
             Value = value;
             Property = property;
         }
+
+        public override string ToString() => $"{Record}.{Property} = {Value}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{this}";
     }
 }

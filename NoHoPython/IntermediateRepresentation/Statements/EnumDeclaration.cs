@@ -54,12 +54,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if(value.Type is TypeParameterReference typeParameterReference)
             {
-                foreach(IType requiredType in typeParameterReference.TypeParameter.RequiredSupportedTypes)
+                if(typeParameterReference.TypeParameter.RequiredImplementedInterface is not null)
                 {
-                    if (TargetType.SupportsType(requiredType))
-                        return;
+                    if(!targetType.SupportsType(typeParameterReference.TypeParameter.RequiredImplementedInterface))
+                        throw new UnexpectedTypeException(value.Type);
                 }
-                throw new UnexpectedTypeException(value.Type);
+                else
+                    throw new UnexpectedTypeException(value.Type);
             }
             else if (!TargetType.SupportsType(value.Type))
                 throw new UnexpectedTypeException(value.Type);

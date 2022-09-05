@@ -1,4 +1,6 @@
-﻿namespace NoHoPython.Typing
+﻿using NoHoPython.IntermediateRepresentation;
+
+namespace NoHoPython.Typing
 {
     public interface IType
     {
@@ -7,7 +9,9 @@
         public bool IsCompatibleWith(IType type);
 
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
-        public void MatchTypeArgument(Dictionary<TypeParameter, IType> typeargs, IType argument);
+
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument);
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument);
 
         public IType Clone();
 

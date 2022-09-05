@@ -37,6 +37,10 @@ namespace NoHoPython.Syntax.Statements
 
             NextElse = elseBlock;
         }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}if {Condition}:\n{IAstStatement.BlockToString(indent, IfTrueBlock)}{(NextIf == null ? NextElse == null ? string.Empty : "\n" + NextElse.ToString(indent) :"\n" + NextIf.ToElifString(indent))}";
+
+        private string ToElifString(int indent) => $"{IAstStatement.Indent(indent)}elif {Condition}:\n{IAstStatement.BlockToString(indent, IfTrueBlock)}{(NextIf == null ? NextElse == null ? string.Empty : "\n" + NextElse.ToString(indent) : "\n" + NextIf.ToElifString(indent))}";
     }
 
     public sealed partial class ElseBlock : IAstStatement
@@ -49,6 +53,8 @@ namespace NoHoPython.Syntax.Statements
             SourceLocation = sourceLocation;
             ToExecute = toExecute;
         }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}else:\n{IAstStatement.BlockToString(indent, ToExecute)}";
     }
 
     public sealed partial class WhileBlock : IAstStatement
@@ -65,6 +71,8 @@ namespace NoHoPython.Syntax.Statements
             Condition = condition;
             ToExecute = toExecute;
         }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}while {Condition}:\n{IAstStatement.BlockToString(indent, ToExecute)}";
     }
 }
 
@@ -85,6 +93,8 @@ namespace NoHoPython.Syntax.Values
             IfFalseValue = ifFalseValue;
             SourceLocation = sourceLocation;
         }
+
+        public override string ToString() => $"{Condition} if {IfTrueValue} else {IfFalseValue}";
     }
 }
 

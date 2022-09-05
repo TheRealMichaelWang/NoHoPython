@@ -14,6 +14,8 @@ namespace NoHoPython.Syntax.Statements
                 Identifier = identifier;
                 Type = type;
             }
+
+            public override string ToString() => $"{Type} {Identifier}";
         }
 
         public SourceLocation SourceLocation { get; private set; }
@@ -31,6 +33,8 @@ namespace NoHoPython.Syntax.Statements
             Parameters = parameters;
             TypeParameters = typeParameters;
         }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}def {Name}({string.Join(", ", Parameters)}):\n{IAstStatement.BlockToString(indent, Statements)}";
     }
 
     public sealed partial class ReturnStatement : IAstStatement
@@ -44,6 +48,8 @@ namespace NoHoPython.Syntax.Statements
             SourceLocation = sourceLocation;
             ReturnValue = returnValue;
         }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}return {ReturnValue}";
     }
 }
 
@@ -54,16 +60,18 @@ namespace NoHoPython.Syntax.Values
         public SourceLocation SourceLocation { get; private set; }
 
         public readonly string Name;
-        public readonly List<AstType> TypeArguments;
         public readonly List<IAstValue> Arguments;
 
-        public NamedFunctionCall(string name, List<AstType> typeArguments, List<IAstValue> arguments, SourceLocation sourceLocation)
+        public NamedFunctionCall(string name, List<IAstValue> arguments, SourceLocation sourceLocation)
         {
             Name = name;
-            TypeArguments = typeArguments;
             Arguments = arguments;
             SourceLocation = sourceLocation;
         }
+
+        public override string ToString() => $"{Name}({string.Join(", ", Arguments)})";
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{this}";
     }
 
     public sealed partial class AnonymousFunctionCall : IAstValue
@@ -79,6 +87,8 @@ namespace NoHoPython.Syntax.Values
             Arguments = arguments;
             SourceLocation= sourceLocation;
         }
+
+        public override string ToString() => $"{ProcedureValue}({string.Join(", ", Arguments)})";
     }
 }
 

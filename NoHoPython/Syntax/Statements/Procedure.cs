@@ -106,7 +106,7 @@ namespace NoHoPython.Syntax.Parsing
             string identifer = scanner.LastToken.Identifier;
             scanner.ScanToken();
 
-            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.OpenBrace) ? parseTypeParameters() : new List<TypeParameter>();
+            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
             
             MatchAndScanToken(TokenType.OpenParen);
 

@@ -5,10 +5,19 @@ public static class Program
 {
     public static int Main(string[] args)
     {
-        AstParser parser = new AstParser(new Scanner(args[0], Environment.CurrentDirectory));
+        Console.Title = "North-Hollywood Python Compiler";
 
-        List<IAstStatement> statements = parser.ParseAll();
-        Console.WriteLine(IAstStatement.BlockToString(0, statements));
+        try
+        {
+            AstParser parser = new AstParser(new Scanner(args[0], Environment.CurrentDirectory));
+
+            List<IAstStatement> statements = parser.ParseAll();
+            Console.WriteLine(IAstStatement.BlockToString(0, statements));
+        }
+        catch (SyntaxError syntaxError)
+        {
+            syntaxError.Print();
+        }
 
         return 0;
     }

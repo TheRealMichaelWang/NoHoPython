@@ -27,6 +27,7 @@
         In,
         And,
         Or,
+        New,
         As,
         Readonly,
 

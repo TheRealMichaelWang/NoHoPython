@@ -4,36 +4,6 @@ using System.Text;
 
 namespace NoHoPython.Syntax.Parsing
 {
-    public sealed class UnexpectedTokenException : Exception
-    {
-        public TokenType? ExpectedTokenType { get; private set; }
-        public Token RecievedToken { get; private set; }
-
-        public UnexpectedTokenException(TokenType expectedTokenType, Token recievedToken) : base($"Expected {expectedTokenType} but got {recievedToken.Type} instead.")
-        {
-            ExpectedTokenType = expectedTokenType;  
-            RecievedToken = recievedToken;
-        }
-
-        public UnexpectedTokenException(Token recievedToken) : base($"Unexpected token {recievedToken.Type}")
-        {
-            ExpectedTokenType = null;
-            RecievedToken = recievedToken;
-        }
-    }
-
-    public sealed class IndentationLevelException : Exception
-    {
-        public int ExpectedIndentationLevel { get; private set; }
-        public int ReceivedIndentationLevel { get; private set; }
-
-        public IndentationLevelException(int expectedIndentationLevel, int recievedIndentationLevel) : base($"Expected {expectedIndentationLevel} tabs/indents, but got {recievedIndentationLevel} instead.")
-        {
-            ExpectedIndentationLevel = expectedIndentationLevel;
-            ReceivedIndentationLevel = recievedIndentationLevel;
-        }
-    }
-
     public sealed partial class AstParser
     {
         private Scanner scanner;
@@ -48,7 +18,7 @@ namespace NoHoPython.Syntax.Parsing
         private void MatchToken(TokenType expectedLastTokenType)
         {
             if (scanner.LastToken.Type != expectedLastTokenType)
-                throw new UnexpectedTokenException(expectedLastTokenType, scanner.LastToken);
+                throw new UnexpectedTokenException(expectedLastTokenType, scanner.LastToken, scanner.CurrentLocation);
         }
 
         private void MatchAndScanToken(TokenType expectedLastTokenType)
@@ -90,13 +60,13 @@ namespace NoHoPython.Syntax.Parsing
                         IAstValue value = parseExpression();
                         if (value is IAstStatement statement)
                             return statement;
-                        throw new UnexpectedTokenException(scanner.LastToken);
+                        throw new UnexpectedTokenException(scanner.LastToken, location);
                     }
                 case TokenType.Return:
                     scanner.ScanToken();
                     return new ReturnStatement(parseExpression(), location);
                 default:
-                    throw new UnexpectedTokenException(scanner.LastToken);
+                    throw new UnexpectedTokenException(scanner.LastToken, location);
             }
         }
 
@@ -141,7 +111,7 @@ namespace NoHoPython.Syntax.Parsing
                 else if (lastCountedIndents < currentExpectedIndents)
                     break;
                 else
-                    throw new IndentationLevelException(currentExpectedIndents, lastCountedIndents);
+                    throw new IndentationLevelException(currentExpectedIndents, lastCountedIndents, scanner.CurrentLocation);
             }
             currentExpectedIndents--;
             skipIndentCounting = true;
@@ -151,25 +121,26 @@ namespace NoHoPython.Syntax.Parsing
 
         private List<IAstStatement> parseCodeBlock() => parseBlock(parseStatement);
 
+        private List<IAstValue> parseArguments()
+        {
+            MatchAndScanToken(TokenType.OpenParen);
+
+            List<IAstValue> arguments = new List<IAstValue>();
+            while (scanner.LastToken.Type != TokenType.CloseParen)
+            {
+                arguments.Add(parseExpression());
+                if (scanner.LastToken.Type != TokenType.CloseParen)
+                    MatchAndScanToken(TokenType.Comma);
+            }
+            scanner.ScanToken();
+
+            return arguments;
+        }
+
         private IAstValue parseExpression(int minPrec = 0)
         {
             IAstValue parseValue()
             {
-                List<IAstValue> parseArguments()
-                {
-                    MatchAndScanToken(TokenType.OpenParen);
-
-                    List<IAstValue> arguments = new List<IAstValue>();
-                    while (scanner.LastToken.Type != TokenType.CloseParen)
-                    {
-                        arguments.Add(parseExpression());
-                        if (scanner.LastToken.Type != TokenType.CloseParen)
-                            MatchAndScanToken(TokenType.Comma);
-                    }
-                    scanner.ScanToken();
-
-                    return arguments;
-                }
 
                 IAstValue parseFirst()
                 {
@@ -228,8 +199,11 @@ namespace NoHoPython.Syntax.Parsing
                         case TokenType.False:
                             scanner.ScanToken();
                             return new FalseLiteral(location);
+                        case TokenType.New:
+                            scanner.ScanToken();
+                            return new InstantiateNewRecord(parseType(), parseArguments(), location);
                         default:
-                            throw new UnexpectedTokenException(scanner.LastToken);
+                            throw new UnexpectedTokenException(scanner.LastToken, location);
                     }
                 }
                 IAstValue value = parseFirst();
@@ -290,10 +264,30 @@ namespace NoHoPython.Syntax.Parsing
             Token opTok;
             while (BinaryOperator.OperatorPrecedence.ContainsKey((opTok = scanner.LastToken).Type) && BinaryOperator.OperatorPrecedence[opTok.Type] > minPrec)
             {
+                SourceLocation opLocation = scanner.CurrentLocation;
                 scanner.ScanToken();
-                value = new BinaryOperator(opTok, value, parseExpression(BinaryOperator.OperatorPrecedence[opTok.Type]), value.SourceLocation);
+                value = new BinaryOperator(opTok, value, parseExpression(BinaryOperator.OperatorPrecedence[opTok.Type]), value.SourceLocation, opLocation);
             }
             return value;
+        }
+
+        private IAstStatement parseTopLevel()
+        {
+            switch (scanner.LastToken.Type)
+            {
+                case TokenType.Define:
+                    return parseProcedureDeclaration();
+                case TokenType.Enum:
+                    return parseEnumDeclaration();
+                case TokenType.Interface:
+                    return parseInterfaceDeclaration();
+                case TokenType.Record:
+                    return parseRecordDeclaration();
+                case TokenType.Module:
+                    return parseModule();
+                default:
+                    throw new UnexpectedTokenException(scanner.LastToken, scanner.CurrentLocation);
+            }
         }
 
         public List<IAstStatement> ParseAll()
@@ -317,20 +311,9 @@ namespace NoHoPython.Syntax.Parsing
                             scanner.IncludeFile(file);
                             continue;
                         }
-                    case TokenType.Define:
-                        topLevelStatements.Add(parseProcedureDeclaration());
-                        break;
-                    case TokenType.Enum:
-                        topLevelStatements.Add(parseEnumDeclaration());
-                        break;
-                    case TokenType.Interface:
-                        topLevelStatements.Add(parseInterfaceDeclaration());
-                        break;
-                    case TokenType.Record:
-                        topLevelStatements.Add(parseRecordDeclaration());
-                        break;
                     default:
-                        throw new UnexpectedTokenException(scanner.LastToken);
+                        topLevelStatements.Add(parseTopLevel());
+                        break;
                 }
             }
             return topLevelStatements;

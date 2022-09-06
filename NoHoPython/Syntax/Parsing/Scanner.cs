@@ -296,6 +296,7 @@
                     "in" => TokenType.In,
                     "and" => TokenType.And,
                     "or" => TokenType.Or,
+                    "new" => TokenType.New,
                     _ => TokenType.Identifier
                 }, keyword);
             }

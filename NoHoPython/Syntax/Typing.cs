@@ -11,7 +11,7 @@
             RequiredImplementedType = requiredImplementedType; 
         }
 
-        public override string ToString() => Identifier + RequiredImplementedType == null ? string.Empty : $": {RequiredImplementedType}";
+        public override string ToString() => Identifier + (RequiredImplementedType == null ? string.Empty : $": {RequiredImplementedType}");
     }
 
     public sealed class AstType
@@ -76,7 +76,7 @@ namespace NoHoPython.Syntax.Parsing
                     return new TypeParameter(identifier, null);
             }
 
-            MatchToken(TokenType.OpenBrace);
+            MatchToken(TokenType.Less);
 
             List<TypeParameter> typeParameters = new List<TypeParameter>();
             while (true)
@@ -84,7 +84,7 @@ namespace NoHoPython.Syntax.Parsing
                 scanner.ScanToken();
                 typeParameters.Add(parseTypeParameter());
 
-                if (scanner.LastToken.Type == TokenType.CloseBrace)
+                if (scanner.LastToken.Type == TokenType.More)
                     break;
                 else
                     MatchToken(TokenType.Comma);

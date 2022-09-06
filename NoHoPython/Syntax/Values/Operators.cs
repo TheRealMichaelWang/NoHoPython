@@ -46,10 +46,10 @@ namespace NoHoPython.Syntax.Values
         public IAstValue Left { get; private set; }
         public IAstValue Right { get; private set; }
 
-        public BinaryOperator(Token @operator, IAstValue left, IAstValue right, SourceLocation sourceLocation)
+        public BinaryOperator(Token @operator, IAstValue left, IAstValue right, SourceLocation sourceLocation, SourceLocation operatorLocation)
         {
             if (!OperatorPrecedence.ContainsKey(@operator.Type))
-                throw new UnexpectedTokenException(@operator);
+                throw new UnexpectedTokenException(@operator, operatorLocation);
 
             SourceLocation = sourceLocation;
             Operator = @operator.Type;

@@ -105,4 +105,20 @@ namespace NoHoPython.Syntax.Values
 
         public override string ToString() => "False";
     }
+
+    public sealed partial class InstantiateNewRecord : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+        public AstType RecordType { get; private set; }
+        public readonly List<IAstValue> Arguments;
+
+        public InstantiateNewRecord(AstType recordType, List<IAstValue> arguments, SourceLocation sourceLocation)
+        {
+            RecordType = recordType;
+            Arguments = arguments;
+            SourceLocation = sourceLocation;
+        }
+
+        public override string ToString() => $"new {RecordType}({string.Join(", ", Arguments)})";
+    }
 }

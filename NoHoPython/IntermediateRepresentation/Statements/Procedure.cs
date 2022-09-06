@@ -68,6 +68,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         }
 
+        public ProcedureReference(ProcedureDeclaration procedureDeclaration) : this(new Dictionary<TypeParameter, IType>(), procedureDeclaration)
+        {
+
+        }
+
         private ProcedureReference(Dictionary<TypeParameter, IType> typeArguments, ProcedureDeclaration procedureDeclaration)
         {
             ProcedureDeclaration = procedureDeclaration;
@@ -150,9 +155,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public ProcedureReference Procedure { get; private set; }
 
-        public AnonymizeProcedure(ProcedureReference procedure)
+        private AnonymizeProcedure(ProcedureReference procedure)
         {
             Procedure = procedure;
+        }
+        
+        public AnonymizeProcedure(ProcedureDeclaration procedure) : this(new ProcedureReference(procedure))
+        {
+
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs));

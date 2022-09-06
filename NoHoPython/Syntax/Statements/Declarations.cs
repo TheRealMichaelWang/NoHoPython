@@ -142,6 +142,23 @@ namespace NoHoPython.Syntax.Statements
             return builder.ToString();
         }
     }
+
+    public sealed partial class ModuleContainer : IAstStatement
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public readonly string Identifier;
+        public readonly List<IAstStatement> Statements;
+        
+        public ModuleContainer(string identifier, List<IAstStatement> statements, SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+            Identifier = identifier;
+            Statements = statements;
+        }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}module {Identifier}\n{IAstStatement.BlockToString(indent, Statements)}";
+    }
 }
 
 namespace NoHoPython.Syntax.Parsing
@@ -157,7 +174,7 @@ namespace NoHoPython.Syntax.Parsing
             string identifier = scanner.LastToken.Identifier;
 
             scanner.ScanToken();
-            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.OpenBrace) ? parseTypeParameters() : new List<TypeParameter>();
+            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
 
             List<AstType> Options = parseBlock(parseType);
             return new EnumDeclaration(identifier, typeParameters, Options, location);
@@ -172,7 +189,7 @@ namespace NoHoPython.Syntax.Parsing
             string identifier = scanner.LastToken.Identifier;
 
             scanner.ScanToken();
-            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.OpenBrace) ? parseTypeParameters() : new List<TypeParameter>();
+            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
 
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
@@ -197,7 +214,7 @@ namespace NoHoPython.Syntax.Parsing
             string identifier = scanner.LastToken.Identifier;
 
             scanner.ScanToken();
-            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.OpenBrace) ? parseTypeParameters() : new List<TypeParameter>();
+            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
 
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
@@ -232,6 +249,21 @@ namespace NoHoPython.Syntax.Parsing
                     return new RecordDeclaration.RecordProperty(type, identifier, isReadonly, null);
             });
             return new RecordDeclaration(identifier, typeParameters, properties, procedures, location);
+        }
+
+        private ModuleContainer parseModule()
+        {
+            SourceLocation location = scanner.CurrentLocation;
+
+            MatchAndScanToken(TokenType.Module);
+            MatchToken(TokenType.Identifier);
+            string identifier = scanner.LastToken.Identifier;
+            scanner.ScanToken();
+            MatchAndScanToken(TokenType.Colon);
+            MatchAndScanToken(TokenType.Newline);
+
+            List<IAstStatement> statements = parseBlock(parseTopLevel);
+            return new ModuleContainer(identifier, statements, location);
         }
     }
 }

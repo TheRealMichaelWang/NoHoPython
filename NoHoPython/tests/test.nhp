@@ -22,3 +22,13 @@ def fun(int a):
 	
 	while True:
 		eatMyAss()
+
+mod data:
+	class list<T>:
+		array<T> buffer
+		
+		def __init__(int size):
+			buffer = malloc<T>(size)
+	
+	def range<T>():
+		return new list<T>()

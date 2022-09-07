@@ -25,12 +25,17 @@ namespace NoHoPython.Syntax.Statements
         public readonly List<ProcedureParameter> Parameters;
         public readonly List<IAstStatement> Statements;
 
-        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, List<ProcedureParameter> parameters, List<IAstStatement> statements, SourceLocation sourceLocation)
+        public AstType ReturnType { get; private set; }
+
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, List<ProcedureParameter> parameters, List<IAstStatement> statements, AstType returnType, SourceLocation sourceLocation)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             Name = name;
             Statements = statements;
             SourceLocation = sourceLocation;
             Parameters = parameters;
+            ReturnType = returnType;
             TypeParameters = typeParameters;
         }
 
@@ -122,9 +127,10 @@ namespace NoHoPython.Syntax.Parsing
                     MatchAndScanToken(TokenType.Comma);
             }
             scanner.ScanToken();
+            AstType returnType = parseType();
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
-            return new ProcedureDeclaration(identifer, typeParameters, parameters, parseCodeBlock(), location);
+            return new ProcedureDeclaration(identifer, typeParameters, parameters, parseCodeBlock(), returnType, location);
         }
     }
 }

@@ -77,6 +77,8 @@ namespace NoHoPython.Scoping
             }
         }
 
+        public SymbolContainer? CurrentContainer => scopeStack.Count > 0 ? scopeStack.Peek() : null;
+
         private Stack<Module> usedModuleStack;
         private Stack<SymbolContainer> scopeStack;
 

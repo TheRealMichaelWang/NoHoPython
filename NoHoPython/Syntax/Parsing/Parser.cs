@@ -65,6 +65,8 @@ namespace NoHoPython.Syntax.Parsing
                 case TokenType.Return:
                     scanner.ScanToken();
                     return new ReturnStatement(parseExpression(), location);
+                case TokenType.Define:
+                    return parseProcedureDeclaration();
                 default:
                     throw new UnexpectedTokenException(scanner.LastToken, location);
             }

@@ -1,4 +1,5 @@
-﻿using NoHoPython.IntermediateRepresentation.Statements;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
@@ -58,6 +59,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
 
             public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), isReadOnly, DefaultValue == null ? null : DefaultValue.SubstituteWithTypearg(typeargs));
+
+            public void DelayedLinkSetDefaultValue(IRValue defaultValue)
+            {
+                if (DefaultValue != null)
+                    throw new InvalidOperationException();
+                DefaultValue = defaultValue;
+            }
         }
 
         public bool IsGloballyNavigable => false;
@@ -65,18 +73,19 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public string Name { get; private set; }
         public readonly List<TypeParameter> TypeParameters;
 
-        private readonly List<RecordProperty> properties;
+        private List<RecordProperty>? properties;
 
-        public RecordDeclaration(string name, List<TypeParameter> typeParameters, List<RecordProperty> properties) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
+        public RecordDeclaration(string name, List<TypeParameter> typeParameters) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
         {
             Name = name;
             TypeParameters = typeParameters;
-            this.properties = properties;
         }
 
         public List<RecordProperty> GetRecordProperties(RecordType recordType)
         {
             if (recordType.RecordPrototype != this)
+                throw new InvalidOperationException();
+            if (this.properties == null)
                 throw new InvalidOperationException();
 
             Dictionary<TypeParameter, IType> typeargs = new(TypeParameters.Count);
@@ -88,6 +97,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 typeProperties.Add(recordProperty.SubstituteWithTypearg(typeargs));
 
             return typeProperties;
+        }
+
+        public void DelayedLinkSetProperties(List<RecordProperty> properties) 
+        {
+            if (this.properties != null)
+                throw new InvalidOperationException();
+            this.properties = properties;
         }
     }
 }
@@ -138,6 +154,41 @@ namespace NoHoPython.Typing
                 return true;
             }
             return false;
+        }
+    }
+}
+
+namespace NoHoPython.Syntax.Statements
+{
+    partial class RecordDeclaration
+    {
+        private IntermediateRepresentation.Statements.RecordDeclaration IRRecordDeclaration;
+
+        public void ForwardTypeDeclare(IRProgramBuilder irBuilder)
+        {
+            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder));
+
+            IRRecordDeclaration = new IntermediateRepresentation.Statements.RecordDeclaration(Identifier, typeParameters);
+            irBuilder.SymbolMarshaller.DeclareSymbol(IRRecordDeclaration);
+            irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
+
+            foreach (Typing.TypeParameter parameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter);
+            irBuilder.SymbolMarshaller.GoBack();
+
+            irBuilder.RecordDeclarations.Add(IRRecordDeclaration);
+        }
+
+        public void ForwardDeclare(IRProgramBuilder irBuilder)
+        {
+            irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
+ 
+            IRRecordDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder), property.IsReadOnly, null)));
+
+            foreach (ProcedureDeclaration messageReciever in MessageRecievers)
+                messageReciever.ForwardDeclare(irBuilder);
+
+            irBuilder.SymbolMarshaller.GoBack();
         }
     }
 }

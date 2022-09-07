@@ -1,4 +1,5 @@
-﻿using NoHoPython.IntermediateRepresentation.Statements;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
@@ -27,19 +28,23 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public string Name { get; private set; }
 
         public readonly List<TypeParameter> TypeParameters;
-        public readonly List<Variable> Parameters;
+        public List<Variable>? Parameters { get; private set; }
 
         public IType ReturnType { get; private set; }
 
-        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, List<Variable> parameters, IType returnType, List<IRStatement> statements, SymbolContainer? parentContainer) : base(statements, parentContainer, parameters)
+        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, IType returnType, SymbolContainer? parentContainer) : base(parentContainer, new List<Variable>())
         {
             this.Name = name;
             this.TypeParameters = typeParameters;
-            this.Parameters = parameters;
+            this.Parameters = null;
             this.ReturnType = returnType;
+        }
 
-            foreach (TypeParameter typeParameter in typeParameters)
-                base.DeclareSymbol(typeParameter);
+        public void DeclareParameters(List<Variable> parameters)
+        {
+            Parameters = parameters;
+            foreach (Variable parameter in parameters)
+                DeclareSymbol(parameter);
         }
     }
 
@@ -166,5 +171,38 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs));
+    }
+}
+
+namespace NoHoPython.Syntax.Statements
+{
+    partial class ProcedureDeclaration
+    {
+        private IntermediateRepresentation.Statements.ProcedureDeclaration IRProcedureDeclaration;
+
+        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclare(IRProgramBuilder irBuilder)
+        {
+            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder));
+
+            SymbolContainer? parentContainer = irBuilder.SymbolMarshaller.CurrentContainer;
+            if (parentContainer != null && !(parentContainer is IntermediateRepresentation.Statements.ProcedureDeclaration || parentContainer is IntermediateRepresentation.Statements.RecordDeclaration))
+                parentContainer = null;
+
+            IRProcedureDeclaration = new(Name, typeParameters, ReturnType.ToIRType(irBuilder), parentContainer);
+            List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder), parameter.Identifier, IRProcedureDeclaration));
+            IRProcedureDeclaration.DeclareParameters(parameters);
+
+            irBuilder.SymbolMarshaller.DeclareSymbol(IRProcedureDeclaration);
+            irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
+
+            foreach (Typing.TypeParameter parameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter);
+
+            IAstStatement.ForwardDeclareBlock(irBuilder, Statements);
+
+            irBuilder.SymbolMarshaller.GoBack();
+        }
     }
 }

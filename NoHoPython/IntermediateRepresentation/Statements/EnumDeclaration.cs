@@ -1,4 +1,5 @@
-﻿using NoHoPython.IntermediateRepresentation.Statements;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
@@ -11,18 +12,19 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public string Name { get; private set; }
 
         public readonly List<TypeParameter> TypeParameters;
-        private readonly List<IType> options;
+        private List<IType>? options;
 
-        public EnumDeclaration(string name, List<IType> options, List<TypeParameter> typeParameters) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
+        public EnumDeclaration(string name, List<TypeParameter> typeParameters) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
         {
             Name = name;
-            this.options = options;
             TypeParameters = typeParameters;
         }
 
         public List<IType> GetOptions(EnumType enumType)
         {
             if (enumType.EnumDeclaration != this)
+                throw new InvalidOperationException();
+            if (this.options == null)
                 throw new InvalidOperationException();
 
             Dictionary<TypeParameter, IType> typeargs = new (TypeParameters.Count);
@@ -34,6 +36,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 typeOptions.Add(option.SubstituteWithTypearg(typeargs));
 
             return typeOptions;
+        }
+
+        public void DelayedLinkSetOptions(List<IType> options)
+        {
+            if (this.options != null)
+                throw new InvalidOperationException();
+            this.options = options;
         }
     }
 }
@@ -115,6 +124,32 @@ namespace NoHoPython.Typing
             }
 
             return false;
+        }
+    }
+}
+
+namespace NoHoPython.Syntax.Statements
+{
+    partial class EnumDeclaration
+    {
+        private IntermediateRepresentation.Statements.EnumDeclaration IREnumDeclaration;
+
+        public void ForwardTypeDeclare(IRProgramBuilder irBuilder)
+        {
+            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder));
+
+            IREnumDeclaration = new IntermediateRepresentation.Statements.EnumDeclaration(Identifier, typeParameters);
+            irBuilder.SymbolMarshaller.DeclareSymbol(IREnumDeclaration);
+            irBuilder.SymbolMarshaller.NavigateToScope(IREnumDeclaration);
+
+            foreach (Typing.TypeParameter parameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter);
+            irBuilder.SymbolMarshaller.GoBack();
+        }
+
+        public void ForwardDeclare(IRProgramBuilder irBuilder)
+        {
+            IREnumDeclaration.DelayedLinkSetOptions(Options.ConvertAll((AstType option) => option.ToIRType(irBuilder)));
         }
     }
 }

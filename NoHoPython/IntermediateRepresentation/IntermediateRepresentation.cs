@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation
@@ -15,20 +16,22 @@ namespace NoHoPython.IntermediateRepresentation
 
     }
 
-    public sealed class IRProgram
+    public sealed class IRProgramBuilder
     {
-        public readonly List<EnumDeclaration> EnumDeclarations;
-        public readonly List<InterfaceDeclaration> InterfaceDeclarations;
-        public readonly List<RecordDeclaration> RecordDeclarations;
+        public List<EnumDeclaration> EnumDeclarations;
+        public List<InterfaceDeclaration> InterfaceDeclarations;
+        public List<RecordDeclaration> RecordDeclarations;
 
-        public readonly List<ProcedureDeclaration> ProcedureDeclarations;
+        public List<ProcedureDeclaration> ProcedureDeclarations;
+        public SymbolMarshaller SymbolMarshaller;
 
-        public IRProgram(List<EnumDeclaration> enumDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<RecordDeclaration> recordDeclarations, List<ProcedureDeclaration> procedureDeclarations)
+        public IRProgramBuilder()
         {
-            EnumDeclarations = enumDeclarations;
-            InterfaceDeclarations = interfaceDeclarations;
-            RecordDeclarations = recordDeclarations;
-            ProcedureDeclarations = procedureDeclarations;
+            SymbolMarshaller = new SymbolMarshaller(new List<IScopeSymbol>());
+            EnumDeclarations = new List<EnumDeclaration>();
+            InterfaceDeclarations = new List<InterfaceDeclaration>();
+            RecordDeclarations = new List<RecordDeclaration>();
+            ProcedureDeclarations = new List<ProcedureDeclaration>();
         }
     }
 }

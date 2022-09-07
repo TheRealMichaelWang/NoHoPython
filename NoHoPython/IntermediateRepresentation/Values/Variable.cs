@@ -1,4 +1,5 @@
-﻿using NoHoPython.Scoping;
+﻿using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
@@ -24,10 +25,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public Variable Variable { get; private set; }
         public IRValue InitialValue { get; private set; }
 
-        public VariableDeclaration(string name, IRValue setValue, SymbolContainer parentContainer)
+        public VariableDeclaration(string name, IRValue setValue, IRProgramBuilder irBuilder)
         {
-            parentContainer.DeclareSymbol(Variable = new Variable(setValue.Type, name));
-            InitialValue = setValue;
+            if (irBuilder.SymbolMarshaller.CurrentContainer is ProcedureDeclaration procedureDeclaration)
+            {
+                irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, procedureDeclaration));
+                InitialValue = setValue;
+            }
+            else
+                throw new InvalidOperationException();
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => throw new InvalidOperationException();
@@ -59,10 +65,13 @@ namespace NoHoPython.Scoping
         public IType Type { get; private set; }
         public string Name { get; private set; }
 
-        public Variable(IType type, string name)
+        public ProcedureDeclaration ParentProcedure { get; private set; }
+
+        public Variable(IType type, string name, ProcedureDeclaration parentProcedure)
         {
             Type = type;
             Name = name;
+            ParentProcedure = parentProcedure;
         }
     }
 

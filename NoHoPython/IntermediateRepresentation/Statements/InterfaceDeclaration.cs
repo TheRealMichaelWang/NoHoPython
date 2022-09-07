@@ -1,4 +1,5 @@
-﻿using NoHoPython.IntermediateRepresentation.Statements;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
@@ -49,18 +50,19 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public string Name { get; private set; }
 
         public readonly List<TypeParameter> TypeParameters;
-        private readonly List<InterfaceProperty> requiredImplementedProperties;
+        private List<InterfaceProperty>? requiredImplementedProperties;
 
-        public InterfaceDeclaration(string name, List<TypeParameter> typeParameters, List<InterfaceProperty> requiredImplementedProperties) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
+        public InterfaceDeclaration(string name, List<TypeParameter> typeParameters) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
         {
             Name = name;
             TypeParameters = typeParameters;
-            this.requiredImplementedProperties = requiredImplementedProperties;
         }
 
         public List<InterfaceProperty> GetRequiredProperties(InterfaceType interfaceType)
         {
             if (interfaceType.InterfaceDeclaration != this)
+                throw new InvalidOperationException();
+            if (this.requiredImplementedProperties == null)
                 throw new InvalidOperationException();
 
             Dictionary<TypeParameter, IType> typeargs = new (requiredImplementedProperties.Count);
@@ -71,6 +73,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             for(int i = 0; i < interfaceRequiredProperties.Count; i++)
                 interfaceRequiredProperties.Add(requiredImplementedProperties[i].SubstituteWithTypeargs(typeargs));
             return interfaceRequiredProperties;
+        }
+
+        public void DelayedLinkSetProperties(List<InterfaceProperty> requiredImplementedProperties)
+        {
+            if (this.requiredImplementedProperties != null)
+                throw new InvalidOperationException();
+            this.requiredImplementedProperties = requiredImplementedProperties;
         }
     }
 }
@@ -176,6 +185,32 @@ namespace NoHoPython.Typing
                     return false;
             }
             return true;
+        }
+    }
+}
+
+namespace NoHoPython.Syntax.Statements
+{
+    partial class InterfaceDeclaration
+    {
+        private IntermediateRepresentation.Statements.InterfaceDeclaration IRInterfaceDeclaration;
+
+        public void ForwardTypeDeclare(IRProgramBuilder irBuilder)
+        {
+            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder));
+
+            IRInterfaceDeclaration = new IntermediateRepresentation.Statements.InterfaceDeclaration(Identifier, typeParameters);
+            irBuilder.SymbolMarshaller.DeclareSymbol(IRInterfaceDeclaration);
+            irBuilder.SymbolMarshaller.NavigateToScope(IRInterfaceDeclaration);
+
+            foreach (Typing.TypeParameter parameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter);
+            irBuilder.SymbolMarshaller.GoBack();
+        }
+
+        public void ForwardDeclare(IRProgramBuilder irBuilder)
+        {
+            IRInterfaceDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((InterfaceProperty property) => new IntermediateRepresentation.Statements.InterfaceDeclaration.InterfaceProperty(property.Identifier, property.Type.ToIRType(irBuilder))));
         }
     }
 }

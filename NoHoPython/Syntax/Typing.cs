@@ -1,4 +1,9 @@
-﻿namespace NoHoPython.Syntax
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Scoping;
+using NoHoPython.Typing;
+
+namespace NoHoPython.Syntax
 {
     public sealed class TypeParameter
     {
@@ -12,6 +17,8 @@
         }
 
         public override string ToString() => Identifier + (RequiredImplementedType == null ? string.Empty : $": {RequiredImplementedType}");
+
+        public Typing.TypeParameter ToIRTypeParameter(IRProgramBuilder irBuilder) => new Typing.TypeParameter(Identifier, RequiredImplementedType == null ? null : RequiredImplementedType.ToIRType(irBuilder));
     }
 
     public sealed class AstType
@@ -32,18 +39,73 @@
             else
                 return $"{Identifier}<{string.Join(", ", TypeArguments)}>";
         }
+
+        public IType ToIRType(IRProgramBuilder irBuilder)
+        {
+            List<IType> typeArguments = TypeArguments.ConvertAll((AstType argument) => argument.ToIRType(irBuilder));
+            
+            void MatchTypeArgCount(int expected)
+            {
+                if (typeArguments.Count != expected)
+                    throw new UnexpectedTypeArgumentsException(expected, typeArguments.Count);
+            }
+
+            switch (Identifier)
+            {
+                case "char":
+                case "chr":
+                    MatchTypeArgCount(0);
+                    return new CharacterType();
+                case "bool":
+                    MatchTypeArgCount(0);
+                    return new BooleanType();
+                case "int":
+                    MatchTypeArgCount(0);
+                    return new IntegerType();
+                case "dec":
+                    MatchTypeArgCount(0);
+                    return new DecimalType();
+                case "array":
+                case "mem":
+                    MatchTypeArgCount(1);
+                    return new ArrayType(typeArguments[0]);
+                case "fn":
+                case "proc":
+                    {
+                        if (typeArguments.Count < 1)
+                            throw new UnexpectedTypeArgumentsException(typeArguments.Count);
+                        return new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1));
+                    }
+                default:
+                    {
+                        IScopeSymbol typeSymbol = irBuilder.SymbolMarshaller.FindSymbol(Identifier);
+                        if (typeSymbol is Typing.TypeParameter typeParameter)
+                        {
+                            MatchTypeArgCount(0);
+                            return new TypeParameterReference(typeParameter);
+                        }
+                        else if (typeSymbol is IntermediateRepresentation.Statements.RecordDeclaration recordDeclaration)
+                            return new RecordType(recordDeclaration, typeArguments);
+                        else if (typeSymbol is IntermediateRepresentation.Statements.InterfaceDeclaration interfaceDeclaration)
+                            return new InterfaceType(interfaceDeclaration, typeArguments);
+                        else if (typeSymbol is IntermediateRepresentation.Statements.EnumDeclaration enumDeclaration)
+                            return new EnumType(enumDeclaration, typeArguments);
+                        throw new NotATypeException(Identifier, typeSymbol);
+                    }
+            }
+        }
     }
 }
 
 namespace NoHoPython.Syntax.Values
 {
-    public sealed partial class ExplicitCast : IAstValue
+    public sealed class ExplicitCast : IAstValue
     {
         public SourceLocation SourceLocation { get; private set; }
-        
+
         public IAstValue ToCast { get; private set; }
         public AstType TargetType { get; private set; }
-        
+
         public ExplicitCast(IAstValue toCast, AstType targetType, SourceLocation sourceLocation)
         {
             SourceLocation = sourceLocation;
@@ -52,6 +114,8 @@ namespace NoHoPython.Syntax.Values
         }
 
         public override string ToString() => $"{ToCast} as {TargetType}";
+
+        public IRValue GenerateIntermediateRepresentation(IRProgramBuilder irBuilder) => ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentation(irBuilder), TargetType.ToIRType(irBuilder));
     }
 }
 

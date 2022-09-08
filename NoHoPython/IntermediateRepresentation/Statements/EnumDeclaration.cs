@@ -151,5 +151,7 @@ namespace NoHoPython.Syntax.Statements
         {
             IREnumDeclaration.DelayedLinkSetOptions(Options.ConvertAll((AstType option) => option.ToIRType(irBuilder)));
         }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => IREnumDeclaration;
     }
 }

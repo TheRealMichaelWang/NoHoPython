@@ -90,7 +90,7 @@ namespace NoHoPython.Syntax
                             return new InterfaceType(interfaceDeclaration, typeArguments);
                         else if (typeSymbol is IntermediateRepresentation.Statements.EnumDeclaration enumDeclaration)
                             return new EnumType(enumDeclaration, typeArguments);
-                        throw new NotATypeException(Identifier, typeSymbol);
+                        throw new NotATypeException(typeSymbol);
                     }
             }
         }
@@ -115,7 +115,7 @@ namespace NoHoPython.Syntax.Values
 
         public override string ToString() => $"{ToCast} as {TargetType}";
 
-        public IRValue GenerateIntermediateRepresentation(IRProgramBuilder irBuilder) => ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentation(irBuilder), TargetType.ToIRType(irBuilder));
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder) => ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentationForValue(irBuilder), TargetType.ToIRType(irBuilder));
     }
 }
 

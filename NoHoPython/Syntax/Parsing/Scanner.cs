@@ -212,7 +212,7 @@
                 case '%':
                     return TokenType.Modulo;
                 case '^':
-                    return TokenType.Exponentiate;
+                    return TokenType.Caret;
                 case '=':
                     if (lastChar == '=')
                     {

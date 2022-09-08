@@ -1,4 +1,7 @@
-﻿using System.Diagnostics;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.Scoping;
+using System.Diagnostics;
 
 namespace NoHoPython.Scoping
 {
@@ -66,18 +69,26 @@ namespace NoHoPython.Scoping
 
     public sealed class SymbolMarshaller : SymbolContainer
     {
-        public sealed class Module : SymbolContainer, IScopeSymbol
+        public sealed class Module : SymbolContainer, IScopeSymbol, IRStatement
         {
             public bool IsGloballyNavigable => true;
             public string Name { get; private set; }
-            
+
+            private List<IRStatement>? statements;
+
             public Module(string name, List<IScopeSymbol> symbols) : base(symbols)
             {
                 Name = name;
+                statements = null;
+            }
+
+            public void DelayedLinkSetStatements(List<IRStatement> statements)
+            {
+                if (this.statements != null)
+                    throw new InvalidOperationException();
+                this.statements = statements;
             }
         }
-
-        public SymbolContainer? CurrentContainer => scopeStack.Count > 0 ? scopeStack.Peek() : null;
 
         private Stack<Module> usedModuleStack;
         private Stack<SymbolContainer> scopeStack;
@@ -148,14 +159,19 @@ namespace NoHoPython.Scoping
             scopeStack.Push(symbolContainer);
         }
 
-        public VariableContainer NewVariableContainer(bool hasParent, List<Variable> existingVariables)
+        public CodeBlock NewCodeBlock()
         {
-            VariableContainer variableContainer;
-            if (hasParent)
-                NavigateToScope(variableContainer = new VariableContainer(scopeStack.Peek(), existingVariables));
-            else
-                NavigateToScope(variableContainer = new VariableContainer(null, existingVariables));
-            return variableContainer; 
+            CodeBlock codeBlock = new CodeBlock(scopeStack.Peek(), new List<Variable>());
+            NavigateToScope(codeBlock);
+            return codeBlock;
+        }
+
+        public Module NewModule(string name)
+        {
+            Module module = new Module(name, new List<IScopeSymbol>());
+            DeclareGlobalSymbol(module);
+            NavigateToScope(module);
+            return module;
         }
 
         public void GoBack()
@@ -163,6 +179,36 @@ namespace NoHoPython.Scoping
             SymbolContainer symbolContainer = scopeStack.Pop();
             if (symbolContainer is Module)
                 Debug.Assert(usedModuleStack.Pop() == symbolContainer);
+        }
+    }
+}
+
+namespace NoHoPython.Syntax.Statements
+{
+    partial class ModuleContainer
+    {
+        private SymbolMarshaller.Module IRModule;
+
+        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) 
+        {
+            IRModule = irBuilder.SymbolMarshaller.NewModule(Identifier); 
+            Statements.ForEach((IAstStatement statement) => statement.ForwardTypeDeclare(irBuilder));
+            irBuilder.SymbolMarshaller.GoBack();
+        }
+
+        public void ForwardDeclare(IRProgramBuilder irBuilder)
+        {
+            irBuilder.SymbolMarshaller.NavigateToScope(IRModule);
+            Statements.ForEach((IAstStatement statement) => statement.ForwardDeclare(irBuilder));
+            irBuilder.SymbolMarshaller.GoBack();
+        }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder)
+        {
+            irBuilder.SymbolMarshaller.NavigateToScope(IRModule);
+            IRModule.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, Statements));
+            irBuilder.SymbolMarshaller.GoBack();
+            return IRModule;
         }
     }
 }

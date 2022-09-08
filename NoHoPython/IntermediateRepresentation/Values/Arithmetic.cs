@@ -112,8 +112,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Multiply = 2,
             Divide = 3,
             Modulo = 5,
-            Exponentiate = 7,
-            Factorial = 9
+            Exponentiate = 7
         }
 
         private static Dictionary<ArithmeticOperation, string> operatorOverloadIdentifiers = new()
@@ -123,8 +122,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             { ArithmeticOperation.Divide,"divide" },
             {ArithmeticOperation.Multiply ,"multiply"},
             {ArithmeticOperation.Modulo ,"modulo"},
-            {ArithmeticOperation.Exponentiate, "exponentiate"},
-            {ArithmeticOperation.Factorial, "factorial"}
+            {ArithmeticOperation.Exponentiate, "exponentiate"}
         };
 
         public static bool IsCommunicative(ArithmeticOperation operation) => ((int)operation % 2) == 0;

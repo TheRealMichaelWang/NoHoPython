@@ -17,7 +17,7 @@ namespace NoHoPython.Syntax.Values
             {TokenType.Multiply, 4},
             {TokenType.Divide, 4},
             {TokenType.Modulo, 4},
-            {TokenType.Exponentiate, 5},
+            {TokenType.Caret, 5},
             {TokenType.And, 1},
             {TokenType.Or, 1}
         };
@@ -35,7 +35,7 @@ namespace NoHoPython.Syntax.Values
             {TokenType.Multiply, "*"},
             {TokenType.Divide, "/"},
             {TokenType.Modulo, "%"},
-            {TokenType.Exponentiate, "^"},
+            {TokenType.Caret, "^"},
             {TokenType.And, "and"},
             {TokenType.Or, "or"}
         };

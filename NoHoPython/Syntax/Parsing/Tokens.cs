@@ -50,7 +50,7 @@
         Multiply,
         Divide,
         Modulo,
-        Exponentiate,
+        Caret,
 
         //comparison operators
         Equals,

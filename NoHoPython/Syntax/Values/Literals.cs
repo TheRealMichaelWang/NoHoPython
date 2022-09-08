@@ -2,7 +2,7 @@
 
 namespace NoHoPython.Syntax.Values
 {
-    public sealed class IntegerLiteral : IAstValue
+    public sealed partial class IntegerLiteral : IAstValue
     {
         public SourceLocation SourceLocation { get; private set; }
         
@@ -51,17 +51,19 @@ namespace NoHoPython.Syntax.Values
     {
         public SourceLocation SourceLocation { get; private set; }
 
+        public AstType ElementType { get; private set; }
         public readonly List<IAstValue> Elements;
         private bool IsStringLiteral;
 
-        public ArrayLiteral(List<IAstValue> elements, SourceLocation sourceLocation)
+        public ArrayLiteral(List<IAstValue> elements, AstType elementType, SourceLocation sourceLocation)
         {
             Elements = elements;
             SourceLocation = sourceLocation;
             IsStringLiteral = false;
+            ElementType = elementType;
         }
 
-        public ArrayLiteral(string stringLiteral, SourceLocation sourceLocation) : this(stringLiteral.ToList().ConvertAll((char c) => (IAstValue)(new CharacterLiteral(c, sourceLocation))), sourceLocation)
+        public ArrayLiteral(string stringLiteral, SourceLocation sourceLocation) : this(stringLiteral.ToList().ConvertAll((char c) => (IAstValue)(new CharacterLiteral(c, sourceLocation))), new AstType("char", new List<AstType>()), sourceLocation)
         {
             IsStringLiteral = true;
         }

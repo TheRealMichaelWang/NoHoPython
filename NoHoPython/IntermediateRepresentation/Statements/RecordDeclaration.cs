@@ -70,15 +70,20 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public bool IsGloballyNavigable => false;
 
+        public RecordType SelfType => new RecordType(this, TypeParameters.ConvertAll((TypeParameter parameter) => (IType)(new TypeParameterReference(parameter))));
+
         public string Name { get; private set; }
         public readonly List<TypeParameter> TypeParameters;
 
         private List<RecordProperty>? properties;
+        private List<ProcedureDeclaration>? messageRecievers;
 
         public RecordDeclaration(string name, List<TypeParameter> typeParameters) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
         {
             Name = name;
             TypeParameters = typeParameters;
+            properties = null;
+            messageRecievers = null;
         }
 
         public List<RecordProperty> GetRecordProperties(RecordType recordType)
@@ -104,6 +109,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (this.properties != null)
                 throw new InvalidOperationException();
             this.properties = properties;
+        }
+
+        public void DelayedLinkSetMessageRecievers(List<ProcedureDeclaration> messageRecievers)
+        {
+            if (this.messageRecievers != null)
+                throw new InvalidOperationException();
+            this.messageRecievers = messageRecievers;
         }
     }
 }
@@ -163,6 +175,8 @@ namespace NoHoPython.Syntax.Statements
     partial class RecordDeclaration
     {
         private IntermediateRepresentation.Statements.RecordDeclaration IRRecordDeclaration;
+        private List<IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty> IRProperties;
+        private Dictionary<ProcedureDeclaration, IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty> RecieverProperties;
 
         public void ForwardTypeDeclare(IRProgramBuilder irBuilder)
         {
@@ -171,10 +185,12 @@ namespace NoHoPython.Syntax.Statements
             IRRecordDeclaration = new IntermediateRepresentation.Statements.RecordDeclaration(Identifier, typeParameters);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRRecordDeclaration);
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
+            irBuilder.ScopeToRecord(IRRecordDeclaration);
 
             foreach (Typing.TypeParameter parameter in typeParameters)
                 irBuilder.SymbolMarshaller.DeclareSymbol(parameter);
             irBuilder.SymbolMarshaller.GoBack();
+            irBuilder.ScopeBackFromRecord();
 
             irBuilder.RecordDeclarations.Add(IRRecordDeclaration);
         }
@@ -182,13 +198,46 @@ namespace NoHoPython.Syntax.Statements
         public void ForwardDeclare(IRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
- 
-            IRRecordDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder), property.IsReadOnly, null)));
+            irBuilder.ScopeToRecord(IRRecordDeclaration);
 
+            IRProperties = Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder), property.IsReadOnly, null));
+            IRRecordDeclaration.DelayedLinkSetProperties(IRProperties);
+
+            RecieverProperties = new Dictionary<ProcedureDeclaration, IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty>(MessageRecievers.Count);
             foreach (ProcedureDeclaration messageReciever in MessageRecievers)
+            {
                 messageReciever.ForwardDeclare(irBuilder);
+                var linkedProperty = new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(messageReciever.Name, new ProcedureType(messageReciever.ReturnType.ToIRType(irBuilder), messageReciever.Parameters.ConvertAll((ProcedureDeclaration.ProcedureParameter parameter) => parameter.Type.ToIRType(irBuilder))), true, null);
+                IRProperties.Add(linkedProperty);
+                RecieverProperties.Add(messageReciever, linkedProperty);
+            }
 
             irBuilder.SymbolMarshaller.GoBack();
+            irBuilder.ScopeBackFromRecord();
+        }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder)
+        {
+            irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
+            irBuilder.ScopeToRecord(IRRecordDeclaration);
+
+            for (int i = 0; i < Properties.Count; i++)
+            {
+                var propertyValue = Properties[i].DefaultValue;
+                if (propertyValue != null)
+                    IRProperties[i].DelayedLinkSetDefaultValue(propertyValue.GenerateIntermediateRepresentationForValue(irBuilder));
+            }
+            IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => 
+                {
+                    var linkedReciever = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
+                    RecieverProperties[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(linkedReciever));
+                    return linkedReciever;
+                }));
+
+            irBuilder.SymbolMarshaller.GoBack();
+            irBuilder.ScopeBackFromRecord();
+
+            return IRRecordDeclaration;
         }
     }
 }

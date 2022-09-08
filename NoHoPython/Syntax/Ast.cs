@@ -6,7 +6,7 @@ namespace NoHoPython.Syntax
     {
         string ToString();
 
-        public IRValue GenerateIntermediateRepresentation(IRProgramBuilder irBuilder);
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder);
     }
 
     public interface IAstStatement : ISourceLocatable
@@ -15,12 +15,13 @@ namespace NoHoPython.Syntax
         public static string BlockToString(int indent, List<IAstStatement> statements) => string.Join('\n', statements.Select((IAstStatement statement) => $"{statement.SourceLocation.Row}:{statement.ToString(indent + 1)}"));
 
         public static void ForwardDeclareBlock(IRProgramBuilder irBuilder, List<IAstStatement> statements) => statements.ForEach((statement) => statement.ForwardDeclare(irBuilder));
+        public static List<IRStatement> GenerateIntermediateRepresentationForBlock(IRProgramBuilder irBuilder, List<IAstStatement> statements) => statements.ConvertAll((IAstStatement statement) => statement.GenerateIntermediateRepresentationForStatement(irBuilder));
 
         string ToString(int indent);
 
         public void ForwardTypeDeclare(IRProgramBuilder irBuilder);
         public void ForwardDeclare(IRProgramBuilder irBuilder);
-        public IRStatement GenerateIntermediateRepresentation(IRProgramBuilder irBuilder);
+        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder);
     }
     
     public struct SourceLocation

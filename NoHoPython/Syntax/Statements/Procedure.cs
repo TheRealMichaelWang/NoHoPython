@@ -79,7 +79,7 @@ namespace NoHoPython.Syntax.Values
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{this}";
     }
 
-    public sealed partial class AnonymousFunctionCall : IAstValue
+    public sealed partial class AnonymousFunctionCall : IAstValue, IAstStatement
     {
         public SourceLocation SourceLocation { get; private set; }
 
@@ -94,6 +94,7 @@ namespace NoHoPython.Syntax.Values
         }
 
         public override string ToString() => $"{ProcedureValue}({string.Join(", ", Arguments)})";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{this}";
     }
 }
 

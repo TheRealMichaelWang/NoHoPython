@@ -146,6 +146,19 @@ namespace NoHoPython.Typing
         public override IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new IntegerType();
     }
 
+    partial class NothingType
+    {
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NothingType();
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
+
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        {
+            if (!this.IsCompatibleWith(argument))
+                throw new UnexpectedTypeException(this, argument);
+        }
+    }
+
     partial class EnumType
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new EnumType(EnumDeclaration, TypeArguments.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList()); 

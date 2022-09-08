@@ -80,6 +80,16 @@ namespace NoHoPython.Typing
         }
     }
 
+    public sealed partial class NothingType : IType
+    {
+        public string TypeName => "nothing";
+
+        public bool IsCompatibleWith(IType type)
+        {
+            return type is NothingType;
+        }
+    }
+
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class ArrayType : IType
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).

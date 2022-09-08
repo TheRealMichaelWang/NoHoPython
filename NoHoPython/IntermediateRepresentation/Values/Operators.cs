@@ -1,4 +1,7 @@
-﻿using NoHoPython.IntermediateRepresentation.Statements;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Syntax.Parsing;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
@@ -176,5 +179,80 @@ namespace NoHoPython.IntermediateRepresentation.Values
             else
                 throw new UnexpectedTypeException(record.Type);
         }
+    }
+}
+
+namespace NoHoPython.Syntax.Values
+{
+    partial class BinaryOperator
+    {
+        private static Dictionary<TokenType, ArithmeticOperator.ArithmeticOperation> ArithmeticTokens = new Dictionary<TokenType, ArithmeticOperator.ArithmeticOperation>()
+        {
+            {TokenType.Add, ArithmeticOperator.ArithmeticOperation.Add},
+            {TokenType.Subtract, ArithmeticOperator.ArithmeticOperation.Subtract},
+            {TokenType.Multiply, ArithmeticOperator.ArithmeticOperation.Multiply},
+            {TokenType.Divide, ArithmeticOperator.ArithmeticOperation.Divide},
+            {TokenType.Modulo, ArithmeticOperator.ArithmeticOperation.Modulo},
+            {TokenType.Caret, ArithmeticOperator.ArithmeticOperation.Exponentiate},
+        };
+
+        private static Dictionary<TokenType, ComparativeOperator.CompareOperation> ComparativeTokens = new Dictionary<TokenType, ComparativeOperator.CompareOperation>()
+        {
+            {TokenType.More, ComparativeOperator.CompareOperation.More},
+            {TokenType.Less, ComparativeOperator.CompareOperation.Less},
+            {TokenType.MoreEqual, ComparativeOperator.CompareOperation.MoreEqual},
+            {TokenType.LessEqual, ComparativeOperator.CompareOperation.LessEqual},
+            {TokenType.Equals, ComparativeOperator.CompareOperation.Equals},
+            {TokenType.NotEquals, ComparativeOperator.CompareOperation.NotEquals}
+        };
+
+        private static Dictionary<TokenType, LogicalOperator.LogicalOperation> LogicalTokens = new Dictionary<TokenType, LogicalOperator.LogicalOperation>()
+        {
+            {TokenType.And, LogicalOperator.LogicalOperation.And},
+            {TokenType.Or, LogicalOperator.LogicalOperation.Or }
+        };
+
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder)
+        {
+            if (ArithmeticTokens.ContainsKey(Operator))
+                return ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+            else if (ComparativeTokens.ContainsKey(Operator))
+                return new ComparativeOperator(ComparativeTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+            else if (LogicalTokens.ContainsKey(Operator))
+                return new LogicalOperator(LogicalTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+            else
+                throw new InvalidOperationException();
+        }
+    }
+
+    partial class GetValueAtIndex
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+    }
+
+    partial class SetValueAtIndex
+    {
+        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(IRProgramBuilder irBuilder) { }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder) => IntermediateRepresentation.Values.SetValueAtIndex.ComposeSetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder), Value.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+    }
+
+    partial class GetPropertyValue
+    {
+        
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.GetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder), Property);
+    }
+
+    partial class SetPropertyValue
+    {
+        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(IRProgramBuilder irBuilder) { }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.SetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder), Property, Value.GenerateIntermediateRepresentationForValue(irProgramBuilder));
     }
 }

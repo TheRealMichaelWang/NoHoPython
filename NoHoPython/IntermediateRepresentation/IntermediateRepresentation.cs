@@ -18,12 +18,14 @@ namespace NoHoPython.IntermediateRepresentation
 
     public sealed class IRProgramBuilder
     {
-        public List<EnumDeclaration> EnumDeclarations;
-        public List<InterfaceDeclaration> InterfaceDeclarations;
-        public List<RecordDeclaration> RecordDeclarations;
+        public List<EnumDeclaration> EnumDeclarations { get; private set; }
+        public List<InterfaceDeclaration> InterfaceDeclarations { get; private set; }
+        public List<RecordDeclaration> RecordDeclarations { get; private set; }
+        public List<ProcedureDeclaration> ProcedureDeclarations { get; private set; }
 
-        public List<ProcedureDeclaration> ProcedureDeclarations;
-        public SymbolMarshaller SymbolMarshaller;
+        public Stack<ProcedureDeclaration> ScopedProcedures { get; private set; }
+        public RecordDeclaration? ScopedRecordDeclaration { get; private set; }
+        public SymbolMarshaller SymbolMarshaller { get; private set; }
 
         public IRProgramBuilder()
         {
@@ -32,6 +34,22 @@ namespace NoHoPython.IntermediateRepresentation
             InterfaceDeclarations = new List<InterfaceDeclaration>();
             RecordDeclarations = new List<RecordDeclaration>();
             ProcedureDeclarations = new List<ProcedureDeclaration>();
+            ScopedProcedures= new Stack<ProcedureDeclaration>();
+            ScopedRecordDeclaration = null;
+        }
+
+        public void ScopeToRecord(RecordDeclaration recordDeclaration)
+        {
+            if (ScopedRecordDeclaration != null)
+                throw new InvalidOperationException();
+            ScopedRecordDeclaration = recordDeclaration;
+        }
+
+        public void ScopeBackFromRecord()
+        {
+            if (ScopedRecordDeclaration == null)
+                throw new InvalidOperationException();
+            ScopedRecordDeclaration = null;
         }
     }
 }

@@ -1,4 +1,7 @@
-﻿using NoHoPython.Typing;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.Scoping;
+using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
@@ -52,6 +55,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new FalseLiteral();
     }
 
+    public sealed partial class NothingLiteral : IRValue
+    {
+        public IType Type => new NothingType();
+
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NothingLiteral();
+    }
+
     public sealed partial class ArrayLiteral : IRValue
     {
         public IType Type { get => new ArrayType(ElementType); }
@@ -95,6 +105,62 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             RecordPrototype = recordPrototype;
             ConstructorArguments = constructorArguments;
+
+            if (RecordPrototype.HasProperty("__init__") && RecordPrototype.FindProperty("__init__").Type is ProcedureType procedureType)
+            {
+
+            }
+            else
+            {
+                
+            }
+        }
+    }
+}
+
+namespace NoHoPython.Syntax.Values
+{
+    partial class IntegerLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.IntegerLiteral(Number);
+    }
+
+    partial class DecimalLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.DecimalLiteral(Number);
+    }
+
+    partial class TrueLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.TrueLiteral();
+    }
+
+    partial class FalseLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.FalseLiteral();
+    }
+
+    partial class CharacterLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.CharacterLiteral(Character);
+    }
+
+    partial class ArrayLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.ArrayLiteral(ElementType.ToIRType(irBuilder), Elements.ConvertAll((IAstValue element) => element.GenerateIntermediateRepresentationForValue(irBuilder)));
+    }
+
+    partial class InstantiateNewRecord
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder) 
+        {
+            IType prototype = RecordType.ToIRType(irBuilder);
+            if (prototype is Typing.RecordType record)
+            {
+                return new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder)));
+            }
+            else
+                throw new UnexpectedTypeException(prototype);
         }
     }
 }

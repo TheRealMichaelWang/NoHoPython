@@ -212,5 +212,7 @@ namespace NoHoPython.Syntax.Statements
         {
             IRInterfaceDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((InterfaceProperty property) => new IntermediateRepresentation.Statements.InterfaceDeclaration.InterfaceProperty(property.Identifier, property.Type.ToIRType(irBuilder))));
         }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => IRInterfaceDeclaration;
     }
 }

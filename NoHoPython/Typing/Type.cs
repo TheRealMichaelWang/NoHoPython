@@ -57,12 +57,10 @@ namespace NoHoPython.Typing
 
     public sealed class NotATypeException : Exception
     {
-        public readonly string Identifier;
-        public IScopeSymbol ScopeSymbol;
+        public IScopeSymbol ScopeSymbol { get; private set; }
 
-        public NotATypeException(string identifier, IScopeSymbol scopeSymbol) : base($"{identifier} is not a type parameter, record, interface, or enum. Rather it is a {scopeSymbol}.")
+        public NotATypeException(IScopeSymbol scopeSymbol) : base($"{scopeSymbol.Name} is not a type parameter, record, interface, or enum. Rather it is a {scopeSymbol}.")
         {
-            Identifier = identifier;
             ScopeSymbol = scopeSymbol;
         }
     }

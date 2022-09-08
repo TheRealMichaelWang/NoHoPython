@@ -15,7 +15,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             IntToBoolean
         }
 
-        private static Dictionary<ArithmeticCastOperation, IType> outputTypes = new Dictionary<ArithmeticCastOperation, IType>()
+        private static Dictionary<ArithmeticCastOperation, IType> outputTypes = new()
         {
             {ArithmeticCastOperation.DecimalToInt, new IntegerType() },
             {ArithmeticCastOperation.CharToInt, new IntegerType() },
@@ -25,7 +25,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {ArithmeticCastOperation.IntToBoolean, new CharacterType() }
         };
 
-        private static Dictionary<ArithmeticCastOperation, IType> inputTypes = new Dictionary<ArithmeticCastOperation, IType>()
+        private static Dictionary<ArithmeticCastOperation, IType> inputTypes = new()
         {
             {ArithmeticCastOperation.IntToDecimal, new IntegerType() },
             {ArithmeticCastOperation.IntToChar, new IntegerType() },
@@ -55,21 +55,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return value;
             else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to{typeTarget.TypeName}"))
                 return new AnonymousProcedureCall(new GetPropertyValue(value, $"to{typeTarget.TypeName}"), new List<IRValue>());
-            else if(typeTarget is EnumType enumType)
-                return new MarshalIntoEnum(enumType, value);
-            else if(typeTarget is InterfaceType interfaceType)
-                return new MarshalIntoInterface(interfaceType, value);
-            else if(typeTarget is RecordType recordType)
-            {
-                return new AllocRecord(recordType, new List<IRValue>()
-                {
+            else return typeTarget is EnumType enumType
+                ? new MarshalIntoEnum(enumType, value)
+                : typeTarget is InterfaceType interfaceType
+                ? new MarshalIntoInterface(interfaceType, value)
+                : typeTarget is RecordType recordType
+                    ? new AllocRecord(recordType, new List<IRValue>()
+                                {
                     value
-                });
-            }
-            else if (typeTarget is Primitive primitive)
-                return PrimitiveCast(value, primitive);
-            else
-                throw new UnexpectedTypeException(typeTarget, value.Type);
+                                })
+                    : typeTarget is Primitive primitive
+                                ? PrimitiveCast(value, primitive)
+                                : throw new UnexpectedTypeException(typeTarget, value.Type);
         }
 
         private static IRValue PrimitiveCast(IRValue primitive, Primitive targetType)
@@ -80,12 +77,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 throw new UnexpectedTypeException(primitive.Type);
 
             Primitive input = (Primitive)primitive;
-            if (targetType is IntegerType)
-                return new ArithmeticCast(toIntOperation[input.Id - 1], primitive);
-            else if (primitive.Type is IntegerType)
-                return new ArithmeticCast(intToOperation[targetType.Id - 1], primitive);
-            else
-                return new ArithmeticCast(intToOperation[targetType.Id - 1], new ArithmeticCast(toIntOperation[input.Id - 1], primitive));
+            return targetType is IntegerType
+                ? new ArithmeticCast(toIntOperation[input.Id - 1], primitive)
+                : primitive.Type is IntegerType
+                ? new ArithmeticCast(intToOperation[targetType.Id - 1], primitive)
+                : (IRValue)new ArithmeticCast(intToOperation[targetType.Id - 1], new ArithmeticCast(toIntOperation[input.Id - 1], primitive));
         }
 
         public IType Type => outputTypes[Operation];
@@ -129,15 +125,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right)
         {
-            if (left.Type is IPropertyContainer container && container.HasProperty(operatorOverloadIdentifiers[operation]))
-            {
-                return new AnonymousProcedureCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation]), new List<IRValue>()
+            return left.Type is IPropertyContainer container && container.HasProperty(operatorOverloadIdentifiers[operation])
+                ? new AnonymousProcedureCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation]), new List<IRValue>()
                 {
                     right
-                });
-            }
-            else
-                return new ArithmeticOperator(operation, left, right);
+                })
+                : (IRValue)new ArithmeticOperator(operation, left, right);
         }
 
         public ArithmeticOperation Operation { get; private set; }

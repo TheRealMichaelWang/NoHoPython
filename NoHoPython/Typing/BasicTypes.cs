@@ -105,9 +105,7 @@ namespace NoHoPython.Typing
 
         public bool IsCompatibleWith(IType type)
         {
-            if(type is ArrayType arrayType)
-                return ElementType.IsCompatibleWith(arrayType.ElementType);
-            return false;
+            return type is ArrayType arrayType && ElementType.IsCompatibleWith(arrayType.ElementType);
         }
     }
 
@@ -128,7 +126,7 @@ namespace NoHoPython.Typing
 
         public bool IsCompatibleWith(IType type)
         {
-            if(type is ProcedureType procedureType)
+            if (type is ProcedureType procedureType)
             {
                 if (!ReturnType.IsCompatibleWith(procedureType.ReturnType))
                     return false;

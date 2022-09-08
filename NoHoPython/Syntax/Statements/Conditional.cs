@@ -26,7 +26,7 @@ namespace NoHoPython.Syntax.Statements
         {
             if (NextIf != null || NextElse != null)
                 throw new InvalidOperationException();
-            
+
             NextIf = ifBlock;
         }
 
@@ -38,7 +38,7 @@ namespace NoHoPython.Syntax.Statements
             NextElse = elseBlock;
         }
 
-        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}if {Condition}:\n{IAstStatement.BlockToString(indent, IfTrueBlock)}{(NextIf == null ? NextElse == null ? string.Empty : "\n" + NextElse.ToString(indent) :"\n" + NextIf.ToElifString(indent))}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}if {Condition}:\n{IAstStatement.BlockToString(indent, IfTrueBlock)}{(NextIf == null ? NextElse == null ? string.Empty : "\n" + NextElse.ToString(indent) : "\n" + NextIf.ToElifString(indent))}";
 
         private string ToElifString(int indent) => $"{IAstStatement.Indent(indent)}elif {Condition}:\n{IAstStatement.BlockToString(indent, IfTrueBlock)}{(NextIf == null ? NextElse == null ? string.Empty : "\n" + NextElse.ToString(indent) : "\n" + NextIf.ToElifString(indent))}";
     }
@@ -123,7 +123,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            IfBlock elifBlock = new IfBlock(condititon, parseCodeBlock(), location);
+            IfBlock elifBlock = new(condititon, parseCodeBlock(), location);
             parentBlock.SetNextIf(elifBlock);
             return elifBlock;
         }
@@ -135,7 +135,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            ElseBlock elseBlock = new ElseBlock(parseCodeBlock(), location);
+            ElseBlock elseBlock = new(parseCodeBlock(), location);
             parentBlock.SetNextElse(elseBlock);
             return elseBlock;
         }
@@ -154,7 +154,7 @@ namespace NoHoPython.Syntax.Parsing
                 else if (scanner.LastToken.Type == TokenType.Else)
                 {
                     skipIndentCounting = false;
-                    parseElseBlock(currentBlock);
+                    _ = parseElseBlock(currentBlock);
                     break;
                 }
                 else

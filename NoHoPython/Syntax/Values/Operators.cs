@@ -4,7 +4,7 @@ namespace NoHoPython.Syntax.Values
 {
     public sealed partial class BinaryOperator : IAstValue
     {
-        public static readonly Dictionary<TokenType, int> OperatorPrecedence = new Dictionary<TokenType, int>()
+        public static readonly Dictionary<TokenType, int> OperatorPrecedence = new()
         {
             {TokenType.Equals, 2},
             {TokenType.NotEquals, 2},
@@ -22,7 +22,7 @@ namespace NoHoPython.Syntax.Values
             {TokenType.Or, 1}
         };
 
-        private static readonly Dictionary<TokenType, string> OperatorSymbol = new Dictionary<TokenType, string>()
+        private static readonly Dictionary<TokenType, string> OperatorSymbol = new()
         {
             {TokenType.Equals, "=="},
             {TokenType.NotEquals, "!="},

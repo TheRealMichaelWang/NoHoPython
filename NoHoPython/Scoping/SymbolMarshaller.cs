@@ -48,15 +48,13 @@ namespace NoHoPython.Scoping
         public SymbolContainer(List<IScopeSymbol> symbols)
         {
             this.symbols = new Dictionary<string, IScopeSymbol>(symbols.Count);
-            foreach(IScopeSymbol symbol in symbols)
+            foreach (IScopeSymbol symbol in symbols)
                 this.symbols.Add(symbol.Name, symbol);
         }
 
         public virtual IScopeSymbol? FindSymbol(string identifier)
         {
-            if (symbols.ContainsKey(identifier))
-                return symbols[identifier];
-            return null;
+            return symbols.ContainsKey(identifier) ? symbols[identifier] : null;
         }
 
         public virtual void DeclareSymbol(IScopeSymbol symbol)
@@ -100,7 +98,7 @@ namespace NoHoPython.Scoping
             scopeStack.Push(this);
         }
 
-        public override IScopeSymbol FindSymbol(string identifier) 
+        public override IScopeSymbol FindSymbol(string identifier)
         {
             static IScopeSymbol FindSymbolFromContainer(string identifier, SymbolContainer currentContainer, bool fromGlobalStack)
             {
@@ -112,20 +110,16 @@ namespace NoHoPython.Scoping
                 for (int i = 0; i < parts.Length - 1; i++)
                 {
                     IScopeSymbol? symbol = scopedContainer.FindSymbol(parts[i]);
-                    if (symbol == null || (fromGlobalStack && !symbol.IsGloballyNavigable))
-                        throw new SymbolNotFoundException(parts[i], scopedContainer);
-                    else if (symbol is SymbolContainer symbolContainer)
-                        scopedContainer = symbolContainer;
-                    else
-                        throw new SymbolNotModuleException(symbol, scopedContainer);
+                    scopedContainer = symbol == null || (fromGlobalStack && !symbol.IsGloballyNavigable)
+                        ? throw new SymbolNotFoundException(parts[i], scopedContainer)
+                        : symbol is SymbolContainer symbolContainer ? symbolContainer : throw new SymbolNotModuleException(symbol, scopedContainer);
                 }
 
                 string finalIdentifier = parts.Last();
                 IScopeSymbol? result = scopedContainer.FindSymbol(finalIdentifier);
-                if (result == null || (fromGlobalStack && !result.IsGloballyNavigable))
-                    throw new SymbolNotFoundException(finalIdentifier, scopedContainer);
-
-                return result;
+                return result == null || (fromGlobalStack && !result.IsGloballyNavigable)
+                    ? throw new SymbolNotFoundException(finalIdentifier, scopedContainer)
+                    : result;
             }
 
             try
@@ -154,21 +148,21 @@ namespace NoHoPython.Scoping
 
         public void NavigateToScope(SymbolContainer symbolContainer)
         {
-            if(symbolContainer is Module module)
+            if (symbolContainer is Module module)
                 usedModuleStack.Push(module);
             scopeStack.Push(symbolContainer);
         }
 
         public CodeBlock NewCodeBlock()
         {
-            CodeBlock codeBlock = new CodeBlock(scopeStack.Peek(), new List<Variable>());
+            CodeBlock codeBlock = new(scopeStack.Peek(), new List<Variable>());
             NavigateToScope(codeBlock);
             return codeBlock;
         }
 
         public Module NewModule(string name)
         {
-            Module module = new Module(name, new List<IScopeSymbol>());
+            Module module = new(name, new List<IScopeSymbol>());
             DeclareGlobalSymbol(module);
             NavigateToScope(module);
             return module;
@@ -189,9 +183,9 @@ namespace NoHoPython.Syntax.Statements
     {
         private SymbolMarshaller.Module IRModule;
 
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) 
+        public void ForwardTypeDeclare(IRProgramBuilder irBuilder)
         {
-            IRModule = irBuilder.SymbolMarshaller.NewModule(Identifier); 
+            IRModule = irBuilder.SymbolMarshaller.NewModule(Identifier);
             Statements.ForEach((IAstStatement statement) => statement.ForwardTypeDeclare(irBuilder));
             irBuilder.SymbolMarshaller.GoBack();
         }

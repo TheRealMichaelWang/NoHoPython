@@ -87,7 +87,7 @@ namespace NoHoPython.Syntax.Statements
     {
         public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclare(IRProgramBuilder irBuilder) 
+        public void ForwardDeclare(IRProgramBuilder irBuilder)
         {
             IAstStatement.ForwardDeclareBlock(irBuilder, IfTrueBlock);
             if (NextIf != null)
@@ -111,10 +111,9 @@ namespace NoHoPython.Syntax.Statements
                 irBuilder.SymbolMarshaller.GoBack();
                 return new IfElseBlock(condition, codeBlock, nextIf);
             }
-            else if (NextElse != null)
-                return new IfElseBlock(condition, codeBlock, NextElse.GenerateIRCodeBlock(irBuilder));
-            else
-                return new IntermediateRepresentation.Statements.IfBlock(condition, codeBlock);
+            else return NextElse != null
+                ? new IfElseBlock(condition, codeBlock, NextElse.GenerateIRCodeBlock(irBuilder))
+                : new IntermediateRepresentation.Statements.IfBlock(condition, codeBlock);
         }
     }
 
@@ -132,7 +131,7 @@ namespace NoHoPython.Syntax.Statements
             codeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
             irBuilder.SymbolMarshaller.GoBack();
             return codeBlock;
-        } 
+        }
     }
 
     partial class WhileBlock

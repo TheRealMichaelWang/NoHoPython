@@ -5,7 +5,7 @@ namespace NoHoPython.Syntax
     public abstract class SyntaxError : Exception
     {
         public SourceLocation SourceLocation { get; private set; }
-        
+
         public SyntaxError(SourceLocation sourceLocation, string message) : base(message)
         {
             SourceLocation = sourceLocation;
@@ -15,9 +15,9 @@ namespace NoHoPython.Syntax
         {
             string rawLine = File.ReadAllLines(SourceLocation.File)[SourceLocation.Row - 1];
             string errorLine = rawLine.TrimStart('\t');
-            int trimmedTabs = (rawLine.Length - errorLine.Length) + 2;
+            int trimmedTabs = rawLine.Length - errorLine.Length + 2;
 
-            Console.WriteLine($"Syntax Error: {this.Message}");
+            Console.WriteLine($"Syntax Error: {Message}");
             Console.WriteLine($"\nin file {SourceLocation.File}:\n");
 
             Console.WriteLine($"{SourceLocation.Row}:\t{errorLine}");

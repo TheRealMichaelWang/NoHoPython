@@ -44,7 +44,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public sealed partial class RecordProperty : Property
         {
-            public override bool IsReadOnly => isReadOnly; 
+            public override bool IsReadOnly => isReadOnly;
             public IRValue? DefaultValue { get; private set; }
 
             private bool isReadOnly;
@@ -70,7 +70,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public bool IsGloballyNavigable => false;
 
-        public RecordType SelfType => new RecordType(this, TypeParameters.ConvertAll((TypeParameter parameter) => (IType)(new TypeParameterReference(parameter))));
+        public RecordType SelfType => new(this, TypeParameters.ConvertAll((TypeParameter parameter) => (IType)new TypeParameterReference(parameter)));
 
         public string Name { get; private set; }
         public readonly List<TypeParameter> TypeParameters;
@@ -90,7 +90,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             if (recordType.RecordPrototype != this)
                 throw new InvalidOperationException();
-            if (this.properties == null)
+            if (properties == null)
                 throw new InvalidOperationException();
 
             Dictionary<TypeParameter, IType> typeargs = new(TypeParameters.Count);
@@ -104,7 +104,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             return typeProperties;
         }
 
-        public void DelayedLinkSetProperties(List<RecordProperty> properties) 
+        public void DelayedLinkSetProperties(List<RecordProperty> properties)
         {
             if (this.properties != null)
                 throw new InvalidOperationException();
@@ -158,10 +158,10 @@ namespace NoHoPython.Typing
         {
             if (type is RecordType recordType)
             {
-                if (this.RecordPrototype != recordType.RecordPrototype)
+                if (RecordPrototype != recordType.RecordPrototype)
                     return false;
                 for (int i = 0; i < TypeArguments.Count; i++)
-                    if (!this.TypeArguments[i].IsCompatibleWith(recordType.TypeArguments[i]))
+                    if (!TypeArguments[i].IsCompatibleWith(recordType.TypeArguments[i]))
                         return false;
                 return true;
             }
@@ -227,7 +227,7 @@ namespace NoHoPython.Syntax.Statements
                 if (propertyValue != null)
                     IRProperties[i].DelayedLinkSetDefaultValue(propertyValue.GenerateIntermediateRepresentationForValue(irBuilder));
             }
-            IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => 
+            IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) =>
                 {
                     var linkedReciever = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
                     RecieverProperties[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(linkedReciever));

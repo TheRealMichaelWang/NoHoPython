@@ -1,6 +1,4 @@
 ﻿using NoHoPython.IntermediateRepresentation;
-using NoHoPython.IntermediateRepresentation.Statements;
-using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
@@ -13,7 +11,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public IntegerLiteral(long number)
         {
-            this.Number = number;
+            Number = number;
         }
     }
 
@@ -21,11 +19,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IType Type { get => new DecimalType(); }
 
-        public decimal Number { get;private set; }
+        public decimal Number { get; private set; }
 
         public DecimalLiteral(decimal number)
         {
-            this.Number = number;
+            Number = number;
         }
     }
 
@@ -37,7 +35,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public CharacterLiteral(char character)
         {
-            this.Character = character;
+            Character = character;
         }
     }
 
@@ -105,14 +103,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             RecordPrototype = recordPrototype;
             ConstructorArguments = constructorArguments;
-
-            if (RecordPrototype.HasProperty("__init__") && RecordPrototype.FindProperty("__init__").Type is ProcedureType procedureType)
+            if (RecordPrototype.HasProperty("__init__") && RecordPrototype.FindProperty("__init__").Type is ProcedureType)
             {
 
             }
             else
             {
-                
+
             }
         }
     }
@@ -152,15 +149,12 @@ namespace NoHoPython.Syntax.Values
 
     partial class InstantiateNewRecord
     {
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder) 
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder)
         {
             IType prototype = RecordType.ToIRType(irBuilder);
-            if (prototype is Typing.RecordType record)
-            {
-                return new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder)));
-            }
-            else
-                throw new UnexpectedTypeException(prototype);
+            return prototype is Typing.RecordType record
+                ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder)))
+                : throw new UnexpectedTypeException(prototype);
         }
     }
 }

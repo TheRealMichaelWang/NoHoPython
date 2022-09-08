@@ -21,14 +21,14 @@ namespace NoHoPython.Syntax.Statements
 
         public string ToString(int indent)
         {
-            StringBuilder builder = new StringBuilder();
-            builder.Append($"{IAstStatement.Indent(indent)}enum {Identifier}");
+            StringBuilder builder = new();
+            _ = builder.Append($"{IAstStatement.Indent(indent)}enum {Identifier}");
             if (TypeParameters.Count > 0)
-                builder.Append($"<{string.Join(", ", TypeParameters)}>");
-            builder.Append(':');
+                _ = builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            _ = builder.Append(':');
 
             foreach (AstType option in Options)
-                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{option}");
+                _ = builder.Append($"\n{IAstStatement.Indent(indent + 1)}{option}");
             return builder.ToString();
         }
     }
@@ -65,14 +65,14 @@ namespace NoHoPython.Syntax.Statements
 
         public string ToString(int indent)
         {
-            StringBuilder builder = new StringBuilder();
-            builder.Append($"{IAstStatement.Indent(indent)}interface {Identifier}");
+            StringBuilder builder = new();
+            _ = builder.Append($"{IAstStatement.Indent(indent)}interface {Identifier}");
             if (TypeParameters.Count > 0)
-                builder.Append($"<{string.Join(", ", TypeParameters)}>");
-            builder.Append(':');
+                _ = builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            _ = builder.Append(':');
 
             foreach (InterfaceProperty property in Properties)
-                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
+                _ = builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
             return builder.ToString();
         }
     }
@@ -97,18 +97,18 @@ namespace NoHoPython.Syntax.Statements
 
             public override string ToString()
             {
-                StringBuilder builder = new StringBuilder();
+                StringBuilder builder = new();
                 if (IsReadOnly)
-                    builder.Append("readonly ");
-                
-                builder.Append(Type);
-                builder.Append(' ');
-                builder.Append(Identifier);
-                
-                if(DefaultValue != null)
+                    _ = builder.Append("readonly ");
+
+                _ = builder.Append(Type);
+                _ = builder.Append(' ');
+                _ = builder.Append(Identifier);
+
+                if (DefaultValue != null)
                 {
-                    builder.Append(" = ");
-                    builder.Append(DefaultValue.ToString());
+                    _ = builder.Append(" = ");
+                    _ = builder.Append(DefaultValue.ToString());
                 }
                 return builder.ToString();
             }
@@ -129,16 +129,16 @@ namespace NoHoPython.Syntax.Statements
             MessageRecievers = messageRecievers;
             SourceLocation = sourceLocation;
         }
-    
+
         public string ToString(int indent)
         {
-            StringBuilder builder = new StringBuilder();
-            builder.Append($"{IAstStatement.Indent(indent)}class {Identifier}");
+            StringBuilder builder = new();
+            _ = builder.Append($"{IAstStatement.Indent(indent)}class {Identifier}");
             if (TypeParameters.Count > 0)
-                builder.Append($"<{string.Join(", ", TypeParameters)}>");
-            builder.Append(':');
+                _ = builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            _ = builder.Append(':');
             foreach (RecordProperty property in Properties)
-                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
+                _ = builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
             return builder.ToString();
         }
     }
@@ -149,7 +149,7 @@ namespace NoHoPython.Syntax.Statements
 
         public readonly string Identifier;
         public readonly List<IAstStatement> Statements;
-        
+
         public ModuleContainer(string identifier, List<IAstStatement> statements, SourceLocation sourceLocation)
         {
             SourceLocation = sourceLocation;
@@ -173,7 +173,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
 
-            scanner.ScanToken();
+            _ = scanner.ScanToken();
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
 
             List<AstType> Options = parseBlock(parseType);
@@ -188,7 +188,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
 
-            scanner.ScanToken();
+            _ = scanner.ScanToken();
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
 
             MatchAndScanToken(TokenType.Colon);
@@ -199,7 +199,7 @@ namespace NoHoPython.Syntax.Parsing
                 AstType type = parseType();
                 MatchToken(TokenType.Identifier);
                 string identifier = scanner.LastToken.Identifier;
-                scanner.ScanToken();
+                _ = scanner.ScanToken();
                 return new InterfaceDeclaration.InterfaceProperty(type, identifier);
             });
             return new InterfaceDeclaration(identifier, typeParameters, interfaceProperties, location);
@@ -213,36 +213,36 @@ namespace NoHoPython.Syntax.Parsing
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
 
-            scanner.ScanToken();
+            _ = scanner.ScanToken();
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
 
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            List<ProcedureDeclaration> procedures = new List<ProcedureDeclaration>();
+            List<ProcedureDeclaration> procedures = new();
             List<RecordDeclaration.RecordProperty> properties = parseBlock(() =>
             {
-                if(scanner.LastToken.Type == TokenType.Define)
+                if (scanner.LastToken.Type == TokenType.Define)
                 {
                     procedures.Add(parseProcedureDeclaration());
                     return null;
                 }
-                
+
                 bool isReadonly = false;
                 if (scanner.LastToken.Type == TokenType.Readonly)
                 {
                     isReadonly = true;
-                    scanner.ScanToken();
+                    _ = scanner.ScanToken();
                 }
 
                 AstType type = parseType();
                 MatchToken(TokenType.Identifier);
                 string identifier = scanner.LastToken.Identifier;
-                scanner.ScanToken();
+                _ = scanner.ScanToken();
 
                 if (scanner.LastToken.Type == TokenType.Set)
                 {
-                    scanner.ScanToken();
+                    _ = scanner.ScanToken();
                     return new RecordDeclaration.RecordProperty(type, identifier, isReadonly, parseExpression());
                 }
                 else
@@ -258,7 +258,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Module);
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
-            scanner.ScanToken();
+            _ = scanner.ScanToken();
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 

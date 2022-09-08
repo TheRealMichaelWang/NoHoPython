@@ -90,7 +90,7 @@ namespace NoHoPython.Syntax.Values
         {
             ProcedureValue = procedureValue;
             Arguments = arguments;
-            SourceLocation= sourceLocation;
+            SourceLocation = sourceLocation;
         }
 
         public override string ToString() => $"{ProcedureValue}({string.Join(", ", Arguments)})";
@@ -110,24 +110,24 @@ namespace NoHoPython.Syntax.Parsing
 
             MatchToken(TokenType.Identifier);
             string identifer = scanner.LastToken.Identifier;
-            scanner.ScanToken();
+            _ = scanner.ScanToken();
 
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
-            
+
             MatchAndScanToken(TokenType.OpenParen);
 
-            List<ProcedureDeclaration.ProcedureParameter> parameters = new List<ProcedureDeclaration.ProcedureParameter>();
-            while(scanner.LastToken.Type != TokenType.CloseParen)
+            List<ProcedureDeclaration.ProcedureParameter> parameters = new();
+            while (scanner.LastToken.Type != TokenType.CloseParen)
             {
                 AstType paramType = parseType();
                 MatchToken(TokenType.Identifier);
                 parameters.Add(new ProcedureDeclaration.ProcedureParameter(scanner.LastToken.Identifier, paramType));
-                scanner.ScanToken();
+                _ = scanner.ScanToken();
 
                 if (scanner.LastToken.Type != TokenType.CloseParen)
                     MatchAndScanToken(TokenType.Comma);
             }
-            scanner.ScanToken();
+            _ = scanner.ScanToken();
             AstType returnType = parseType();
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);

@@ -12,8 +12,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public PropertyNotImplementedException(InterfaceDeclaration.InterfaceProperty requiredProperty, RecordDeclaration record) : base($"{record.Name} doesn't implement required property {requiredProperty}.")
         {
-            this.RequiredProperty = requiredProperty;
-            this.Record = record;
+            RequiredProperty = requiredProperty;
+            Record = record;
         }
     }
 
@@ -41,7 +41,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return false;
             }
 
-            public InterfaceProperty SubstituteWithTypeargs(Dictionary<TypeParameter, IType> typeargs) => new (Name, Type.SubstituteWithTypearg(typeargs));
+            public InterfaceProperty SubstituteWithTypeargs(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs));
         }
 
 
@@ -62,15 +62,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             if (interfaceType.InterfaceDeclaration != this)
                 throw new InvalidOperationException();
-            if (this.requiredImplementedProperties == null)
+            if (requiredImplementedProperties == null)
                 throw new InvalidOperationException();
 
-            Dictionary<TypeParameter, IType> typeargs = new (requiredImplementedProperties.Count);
+            Dictionary<TypeParameter, IType> typeargs = new(requiredImplementedProperties.Count);
             for (int i = 0; i < TypeParameters.Count; i++)
                 typeargs.Add(TypeParameters[i], interfaceType.TypeArguments[i]);
 
-            List<InterfaceProperty> interfaceRequiredProperties = new (requiredImplementedProperties.Count);
-            for(int i = 0; i < interfaceRequiredProperties.Count; i++)
+            List<InterfaceProperty> interfaceRequiredProperties = new(requiredImplementedProperties.Count);
+            for (int i = 0; i < interfaceRequiredProperties.Count; i++)
                 interfaceRequiredProperties.Add(requiredImplementedProperties[i].SubstituteWithTypeargs(typeargs));
             return interfaceRequiredProperties;
         }
@@ -98,11 +98,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
             TargetType = targetType;
             Value = value;
 
-            if(value.Type is TypeParameterReference typeParameterReference)
+            if (value.Type is TypeParameterReference typeParameterReference)
             {
-                if(typeParameterReference.TypeParameter.RequiredImplementedInterface is not null && typeParameterReference.TypeParameter.RequiredImplementedInterface is IPropertyContainer requiredContainer)
+                if (typeParameterReference.TypeParameter.RequiredImplementedInterface is not null && typeParameterReference.TypeParameter.RequiredImplementedInterface is IPropertyContainer requiredContainer)
                 {
-                    if(!TargetType.SupportsProperties(requiredContainer.GetProperties()))
+                    if (!TargetType.SupportsProperties(requiredContainer.GetProperties()))
                         throw new UnexpectedTypeException(typeParameterReference);
                 }
                 else
@@ -137,7 +137,7 @@ namespace NoHoPython.Typing
 
         public InterfaceType(InterfaceDeclaration interfaceDeclaration, List<IType> typeArguments)
         {
-            this.InterfaceDeclaration = interfaceDeclaration;
+            InterfaceDeclaration = interfaceDeclaration;
             TypeArguments = typeArguments;
             TypeParameter.ValidateTypeArguments(interfaceDeclaration.TypeParameters, typeArguments);
 
@@ -179,7 +179,7 @@ namespace NoHoPython.Typing
                 return false;
             }
 
-            foreach(InterfaceDeclaration.InterfaceProperty requiredProperty in RequiredImplementedProperties)
+            foreach (InterfaceDeclaration.InterfaceProperty requiredProperty in RequiredImplementedProperties)
             {
                 if (!SupportsProperty(requiredProperty))
                     return false;

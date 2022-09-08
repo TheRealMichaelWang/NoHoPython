@@ -5,12 +5,12 @@ namespace NoHoPython.Syntax.Values
     public sealed partial class IntegerLiteral : IAstValue
     {
         public SourceLocation SourceLocation { get; private set; }
-        
+
         public long Number { get; private set; }
 
         public IntegerLiteral(long number, SourceLocation sourceLocation)
         {
-            this.Number = number;
+            Number = number;
             SourceLocation = sourceLocation;
         }
 
@@ -25,7 +25,7 @@ namespace NoHoPython.Syntax.Values
 
         public DecimalLiteral(decimal number, SourceLocation sourceLocation)
         {
-            this.Number = number;
+            Number = number;
             SourceLocation = sourceLocation;
         }
 
@@ -40,7 +40,7 @@ namespace NoHoPython.Syntax.Values
 
         public CharacterLiteral(char character, SourceLocation sourceLocation)
         {
-            this.Character = character;
+            Character = character;
             SourceLocation = sourceLocation;
         }
 
@@ -63,7 +63,7 @@ namespace NoHoPython.Syntax.Values
             ElementType = elementType;
         }
 
-        public ArrayLiteral(string stringLiteral, SourceLocation sourceLocation) : this(stringLiteral.ToList().ConvertAll((char c) => (IAstValue)(new CharacterLiteral(c, sourceLocation))), new AstType("char", new List<AstType>()), sourceLocation)
+        public ArrayLiteral(string stringLiteral, SourceLocation sourceLocation) : this(stringLiteral.ToList().ConvertAll((char c) => (IAstValue)new CharacterLiteral(c, sourceLocation)), new AstType("char", new List<AstType>()), sourceLocation)
         {
             IsStringLiteral = true;
         }
@@ -72,16 +72,16 @@ namespace NoHoPython.Syntax.Values
         {
             if (IsStringLiteral)
             {
-                StringBuilder builder = new StringBuilder();
-                builder.Append("\"");
+                StringBuilder builder = new();
+                _ = builder.Append("\"");
                 foreach (IAstValue value in Elements)
-                    builder.Append(((CharacterLiteral)value).Character);
-                builder.Append("\"");
+                    _ = builder.Append(((CharacterLiteral)value).Character);
+                _ = builder.Append("\"");
                 return builder.ToString();
             }
             else
                 return $"[{string.Join(", ", Elements)}]";
-        } 
+        }
     }
 
     public sealed partial class TrueLiteral : IAstValue

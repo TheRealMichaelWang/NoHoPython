@@ -28,7 +28,7 @@ namespace NoHoPython.Typing
 
         public bool IsGloballyNavigable => false;
 
-        public string Name { get;private set; }
+        public string Name { get; private set; }
         public IType? RequiredImplementedInterface { get; private set; }
 
         public TypeParameter(string name, IType? requiredImplementedInterface)
@@ -39,9 +39,7 @@ namespace NoHoPython.Typing
 
         public bool SupportsType(IType type)
         {
-            if (RequiredImplementedInterface == null)
-                return true;
-            return RequiredImplementedInterface.IsCompatibleWith(type);
+            return RequiredImplementedInterface == null || RequiredImplementedInterface.IsCompatibleWith(type);
         }
     }
 
@@ -60,9 +58,7 @@ namespace NoHoPython.Typing
 
         public bool IsCompatibleWith(IType type)
         {
-            if (type is TypeParameterReference typeParameterReference)
-                return TypeParameter == typeParameterReference.TypeParameter;
-            return false;
+            return type is TypeParameterReference typeParameterReference && TypeParameter == typeParameterReference.TypeParameter;
         }
 
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => typeargs[TypeParameter].Clone();
@@ -86,10 +82,7 @@ namespace NoHoPython.Typing
         {
             if (typeargs.ContainsKey(TypeParameter))
             {
-                if (typeargs[TypeParameter].IsCompatibleWith(argument.Type))
-                    return argument;
-                else
-                    return ArithmeticCast.CastTo(argument, typeargs[TypeParameter]);
+                return typeargs[TypeParameter].IsCompatibleWith(argument.Type) ? argument : ArithmeticCast.CastTo(argument, typeargs[TypeParameter]);
             }
             else
             {
@@ -122,7 +115,7 @@ namespace NoHoPython.Typing
                 return argument;
             }
             else
-                return ArithmeticCast.CastTo(argument, this.SubstituteWithTypearg(typeargs));
+                return ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs));
         }
     }
 
@@ -154,14 +147,14 @@ namespace NoHoPython.Typing
 
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
         {
-            if (!this.IsCompatibleWith(argument))
+            if (!IsCompatibleWith(argument))
                 throw new UnexpectedTypeException(this, argument);
         }
     }
 
     partial class EnumType
     {
-        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new EnumType(EnumDeclaration, TypeArguments.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList()); 
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new EnumType(EnumDeclaration, TypeArguments.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList());
 
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
         {
@@ -173,13 +166,13 @@ namespace NoHoPython.Typing
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
         {
-            if (argument.Type is EnumType enumType && EnumDeclaration == enumType.EnumDeclaration) 
+            if (argument.Type is EnumType enumType && EnumDeclaration == enumType.EnumDeclaration)
             {
                 TypeParameter.MatchTypeargs(typeargs, TypeArguments, enumType.TypeArguments);
                 return argument;
             }
             else
-                return ArithmeticCast.CastTo(argument, this.SubstituteWithTypearg(typeargs));
+                return ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs));
         }
     }
 
@@ -197,13 +190,13 @@ namespace NoHoPython.Typing
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
         {
-            if(argument.Type is RecordType recordType && RecordPrototype == recordType.RecordPrototype)
+            if (argument.Type is RecordType recordType && RecordPrototype == recordType.RecordPrototype)
             {
                 TypeParameter.MatchTypeargs(typeargs, TypeArguments, recordType.TypeArguments);
                 return argument;
             }
             else
-                return ArithmeticCast.CastTo(argument, this.SubstituteWithTypearg(typeargs));
+                return ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs));
         }
     }
 
@@ -248,7 +241,7 @@ namespace NoHoPython.Typing
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
         {
-            if(argument.Type is ProcedureType procedureType)
+            if (argument.Type is ProcedureType procedureType)
             {
                 ReturnType.MatchTypeArgumentWithType(typeargs, procedureType.ReturnType);
                 TypeParameter.MatchTypeargs(typeargs, ParameterTypes, procedureType.ParameterTypes);
@@ -320,7 +313,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class GetValueAtIndex
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetValueAtIndex(Array.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs));
-    } 
+    }
 
     partial class SetValueAtIndex
     {

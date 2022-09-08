@@ -96,14 +96,7 @@ namespace NoHoPython.Scoping
         public override IScopeSymbol? FindSymbol(string identifier)
         {
             IScopeSymbol? result = base.FindSymbol(identifier);
-            if (result == null)
-            {
-                if (parentContainer == null)
-                    return null;
-                else
-                    return parentContainer.FindSymbol(identifier);
-            }
-            return result;
+            return result ?? (parentContainer == null ? null : parentContainer.FindSymbol(identifier));
         }
     }
 }
@@ -115,12 +108,11 @@ namespace NoHoPython.Syntax.Values
         public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder)
         {
             IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name);
-            if (valueSymbol is Variable variable)
-                return new IntermediateRepresentation.Values.VariableReference(variable);
-            else if (valueSymbol is IntermediateRepresentation.Statements.ProcedureDeclaration procedureDeclaration)
-                return new AnonymizeProcedure(procedureDeclaration);
-            else
-                throw new NotAVariableException(valueSymbol);
+            return valueSymbol is Variable variable
+                ? new IntermediateRepresentation.Values.VariableReference(variable)
+                : valueSymbol is IntermediateRepresentation.Statements.ProcedureDeclaration procedureDeclaration
+                ? (IRValue)new AnonymizeProcedure(procedureDeclaration)
+                : throw new NotAVariableException(valueSymbol);
         }
     }
 
@@ -136,10 +128,9 @@ namespace NoHoPython.Syntax.Values
             try
             {
                 IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name);
-                if (valueSymbol is Variable variable)
-                    return new IntermediateRepresentation.Values.SetVariable(variable, SetValue.GenerateIntermediateRepresentationForValue(irBuilder));
-                else
-                    throw new NotAVariableException(valueSymbol);
+                return valueSymbol is Variable variable
+                    ? (IRValue)new IntermediateRepresentation.Values.SetVariable(variable, SetValue.GenerateIntermediateRepresentationForValue(irBuilder))
+                    : throw new NotAVariableException(valueSymbol);
             }
             catch (SymbolNotFoundException)
             {

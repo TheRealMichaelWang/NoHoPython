@@ -34,7 +34,7 @@ namespace NoHoPython.IntermediateRepresentation
             InterfaceDeclarations = new List<InterfaceDeclaration>();
             RecordDeclarations = new List<RecordDeclaration>();
             ProcedureDeclarations = new List<ProcedureDeclaration>();
-            ScopedProcedures= new Stack<ProcedureDeclaration>();
+            ScopedProcedures = new Stack<ProcedureDeclaration>();
             ScopedRecordDeclaration = null;
         }
 

@@ -39,7 +39,7 @@ namespace NoHoPython.Typing
 
     public sealed class UnexpectedTypeArgumentsException : Exception
     {
-        public int? ExpectedArgumentCount { get;private set; }
+        public int? ExpectedArgumentCount { get; private set; }
         public int RecievedArgumentCount { get; private set; }
 
         public UnexpectedTypeArgumentsException(int expectedArgumentCount, int recievedArgumentCount) : base($"Expected {expectedArgumentCount} type arguments, got {recievedArgumentCount} instead.")

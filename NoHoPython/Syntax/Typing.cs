@@ -13,12 +13,12 @@ namespace NoHoPython.Syntax
         public TypeParameter(string identifier, AstType? requiredImplementedType)
         {
             Identifier = identifier;
-            RequiredImplementedType = requiredImplementedType; 
+            RequiredImplementedType = requiredImplementedType;
         }
 
         public override string ToString() => Identifier + (RequiredImplementedType == null ? string.Empty : $": {RequiredImplementedType}");
 
-        public Typing.TypeParameter ToIRTypeParameter(IRProgramBuilder irBuilder) => new Typing.TypeParameter(Identifier, RequiredImplementedType == null ? null : RequiredImplementedType.ToIRType(irBuilder));
+        public Typing.TypeParameter ToIRTypeParameter(IRProgramBuilder irBuilder) => new(Identifier, RequiredImplementedType == null ? null : RequiredImplementedType.ToIRType(irBuilder));
     }
 
     public sealed class AstType
@@ -34,16 +34,13 @@ namespace NoHoPython.Syntax
 
         public override string ToString()
         {
-            if (TypeArguments.Count == 0)
-                return Identifier;
-            else
-                return $"{Identifier}<{string.Join(", ", TypeArguments)}>";
+            return TypeArguments.Count == 0 ? Identifier : $"{Identifier}<{string.Join(", ", TypeArguments)}>";
         }
 
         public IType ToIRType(IRProgramBuilder irBuilder)
         {
             List<IType> typeArguments = TypeArguments.ConvertAll((AstType argument) => argument.ToIRType(irBuilder));
-            
+
             void MatchTypeArgCount(int expected)
             {
                 if (typeArguments.Count != expected)
@@ -72,9 +69,9 @@ namespace NoHoPython.Syntax
                 case "fn":
                 case "proc":
                     {
-                        if (typeArguments.Count < 1)
-                            throw new UnexpectedTypeArgumentsException(typeArguments.Count);
-                        return new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1));
+                        return typeArguments.Count < 1
+                            ? throw new UnexpectedTypeArgumentsException(typeArguments.Count)
+                            : (IType)new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1));
                     }
                 default:
                     {
@@ -129,11 +126,11 @@ namespace NoHoPython.Syntax.Parsing
             {
                 MatchToken(TokenType.Identifier);
                 string identifier = scanner.LastToken.Identifier;
-                scanner.ScanToken();
+                _ = scanner.ScanToken();
 
                 if (scanner.LastToken.Type == TokenType.Colon)
                 {
-                    scanner.ScanToken();
+                    _ = scanner.ScanToken();
                     return new TypeParameter(identifier, parseType());
                 }
                 else
@@ -142,10 +139,10 @@ namespace NoHoPython.Syntax.Parsing
 
             MatchToken(TokenType.Less);
 
-            List<TypeParameter> typeParameters = new List<TypeParameter>();
+            List<TypeParameter> typeParameters = new();
             while (true)
             {
-                scanner.ScanToken();
+                _ = scanner.ScanToken();
                 typeParameters.Add(parseTypeParameter());
 
                 if (scanner.LastToken.Type == TokenType.More)
@@ -153,7 +150,7 @@ namespace NoHoPython.Syntax.Parsing
                 else
                     MatchToken(TokenType.Comma);
             }
-            scanner.ScanToken();
+            _ = scanner.ScanToken();
             return typeParameters;
         }
 
@@ -161,17 +158,17 @@ namespace NoHoPython.Syntax.Parsing
         {
             MatchToken(TokenType.Less);
 
-            List<AstType> typeArguments = new List<AstType>();
+            List<AstType> typeArguments = new();
             while (true)
             {
-                scanner.ScanToken();
+                _ = scanner.ScanToken();
                 typeArguments.Add(parseType());
                 if (scanner.LastToken.Type == TokenType.More)
                     break;
                 else
                     MatchToken(TokenType.Comma);
             }
-            scanner.ScanToken();
+            _ = scanner.ScanToken();
             return typeArguments;
         }
 
@@ -179,12 +176,11 @@ namespace NoHoPython.Syntax.Parsing
         {
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
-            scanner.ScanToken();
+            _ = scanner.ScanToken();
 
-            if (scanner.LastToken.Type == TokenType.Less)
-                return new AstType(identifier, parseTypeArguments());
-            else
-                return new AstType(identifier, new List<AstType>());
+            return scanner.LastToken.Type == TokenType.Less
+                ? new AstType(identifier, parseTypeArguments())
+                : new AstType(identifier, new List<AstType>());
         }
     }
 }

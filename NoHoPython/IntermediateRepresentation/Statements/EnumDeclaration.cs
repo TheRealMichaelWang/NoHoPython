@@ -24,10 +24,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             if (enumType.EnumDeclaration != this)
                 throw new InvalidOperationException();
-            if (this.options == null)
+            if (options == null)
                 throw new InvalidOperationException();
 
-            Dictionary<TypeParameter, IType> typeargs = new (TypeParameters.Count);
+            Dictionary<TypeParameter, IType> typeargs = new(TypeParameters.Count);
             for (int i = 0; i < TypeParameters.Count; i++)
                 typeargs.Add(TypeParameters[i], enumType.TypeArguments[i]);
 
@@ -61,11 +61,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
             TargetType = targetType;
             Value = value;
 
-            if(value.Type is TypeParameterReference typeParameterReference)
+            if (value.Type is TypeParameterReference typeParameterReference)
             {
-                if(typeParameterReference.TypeParameter.RequiredImplementedInterface is not null)
+                if (typeParameterReference.TypeParameter.RequiredImplementedInterface is not null)
                 {
-                    if(!targetType.SupportsType(typeParameterReference.TypeParameter.RequiredImplementedInterface))
+                    if (!targetType.SupportsType(typeParameterReference.TypeParameter.RequiredImplementedInterface))
                         throw new UnexpectedTypeException(value.Type);
                 }
                 else
@@ -111,7 +111,7 @@ namespace NoHoPython.Typing
 
         public bool IsCompatibleWith(IType type)
         {
-            if(type is EnumType enumType)
+            if (type is EnumType enumType)
             {
                 if (enumType.EnumDeclaration != enumType.EnumDeclaration)
                     return false;

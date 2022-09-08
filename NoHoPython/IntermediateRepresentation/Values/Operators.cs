@@ -31,7 +31,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Left = left;
             Right = right;
 
-            if(left.Type is IPropertyContainer propertyContainer && !propertyContainer.HasProperty("compare"))
+            if (left.Type is IPropertyContainer propertyContainer && !propertyContainer.HasProperty("compare"))
             {
                 Left = ArithmeticCast.CastTo(new AnonymousProcedureCall(new GetPropertyValue(left, "compare"), new List<IRValue>()
                 {
@@ -76,13 +76,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public static IRValue ComposeGetValueAtIndex(IRValue array, IRValue index)
         {
-            if (array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("getAtIndex"))
-                return new AnonymousProcedureCall(new GetPropertyValue(array, "getAtIndex"), new List<IRValue>()
+            return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("getAtIndex")
+                ? new AnonymousProcedureCall(new GetPropertyValue(array, "getAtIndex"), new List<IRValue>()
                 {
                     index
-                });
-            else
-                return new GetValueAtIndex(array, index);
+                })
+                : (IRValue)new GetValueAtIndex(array, index);
         }
 
         public IType Type { get; private set; }
@@ -108,14 +107,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public static IRValue ComposeSetValueAtIndex(IRValue array, IRValue index, IRValue value)
         {
-            if (array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("setAtIndex"))
-                return new AnonymousProcedureCall(new GetPropertyValue(array, "setAtIndex"), new List<IRValue>()
+            return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("setAtIndex")
+                ? new AnonymousProcedureCall(new GetPropertyValue(array, "setAtIndex"), new List<IRValue>()
                 {
                     index,
                     value
-                });
-            else
-                return new SetValueAtIndex(array, index, value);
+                })
+                : (IRValue)new SetValueAtIndex(array, index, value);
         }
 
         public IType Type => Value.Type;
@@ -129,10 +127,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             Array = array;
 
-            if (array.Type is ArrayType arrayType)
-                Value = ArithmeticCast.CastTo(value, arrayType.ElementType);
-            else
-                throw new UnexpectedTypeException(array.Type);
+            Value = array.Type is ArrayType arrayType
+                ? ArithmeticCast.CastTo(value, arrayType.ElementType)
+                : throw new UnexpectedTypeException(array.Type);
 
             Index = ArithmeticCast.CastTo(index, Primitive.Integer);
         }
@@ -148,10 +145,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public GetPropertyValue(IRValue record, string propertyName)
         {
             Record = record;
-            if (record.Type is IPropertyContainer propertyContainer)
-                Property = propertyContainer.FindProperty(propertyName);
-            else
-                throw new UnexpectedTypeException(record.Type);
+            Property = record.Type is IPropertyContainer propertyContainer
+                ? propertyContainer.FindProperty(propertyName)
+                : throw new UnexpectedTypeException(record.Type);
         }
     }
 
@@ -186,7 +182,7 @@ namespace NoHoPython.Syntax.Values
 {
     partial class BinaryOperator
     {
-        private static Dictionary<TokenType, ArithmeticOperator.ArithmeticOperation> ArithmeticTokens = new Dictionary<TokenType, ArithmeticOperator.ArithmeticOperation>()
+        private static Dictionary<TokenType, ArithmeticOperator.ArithmeticOperation> ArithmeticTokens = new()
         {
             {TokenType.Add, ArithmeticOperator.ArithmeticOperation.Add},
             {TokenType.Subtract, ArithmeticOperator.ArithmeticOperation.Subtract},
@@ -196,7 +192,7 @@ namespace NoHoPython.Syntax.Values
             {TokenType.Caret, ArithmeticOperator.ArithmeticOperation.Exponentiate},
         };
 
-        private static Dictionary<TokenType, ComparativeOperator.CompareOperation> ComparativeTokens = new Dictionary<TokenType, ComparativeOperator.CompareOperation>()
+        private static Dictionary<TokenType, ComparativeOperator.CompareOperation> ComparativeTokens = new()
         {
             {TokenType.More, ComparativeOperator.CompareOperation.More},
             {TokenType.Less, ComparativeOperator.CompareOperation.Less},
@@ -206,7 +202,7 @@ namespace NoHoPython.Syntax.Values
             {TokenType.NotEquals, ComparativeOperator.CompareOperation.NotEquals}
         };
 
-        private static Dictionary<TokenType, LogicalOperator.LogicalOperation> LogicalTokens = new Dictionary<TokenType, LogicalOperator.LogicalOperation>()
+        private static Dictionary<TokenType, LogicalOperator.LogicalOperation> LogicalTokens = new()
         {
             {TokenType.And, LogicalOperator.LogicalOperation.And},
             {TokenType.Or, LogicalOperator.LogicalOperation.Or }
@@ -214,14 +210,13 @@ namespace NoHoPython.Syntax.Values
 
         public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder)
         {
-            if (ArithmeticTokens.ContainsKey(Operator))
-                return ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder));
-            else if (ComparativeTokens.ContainsKey(Operator))
-                return new ComparativeOperator(ComparativeTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder));
-            else if (LogicalTokens.ContainsKey(Operator))
-                return new LogicalOperator(LogicalTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder));
-            else
-                throw new InvalidOperationException();
+            return ArithmeticTokens.ContainsKey(Operator)
+                ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder))
+                : ComparativeTokens.ContainsKey(Operator)
+                ? new ComparativeOperator(ComparativeTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder))
+                : LogicalTokens.ContainsKey(Operator)
+                ? (IRValue)new LogicalOperator(LogicalTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder))
+                : throw new InvalidOperationException();
         }
     }
 
@@ -242,7 +237,7 @@ namespace NoHoPython.Syntax.Values
 
     partial class GetPropertyValue
     {
-        
+
         public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.GetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder), Property);
     }
 

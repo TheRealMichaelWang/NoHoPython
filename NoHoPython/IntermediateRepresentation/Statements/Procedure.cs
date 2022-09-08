@@ -54,10 +54,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, IType returnType, SymbolContainer? parentContainer) : base(parentContainer, new List<Variable>())
         {
-            this.Name = name;
-            this.TypeParameters = typeParameters;
-            this.Parameters = null;
-            this.ReturnType = returnType;
+            Name = name;
+            TypeParameters = typeParameters;
+            Parameters = null;
+            ReturnType = returnType;
         }
 
         public void DeclareParameters(List<Variable> parameters)
@@ -112,8 +112,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public ProcedureReference SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs)
         {
-            Dictionary<TypeParameter, IType> newTypeargs = new Dictionary<TypeParameter, IType>(typeargs.Count);
-            foreach (KeyValuePair<TypeParameter, IType> typearg in this.typeArguments)
+            Dictionary<TypeParameter, IType> newTypeargs = new(typeargs.Count);
+            foreach (KeyValuePair<TypeParameter, IType> typearg in typeArguments)
                 newTypeargs.Add(typearg.Key, typearg.Value.SubstituteWithTypearg(typeargs));
             return new ProcedureReference(newTypeargs, ProcedureDeclaration);
         }
@@ -139,7 +139,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public ProcedureReference Procedure { get; private set; }
         public readonly List<IRValue> Arguments;
 
-        public LinkedProcedureCall(IntermediateRepresentation.Statements.ProcedureDeclaration procedure, List<IRValue> arguments) : this(new ProcedureReference(procedure, arguments), arguments)
+        public LinkedProcedureCall(ProcedureDeclaration procedure, List<IRValue> arguments) : this(new ProcedureReference(procedure, arguments), arguments)
         {
 
         }
@@ -188,7 +188,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             Procedure = procedure;
         }
-        
+
         public AnonymizeProcedure(ProcedureDeclaration procedure) : this(new ProcedureReference(procedure))
         {
 
@@ -207,9 +207,9 @@ namespace NoHoPython.Syntax.Statements
 
         public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder)
         {
-            if (irBuilder.ScopedProcedures.Count == 0)
-                throw new UnexpectedReturnStatement(this);
-            return new IntermediateRepresentation.Statements.ReturnStatement(ReturnValue.GenerateIntermediateRepresentationForValue(irBuilder), irBuilder.ScopedProcedures.Peek());
+            return irBuilder.ScopedProcedures.Count == 0
+                ? throw new UnexpectedReturnStatement(this)
+                : (IRStatement)new IntermediateRepresentation.Statements.ReturnStatement(ReturnValue.GenerateIntermediateRepresentationForValue(irBuilder), irBuilder.ScopedProcedures.Peek());
         }
     }
 
@@ -239,15 +239,15 @@ namespace NoHoPython.Syntax.Statements
 
             foreach (Typing.TypeParameter parameter in typeParameters)
                 irBuilder.SymbolMarshaller.DeclareSymbol(parameter);
-            if(irBuilder.ScopedRecordDeclaration != null)
+            if (irBuilder.ScopedRecordDeclaration != null)
                 irBuilder.SymbolMarshaller.DeclareSymbol(new Variable(irBuilder.ScopedRecordDeclaration.SelfType, "self", IRProcedureDeclaration));
 
             IAstStatement.ForwardDeclareBlock(irBuilder, Statements);
 
             irBuilder.SymbolMarshaller.GoBack();
-            irBuilder.ScopedProcedures.Pop();
+            _ = irBuilder.ScopedProcedures.Pop();
         }
-        
+
         public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
@@ -256,7 +256,7 @@ namespace NoHoPython.Syntax.Statements
             IRProcedureDeclaration.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, Statements));
 
             irBuilder.SymbolMarshaller.GoBack();
-            irBuilder.ScopedProcedures.Pop();
+            _ = irBuilder.ScopedProcedures.Pop();
             return IRProcedureDeclaration;
         }
     }
@@ -274,10 +274,9 @@ namespace NoHoPython.Syntax.Values
         public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder)
         {
             IScopeSymbol procedureSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name);
-            if (procedureSymbol is ProcedureDeclaration procedureDeclaration)
-                return new LinkedProcedureCall(procedureDeclaration, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder)));
-            else
-                throw new NotAProcedureException(procedureSymbol);
+            return procedureSymbol is ProcedureDeclaration procedureDeclaration
+                ? (IRValue)new LinkedProcedureCall(procedureDeclaration, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder)))
+                : throw new NotAProcedureException(procedureSymbol);
         }
     }
 

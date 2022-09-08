@@ -2,20 +2,8 @@
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
-namespace NoHoPython.IntermediateRepresentation
+namespace NoHoPython.Syntax
 {
-    public interface IRValue
-    {
-        public IType Type { get; }
-
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
-    }
-
-    public interface IRStatement
-    {
-
-    }
-
     public sealed class IRProgramBuilder
     {
         public List<EnumDeclaration> EnumDeclarations { get; private set; }
@@ -52,4 +40,21 @@ namespace NoHoPython.IntermediateRepresentation
             ScopedRecordDeclaration = null;
         }
     }
+}
+
+namespace NoHoPython.IntermediateRepresentation
+{
+    public interface IRValue
+    {
+        public IType Type { get; }
+
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
+    }
+
+    public interface IRStatement
+    {
+
+    }
+
+    
 }

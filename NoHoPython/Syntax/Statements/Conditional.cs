@@ -154,7 +154,7 @@ namespace NoHoPython.Syntax.Parsing
                 else if (scanner.LastToken.Type == TokenType.Else)
                 {
                     skipIndentCounting = false;
-                    _ = parseElseBlock(currentBlock);
+                    parseElseBlock(currentBlock);
                     break;
                 }
                 else

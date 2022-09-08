@@ -24,7 +24,7 @@ namespace NoHoPython.Syntax.Parsing
         private void MatchAndScanToken(TokenType expectedLastTokenType)
         {
             MatchToken(expectedLastTokenType);
-            _ = scanner.ScanToken();
+            scanner.ScanToken();
         }
 
         private string parseIdentifier()
@@ -32,15 +32,15 @@ namespace NoHoPython.Syntax.Parsing
             StringBuilder idBuilder = new();
 
             MatchToken(TokenType.Identifier);
-            _ = idBuilder.Append(scanner.LastToken.Identifier);
-            _ = scanner.ScanToken();
+            idBuilder.Append(scanner.LastToken.Identifier);
+            scanner.ScanToken();
 
             while (scanner.LastToken.Type == TokenType.Colon)
             {
-                _ = scanner.ScanToken();
+                scanner.ScanToken();
                 MatchToken(TokenType.Identifier);
-                _ = idBuilder.Append(scanner.LastToken.Identifier);
-                _ = scanner.ScanToken();
+                idBuilder.Append(scanner.LastToken.Identifier);
+                scanner.ScanToken();
             }
 
             return idBuilder.ToString();
@@ -61,7 +61,7 @@ namespace NoHoPython.Syntax.Parsing
                         return value is IAstStatement statement ? statement : throw new UnexpectedTokenException(scanner.LastToken, location);
                     }
                 case TokenType.Return:
-                    _ = scanner.ScanToken();
+                    scanner.ScanToken();
                     return new ReturnStatement(parseExpression(), location);
                 case TokenType.Define:
                     return parseProcedureDeclaration();
@@ -78,7 +78,7 @@ namespace NoHoPython.Syntax.Parsing
             {
                 int count;
                 for (count = 0; scanner.LastToken.Type == TokenType.Tab; count++)
-                    _ = scanner.ScanToken();
+                    scanner.ScanToken();
                 return lastCountedIndents = count;
             }
 
@@ -89,13 +89,13 @@ namespace NoHoPython.Syntax.Parsing
                 if (skipIndentCounting)
                     skipIndentCounting = false;
                 else
-                    _ = countIndent();
+                    countIndent();
 
                 if (lastCountedIndents == currentExpectedIndents)
                 {
                     if (scanner.LastToken.Type == TokenType.Newline)
                     {
-                        _ = scanner.ScanToken();
+                        scanner.ScanToken();
                         continue;
                     }
 
@@ -132,7 +132,7 @@ namespace NoHoPython.Syntax.Parsing
                 if (scanner.LastToken.Type != TokenType.CloseParen)
                     MatchAndScanToken(TokenType.Comma);
             }
-            _ = scanner.ScanToken();
+            scanner.ScanToken();
 
             return arguments;
         }
@@ -141,7 +141,6 @@ namespace NoHoPython.Syntax.Parsing
         {
             IAstValue parseValue()
             {
-
                 IAstValue parseFirst()
                 {
                     SourceLocation location = scanner.CurrentLocation;
@@ -149,7 +148,7 @@ namespace NoHoPython.Syntax.Parsing
                     {
                         case TokenType.OpenParen:
                             {
-                                _ = scanner.ScanToken();
+                                scanner.ScanToken();
                                 IAstValue expression = parseExpression();
                                 MatchAndScanToken(TokenType.CloseParen);
                                 return expression;
@@ -163,7 +162,7 @@ namespace NoHoPython.Syntax.Parsing
                                     return new NamedFunctionCall(identifier, parseArguments(), location);
                                 else if (scanner.LastToken.Type == TokenType.Set)
                                 {
-                                    _ = scanner.ScanToken();
+                                    scanner.ScanToken();
                                     return new SetVariable(identifier, parseExpression(), location);
                                 }
                                 else
@@ -172,35 +171,37 @@ namespace NoHoPython.Syntax.Parsing
                         case TokenType.IntegerLiteral:
                             {
                                 IntegerLiteral integerLiteral = new(long.Parse(scanner.LastToken.Identifier), location);
-                                _ = scanner.ScanToken();
+                                scanner.ScanToken();
                                 return integerLiteral;
                             }
                         case TokenType.DecimalLiteral:
                             {
                                 DecimalLiteral decimalLiteral = new(decimal.Parse(scanner.LastToken.Identifier), location);
-                                _ = scanner.ScanToken();
+                                scanner.ScanToken();
                                 return decimalLiteral;
                             }
                         case TokenType.CharacterLiteral:
                             {
                                 CharacterLiteral characterLiteral = new(scanner.LastToken.Identifier[0], location);
-                                _ = scanner.ScanToken();
+                                scanner.ScanToken();
                                 return characterLiteral;
                             }
                         case TokenType.StringLiteral:
                             {
                                 ArrayLiteral stringLiteral = new(scanner.LastToken.Identifier, location);
-                                _ = scanner.ScanToken();
+                                scanner.ScanToken();
                                 return stringLiteral;
                             }
+                        case TokenType.OpenBracket:
+                            return parseArrayLiteral();
                         case TokenType.True:
-                            _ = scanner.ScanToken();
+                            scanner.ScanToken();
                             return new TrueLiteral(location);
                         case TokenType.False:
-                            _ = scanner.ScanToken();
+                            scanner.ScanToken();
                             return new FalseLiteral(location);
                         case TokenType.New:
-                            _ = scanner.ScanToken();
+                            scanner.ScanToken();
                             return new InstantiateNewRecord(parseType(), parseArguments(), location);
                         default:
                             throw new UnexpectedTokenException(scanner.LastToken, location);
@@ -211,13 +212,13 @@ namespace NoHoPython.Syntax.Parsing
                 {
                     if (scanner.LastToken.Type == TokenType.OpenBracket)
                     {
-                        _ = scanner.ScanToken();
+                        scanner.ScanToken();
                         IAstValue index = parseExpression();
                         MatchAndScanToken(TokenType.CloseBracket);
 
                         if (scanner.LastToken.Type == TokenType.Set)
                         {
-                            _ = scanner.ScanToken();
+                            scanner.ScanToken();
                             value = new SetValueAtIndex(value, index, parseExpression(), value.SourceLocation);
                         }
                         else
@@ -225,14 +226,14 @@ namespace NoHoPython.Syntax.Parsing
                     }
                     else if (scanner.LastToken.Type == TokenType.Period)
                     {
-                        _ = scanner.ScanToken();
+                        scanner.ScanToken();
                         MatchToken(TokenType.Identifier);
                         string propertyIdentifier = scanner.LastToken.Identifier;
 
-                        _ = scanner.ScanToken();
+                        scanner.ScanToken();
                         if (scanner.LastToken.Type == TokenType.Set)
                         {
-                            _ = scanner.ScanToken();
+                            scanner.ScanToken();
                             value = new SetPropertyValue(value, parseExpression(), propertyIdentifier, value.SourceLocation);
                         }
                         else
@@ -242,7 +243,7 @@ namespace NoHoPython.Syntax.Parsing
                         value = new AnonymousFunctionCall(value, parseArguments(), value.SourceLocation);
                     else if (scanner.LastToken.Type == TokenType.If)
                     {
-                        _ = scanner.ScanToken();
+                        scanner.ScanToken();
                         IAstValue ifTrue = parseExpression();
                         MatchAndScanToken(TokenType.Else);
 
@@ -250,7 +251,7 @@ namespace NoHoPython.Syntax.Parsing
                     }
                     else if (scanner.LastToken.Type == TokenType.As)
                     {
-                        _ = scanner.ScanToken();
+                        scanner.ScanToken();
                         value = new ExplicitCast(value, parseType(), value.SourceLocation);
                     }
                     else
@@ -265,7 +266,7 @@ namespace NoHoPython.Syntax.Parsing
             while (BinaryOperator.OperatorPrecedence.ContainsKey((opTok = scanner.LastToken).Type) && BinaryOperator.OperatorPrecedence[opTok.Type] > minPrec)
             {
                 SourceLocation opLocation = scanner.CurrentLocation;
-                _ = scanner.ScanToken();
+                scanner.ScanToken();
                 value = new BinaryOperator(opTok, value, parseExpression(BinaryOperator.OperatorPrecedence[opTok.Type]), value.SourceLocation, opLocation);
             }
             return value;
@@ -299,14 +300,14 @@ namespace NoHoPython.Syntax.Parsing
                 switch (scanner.LastToken.Type)
                 {
                     case TokenType.Newline:
-                        _ = scanner.ScanToken();
+                        scanner.ScanToken();
                         continue;
                     case TokenType.Include:
                         {
-                            _ = scanner.ScanToken();
+                            scanner.ScanToken();
                             MatchToken(TokenType.StringLiteral);
                             string file = scanner.LastToken.Identifier;
-                            _ = scanner.ScanToken();
+                            scanner.ScanToken();
                             MatchAndScanToken(TokenType.Newline);
                             scanner.IncludeFile(file);
                             continue;

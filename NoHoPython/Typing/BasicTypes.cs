@@ -12,6 +12,8 @@ namespace NoHoPython.Typing
         public static readonly CharacterType Character = new();
         public static readonly BooleanType Boolean = new();
 
+        public static readonly NothingType Nothing = new(); //not a primitive but also commonly used
+
         public abstract string TypeName { get; }
         public abstract int Size { get; }
 
@@ -88,6 +90,8 @@ namespace NoHoPython.Typing
         {
             return type is NothingType;
         }
+
+        public override string ToString() => TypeName;
     }
 
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).

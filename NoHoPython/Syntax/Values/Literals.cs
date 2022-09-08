@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using NoHoPython.IntermediateRepresentation.Values;
+using System.Text;
 
 namespace NoHoPython.Syntax.Values
 {
@@ -51,19 +52,19 @@ namespace NoHoPython.Syntax.Values
     {
         public SourceLocation SourceLocation { get; private set; }
 
-        public AstType ElementType { get; private set; }
+        public AstType? AnnotatedElementType { get; private set; }
         public readonly List<IAstValue> Elements;
         private bool IsStringLiteral;
 
-        public ArrayLiteral(List<IAstValue> elements, AstType elementType, SourceLocation sourceLocation)
+        public ArrayLiteral(List<IAstValue> elements, AstType? annotatedElementType, SourceLocation sourceLocation)
         {
             Elements = elements;
+            AnnotatedElementType = annotatedElementType;
             SourceLocation = sourceLocation;
             IsStringLiteral = false;
-            ElementType = elementType;
         }
 
-        public ArrayLiteral(string stringLiteral, SourceLocation sourceLocation) : this(stringLiteral.ToList().ConvertAll((char c) => (IAstValue)new CharacterLiteral(c, sourceLocation)), new AstType("char", new List<AstType>()), sourceLocation)
+        public ArrayLiteral(string stringLiteral, SourceLocation sourceLocation) : this(stringLiteral.ToList().ConvertAll((char c) => (IAstValue)new CharacterLiteral(c, sourceLocation)), null, sourceLocation)
         {
             IsStringLiteral = true;
         }
@@ -73,14 +74,14 @@ namespace NoHoPython.Syntax.Values
             if (IsStringLiteral)
             {
                 StringBuilder builder = new();
-                _ = builder.Append("\"");
+                builder.Append("\"");
                 foreach (IAstValue value in Elements)
-                    _ = builder.Append(((CharacterLiteral)value).Character);
-                _ = builder.Append("\"");
+                    builder.Append(((CharacterLiteral)value).Character);
+                builder.Append("\"");
                 return builder.ToString();
             }
             else
-                return $"[{string.Join(", ", Elements)}]";
+                return $"[{(AnnotatedElementType != null ? $"<{AnnotatedElementType}>" : string.Empty)}{string.Join(", ", Elements)}]";
         }
     }
 
@@ -122,5 +123,36 @@ namespace NoHoPython.Syntax.Values
         }
 
         public override string ToString() => $"new {RecordType}({string.Join(", ", Arguments)})";
+    }
+}
+
+namespace NoHoPython.Syntax.Parsing
+{
+    partial class AstParser
+    {
+        private Syntax.Values.ArrayLiteral parseArrayLiteral()
+        {
+            SourceLocation location = scanner.CurrentLocation;
+            MatchAndScanToken(TokenType.OpenBracket);
+
+            AstType? annotatedType = null;
+            if(scanner.LastToken.Type == TokenType.Less)
+            {
+                scanner.ScanToken();
+                annotatedType = parseType();
+                MatchAndScanToken(TokenType.More);
+            }
+
+            List<IAstValue> elements = new List<IAstValue>();
+            while (scanner.LastToken.Type != TokenType.CloseBracket)
+            {
+                elements.Add(parseExpression());
+                if (scanner.LastToken.Type != TokenType.CloseBracket)
+                    MatchAndScanToken(TokenType.Comma);
+            }
+            scanner.ScanToken();
+
+            return new Syntax.Values.ArrayLiteral(elements, annotatedType, location);
+        }
     }
 }

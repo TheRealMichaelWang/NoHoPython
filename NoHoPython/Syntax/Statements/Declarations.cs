@@ -11,7 +11,9 @@ namespace NoHoPython.Syntax.Statements
         public readonly List<TypeParameter> TypeParameters;
         public readonly List<AstType> Options;
 
+#pragma warning disable CS8618 // IREnumDeclaration initialized upon IR generation
         public EnumDeclaration(string identifier, List<TypeParameter> typeParameters, List<AstType> options, SourceLocation sourceLocation)
+#pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
             Identifier = identifier;
@@ -22,13 +24,13 @@ namespace NoHoPython.Syntax.Statements
         public string ToString(int indent)
         {
             StringBuilder builder = new();
-            _ = builder.Append($"{IAstStatement.Indent(indent)}enum {Identifier}");
+            builder.Append($"{IAstStatement.Indent(indent)}enum {Identifier}");
             if (TypeParameters.Count > 0)
-                _ = builder.Append($"<{string.Join(", ", TypeParameters)}>");
-            _ = builder.Append(':');
+                builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            builder.Append(':');
 
             foreach (AstType option in Options)
-                _ = builder.Append($"\n{IAstStatement.Indent(indent + 1)}{option}");
+                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{option}");
             return builder.ToString();
         }
     }
@@ -55,7 +57,9 @@ namespace NoHoPython.Syntax.Statements
         public readonly List<TypeParameter> TypeParameters;
         public readonly List<InterfaceProperty> Properties;
 
+#pragma warning disable CS8618 //IRInterfaceDeclaration initialized upon generating IR 
         public InterfaceDeclaration(string identifier, List<TypeParameter> typeParameters, List<InterfaceProperty> properties, SourceLocation sourceLocation)
+#pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
             Identifier = identifier;
@@ -66,13 +70,13 @@ namespace NoHoPython.Syntax.Statements
         public string ToString(int indent)
         {
             StringBuilder builder = new();
-            _ = builder.Append($"{IAstStatement.Indent(indent)}interface {Identifier}");
+            builder.Append($"{IAstStatement.Indent(indent)}interface {Identifier}");
             if (TypeParameters.Count > 0)
-                _ = builder.Append($"<{string.Join(", ", TypeParameters)}>");
-            _ = builder.Append(':');
+                builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            builder.Append(':');
 
             foreach (InterfaceProperty property in Properties)
-                _ = builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
+                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
             return builder.ToString();
         }
     }
@@ -99,16 +103,16 @@ namespace NoHoPython.Syntax.Statements
             {
                 StringBuilder builder = new();
                 if (IsReadOnly)
-                    _ = builder.Append("readonly ");
+                    builder.Append("readonly ");
 
-                _ = builder.Append(Type);
-                _ = builder.Append(' ');
-                _ = builder.Append(Identifier);
+                builder.Append(Type);
+                builder.Append(' ');
+                builder.Append(Identifier);
 
                 if (DefaultValue != null)
                 {
-                    _ = builder.Append(" = ");
-                    _ = builder.Append(DefaultValue.ToString());
+                    builder.Append(" = ");
+                    builder.Append(DefaultValue.ToString());
                 }
                 return builder.ToString();
             }
@@ -121,7 +125,9 @@ namespace NoHoPython.Syntax.Statements
         public readonly List<RecordProperty> Properties;
         public readonly List<ProcedureDeclaration> MessageRecievers;
 
+#pragma warning disable CS8618 // IRRecordDeclaration is initialized upon generating IR
         public RecordDeclaration(string identifier, List<TypeParameter> typeParameters, List<RecordProperty> properties, List<ProcedureDeclaration> messageRecievers, SourceLocation sourceLocation)
+#pragma warning restore CS8618
         {
             Identifier = identifier;
             TypeParameters = typeParameters;
@@ -133,12 +139,16 @@ namespace NoHoPython.Syntax.Statements
         public string ToString(int indent)
         {
             StringBuilder builder = new();
-            _ = builder.Append($"{IAstStatement.Indent(indent)}class {Identifier}");
+            builder.Append($"{IAstStatement.Indent(indent)}class {Identifier}");
             if (TypeParameters.Count > 0)
-                _ = builder.Append($"<{string.Join(", ", TypeParameters)}>");
-            _ = builder.Append(':');
+                builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            builder.Append(':');
             foreach (RecordProperty property in Properties)
-                _ = builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
+                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
+
+            if (MessageRecievers.Count > 0)
+                builder.Append($"\n{IAstStatement.Indent(indent + 1)}...({MessageRecievers.Count} message recievers in {Identifier})...");
+
             return builder.ToString();
         }
     }
@@ -150,7 +160,9 @@ namespace NoHoPython.Syntax.Statements
         public readonly string Identifier;
         public readonly List<IAstStatement> Statements;
 
+#pragma warning disable CS8618 // IRModule initialized upon generating IR
         public ModuleContainer(string identifier, List<IAstStatement> statements, SourceLocation sourceLocation)
+#pragma warning restore CS8618
         {
             SourceLocation = sourceLocation;
             Identifier = identifier;
@@ -173,7 +185,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
 
-            _ = scanner.ScanToken();
+            scanner.ScanToken();
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
 
             List<AstType> Options = parseBlock(parseType);
@@ -188,7 +200,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
 
-            _ = scanner.ScanToken();
+            scanner.ScanToken();
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
 
             MatchAndScanToken(TokenType.Colon);
@@ -199,7 +211,7 @@ namespace NoHoPython.Syntax.Parsing
                 AstType type = parseType();
                 MatchToken(TokenType.Identifier);
                 string identifier = scanner.LastToken.Identifier;
-                _ = scanner.ScanToken();
+                scanner.ScanToken();
                 return new InterfaceDeclaration.InterfaceProperty(type, identifier);
             });
             return new InterfaceDeclaration(identifier, typeParameters, interfaceProperties, location);
@@ -213,7 +225,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
 
-            _ = scanner.ScanToken();
+            scanner.ScanToken();
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
 
             MatchAndScanToken(TokenType.Colon);
@@ -232,17 +244,17 @@ namespace NoHoPython.Syntax.Parsing
                 if (scanner.LastToken.Type == TokenType.Readonly)
                 {
                     isReadonly = true;
-                    _ = scanner.ScanToken();
+                    scanner.ScanToken();
                 }
 
                 AstType type = parseType();
                 MatchToken(TokenType.Identifier);
                 string identifier = scanner.LastToken.Identifier;
-                _ = scanner.ScanToken();
+                scanner.ScanToken();
 
                 if (scanner.LastToken.Type == TokenType.Set)
                 {
-                    _ = scanner.ScanToken();
+                    scanner.ScanToken();
                     return new RecordDeclaration.RecordProperty(type, identifier, isReadonly, parseExpression());
                 }
                 else
@@ -258,7 +270,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Module);
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
-            _ = scanner.ScanToken();
+            scanner.ScanToken();
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 

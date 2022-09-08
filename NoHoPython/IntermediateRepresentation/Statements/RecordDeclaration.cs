@@ -207,7 +207,7 @@ namespace NoHoPython.Syntax.Statements
             foreach (ProcedureDeclaration messageReciever in MessageRecievers)
             {
                 messageReciever.ForwardDeclare(irBuilder);
-                var linkedProperty = new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(messageReciever.Name, new ProcedureType(messageReciever.ReturnType.ToIRType(irBuilder), messageReciever.Parameters.ConvertAll((ProcedureDeclaration.ProcedureParameter parameter) => parameter.Type.ToIRType(irBuilder))), true, null);
+                var linkedProperty = new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(messageReciever.Name, new ProcedureType(messageReciever.AnnotatedReturnType == null ? Primitive.Nothing : messageReciever.AnnotatedReturnType.ToIRType(irBuilder), messageReciever.Parameters.ConvertAll((ProcedureDeclaration.ProcedureParameter parameter) => parameter.Type.ToIRType(irBuilder))), true, null);
                 IRProperties.Add(linkedProperty);
                 RecieverProperties.Add(messageReciever, linkedProperty);
             }

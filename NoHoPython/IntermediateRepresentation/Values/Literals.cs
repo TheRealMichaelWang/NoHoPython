@@ -76,6 +76,34 @@ namespace NoHoPython.IntermediateRepresentation.Values
             for (int i = 0; i < elements.Count; i++)
                 elements[i] = ArithmeticCast.CastTo(elements[i], ElementType);
         }
+
+        public ArrayLiteral(List<IRValue> elements)
+        {
+            Elements = new List<IRValue>(elements.Count);
+
+            bool CanBeElementType(IType type)
+            {
+                try
+                {
+                    for (int i = 0; i < elements.Count; i++)
+                        Elements[i] = ArithmeticCast.CastTo(elements[i], type);
+                    return true;
+                }
+                catch (UnexpectedTypeException)
+                {
+                    return false;
+                }
+            }
+
+            foreach(IRValue element in elements)
+                if (CanBeElementType(element.Type))
+                {
+                    ElementType = element.Type;
+                    return;
+                }
+
+            throw new UnexpectedTypeException(Primitive.Nothing);
+        }
     }
 
     public sealed partial class AllocArray : IRValue
@@ -144,7 +172,16 @@ namespace NoHoPython.Syntax.Values
 
     partial class ArrayLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.ArrayLiteral(ElementType.ToIRType(irBuilder), Elements.ConvertAll((IAstValue element) => element.GenerateIntermediateRepresentationForValue(irBuilder)));
+        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder)
+        {
+            List<IRValue> elements = Elements.ConvertAll((IAstValue element) => element.GenerateIntermediateRepresentationForValue(irBuilder));
+            if (IsStringLiteral)
+                return new IntermediateRepresentation.Values.ArrayLiteral(Primitive.Character, elements);
+            else if (AnnotatedElementType != null)
+                return new IntermediateRepresentation.Values.ArrayLiteral(AnnotatedElementType.ToIRType(irBuilder), elements);
+            else
+                return new IntermediateRepresentation.Values.ArrayLiteral(elements);
+        }
     }
 
     partial class InstantiateNewRecord

@@ -229,7 +229,8 @@ namespace NoHoPython.Syntax.Statements
             else if (irBuilder.ScopedRecordDeclaration != null)
                 parentContainer = irBuilder.ScopedRecordDeclaration;
 
-            IRProcedureDeclaration = new(Name, typeParameters, ReturnType.ToIRType(irBuilder), parentContainer);
+            IRProcedureDeclaration = new(Name, typeParameters, AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder), parentContainer);
+
             List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder), parameter.Identifier, IRProcedureDeclaration));
             IRProcedureDeclaration.DeclareParameters(parameters);
 
@@ -245,7 +246,7 @@ namespace NoHoPython.Syntax.Statements
             IAstStatement.ForwardDeclareBlock(irBuilder, Statements);
 
             irBuilder.SymbolMarshaller.GoBack();
-            _ = irBuilder.ScopedProcedures.Pop();
+            irBuilder.ScopedProcedures.Pop();
         }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder)
@@ -256,7 +257,7 @@ namespace NoHoPython.Syntax.Statements
             IRProcedureDeclaration.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, Statements));
 
             irBuilder.SymbolMarshaller.GoBack();
-            _ = irBuilder.ScopedProcedures.Pop();
+            irBuilder.ScopedProcedures.Pop();
             return IRProcedureDeclaration;
         }
     }

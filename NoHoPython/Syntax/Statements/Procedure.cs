@@ -25,21 +25,21 @@ namespace NoHoPython.Syntax.Statements
         public readonly List<ProcedureParameter> Parameters;
         public readonly List<IAstStatement> Statements;
 
-        public AstType ReturnType { get; private set; }
+        public AstType? AnnotatedReturnType { get; private set; }
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, List<ProcedureParameter> parameters, List<IAstStatement> statements, AstType returnType, SourceLocation sourceLocation)
+        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, List<ProcedureParameter> parameters, List<IAstStatement> statements, AstType? annotatedReturnType, SourceLocation sourceLocation)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             Name = name;
             Statements = statements;
             SourceLocation = sourceLocation;
             Parameters = parameters;
-            ReturnType = returnType;
+            AnnotatedReturnType = annotatedReturnType;
             TypeParameters = typeParameters;
         }
 
-        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}def {Name}({string.Join(", ", Parameters)}):\n{IAstStatement.BlockToString(indent, Statements)}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}def {Name}({string.Join(", ", Parameters)}){(AnnotatedReturnType != null ? " " + AnnotatedReturnType.ToString() : "")}:\n{IAstStatement.BlockToString(indent, Statements)}";
     }
 
     public sealed partial class ReturnStatement : IAstStatement
@@ -110,7 +110,7 @@ namespace NoHoPython.Syntax.Parsing
 
             MatchToken(TokenType.Identifier);
             string identifer = scanner.LastToken.Identifier;
-            _ = scanner.ScanToken();
+            scanner.ScanToken();
 
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
 
@@ -122,14 +122,23 @@ namespace NoHoPython.Syntax.Parsing
                 AstType paramType = parseType();
                 MatchToken(TokenType.Identifier);
                 parameters.Add(new ProcedureDeclaration.ProcedureParameter(scanner.LastToken.Identifier, paramType));
-                _ = scanner.ScanToken();
+                scanner.ScanToken();
 
                 if (scanner.LastToken.Type != TokenType.CloseParen)
                     MatchAndScanToken(TokenType.Comma);
             }
-            _ = scanner.ScanToken();
-            AstType returnType = parseType();
-            MatchAndScanToken(TokenType.Colon);
+
+            scanner.ScanToken();
+
+            AstType? returnType = null;
+            if (scanner.LastToken.Type != TokenType.Colon)
+            {
+                returnType = parseType();
+                MatchAndScanToken(TokenType.Colon);
+            }
+            else
+                scanner.ScanToken();
+            
             MatchAndScanToken(TokenType.Newline);
             return new ProcedureDeclaration(identifer, typeParameters, parameters, parseCodeBlock(), returnType, location);
         }

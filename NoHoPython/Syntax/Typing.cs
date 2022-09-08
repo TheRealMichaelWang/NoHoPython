@@ -126,11 +126,11 @@ namespace NoHoPython.Syntax.Parsing
             {
                 MatchToken(TokenType.Identifier);
                 string identifier = scanner.LastToken.Identifier;
-                _ = scanner.ScanToken();
+                scanner.ScanToken();
 
                 if (scanner.LastToken.Type == TokenType.Colon)
                 {
-                    _ = scanner.ScanToken();
+                    scanner.ScanToken();
                     return new TypeParameter(identifier, parseType());
                 }
                 else
@@ -142,7 +142,7 @@ namespace NoHoPython.Syntax.Parsing
             List<TypeParameter> typeParameters = new();
             while (true)
             {
-                _ = scanner.ScanToken();
+                scanner.ScanToken();
                 typeParameters.Add(parseTypeParameter());
 
                 if (scanner.LastToken.Type == TokenType.More)
@@ -150,7 +150,7 @@ namespace NoHoPython.Syntax.Parsing
                 else
                     MatchToken(TokenType.Comma);
             }
-            _ = scanner.ScanToken();
+            scanner.ScanToken();
             return typeParameters;
         }
 
@@ -161,14 +161,14 @@ namespace NoHoPython.Syntax.Parsing
             List<AstType> typeArguments = new();
             while (true)
             {
-                _ = scanner.ScanToken();
+                scanner.ScanToken();
                 typeArguments.Add(parseType());
                 if (scanner.LastToken.Type == TokenType.More)
                     break;
                 else
                     MatchToken(TokenType.Comma);
             }
-            _ = scanner.ScanToken();
+            scanner.ScanToken();
             return typeArguments;
         }
 
@@ -176,7 +176,7 @@ namespace NoHoPython.Syntax.Parsing
         {
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
-            _ = scanner.ScanToken();
+            scanner.ScanToken();
 
             return scanner.LastToken.Type == TokenType.Less
                 ? new AstType(identifier, parseTypeArguments())

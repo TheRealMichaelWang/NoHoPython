@@ -99,8 +99,8 @@
             visitedFiles = new SortedSet<string>();
 
             IncludeFile(firstFileToVisit);
-            _ = ScanChar();
-            _ = ScanToken();
+            ScanChar();
+            ScanToken();
         }
 
         public void IncludeFile(string fileName)
@@ -110,7 +110,7 @@
                 return;
 
             visitorStack.Push(visitor);
-            _ = visitedFiles.Add(fileName);
+            visitedFiles.Add(fileName);
         }
 
         private char ScanChar()
@@ -120,7 +120,7 @@
             {
                 if (visitorStack.Count > 1)
                 {
-                    _ = visitorStack.Pop();
+                    visitorStack.Pop();
                     return ScanChar();
                 }
                 return lastChar = '\0';
@@ -164,14 +164,14 @@
                     return lastChar;
             }
             char scanned = internalScanChar();
-            _ = ScanChar();
+            ScanChar();
             return scanned;
         }
 
         private TokenType ScanSymbol()
         {
             char symChar = lastChar;
-            _ = ScanChar();
+            ScanChar();
             switch (symChar)
             {
                 case '[':
@@ -194,7 +194,7 @@
                     {
                         if (lastChar == '=') //walrus operator
                         {
-                            _ = ScanChar();
+                            ScanChar();
                             return TokenType.Set;
                         }
                         return TokenType.Colon;
@@ -216,7 +216,7 @@
                 case '=':
                     if (lastChar == '=')
                     {
-                        _ = ScanChar();
+                        ScanChar();
                         return TokenType.Equals;
                     }
                     else
@@ -224,7 +224,7 @@
                 case '>':
                     if (lastChar == '=')
                     {
-                        _ = ScanChar();
+                        ScanChar();
                         return TokenType.MoreEqual;
                     }
                     else
@@ -232,7 +232,7 @@
                 case '<':
                     if (lastChar == '=')
                     {
-                        _ = ScanChar();
+                        ScanChar();
                         return TokenType.LessEqual;
                     }
                     else
@@ -240,7 +240,7 @@
                 case '!':
                     if (lastChar == '=')
                     {
-                        _ = ScanChar();
+                        ScanChar();
                         return TokenType.NotEquals;
                     }
                     else
@@ -259,7 +259,7 @@
         public Token ScanToken()
         {
             while (lastChar == '\r' || lastChar == ' ')
-                _ = ScanChar();
+                ScanChar();
 
             if (char.IsLetter(lastChar) || lastChar == '_' || lastChar == '@')
             {
@@ -267,7 +267,7 @@
                 do
                 {
                     keyword += lastChar;
-                    _ = ScanChar();
+                    ScanChar();
                 }
                 while (char.IsLetter(lastChar) || char.IsDigit(lastChar) || lastChar == '_');
 
@@ -306,26 +306,26 @@
                 do
                 {
                     numStr += lastChar;
-                    _ = ScanChar();
+                    ScanChar();
                 } while (char.IsDigit(lastChar) || lastChar == '.');
                 return LastToken = new Token(numStr.Contains('.') ? TokenType.DecimalLiteral : TokenType.IntegerLiteral, numStr);
             }
             else if (lastChar == '\'')
             {
-                _ = ScanChar();
+                ScanChar();
                 LastToken = new Token(TokenType.CharacterLiteral, ScanCharLiteral().ToString());
                 if (lastChar != '\'')
                     throw new UnexpectedCharacterException('\'', lastChar);
-                _ = ScanChar();
+                ScanChar();
                 return LastToken;
             }
             else if (lastChar == '\"')
             {
                 string buffer = string.Empty;
-                _ = ScanChar();
+                ScanChar();
                 while (lastChar != '\"')
                     buffer += ScanCharLiteral();
-                _ = ScanChar();
+                ScanChar();
                 return LastToken = new Token(TokenType.StringLiteral, buffer);
             }
             else

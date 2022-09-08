@@ -2,11 +2,11 @@
 	string name = "michael"
 	int age
 	
-	def __init__(person self, string name):
+	def __init__(string name):
 		self.name = name
 	
-	def sayHi(person self):
-		print("Hello, bitch!")
+	def sayHi():
+		print("Hello there!")
 
 def main():
 	michael = person("Michael Wang")
@@ -14,14 +14,15 @@ def main():
 
 def fun(int a):
 	if a == 1:
-		print("fuck")
+		print("first")
 	elif a == 2:
-		print("bitch")
+		print("second")
 	else:
-		print("michael")
+		print("third")
 	
 	while True:
-		eatMyAss()
+		aFunctionCall()
+	myFunnyBuffer = [<maybe<int, char>> 10, 'c']
 
 mod data:
 	class list<T>:
@@ -29,6 +30,7 @@ mod data:
 		
 		def __init__(int size):
 			buffer = malloc<T>(size)
+			anotherbuffer = [<char>]
 	
 	def range<T>():
 		return new list<T>()

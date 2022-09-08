@@ -13,4 +13,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Compilation\" />
+  </ItemGroup>
+
 </Project>

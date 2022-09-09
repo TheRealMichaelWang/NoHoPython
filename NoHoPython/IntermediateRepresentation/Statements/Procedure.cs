@@ -5,41 +5,6 @@ using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Diagnostics;
 
-namespace NoHoPython.IntermediateRepresentation
-{
-    public sealed class UnexpectedArgumentsException : Exception
-    {
-        public readonly List<IType> ArgumentTypes;
-        public readonly List<IType> ParameterTypes;
-
-        public UnexpectedArgumentsException(List<IType> argumentTypes, List<IType> parameterTypes) : base($"Procedure expected ({string.Join(", ", parameterTypes.Select((IType param) => param.TypeName))}), but got ({string.Join(", ", argumentTypes.Select((IType argument) => argument.TypeName))}) instead.")
-        {
-            ArgumentTypes = argumentTypes;
-            ParameterTypes = parameterTypes;
-        }
-    }
-
-    public sealed class UnexpectedReturnStatement : Exception
-    {
-        public readonly Syntax.Statements.ReturnStatement ReturnStatement;
-
-        public UnexpectedReturnStatement(Syntax.Statements.ReturnStatement returnStatement) : base($"Unexpected return statement.")
-        {
-            ReturnStatement = returnStatement;
-        }
-    }
-
-    public sealed class NotAProcedureException : Exception
-    {
-        public IScopeSymbol ScopeSymbol { get; private set; }
-
-        public NotAProcedureException(IScopeSymbol scopeSymbol) : base($"{scopeSymbol.Name} is not a procedure. Rather it is a(n) {scopeSymbol}.")
-        {
-            ScopeSymbol = scopeSymbol;
-        }
-    }
-}
-
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public sealed class ProcedureDeclaration : CodeBlock, IScopeSymbol, IRStatement
@@ -60,11 +25,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ReturnType = returnType;
         }
 
-        public void DeclareParameters(List<Variable> parameters)
+        public void DeclareParameters(List<Variable> parameters, Syntax.Statements.ProcedureDeclaration procedureDeclaration)
         {
             Parameters = parameters;
             foreach (Variable parameter in parameters)
-                DeclareSymbol(parameter);
+                DeclareSymbol(parameter, procedureDeclaration);
         }
     }
 
@@ -202,10 +167,10 @@ namespace NoHoPython.Syntax.Statements
 {
     partial class ReturnStatement
     {
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
-        public void ForwardDeclare(IRProgramBuilder irBuilder) { }
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder)
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             return irBuilder.ScopedProcedures.Count == 0
                 ? throw new UnexpectedReturnStatement(this)
@@ -217,11 +182,11 @@ namespace NoHoPython.Syntax.Statements
     {
         private IntermediateRepresentation.Statements.ProcedureDeclaration IRProcedureDeclaration;
 
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclare(IRProgramBuilder irBuilder)
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder));
+            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
             SymbolContainer? parentContainer = null;
             if (irBuilder.ScopedProcedures.Count > 0)
@@ -229,19 +194,19 @@ namespace NoHoPython.Syntax.Statements
             else if (irBuilder.ScopedRecordDeclaration != null)
                 parentContainer = irBuilder.ScopedRecordDeclaration;
 
-            IRProcedureDeclaration = new(Name, typeParameters, AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder), parentContainer);
+            IRProcedureDeclaration = new(Name, typeParameters, AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this), parentContainer);
 
-            List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder), parameter.Identifier, IRProcedureDeclaration));
-            IRProcedureDeclaration.DeclareParameters(parameters);
+            List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, IRProcedureDeclaration));
+            IRProcedureDeclaration.DeclareParameters(parameters, this);
 
-            irBuilder.SymbolMarshaller.DeclareSymbol(IRProcedureDeclaration);
+            irBuilder.SymbolMarshaller.DeclareSymbol(IRProcedureDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
             irBuilder.ScopedProcedures.Push(IRProcedureDeclaration);
 
             foreach (Typing.TypeParameter parameter in typeParameters)
-                irBuilder.SymbolMarshaller.DeclareSymbol(parameter);
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
             if (irBuilder.ScopedRecordDeclaration != null)
-                irBuilder.SymbolMarshaller.DeclareSymbol(new Variable(irBuilder.ScopedRecordDeclaration.SelfType, "self", IRProcedureDeclaration));
+                irBuilder.SymbolMarshaller.DeclareSymbol(new Variable(irBuilder.ScopedRecordDeclaration.SelfType, "self", IRProcedureDeclaration), this);
 
             IAstStatement.ForwardDeclareBlock(irBuilder, Statements);
 
@@ -249,7 +214,7 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.ScopedProcedures.Pop();
         }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder)
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
             irBuilder.ScopedProcedures.Push(IRProcedureDeclaration);
@@ -267,29 +232,29 @@ namespace NoHoPython.Syntax.Values
 {
     partial class NamedFunctionCall
     {
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
-        public void ForwardDeclare(IRProgramBuilder irBuilder) { }
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
 
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder)
         {
-            IScopeSymbol procedureSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name);
+            IScopeSymbol procedureSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
             return procedureSymbol is ProcedureDeclaration procedureDeclaration
                 ? (IRValue)new LinkedProcedureCall(procedureDeclaration, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder)))
-                : throw new NotAProcedureException(procedureSymbol);
+                : throw new NotAProcedureException(procedureSymbol, this);
         }
     }
 
     partial class AnonymousFunctionCall
     {
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
-        public void ForwardDeclare(IRProgramBuilder irBuilder) { }
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => (IRStatement)
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)
             GenerateIntermediateRepresentationForValue(irBuilder);
 
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder)
         {
             return new AnonymousProcedureCall(ProcedureValue.GenerateIntermediateRepresentationForValue(irBuilder), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder)));
         }

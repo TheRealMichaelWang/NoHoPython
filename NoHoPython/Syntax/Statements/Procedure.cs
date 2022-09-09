@@ -102,7 +102,7 @@ namespace NoHoPython.Syntax.Parsing
 {
     partial class AstParser
     {
-        private ProcedureDeclaration parseProcedureDeclaration()
+        private ProcedureDeclaration ParseProcedureDeclaration()
         {
             SourceLocation location = scanner.CurrentLocation;
 
@@ -112,14 +112,14 @@ namespace NoHoPython.Syntax.Parsing
             string identifer = scanner.LastToken.Identifier;
             scanner.ScanToken();
 
-            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
+            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? ParseTypeParameters() : new List<TypeParameter>();
 
             MatchAndScanToken(TokenType.OpenParen);
 
             List<ProcedureDeclaration.ProcedureParameter> parameters = new();
             while (scanner.LastToken.Type != TokenType.CloseParen)
             {
-                AstType paramType = parseType();
+                AstType paramType = ParseType();
                 MatchToken(TokenType.Identifier);
                 parameters.Add(new ProcedureDeclaration.ProcedureParameter(scanner.LastToken.Identifier, paramType));
                 scanner.ScanToken();
@@ -133,14 +133,14 @@ namespace NoHoPython.Syntax.Parsing
             AstType? returnType = null;
             if (scanner.LastToken.Type != TokenType.Colon)
             {
-                returnType = parseType();
+                returnType = ParseType();
                 MatchAndScanToken(TokenType.Colon);
             }
             else
                 scanner.ScanToken();
             
             MatchAndScanToken(TokenType.Newline);
-            return new ProcedureDeclaration(identifer, typeParameters, parameters, parseCodeBlock(), returnType, location);
+            return new ProcedureDeclaration(identifer, typeParameters, parameters, ParseCodeBlock(), returnType, location);
         }
     }
 }

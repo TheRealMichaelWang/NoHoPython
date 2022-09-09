@@ -177,7 +177,7 @@ namespace NoHoPython.Syntax.Parsing
 {
     partial class AstParser
     {
-        private EnumDeclaration parseEnumDeclaration()
+        private EnumDeclaration ParseEnumDeclaration()
         {
             SourceLocation location = scanner.CurrentLocation;
 
@@ -186,13 +186,13 @@ namespace NoHoPython.Syntax.Parsing
             string identifier = scanner.LastToken.Identifier;
 
             scanner.ScanToken();
-            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
+            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? ParseTypeParameters() : new List<TypeParameter>();
 
-            List<AstType> Options = parseBlock(parseType);
+            List<AstType> Options = ParseBlock(ParseType);
             return new EnumDeclaration(identifier, typeParameters, Options, location);
         }
 
-        private InterfaceDeclaration parseInterfaceDeclaration()
+        private InterfaceDeclaration ParseInterfaceDeclaration()
         {
             SourceLocation location = scanner.CurrentLocation;
 
@@ -201,14 +201,14 @@ namespace NoHoPython.Syntax.Parsing
             string identifier = scanner.LastToken.Identifier;
 
             scanner.ScanToken();
-            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
+            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? ParseTypeParameters() : new List<TypeParameter>();
 
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            List<InterfaceDeclaration.InterfaceProperty> interfaceProperties = parseBlock(() =>
+            List<InterfaceDeclaration.InterfaceProperty> interfaceProperties = ParseBlock(() =>
             {
-                AstType type = parseType();
+                AstType type = ParseType();
                 MatchToken(TokenType.Identifier);
                 string identifier = scanner.LastToken.Identifier;
                 scanner.ScanToken();
@@ -217,7 +217,7 @@ namespace NoHoPython.Syntax.Parsing
             return new InterfaceDeclaration(identifier, typeParameters, interfaceProperties, location);
         }
 
-        private RecordDeclaration parseRecordDeclaration()
+        private RecordDeclaration ParseRecordDeclaration()
         {
             SourceLocation location = scanner.CurrentLocation;
 
@@ -226,17 +226,17 @@ namespace NoHoPython.Syntax.Parsing
             string identifier = scanner.LastToken.Identifier;
 
             scanner.ScanToken();
-            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? parseTypeParameters() : new List<TypeParameter>();
+            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? ParseTypeParameters() : new List<TypeParameter>();
 
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
             List<ProcedureDeclaration> procedures = new();
-            List<RecordDeclaration.RecordProperty> properties = parseBlock(() =>
+            List<RecordDeclaration.RecordProperty> properties = ParseBlock(() =>
             {
                 if (scanner.LastToken.Type == TokenType.Define)
                 {
-                    procedures.Add(parseProcedureDeclaration());
+                    procedures.Add(ParseProcedureDeclaration());
                     return null;
                 }
 
@@ -247,7 +247,7 @@ namespace NoHoPython.Syntax.Parsing
                     scanner.ScanToken();
                 }
 
-                AstType type = parseType();
+                AstType type = ParseType();
                 MatchToken(TokenType.Identifier);
                 string identifier = scanner.LastToken.Identifier;
                 scanner.ScanToken();
@@ -255,7 +255,7 @@ namespace NoHoPython.Syntax.Parsing
                 if (scanner.LastToken.Type == TokenType.Set)
                 {
                     scanner.ScanToken();
-                    return new RecordDeclaration.RecordProperty(type, identifier, isReadonly, parseExpression());
+                    return new RecordDeclaration.RecordProperty(type, identifier, isReadonly, ParseExpression());
                 }
                 else
                     return new RecordDeclaration.RecordProperty(type, identifier, isReadonly, null);
@@ -263,7 +263,7 @@ namespace NoHoPython.Syntax.Parsing
             return new RecordDeclaration(identifier, typeParameters, properties, procedures, location);
         }
 
-        private ModuleContainer parseModule()
+        private ModuleContainer ParseModule()
         {
             SourceLocation location = scanner.CurrentLocation;
 
@@ -274,7 +274,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            List<IAstStatement> statements = parseBlock(parseTopLevel);
+            List<IAstStatement> statements = ParseBlock(ParseTopLevel);
             return new ModuleContainer(identifier, statements, location);
         }
     }

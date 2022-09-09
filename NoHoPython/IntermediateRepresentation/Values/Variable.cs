@@ -3,19 +3,6 @@ using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
-namespace NoHoPython.IntermediateRepresentation
-{
-    public sealed class NotAVariableException : Exception
-    {
-        public IScopeSymbol ScopeSymbol { get; private set; }
-
-        public NotAVariableException(IScopeSymbol scopeSymbol) : base($"{scopeSymbol.Name} is not a variable. Rather it is a {scopeSymbol}.")
-        {
-            ScopeSymbol = scopeSymbol;
-        }
-    }
-}
-
 namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class VariableReference : IRValue
@@ -39,9 +26,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public Variable Variable { get; private set; }
         public IRValue InitialValue { get; private set; }
 
-        public VariableDeclaration(string name, IRValue setValue, IRProgramBuilder irBuilder)
+        public VariableDeclaration(string name, IRValue setValue, Syntax.AstIRProgramBuilder irBuilder, Syntax.IAstElement errorReportedElement)
         {
-            irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek()));
+            irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek()), errorReportedElement);
             InitialValue = setValue;
         }
 
@@ -93,10 +80,10 @@ namespace NoHoPython.Scoping
             this.parentContainer = parentContainer;
         }
 
-        public override IScopeSymbol? FindSymbol(string identifier)
+        public override IScopeSymbol? FindSymbol(string identifier, Syntax.IAstElement errorReportedElement)
         {
-            IScopeSymbol? result = base.FindSymbol(identifier);
-            return result ?? (parentContainer == null ? null : parentContainer.FindSymbol(identifier));
+            IScopeSymbol? result = base.FindSymbol(identifier, errorReportedElement);
+            return result ?? (parentContainer == null ? null : parentContainer.FindSymbol(identifier, errorReportedElement));
         }
     }
 }
@@ -105,36 +92,36 @@ namespace NoHoPython.Syntax.Values
 {
     partial class VariableReference
     {
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder)
         {
-            IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name);
+            IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
             return valueSymbol is Variable variable
                 ? new IntermediateRepresentation.Values.VariableReference(variable)
                 : valueSymbol is IntermediateRepresentation.Statements.ProcedureDeclaration procedureDeclaration
                 ? (IRValue)new AnonymizeProcedure(procedureDeclaration)
-                : throw new NotAVariableException(valueSymbol);
+                : throw new NotAVariableException(valueSymbol, this);
         }
     }
 
     partial class SetVariable
     {
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
-        public void ForwardDeclare(IRProgramBuilder irBuilder) { }
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
 
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder)
         {
             try
             {
-                IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name);
+                IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
                 return valueSymbol is Variable variable
                     ? (IRValue)new IntermediateRepresentation.Values.SetVariable(variable, SetValue.GenerateIntermediateRepresentationForValue(irBuilder))
-                    : throw new NotAVariableException(valueSymbol);
+                    : throw new NotAVariableException(valueSymbol, this);
             }
             catch (SymbolNotFoundException)
             {
-                return new VariableDeclaration(Name, SetValue.GenerateIntermediateRepresentationForValue(irBuilder), irBuilder);
+                return new VariableDeclaration(Name, SetValue.GenerateIntermediateRepresentationForValue(irBuilder), irBuilder, this);
             }
         }
     }

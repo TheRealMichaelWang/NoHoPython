@@ -208,7 +208,7 @@ namespace NoHoPython.Syntax.Values
             {TokenType.Or, LogicalOperator.LogicalOperation.Or }
         };
 
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder)
         {
             return ArithmeticTokens.ContainsKey(Operator)
                 ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder))
@@ -222,32 +222,32 @@ namespace NoHoPython.Syntax.Values
 
     partial class GetValueAtIndex
     {
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder));
     }
 
     partial class SetValueAtIndex
     {
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
-        public void ForwardDeclare(IRProgramBuilder irBuilder) { }
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
 
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder) => IntermediateRepresentation.Values.SetValueAtIndex.ComposeSetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder), Value.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => IntermediateRepresentation.Values.SetValueAtIndex.ComposeSetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder), Value.GenerateIntermediateRepresentationForValue(irProgramBuilder));
     }
 
     partial class GetPropertyValue
     {
 
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.GetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder), Property);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.GetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder), Property);
     }
 
     partial class SetPropertyValue
     {
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
-        public void ForwardDeclare(IRProgramBuilder irBuilder) { }
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
 
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.SetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder), Property, Value.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.SetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder), Property, Value.GenerateIntermediateRepresentationForValue(irProgramBuilder));
     }
 }

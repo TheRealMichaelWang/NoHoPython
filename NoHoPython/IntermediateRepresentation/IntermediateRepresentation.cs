@@ -4,7 +4,7 @@ using NoHoPython.Typing;
 
 namespace NoHoPython.Syntax
 {
-    public sealed class IRProgramBuilder
+    public sealed class AstIRProgramBuilder
     {
         public List<EnumDeclaration> EnumDeclarations { get; private set; }
         public List<InterfaceDeclaration> InterfaceDeclarations { get; private set; }
@@ -15,7 +15,7 @@ namespace NoHoPython.Syntax
         public RecordDeclaration? ScopedRecordDeclaration { get; private set; }
         public SymbolMarshaller SymbolMarshaller { get; private set; }
 
-        public IRProgramBuilder()
+        public AstIRProgramBuilder()
         {
             SymbolMarshaller = new SymbolMarshaller(new List<IScopeSymbol>());
             EnumDeclarations = new List<EnumDeclaration>();

@@ -5,42 +5,6 @@ using System.Diagnostics;
 
 namespace NoHoPython.Scoping
 {
-    public sealed class SymbolNotFoundException : Exception
-    {
-        public string Identifier { get; private set; }
-        public SymbolContainer ParentContainer;
-
-        public SymbolNotFoundException(string identifier, SymbolContainer parentContainer) : base($"Symbol {identifier} not found.")
-        {
-            Identifier = identifier;
-            ParentContainer = parentContainer;
-        }
-    }
-
-    public sealed class SymbolAlreadyExistsException : Exception
-    {
-        public IScopeSymbol ExistingSymbol;
-        public SymbolContainer ParentContainer;
-
-        public SymbolAlreadyExistsException(IScopeSymbol existingSymbol, SymbolContainer parentContainer) : base($"Symbol {existingSymbol.Name} already exists.")
-        {
-            ExistingSymbol = existingSymbol;
-            ParentContainer = parentContainer;
-        }
-    }
-
-    public sealed class SymbolNotModuleException : Exception
-    {
-        public IScopeSymbol Symbol;
-        public SymbolContainer ParentContainer;
-
-        public SymbolNotModuleException(IScopeSymbol symbol, SymbolContainer parentContainer) : base($"Symbol {symbol.Name} isn't a module.")
-        {
-            Symbol = symbol;
-            ParentContainer = parentContainer;
-        }
-    }
-
     public abstract class SymbolContainer
     {
         private Dictionary<string, IScopeSymbol> symbols;
@@ -52,16 +16,16 @@ namespace NoHoPython.Scoping
                 this.symbols.Add(symbol.Name, symbol);
         }
 
-        public virtual IScopeSymbol? FindSymbol(string identifier)
+        public virtual IScopeSymbol? FindSymbol(string identifier, Syntax.IAstElement errorReportedElement)
         {
             return symbols.ContainsKey(identifier) ? symbols[identifier] : null;
         }
 
-        public virtual void DeclareSymbol(IScopeSymbol symbol)
+        public virtual void DeclareSymbol(IScopeSymbol symbol, Syntax.IAstElement errorReportElement)
         {
-            if (FindSymbol(symbol.Name) == null)
+            if (FindSymbol(symbol.Name, errorReportElement) == null)
                 symbols.Add(symbol.Name, symbol);
-            throw new SymbolAlreadyExistsException(symbols[symbol.Name], this);
+            throw new SymbolAlreadyExistsException(symbols[symbol.Name], this, errorReportElement);
         }
     }
 
@@ -98,9 +62,9 @@ namespace NoHoPython.Scoping
             scopeStack.Push(this);
         }
 
-        public override IScopeSymbol FindSymbol(string identifier)
+        public override IScopeSymbol FindSymbol(string identifier, Syntax.IAstElement errorReportedElement)
         {
-            static IScopeSymbol FindSymbolFromContainer(string identifier, SymbolContainer currentContainer, bool fromGlobalStack)
+            static IScopeSymbol FindSymbolFromContainer(string identifier, SymbolContainer currentContainer, bool fromGlobalStack, Syntax.IAstElement errorReportedElement)
             {
                 if (identifier.Contains(' '))
                     throw new ArgumentException("Identifier cannot contain spaces.");
@@ -109,22 +73,22 @@ namespace NoHoPython.Scoping
                 string[] parts = identifier.Split(':', StringSplitOptions.RemoveEmptyEntries);
                 for (int i = 0; i < parts.Length - 1; i++)
                 {
-                    IScopeSymbol? symbol = scopedContainer.FindSymbol(parts[i]);
+                    IScopeSymbol? symbol = scopedContainer.FindSymbol(parts[i], errorReportedElement);
                     scopedContainer = symbol == null || (fromGlobalStack && !symbol.IsGloballyNavigable)
-                        ? throw new SymbolNotFoundException(parts[i], scopedContainer)
-                        : symbol is SymbolContainer symbolContainer ? symbolContainer : throw new SymbolNotModuleException(symbol, scopedContainer);
+                        ? throw new SymbolNotFoundException(parts[i], scopedContainer, errorReportedElement)
+                        : symbol is SymbolContainer symbolContainer ? symbolContainer : throw new SymbolNotModuleException(symbol, scopedContainer, errorReportedElement);
                 }
 
                 string finalIdentifier = parts.Last();
-                IScopeSymbol? result = scopedContainer.FindSymbol(finalIdentifier);
+                IScopeSymbol? result = scopedContainer.FindSymbol(finalIdentifier, errorReportedElement);
                 return result == null || (fromGlobalStack && !result.IsGloballyNavigable)
-                    ? throw new SymbolNotFoundException(finalIdentifier, scopedContainer)
+                    ? throw new SymbolNotFoundException(finalIdentifier, scopedContainer, errorReportedElement)
                     : result;
             }
 
             try
             {
-                return FindSymbolFromContainer(identifier, scopeStack.Peek(), false);
+                return FindSymbolFromContainer(identifier, scopeStack.Peek(), false, errorReportedElement);
             }
             catch (SymbolNotFoundException)
             {
@@ -132,19 +96,19 @@ namespace NoHoPython.Scoping
                 foreach (Module symbolContainer in usedModuleStack)
                     try
                     {
-                        return FindSymbolFromContainer(identifier, symbolContainer, true);
+                        return FindSymbolFromContainer(identifier, symbolContainer, true, errorReportedElement);
                     }
                     catch (SymbolNotFoundException)
                     {
                         continue;
                     }
             }
-            throw new SymbolNotFoundException(identifier, scopeStack.Peek());
+            throw new SymbolNotFoundException(identifier, scopeStack.Peek(), errorReportedElement);
         }
 
-        public override void DeclareSymbol(IScopeSymbol symbol) => scopeStack.Peek().DeclareSymbol(symbol);
+        public override void DeclareSymbol(IScopeSymbol symbol, Syntax.IAstElement errorReportedElement) => scopeStack.Peek().DeclareSymbol(symbol, errorReportedElement);
 
-        public void DeclareGlobalSymbol(IScopeSymbol symbol) => base.DeclareSymbol(symbol);
+        public void DeclareGlobalSymbol(IScopeSymbol symbol, Syntax.IAstElement errorReportedElement) => base.DeclareSymbol(symbol, errorReportedElement);
 
         public void NavigateToScope(SymbolContainer symbolContainer)
         {
@@ -160,10 +124,10 @@ namespace NoHoPython.Scoping
             return codeBlock;
         }
 
-        public Module NewModule(string name)
+        public Module NewModule(string name, Syntax.IAstElement errorReportedElement)
         {
             Module module = new(name, new List<IScopeSymbol>());
-            DeclareGlobalSymbol(module);
+            DeclareGlobalSymbol(module, errorReportedElement);
             NavigateToScope(module);
             return module;
         }
@@ -183,21 +147,21 @@ namespace NoHoPython.Syntax.Statements
     {
         private SymbolMarshaller.Module IRModule;
 
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder)
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder)
         {
-            IRModule = irBuilder.SymbolMarshaller.NewModule(Identifier);
+            IRModule = irBuilder.SymbolMarshaller.NewModule(Identifier, this);
             Statements.ForEach((IAstStatement statement) => statement.ForwardTypeDeclare(irBuilder));
             irBuilder.SymbolMarshaller.GoBack();
         }
 
-        public void ForwardDeclare(IRProgramBuilder irBuilder)
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IRModule);
             Statements.ForEach((IAstStatement statement) => statement.ForwardDeclare(irBuilder));
             irBuilder.SymbolMarshaller.GoBack();
         }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder)
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IRModule);
             IRModule.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, Statements));

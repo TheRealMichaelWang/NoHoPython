@@ -2,26 +2,28 @@
 
 namespace NoHoPython.Syntax
 {
-    public interface IAstValue : ISourceLocatable
+    public interface IAstElement : ISourceLocatable {}
+
+    public interface IAstValue : IAstElement
     {
         string ToString();
 
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder);
     }
 
-    public interface IAstStatement : ISourceLocatable
+    public interface IAstStatement : IAstElement
     {
         public static string Indent(int indent) => new('\t', indent);
         public static string BlockToString(int indent, List<IAstStatement> statements) => string.Join('\n', statements.Select((IAstStatement statement) => $"{statement.SourceLocation.Row}:{statement.ToString(indent + 1)}"));
 
-        public static void ForwardDeclareBlock(IRProgramBuilder irBuilder, List<IAstStatement> statements) => statements.ForEach((statement) => statement.ForwardDeclare(irBuilder));
-        public static List<IRStatement> GenerateIntermediateRepresentationForBlock(IRProgramBuilder irBuilder, List<IAstStatement> statements) => statements.ConvertAll((IAstStatement statement) => statement.GenerateIntermediateRepresentationForStatement(irBuilder));
+        public static void ForwardDeclareBlock(AstIRProgramBuilder irBuilder, List<IAstStatement> statements) => statements.ForEach((statement) => statement.ForwardDeclare(irBuilder));
+        public static List<IRStatement> GenerateIntermediateRepresentationForBlock(AstIRProgramBuilder irBuilder, List<IAstStatement> statements) => statements.ConvertAll((IAstStatement statement) => statement.GenerateIntermediateRepresentationForStatement(irBuilder));
 
         string ToString(int indent);
 
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder);
-        public void ForwardDeclare(IRProgramBuilder irBuilder);
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder);
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder);
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder);
     }
 
     public struct SourceLocation

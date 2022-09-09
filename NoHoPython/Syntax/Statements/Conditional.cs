@@ -102,59 +102,59 @@ namespace NoHoPython.Syntax.Parsing
 {
     partial class AstParser
     {
-        private IfBlock parseIfBlock()
+        private IfBlock ParseIfBlock()
         {
             SourceLocation location = scanner.CurrentLocation;
             MatchAndScanToken(TokenType.If);
 
-            IAstValue condititon = parseExpression();
+            IAstValue condititon = ParseExpression();
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            return new IfBlock(condititon, parseCodeBlock(), location);
+            return new IfBlock(condititon, ParseCodeBlock(), location);
         }
 
-        private IfBlock parseElifBlock(IfBlock parentBlock)
+        private IfBlock ParseElifBlock(IfBlock parentBlock)
         {
             SourceLocation location = scanner.CurrentLocation;
             MatchAndScanToken(TokenType.Elif);
 
-            IAstValue condititon = parseExpression();
+            IAstValue condititon = ParseExpression();
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            IfBlock elifBlock = new(condititon, parseCodeBlock(), location);
+            IfBlock elifBlock = new(condititon, ParseCodeBlock(), location);
             parentBlock.SetNextIf(elifBlock);
             return elifBlock;
         }
 
-        private ElseBlock parseElseBlock(IfBlock parentBlock)
+        private ElseBlock ParseElseBlock(IfBlock parentBlock)
         {
             SourceLocation location = scanner.CurrentLocation;
             MatchAndScanToken(TokenType.Else);
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            ElseBlock elseBlock = new(parseCodeBlock(), location);
+            ElseBlock elseBlock = new(ParseCodeBlock(), location);
             parentBlock.SetNextElse(elseBlock);
             return elseBlock;
         }
 
-        private IfBlock parseIfElseBlock()
+        private IfBlock ParseIfElseBlock()
         {
-            IfBlock head = parseIfBlock();
+            IfBlock head = ParseIfBlock();
             IfBlock currentBlock = head;
             while (true)
             {
                 if (scanner.LastToken.Type == TokenType.Elif)
                 {
                     skipIndentCounting = false;
-                    currentBlock = parseElifBlock(currentBlock);
+                    currentBlock = ParseElifBlock(currentBlock);
                 }
                 else if (scanner.LastToken.Type == TokenType.Else)
                 {
                     skipIndentCounting = false;
-                    parseElseBlock(currentBlock);
+                    ParseElseBlock(currentBlock);
                     break;
                 }
                 else
@@ -163,16 +163,16 @@ namespace NoHoPython.Syntax.Parsing
             return head;
         }
 
-        private WhileBlock parseWhileBlock()
+        private WhileBlock ParseWhileBlock()
         {
             SourceLocation location = scanner.CurrentLocation;
             MatchAndScanToken(TokenType.While);
 
-            IAstValue condition = parseExpression();
+            IAstValue condition = ParseExpression();
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            return new WhileBlock(condition, parseCodeBlock(), location);
+            return new WhileBlock(condition, ParseCodeBlock(), location);
         }
     }
 }

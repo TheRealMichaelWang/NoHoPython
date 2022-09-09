@@ -1,5 +1,4 @@
-﻿using NoHoPython.IntermediateRepresentation.Values;
-using System.Text;
+﻿using System.Text;
 
 namespace NoHoPython.Syntax.Values
 {
@@ -130,7 +129,7 @@ namespace NoHoPython.Syntax.Parsing
 {
     partial class AstParser
     {
-        private Syntax.Values.ArrayLiteral parseArrayLiteral()
+        private Values.ArrayLiteral ParseArrayLiteral()
         {
             SourceLocation location = scanner.CurrentLocation;
             MatchAndScanToken(TokenType.OpenBracket);
@@ -139,20 +138,20 @@ namespace NoHoPython.Syntax.Parsing
             if(scanner.LastToken.Type == TokenType.Less)
             {
                 scanner.ScanToken();
-                annotatedType = parseType();
+                annotatedType = ParseType();
                 MatchAndScanToken(TokenType.More);
             }
 
             List<IAstValue> elements = new List<IAstValue>();
             while (scanner.LastToken.Type != TokenType.CloseBracket)
             {
-                elements.Add(parseExpression());
+                elements.Add(ParseExpression());
                 if (scanner.LastToken.Type != TokenType.CloseBracket)
                     MatchAndScanToken(TokenType.Comma);
             }
             scanner.ScanToken();
 
-            return new Syntax.Values.ArrayLiteral(elements, annotatedType, location);
+            return new Values.ArrayLiteral(elements, annotatedType, location);
         }
     }
 }

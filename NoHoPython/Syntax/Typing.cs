@@ -18,7 +18,7 @@ namespace NoHoPython.Syntax
 
         public override string ToString() => Identifier + (RequiredImplementedType == null ? string.Empty : $": {RequiredImplementedType}");
 
-        public Typing.TypeParameter ToIRTypeParameter(IRProgramBuilder irBuilder) => new(Identifier, RequiredImplementedType == null ? null : RequiredImplementedType.ToIRType(irBuilder));
+        public Typing.TypeParameter ToIRTypeParameter(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) => new(Identifier, RequiredImplementedType == null ? null : RequiredImplementedType.ToIRType(irBuilder, errorReportedElement));
     }
 
     public sealed class AstType
@@ -37,9 +37,9 @@ namespace NoHoPython.Syntax
             return TypeArguments.Count == 0 ? Identifier : $"{Identifier}<{string.Join(", ", TypeArguments)}>";
         }
 
-        public IType ToIRType(IRProgramBuilder irBuilder)
+        public IType ToIRType(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
-            List<IType> typeArguments = TypeArguments.ConvertAll((AstType argument) => argument.ToIRType(irBuilder));
+            List<IType> typeArguments = TypeArguments.ConvertAll((AstType argument) => argument.ToIRType(irBuilder, errorReportedElement));
 
             void MatchTypeArgCount(int expected)
             {
@@ -75,7 +75,7 @@ namespace NoHoPython.Syntax
                     }
                 default:
                     {
-                        IScopeSymbol typeSymbol = irBuilder.SymbolMarshaller.FindSymbol(Identifier);
+                        IScopeSymbol typeSymbol = irBuilder.SymbolMarshaller.FindSymbol(Identifier, errorReportedElement);
                         if (typeSymbol is Typing.TypeParameter typeParameter)
                         {
                             MatchTypeArgCount(0);
@@ -112,7 +112,7 @@ namespace NoHoPython.Syntax.Values
 
         public override string ToString() => $"{ToCast} as {TargetType}";
 
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irBuilder) => ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentationForValue(irBuilder), TargetType.ToIRType(irBuilder));
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder) => ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentationForValue(irBuilder), TargetType.ToIRType(irBuilder, this));
     }
 }
 
@@ -120,9 +120,9 @@ namespace NoHoPython.Syntax.Parsing
 {
     partial class AstParser
     {
-        private List<TypeParameter> parseTypeParameters()
+        private List<TypeParameter> ParseTypeParameters()
         {
-            TypeParameter parseTypeParameter()
+            TypeParameter ParseTypeParameter()
             {
                 MatchToken(TokenType.Identifier);
                 string identifier = scanner.LastToken.Identifier;
@@ -131,7 +131,7 @@ namespace NoHoPython.Syntax.Parsing
                 if (scanner.LastToken.Type == TokenType.Colon)
                 {
                     scanner.ScanToken();
-                    return new TypeParameter(identifier, parseType());
+                    return new TypeParameter(identifier, ParseType());
                 }
                 else
                     return new TypeParameter(identifier, null);
@@ -143,7 +143,7 @@ namespace NoHoPython.Syntax.Parsing
             while (true)
             {
                 scanner.ScanToken();
-                typeParameters.Add(parseTypeParameter());
+                typeParameters.Add(ParseTypeParameter());
 
                 if (scanner.LastToken.Type == TokenType.More)
                     break;
@@ -154,7 +154,7 @@ namespace NoHoPython.Syntax.Parsing
             return typeParameters;
         }
 
-        private List<AstType> parseTypeArguments()
+        private List<AstType> ParseTypeArguments()
         {
             MatchToken(TokenType.Less);
 
@@ -162,7 +162,7 @@ namespace NoHoPython.Syntax.Parsing
             while (true)
             {
                 scanner.ScanToken();
-                typeArguments.Add(parseType());
+                typeArguments.Add(ParseType());
                 if (scanner.LastToken.Type == TokenType.More)
                     break;
                 else
@@ -172,14 +172,14 @@ namespace NoHoPython.Syntax.Parsing
             return typeArguments;
         }
 
-        private AstType parseType()
+        private AstType ParseType()
         {
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
             scanner.ScanToken();
 
             return scanner.LastToken.Type == TokenType.Less
-                ? new AstType(identifier, parseTypeArguments())
+                ? new AstType(identifier, ParseTypeArguments())
                 : new AstType(identifier, new List<AstType>());
         }
     }

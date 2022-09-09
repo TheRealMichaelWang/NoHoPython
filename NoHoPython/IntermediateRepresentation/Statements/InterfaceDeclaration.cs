@@ -5,18 +5,6 @@ using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
-    public sealed class PropertyNotImplementedException : Exception
-    {
-        public InterfaceDeclaration.InterfaceProperty RequiredProperty { get; private set; }
-        public RecordDeclaration Record { get; private set; }
-
-        public PropertyNotImplementedException(InterfaceDeclaration.InterfaceProperty requiredProperty, RecordDeclaration record) : base($"{record.Name} doesn't implement required property {requiredProperty}.")
-        {
-            RequiredProperty = requiredProperty;
-            Record = record;
-        }
-    }
-
     public sealed partial class InterfaceDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
         public sealed class InterfaceProperty : Property
@@ -195,24 +183,24 @@ namespace NoHoPython.Syntax.Statements
     {
         private IntermediateRepresentation.Statements.InterfaceDeclaration IRInterfaceDeclaration;
 
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder)
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder)
         {
-            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder));
+            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
             IRInterfaceDeclaration = new IntermediateRepresentation.Statements.InterfaceDeclaration(Identifier, typeParameters);
-            irBuilder.SymbolMarshaller.DeclareSymbol(IRInterfaceDeclaration);
+            irBuilder.SymbolMarshaller.DeclareSymbol(IRInterfaceDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRInterfaceDeclaration);
 
             foreach (Typing.TypeParameter parameter in typeParameters)
-                irBuilder.SymbolMarshaller.DeclareSymbol(parameter);
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
             irBuilder.SymbolMarshaller.GoBack();
         }
 
-        public void ForwardDeclare(IRProgramBuilder irBuilder)
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            IRInterfaceDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((InterfaceProperty property) => new IntermediateRepresentation.Statements.InterfaceDeclaration.InterfaceProperty(property.Identifier, property.Type.ToIRType(irBuilder))));
+            IRInterfaceDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((InterfaceProperty property) => new IntermediateRepresentation.Statements.InterfaceDeclaration.InterfaceProperty(property.Identifier, property.Type.ToIRType(irBuilder, this))));
         }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => IRInterfaceDeclaration;
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => IRInterfaceDeclaration;
     }
 }

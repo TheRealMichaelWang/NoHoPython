@@ -134,24 +134,24 @@ namespace NoHoPython.Syntax.Statements
     {
         private IntermediateRepresentation.Statements.EnumDeclaration IREnumDeclaration;
 
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder)
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder)
         {
-            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder));
+            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
             IREnumDeclaration = new IntermediateRepresentation.Statements.EnumDeclaration(Identifier, typeParameters);
-            irBuilder.SymbolMarshaller.DeclareSymbol(IREnumDeclaration);
+            irBuilder.SymbolMarshaller.DeclareSymbol(IREnumDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IREnumDeclaration);
 
             foreach (Typing.TypeParameter parameter in typeParameters)
-                irBuilder.SymbolMarshaller.DeclareSymbol(parameter);
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
             irBuilder.SymbolMarshaller.GoBack();
         }
 
-        public void ForwardDeclare(IRProgramBuilder irBuilder)
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            IREnumDeclaration.DelayedLinkSetOptions(Options.ConvertAll((AstType option) => option.ToIRType(irBuilder)));
+            IREnumDeclaration.DelayedLinkSetOptions(Options.ConvertAll((AstType option) => option.ToIRType(irBuilder, this)));
         }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => IREnumDeclaration;
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => IREnumDeclaration;
     }
 }

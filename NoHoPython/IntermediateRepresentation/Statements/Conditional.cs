@@ -85,9 +85,9 @@ namespace NoHoPython.Syntax.Statements
 {
     partial class IfBlock
     {
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclare(IRProgramBuilder irBuilder)
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
             IAstStatement.ForwardDeclareBlock(irBuilder, IfTrueBlock);
             if (NextIf != null)
@@ -96,7 +96,7 @@ namespace NoHoPython.Syntax.Statements
                 NextElse.ForwardDeclare(irBuilder);
         }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder)
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder);
 
@@ -119,13 +119,13 @@ namespace NoHoPython.Syntax.Statements
 
     partial class ElseBlock
     {
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) => throw new InvalidOperationException();
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) => throw new InvalidOperationException();
 
-        public void ForwardDeclare(IRProgramBuilder irBuilder) => IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) => IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder) => throw new InvalidOperationException();
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => throw new InvalidOperationException();
 
-        public CodeBlock GenerateIRCodeBlock(IRProgramBuilder irBuilder)
+        public CodeBlock GenerateIRCodeBlock(AstIRProgramBuilder irBuilder)
         {
             CodeBlock codeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
             codeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
@@ -136,11 +136,11 @@ namespace NoHoPython.Syntax.Statements
 
     partial class WhileBlock
     {
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder) { }
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclare(IRProgramBuilder irBuilder) => IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) => IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder)
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder);
 
@@ -157,6 +157,6 @@ namespace NoHoPython.Syntax.Values
 {
     partial class IfElseValue
     {
-        public IRValue GenerateIntermediateRepresentationForValue(IRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irProgramBuilder), IfTrueValue.GenerateIntermediateRepresentationForValue(irProgramBuilder), IfFalseValue.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irProgramBuilder), IfTrueValue.GenerateIntermediateRepresentationForValue(irProgramBuilder), IfFalseValue.GenerateIntermediateRepresentationForValue(irProgramBuilder));
     }
 }

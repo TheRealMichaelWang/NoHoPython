@@ -178,36 +178,36 @@ namespace NoHoPython.Syntax.Statements
         private List<IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty> IRProperties;
         private Dictionary<ProcedureDeclaration, IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty> RecieverProperties;
 
-        public void ForwardTypeDeclare(IRProgramBuilder irBuilder)
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder)
         {
-            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder));
+            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
             IRRecordDeclaration = new IntermediateRepresentation.Statements.RecordDeclaration(Identifier, typeParameters);
-            irBuilder.SymbolMarshaller.DeclareSymbol(IRRecordDeclaration);
+            irBuilder.SymbolMarshaller.DeclareSymbol(IRRecordDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
             irBuilder.ScopeToRecord(IRRecordDeclaration);
 
             foreach (Typing.TypeParameter parameter in typeParameters)
-                irBuilder.SymbolMarshaller.DeclareSymbol(parameter);
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();
 
             irBuilder.RecordDeclarations.Add(IRRecordDeclaration);
         }
 
-        public void ForwardDeclare(IRProgramBuilder irBuilder)
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
             irBuilder.ScopeToRecord(IRRecordDeclaration);
 
-            IRProperties = Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder), property.IsReadOnly, null));
+            IRProperties = Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder, this), property.IsReadOnly, null));
             IRRecordDeclaration.DelayedLinkSetProperties(IRProperties);
 
             RecieverProperties = new Dictionary<ProcedureDeclaration, IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty>(MessageRecievers.Count);
             foreach (ProcedureDeclaration messageReciever in MessageRecievers)
             {
                 messageReciever.ForwardDeclare(irBuilder);
-                var linkedProperty = new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(messageReciever.Name, new ProcedureType(messageReciever.AnnotatedReturnType == null ? Primitive.Nothing : messageReciever.AnnotatedReturnType.ToIRType(irBuilder), messageReciever.Parameters.ConvertAll((ProcedureDeclaration.ProcedureParameter parameter) => parameter.Type.ToIRType(irBuilder))), true, null);
+                var linkedProperty = new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(messageReciever.Name, new ProcedureType(messageReciever.AnnotatedReturnType == null ? Primitive.Nothing : messageReciever.AnnotatedReturnType.ToIRType(irBuilder, this), messageReciever.Parameters.ConvertAll((ProcedureDeclaration.ProcedureParameter parameter) => parameter.Type.ToIRType(irBuilder, this))), true, null);
                 IRProperties.Add(linkedProperty);
                 RecieverProperties.Add(messageReciever, linkedProperty);
             }
@@ -216,7 +216,7 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.ScopeBackFromRecord();
         }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(IRProgramBuilder irBuilder)
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
             irBuilder.ScopeToRecord(IRRecordDeclaration);

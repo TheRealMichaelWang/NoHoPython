@@ -21,8 +21,13 @@ namespace NoHoPython.Syntax
 
         string ToString(int indent);
 
+        //forward declare type definitions (ie records, interfaces, and enums)
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder);
+
+        //forward declare procuedure and symbol definitions
         public void ForwardDeclare(AstIRProgramBuilder irBuilder);
+
+        //generate IR
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder);
     }
 

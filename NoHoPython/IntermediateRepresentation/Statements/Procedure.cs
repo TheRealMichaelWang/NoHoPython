@@ -212,6 +212,8 @@ namespace NoHoPython.Syntax.Statements
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopedProcedures.Pop();
+
+            irBuilder.AddProcDeclaration(IRProcedureDeclaration);
         }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)

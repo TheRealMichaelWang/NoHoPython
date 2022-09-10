@@ -192,7 +192,7 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();
 
-            irBuilder.RecordDeclarations.Add(IRRecordDeclaration);
+            irBuilder.AddRecordDeclaration(IRRecordDeclaration);
         }
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)

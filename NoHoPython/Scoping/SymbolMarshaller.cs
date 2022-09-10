@@ -24,12 +24,15 @@ namespace NoHoPython.Scoping
         public virtual void DeclareSymbol(IScopeSymbol symbol, Syntax.IAstElement errorReportElement)
         {
             if (FindSymbol(symbol.Name, errorReportElement) == null)
+            {
                 symbols.Add(symbol.Name, symbol);
+                return;
+            }
             throw new SymbolAlreadyExistsException(symbols[symbol.Name], this, errorReportElement);
         }
     }
 
-    public sealed class SymbolMarshaller : SymbolContainer
+    public sealed class SymbolMarshaller
     {
         public sealed class Module : SymbolContainer, IScopeSymbol, IRStatement
         {
@@ -55,14 +58,14 @@ namespace NoHoPython.Scoping
         private Stack<Module> usedModuleStack;
         private Stack<SymbolContainer> scopeStack;
 
-        public SymbolMarshaller(List<IScopeSymbol> symbols) : base(symbols)
+        public SymbolMarshaller(List<IScopeSymbol> symbols)
         {
             usedModuleStack = new Stack<Module>();
             scopeStack = new Stack<SymbolContainer>();
-            scopeStack.Push(this);
+            NavigateToScope(new Module("__main__", new List<IScopeSymbol>()));
         }
 
-        public override IScopeSymbol FindSymbol(string identifier, Syntax.IAstElement errorReportedElement)
+        public IScopeSymbol FindSymbol(string identifier, Syntax.IAstElement errorReportedElement)
         {
             static IScopeSymbol FindSymbolFromContainer(string identifier, SymbolContainer currentContainer, bool fromGlobalStack, Syntax.IAstElement errorReportedElement)
             {
@@ -81,7 +84,7 @@ namespace NoHoPython.Scoping
 
                 string finalIdentifier = parts.Last();
                 IScopeSymbol? result = scopedContainer.FindSymbol(finalIdentifier, errorReportedElement);
-                return result == null || (fromGlobalStack && !result.IsGloballyNavigable)
+                return result == null
                     ? throw new SymbolNotFoundException(finalIdentifier, scopedContainer, errorReportedElement)
                     : result;
             }
@@ -106,9 +109,7 @@ namespace NoHoPython.Scoping
             throw new SymbolNotFoundException(identifier, scopeStack.Peek(), errorReportedElement);
         }
 
-        public override void DeclareSymbol(IScopeSymbol symbol, Syntax.IAstElement errorReportedElement) => scopeStack.Peek().DeclareSymbol(symbol, errorReportedElement);
-
-        public void DeclareGlobalSymbol(IScopeSymbol symbol, Syntax.IAstElement errorReportedElement) => base.DeclareSymbol(symbol, errorReportedElement);
+        public void DeclareSymbol(IScopeSymbol symbol, Syntax.IAstElement errorReportedElement) => scopeStack.Peek().DeclareSymbol(symbol, errorReportedElement);
 
         public void NavigateToScope(SymbolContainer symbolContainer)
         {
@@ -127,7 +128,7 @@ namespace NoHoPython.Scoping
         public Module NewModule(string name, Syntax.IAstElement errorReportedElement)
         {
             Module module = new(name, new List<IScopeSymbol>());
-            DeclareGlobalSymbol(module, errorReportedElement);
+            DeclareSymbol(module, errorReportedElement);
             NavigateToScope(module);
             return module;
         }

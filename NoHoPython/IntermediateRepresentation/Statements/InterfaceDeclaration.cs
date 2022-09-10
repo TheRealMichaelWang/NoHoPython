@@ -194,6 +194,8 @@ namespace NoHoPython.Syntax.Statements
             foreach (Typing.TypeParameter parameter in typeParameters)
                 irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
             irBuilder.SymbolMarshaller.GoBack();
+
+            irBuilder.AddInterfaceDeclaration(IRInterfaceDeclaration);
         }
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)

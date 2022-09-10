@@ -1,4 +1,5 @@
-﻿using NoHoPython.Syntax;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.Syntax;
 using NoHoPython.Syntax.Parsing;
 
 public static class Program
@@ -12,11 +13,17 @@ public static class Program
             AstParser parser = new(new Scanner(args[0], Environment.CurrentDirectory));
 
             List<IAstStatement> statements = parser.ParseAll();
-            Console.WriteLine(IAstStatement.BlockToString(0, statements));
+
+            AstIRProgramBuilder astIRProgramBuilder = new AstIRProgramBuilder(statements);
+            IRProgram program = astIRProgramBuilder.ToIRProgram();
         }
         catch (SyntaxError syntaxError)
         {
             syntaxError.Print();
+        }
+        catch (IRGenerationError compilerError)
+        {
+            compilerError.Print();
         }
 
         return 0;

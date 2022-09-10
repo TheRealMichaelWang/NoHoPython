@@ -1,6 +1,9 @@
-﻿using NoHoPython.IntermediateRepresentation.Statements;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
@@ -10,101 +13,134 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public string Name { get; private set; }
 
         public readonly List<TypeParameter> TypeParameters;
-        public readonly List<Variable> Parameters;
+        public List<Variable>? Parameters { get; private set; }
 
         public IType ReturnType { get; private set; }
 
-        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, List<Variable> parameters, IType returnType, List<IRStatement> statements, SymbolContainer? parentContainer) : base(statements, parentContainer, parameters)
+        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, IType returnType, SymbolContainer? parentContainer) : base(parentContainer, new List<Variable>())
         {
-            this.Name = name;
-            this.TypeParameters = typeParameters;
-            this.Parameters = parameters;
-            this.ReturnType = returnType;
+            Name = name;
+            TypeParameters = typeParameters;
+            Parameters = null;
+            ReturnType = returnType;
+        }
 
-            foreach (TypeParameter typeParameter in typeParameters)
-                base.DeclareSymbol(typeParameter);
+        public void DeclareParameters(List<Variable> parameters, Syntax.Statements.ProcedureDeclaration procedureDeclaration)
+        {
+            Parameters = parameters;
+            foreach (Variable parameter in parameters)
+                DeclareSymbol(parameter, procedureDeclaration);
         }
     }
 
     public sealed class ProcedureReference
     {
-        public readonly List<IType> TypeArguments;
         public readonly List<IType> ParameterTypes;
         public IType ReturnType { get; private set; }
 
-        private ProcedureDeclaration procedureDeclaration;
+        private Dictionary<TypeParameter, IType> typeArguments;
 
-        public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IType> typeArguments)
+        public ProcedureDeclaration ProcedureDeclaration { get; private set; }
+
+        private static Dictionary<TypeParameter, IType> MatchTypeArguments(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments)
         {
-            this.procedureDeclaration = procedureDeclaration;
-            TypeArguments = typeArguments;
+            Dictionary<TypeParameter, IType> typeArguments = new();
 
-            TypeParameter.ValidateTypeArguments(this.procedureDeclaration.TypeParameters, typeArguments);
+            if (procedureDeclaration.Parameters == null)
+                throw new InvalidOperationException();
+            Debug.Assert(procedureDeclaration.Parameters.Count == arguments.Count);
+            for (int i = 0; i < procedureDeclaration.Parameters.Count; i++)
+                arguments[i] = procedureDeclaration.Parameters[i].Type.MatchTypeArgumentWithValue(typeArguments, arguments[i]);
 
-            Dictionary<TypeParameter, IType> typeargs = new Dictionary<TypeParameter, IType>(TypeArguments.Count);
-            for (int i = 0; i < TypeArguments.Count; i++)
-                typeargs.Add(procedureDeclaration.TypeParameters[i], TypeArguments[i]);
-            
-            ParameterTypes = procedureDeclaration.Parameters.Select((Variable param) => param.Type.SubstituteWithTypearg(typeargs)).ToList();
-            ReturnType = procedureDeclaration.ReturnType.SubstituteWithTypearg(typeargs);
+            return typeArguments;
         }
 
-        public ProcedureReference SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureReference(procedureDeclaration, TypeArguments.Select((IType argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
+        public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments) : this(MatchTypeArguments(procedureDeclaration, arguments), procedureDeclaration)
+        {
+
+        }
+
+        public ProcedureReference(ProcedureDeclaration procedureDeclaration) : this(new Dictionary<TypeParameter, IType>(), procedureDeclaration)
+        {
+
+        }
+
+        private ProcedureReference(Dictionary<TypeParameter, IType> typeArguments, ProcedureDeclaration procedureDeclaration)
+        {
+            ProcedureDeclaration = procedureDeclaration;
+            this.typeArguments = typeArguments;
+#pragma warning disable CS8604 // Panic should happen at runtime. Parameters might (but shouldn't unless bug) be null b/c of linking.
+            ParameterTypes = procedureDeclaration.Parameters.Select((Variable param) => param.Type.SubstituteWithTypearg(typeArguments)).ToList();
+#pragma warning restore CS8604 
+            ReturnType = procedureDeclaration.ReturnType.SubstituteWithTypearg(typeArguments);
+        }
+
+        public ProcedureReference SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs)
+        {
+            Dictionary<TypeParameter, IType> newTypeargs = new(typeargs.Count);
+            foreach (KeyValuePair<TypeParameter, IType> typearg in typeArguments)
+                newTypeargs.Add(typearg.Key, typearg.Value.SubstituteWithTypearg(typeargs));
+            return new ProcedureReference(newTypeargs, ProcedureDeclaration);
+        }
+    }
+
+    public sealed class ReturnStatement : IRStatement
+    {
+        public IRValue ToReturn { get; private set; }
+
+        public ReturnStatement(IRValue toReturn, ProcedureDeclaration procedureDeclaration)
+        {
+            ToReturn = ArithmeticCast.CastTo(toReturn, procedureDeclaration.ReturnType);
+        }
     }
 }
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
-    public abstract class ProcedureCall : IRValue
+    public sealed class LinkedProcedureCall : IRValue, IRStatement
     {
-        public abstract IType Type { get; }
+        public IType Type => Procedure.ReturnType;
 
+        public ProcedureReference Procedure { get; private set; }
         public readonly List<IRValue> Arguments;
 
-        public ProcedureCall(List<IRValue> arguments)
+        public LinkedProcedureCall(ProcedureDeclaration procedure, List<IRValue> arguments) : this(new ProcedureReference(procedure, arguments), arguments)
         {
+
+        }
+
+        private LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments)
+        {
+            Procedure = procedure;
             Arguments = arguments;
         }
 
-        public abstract IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new LinkedProcedureCall(Procedure.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
     }
 
-    public sealed class LinkedProcedureCall : ProcedureCall
+    public sealed class AnonymousProcedureCall : IRValue, IRStatement
     {
-        public override IType Type => Procedure.ReturnType;
-        public ProcedureReference Procedure { get; private set; }
-
-        public LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments) : base(arguments)
-        {
-            Procedure = procedure;
-            for (int i = 0; i < arguments.Count; i++)
-                if (!procedure.ParameterTypes[i].IsCompatibleWith(arguments[i].Type))
-                    throw new UnexpectedTypeException(procedure.ParameterTypes[i], arguments[i].Type);
-        }
-
-        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new LinkedProcedureCall(Procedure.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
-    }
-
-    public sealed class AnonymousProcedureCall : ProcedureCall
-    {
-        public override IType Type => procedureType.ReturnType;
+        public IType Type => ProcedureType.ReturnType;
 
         public IRValue ProcedureValue { get; private set; }
-        private ProcedureType procedureType;
+        public readonly List<IRValue> Arguments;
+        public ProcedureType ProcedureType { get; private set; }
 
-        public AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments) : base(arguments)
+        public AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments)
         {
             ProcedureValue = procedureValue;
-            procedureType = (ProcedureType)procedureValue.Type;
-
-            if (arguments.Count != procedureType.ParameterTypes.Count)
-                throw new UnexpectedTypeArgumentsException(arguments.Count, procedureType.ParameterTypes.Count);
-            for (int i = 0; i < arguments.Count; i++)
-                if (!procedureType.ParameterTypes[i].IsCompatibleWith(arguments[i].Type))
-                    throw new UnexpectedTypeException(procedureType.ParameterTypes[i], arguments[i].Type);
+            if (procedureValue.Type is ProcedureType procedureType)
+            {
+                ProcedureType = procedureType;
+                for (int i = 0; i < procedureType.ParameterTypes.Count; i++)
+                    arguments[i] = ArithmeticCast.CastTo(arguments[i], procedureType.ParameterTypes[i]);
+                Arguments = arguments;
+            }
+            else
+                throw new UnexpectedTypeException(procedureValue.Type);
         }
 
-        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AnonymousProcedureCall(ProcedureValue.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AnonymousProcedureCall(ProcedureValue.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
     }
 
     public sealed class AnonymizeProcedure : IRValue
@@ -113,11 +149,116 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public ProcedureReference Procedure { get; private set; }
 
-        public AnonymizeProcedure(ProcedureReference procedure)
+        private AnonymizeProcedure(ProcedureReference procedure)
         {
             Procedure = procedure;
         }
 
+        public AnonymizeProcedure(ProcedureDeclaration procedure) : this(new ProcedureReference(procedure))
+        {
+
+        }
+
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs));
+    }
+}
+
+namespace NoHoPython.Syntax.Statements
+{
+    partial class ReturnStatement
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        {
+            return irBuilder.ScopedProcedures.Count == 0
+                ? throw new UnexpectedReturnStatement(this)
+                : (IRStatement)new IntermediateRepresentation.Statements.ReturnStatement(ReturnValue.GenerateIntermediateRepresentationForValue(irBuilder), irBuilder.ScopedProcedures.Peek());
+        }
+    }
+
+    partial class ProcedureDeclaration
+    {
+        private IntermediateRepresentation.Statements.ProcedureDeclaration IRProcedureDeclaration;
+
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
+        {
+            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
+
+            SymbolContainer? parentContainer = null;
+            if (irBuilder.ScopedProcedures.Count > 0)
+                parentContainer = irBuilder.ScopedProcedures.Peek();
+            else if (irBuilder.ScopedRecordDeclaration != null)
+                parentContainer = irBuilder.ScopedRecordDeclaration;
+
+            IRProcedureDeclaration = new(Name, typeParameters, AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this), parentContainer);
+
+            List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, IRProcedureDeclaration));
+            IRProcedureDeclaration.DeclareParameters(parameters, this);
+
+            irBuilder.SymbolMarshaller.DeclareSymbol(IRProcedureDeclaration, this);
+            irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
+            irBuilder.ScopedProcedures.Push(IRProcedureDeclaration);
+
+            foreach (Typing.TypeParameter parameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
+            if (irBuilder.ScopedRecordDeclaration != null)
+                irBuilder.SymbolMarshaller.DeclareSymbol(new Variable(irBuilder.ScopedRecordDeclaration.SelfType, "self", IRProcedureDeclaration), this);
+
+            IAstStatement.ForwardDeclareBlock(irBuilder, Statements);
+
+            irBuilder.SymbolMarshaller.GoBack();
+            irBuilder.ScopedProcedures.Pop();
+
+            irBuilder.AddProcDeclaration(IRProcedureDeclaration);
+        }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        {
+            irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
+            irBuilder.ScopedProcedures.Push(IRProcedureDeclaration);
+
+            IRProcedureDeclaration.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, Statements));
+
+            irBuilder.SymbolMarshaller.GoBack();
+            irBuilder.ScopedProcedures.Pop();
+            return IRProcedureDeclaration;
+        }
+    }
+}
+
+namespace NoHoPython.Syntax.Values
+{
+    partial class NamedFunctionCall
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder)
+        {
+            IScopeSymbol procedureSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
+            return procedureSymbol is ProcedureDeclaration procedureDeclaration
+                ? (IRValue)new LinkedProcedureCall(procedureDeclaration, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder)))
+                : throw new NotAProcedureException(procedureSymbol, this);
+        }
+    }
+
+    partial class AnonymousFunctionCall
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)
+            GenerateIntermediateRepresentationForValue(irBuilder);
+
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder)
+        {
+            return new AnonymousProcedureCall(ProcedureValue.GenerateIntermediateRepresentationForValue(irBuilder), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder)));
+        }
     }
 }

@@ -25,6 +25,11 @@
         public override IType Clone() => new DecimalType();
     }
 
+    partial class NothingType
+    {
+        public IType Clone() => new NothingType();
+    }
+
     partial class ProcedureType
     {
         public IType Clone() => new ProcedureType(ReturnType.Clone(), ParameterTypes.Select((IType type) => type.Clone()).ToList());

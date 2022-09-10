@@ -1,0 +1,11 @@
+﻿mod myproject:
+	class person:
+		array<char> name
+		int age
+		
+		def __init__(array<char> name, int age):
+			self.name = name
+			self.age = age
+	
+	def main():
+		michael = new person("Michael", 17)

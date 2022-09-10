@@ -1,0 +1,36 @@
+﻿class person:
+	string name = "michael"
+	int age
+	
+	def __init__(string name):
+		self.name = name
+	
+	def sayHi():
+		print("Hello there!")
+
+def main():
+	michael = person("Michael Wang")
+	print(michael)
+
+def fun(int a):
+	if a == 1:
+		print("first")
+	elif a == 2:
+		print("second")
+	else:
+		print("third")
+	
+	while True:
+		aFunctionCall()
+	myFunnyBuffer = [<maybe<int, char>> 10, 'c']
+
+mod data:
+	class list<T>:
+		array<T> buffer
+		
+		def __init__(int size):
+			buffer = malloc<T>(size)
+			anotherbuffer = [<char>]
+	
+	def range<T>():
+		return new list<T>()

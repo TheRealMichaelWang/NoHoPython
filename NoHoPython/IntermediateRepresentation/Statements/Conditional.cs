@@ -1,4 +1,7 @@
-﻿using NoHoPython.Typing;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
@@ -10,12 +13,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public IfElseBlock(IRValue condition, CodeBlock ifTrueBlock, CodeBlock ifFalseBlock)
         {
-            Condition = condition;
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
             IfTrueBlock = ifTrueBlock;
             IfFalseBlock = ifFalseBlock;
-
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
         }
     }
 
@@ -26,11 +26,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public IfBlock(IRValue condition, CodeBlock ifTrueblock)
         {
-            Condition = condition;
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
             IfTrueblock = ifTrueblock;
-
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
         }
     }
 
@@ -41,11 +38,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public WhileBlock(IRValue condition, CodeBlock whileTrueBlock)
         {
-            Condition = condition;
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
             this.whileTrueBlock = whileTrueBlock;
-
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
         }
     }
 }
@@ -60,19 +54,109 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue IfTrueValue { get; private set; }
         public IRValue IfFalseValue { get; private set; }
 
-        public IfElseValue(IType type, IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue)
+        public IfElseValue(IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue)
+        {
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
+            try
+            {
+                IfFalseValue = ArithmeticCast.CastTo(ifFalseValue, ifTrueValue.Type);
+                IfTrueValue = ifTrueValue;
+                Type = IfTrueValue.Type;
+            }
+            catch (UnexpectedTypeException)
+            {
+                IfTrueValue = ArithmeticCast.CastTo(ifTrueValue, ifFalseValue.Type);
+                IfFalseValue = ifFalseValue;
+                Type = IfFalseValue.Type;
+            }
+        }
+
+        private IfElseValue(IType type, IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue)
         {
             Type = type;
-            Condition = condition;
-            IfTrueValue = ifTrueValue;
-            IfFalseValue = ifFalseValue;
-
-            if (!Primitive.Boolean.IsCompatibleWith(condition.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, condition.Type);
-            else if (!Type.IsCompatibleWith(IfTrueValue.Type))
-                throw new UnexpectedTypeException(Type, IfTrueValue.Type);
-            else if (!Type.IsCompatibleWith(IfFalseValue.Type))
-                throw new UnexpectedTypeException(Type, IfFalseValue.Type);
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
+            IfTrueValue = ArithmeticCast.CastTo(ifTrueValue, Type);
+            IfFalseValue = ArithmeticCast.CastTo(ifFalseValue, Type);
         }
+    }
+}
+
+namespace NoHoPython.Syntax.Statements
+{
+    partial class IfBlock
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
+        {
+            IAstStatement.ForwardDeclareBlock(irBuilder, IfTrueBlock);
+            if (NextIf != null)
+                NextIf.ForwardDeclare(irBuilder);
+            else if (NextElse != null)
+                NextElse.ForwardDeclare(irBuilder);
+        }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        {
+            IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder);
+
+            CodeBlock codeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
+            codeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, IfTrueBlock));
+            irBuilder.SymbolMarshaller.GoBack();
+
+            if (NextIf != null)
+            {
+                CodeBlock nextIf = irBuilder.SymbolMarshaller.NewCodeBlock();
+                nextIf.DelayedLinkSetStatements(new List<IRStatement>() { NextIf.GenerateIntermediateRepresentationForStatement(irBuilder) });
+                irBuilder.SymbolMarshaller.GoBack();
+                return new IfElseBlock(condition, codeBlock, nextIf);
+            }
+            else return NextElse != null
+                ? new IfElseBlock(condition, codeBlock, NextElse.GenerateIRCodeBlock(irBuilder))
+                : new IntermediateRepresentation.Statements.IfBlock(condition, codeBlock);
+        }
+    }
+
+    partial class ElseBlock
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) => throw new InvalidOperationException();
+
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) => IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => throw new InvalidOperationException();
+
+        public CodeBlock GenerateIRCodeBlock(AstIRProgramBuilder irBuilder)
+        {
+            CodeBlock codeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
+            codeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
+            irBuilder.SymbolMarshaller.GoBack();
+            return codeBlock;
+        }
+    }
+
+    partial class WhileBlock
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) => IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        {
+            IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder);
+
+            CodeBlock codeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
+            codeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
+            irBuilder.SymbolMarshaller.GoBack();
+
+            return new IntermediateRepresentation.Statements.WhileBlock(condition, codeBlock);
+        }
+    }
+}
+
+namespace NoHoPython.Syntax.Values
+{
+    partial class IfElseValue
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irProgramBuilder), IfTrueValue.GenerateIntermediateRepresentationForValue(irProgramBuilder), IfFalseValue.GenerateIntermediateRepresentationForValue(irProgramBuilder));
     }
 }

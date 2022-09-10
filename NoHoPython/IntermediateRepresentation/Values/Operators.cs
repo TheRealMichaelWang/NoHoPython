@@ -1,4 +1,7 @@
-﻿using NoHoPython.IntermediateRepresentation.Statements;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Syntax.Parsing;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
@@ -22,17 +25,19 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Left { get; private set; }
         public IRValue Right { get; private set; }
 
-        private bool isFinal;
-
         public ComparativeOperator(CompareOperation operation, IRValue left, IRValue right)
         {
             Operation = operation;
             Left = left;
             Right = right;
 
-            if(left.Type is RecordType)
+            if (left.Type is IPropertyContainer propertyContainer && !propertyContainer.HasProperty("compare"))
             {
-                
+                Left = ArithmeticCast.CastTo(new AnonymousProcedureCall(new GetPropertyValue(left, "compare"), new List<IRValue>()
+                {
+                    right
+                }), Primitive.Integer);
+                Right = new IntegerLiteral(0);
             }
             else
             {
@@ -62,18 +67,23 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public LogicalOperator(LogicalOperation operation, IRValue right, IRValue left)
         {
             Operation = operation;
-            Right = right;
-            Left = left;
-
-            if (!Primitive.Boolean.IsCompatibleWith(Left.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, Left.Type);
-            if (!Primitive.Boolean.IsCompatibleWith(Right.Type))
-                throw new UnexpectedTypeException(Primitive.Boolean, Right.Type);
+            Right = ArithmeticCast.CastTo(right, Primitive.Boolean);
+            Left = ArithmeticCast.CastTo(left, Primitive.Boolean);
         }
     }
 
     public sealed partial class GetValueAtIndex : IRValue
     {
+        public static IRValue ComposeGetValueAtIndex(IRValue array, IRValue index)
+        {
+            return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("getAtIndex")
+                ? new AnonymousProcedureCall(new GetPropertyValue(array, "getAtIndex"), new List<IRValue>()
+                {
+                    index
+                })
+                : (IRValue)new GetValueAtIndex(array, index);
+        }
+
         public IType Type { get; private set; }
 
         public IRValue Array { get; private set; }
@@ -93,8 +103,19 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public sealed partial class SetValueAtIndex : IRValue
+    public sealed partial class SetValueAtIndex : IRValue, IRStatement
     {
+        public static IRValue ComposeSetValueAtIndex(IRValue array, IRValue index, IRValue value)
+        {
+            return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("setAtIndex")
+                ? new AnonymousProcedureCall(new GetPropertyValue(array, "setAtIndex"), new List<IRValue>()
+                {
+                    index,
+                    value
+                })
+                : (IRValue)new SetValueAtIndex(array, index, value);
+        }
+
         public IType Type => Value.Type;
 
         public IRValue Array { get; private set; }
@@ -105,16 +126,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public SetValueAtIndex(IRValue array, IRValue index, IRValue value)
         {
             Array = array;
-            Index = index;
-            Value = value;
 
-            if (Array.Type is not ArrayType)
-                throw new UnexpectedTypeException(Array.Type);
-            if (Index.Type is not IntegerType)
-                throw new UnexpectedTypeException(Array.Type);
+            Value = array.Type is ArrayType arrayType
+                ? ArithmeticCast.CastTo(value, arrayType.ElementType)
+                : throw new UnexpectedTypeException(array.Type);
 
-            if (!((ArrayType)Array.Type).ElementType.IsCompatibleWith(value.Type))
-                throw new UnexpectedTypeException(Value.Type);
+            Index = ArithmeticCast.CastTo(index, Primitive.Integer);
         }
     }
 
@@ -123,34 +140,114 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IType Type => Property.Type;
 
         public IRValue Record { get; private set; }
-        public RecordDeclaration.RecordProperty Property { get; private set; }
+        public Property Property { get; private set; }
 
-        public GetPropertyValue(IRValue record, RecordDeclaration.RecordProperty property)
+        public GetPropertyValue(IRValue record, string propertyName)
         {
             Record = record;
-            Property = property;
+            Property = record.Type is IPropertyContainer propertyContainer
+                ? propertyContainer.FindProperty(propertyName)
+                : throw new UnexpectedTypeException(record.Type);
         }
     }
 
-    public sealed partial class SetPropertyValue : IRValue
+    public sealed partial class SetPropertyValue : IRValue, IRStatement
     {
         public IType Type => Property.Type;
 
         public IRValue Record { get; private set; }
-        public RecordDeclaration.RecordProperty Property { get; private set; }
+        public Property Property { get; private set; }
 
         public IRValue Value { get; private set; }
 
-        public SetPropertyValue(IRValue record, RecordDeclaration.RecordProperty property, IRValue value)
+        public SetPropertyValue(IRValue record, string propertyName, IRValue value)
         {
             Record = record;
-            Property = property;
-            Value = value;
 
-            if (Property.IsReadonly)
-                throw new CannotMutateReadonlyPropertyException(Property);
-            if (!Property.Type.IsCompatibleWith(Value.Type))
-                throw new UnexpectedTypeException(Property.Type, Value.Type);
+            if (record.Type is IPropertyContainer propertyContainer)
+            {
+                Property = propertyContainer.FindProperty(propertyName);
+
+                if (Property.IsReadOnly)
+                    throw new CannotMutateReadonlyPropertyException(Property);
+                Value = ArithmeticCast.CastTo(value, Property.Type);
+            }
+            else
+                throw new UnexpectedTypeException(record.Type);
         }
+    }
+}
+
+namespace NoHoPython.Syntax.Values
+{
+    partial class BinaryOperator
+    {
+        private static Dictionary<TokenType, ArithmeticOperator.ArithmeticOperation> ArithmeticTokens = new()
+        {
+            {TokenType.Add, ArithmeticOperator.ArithmeticOperation.Add},
+            {TokenType.Subtract, ArithmeticOperator.ArithmeticOperation.Subtract},
+            {TokenType.Multiply, ArithmeticOperator.ArithmeticOperation.Multiply},
+            {TokenType.Divide, ArithmeticOperator.ArithmeticOperation.Divide},
+            {TokenType.Modulo, ArithmeticOperator.ArithmeticOperation.Modulo},
+            {TokenType.Caret, ArithmeticOperator.ArithmeticOperation.Exponentiate},
+        };
+
+        private static Dictionary<TokenType, ComparativeOperator.CompareOperation> ComparativeTokens = new()
+        {
+            {TokenType.More, ComparativeOperator.CompareOperation.More},
+            {TokenType.Less, ComparativeOperator.CompareOperation.Less},
+            {TokenType.MoreEqual, ComparativeOperator.CompareOperation.MoreEqual},
+            {TokenType.LessEqual, ComparativeOperator.CompareOperation.LessEqual},
+            {TokenType.Equals, ComparativeOperator.CompareOperation.Equals},
+            {TokenType.NotEquals, ComparativeOperator.CompareOperation.NotEquals}
+        };
+
+        private static Dictionary<TokenType, LogicalOperator.LogicalOperation> LogicalTokens = new()
+        {
+            {TokenType.And, LogicalOperator.LogicalOperation.And},
+            {TokenType.Or, LogicalOperator.LogicalOperation.Or }
+        };
+
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder)
+        {
+            return ArithmeticTokens.ContainsKey(Operator)
+                ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder))
+                : ComparativeTokens.ContainsKey(Operator)
+                ? new ComparativeOperator(ComparativeTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder))
+                : LogicalTokens.ContainsKey(Operator)
+                ? (IRValue)new LogicalOperator(LogicalTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder))
+                : throw new InvalidOperationException();
+        }
+    }
+
+    partial class GetValueAtIndex
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+    }
+
+    partial class SetValueAtIndex
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => IntermediateRepresentation.Values.SetValueAtIndex.ComposeSetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder), Value.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+    }
+
+    partial class GetPropertyValue
+    {
+
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.GetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder), Property);
+    }
+
+    partial class SetPropertyValue
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.SetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder), Property, Value.GenerateIntermediateRepresentationForValue(irProgramBuilder));
     }
 }

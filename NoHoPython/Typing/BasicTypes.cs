@@ -1,4 +1,7 @@
-﻿namespace NoHoPython.Typing
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Values;
+
+namespace NoHoPython.Typing
 {
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public abstract class Primitive : IType
@@ -9,6 +12,8 @@
         public static readonly CharacterType Character = new();
         public static readonly BooleanType Boolean = new();
 
+        public static readonly NothingType Nothing = new(); //not a primitive but also commonly used
+
         public abstract string TypeName { get; }
         public abstract int Size { get; }
 
@@ -18,7 +23,13 @@
         public abstract IType Clone();
         public abstract IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeArgs);
 
-        public bool Equals(IType type) => IsCompatibleWith(type);
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        {
+            if (!IsCompatibleWith(argument))
+                throw new UnexpectedTypeException(this, argument);
+        }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
 
         public override int GetHashCode() => Id;
     }
@@ -71,6 +82,18 @@
         }
     }
 
+    public sealed partial class NothingType : IType
+    {
+        public string TypeName => "nothing";
+
+        public bool IsCompatibleWith(IType type)
+        {
+            return type is NothingType;
+        }
+
+        public override string ToString() => TypeName;
+    }
+
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class ArrayType : IType
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
@@ -86,14 +109,8 @@
 
         public bool IsCompatibleWith(IType type)
         {
-            if(type is ArrayType arrayType)
-            {
-                return ElementType.Equals(arrayType.ElementType);
-            }
-            return false;
+            return type is ArrayType arrayType && ElementType.IsCompatibleWith(arrayType.ElementType);
         }
-
-        public bool Equals(IType type) => IsCompatibleWith(type);
     }
 
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
@@ -113,18 +130,16 @@
 
         public bool IsCompatibleWith(IType type)
         {
-            if(type is ProcedureType procedureType)
+            if (type is ProcedureType procedureType)
             {
-                if (!ReturnType.Equals(procedureType.ReturnType))
+                if (!ReturnType.IsCompatibleWith(procedureType.ReturnType))
                     return false;
                 for (int i = 0; i < ParameterTypes.Count; i++)
-                    if (!procedureType.ParameterTypes[i].Equals(ParameterTypes[i]))
+                    if (!procedureType.ParameterTypes[i].IsCompatibleWith(ParameterTypes[i]))
                         return false;
                 return true;
             }
             return false;
         }
-
-        public bool Equals(IType type) => IsCompatibleWith(type);
     }
 }

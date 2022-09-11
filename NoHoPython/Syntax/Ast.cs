@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.Typing;
 
 namespace NoHoPython.Syntax
 {
@@ -8,7 +9,7 @@ namespace NoHoPython.Syntax
     {
         string ToString();
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType);
     }
 
     public interface IAstStatement : IAstElement

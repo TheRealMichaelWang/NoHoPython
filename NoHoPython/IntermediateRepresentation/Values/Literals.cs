@@ -5,6 +5,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class IntegerLiteral : IRValue
     {
+        public bool IsConstant => true;
         public IType Type { get => new IntegerType(); }
 
         public long Number { get; private set; }
@@ -17,6 +18,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class DecimalLiteral : IRValue
     {
+        public bool IsConstant => true;
         public IType Type { get => new DecimalType(); }
 
         public decimal Number { get; private set; }
@@ -29,6 +31,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class CharacterLiteral : IRValue
     {
+        public bool IsConstant => true;
         public IType Type { get => new CharacterType(); }
 
         public char Character { get; private set; }
@@ -41,6 +44,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class TrueLiteral : IRValue
     {
+        public bool IsConstant => true;
         public IType Type => new BooleanType();
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new TrueLiteral();
@@ -48,6 +52,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class FalseLiteral : IRValue
     {
+        public bool IsConstant => true;
         public IType Type => new BooleanType();
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new FalseLiteral();
@@ -55,6 +60,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class NothingLiteral : IRValue
     {
+        public bool IsConstant => true;
         public IType Type => new NothingType();
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NothingLiteral();
@@ -62,6 +68,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class ArrayLiteral : IRValue
     {
+        public bool IsConstant => Elements.TrueForAll(element => element.IsConstant);
+
         public IType Type { get => new ArrayType(ElementType); }
 
         public IType ElementType { get; private set; }
@@ -106,22 +114,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public sealed partial class AllocArray : IRValue
-    {
-        public IType Type { get => new ArrayType(ElementType); }
-
-        public IType ElementType { get; private set; }
-        public IRValue Size { get; private set; }
-
-        public AllocArray(IType elementType, IRValue size)
-        {
-            ElementType = elementType;
-            Size = ArithmeticCast.CastTo(size, Primitive.Integer);
-        }
-    }
-
     public sealed partial class AllocRecord : IRValue
     {
+        public bool IsConstant => false;
         public IType Type { get => RecordPrototype; }
 
         public RecordType RecordPrototype { get; private set; }
@@ -147,34 +142,34 @@ namespace NoHoPython.Syntax.Values
 {
     partial class IntegerLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.IntegerLiteral(Number);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.IntegerLiteral(Number);
     }
 
     partial class DecimalLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.DecimalLiteral(Number);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.DecimalLiteral(Number);
     }
 
     partial class TrueLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.TrueLiteral();
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.TrueLiteral();
     }
 
     partial class FalseLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.FalseLiteral();
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.FalseLiteral();
     }
 
     partial class CharacterLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Values.CharacterLiteral(Character);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.CharacterLiteral(Character);
     }
 
     partial class ArrayLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType)
         {
-            List<IRValue> elements = Elements.ConvertAll((IAstValue element) => element.GenerateIntermediateRepresentationForValue(irBuilder));
+            List<IRValue> elements = Elements.ConvertAll((IAstValue element) => element.GenerateIntermediateRepresentationForValue(irBuilder, null));
             if (IsStringLiteral)
                 return new IntermediateRepresentation.Values.ArrayLiteral(Primitive.Character, elements);
             else if (AnnotatedElementType != null)
@@ -186,11 +181,11 @@ namespace NoHoPython.Syntax.Values
 
     partial class InstantiateNewRecord
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType)
         {
             IType prototype = RecordType.ToIRType(irBuilder, this);
             return prototype is Typing.RecordType record
-                ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder)))
+                ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)))
                 : throw new UnexpectedTypeException(prototype);
         }
     }

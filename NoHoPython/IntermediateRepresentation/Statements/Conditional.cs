@@ -48,6 +48,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class IfElseValue : IRValue
     {
+        public bool IsConstant => false;
+
         public IType Type { get; private set; }
 
         public IRValue Condition { get; private set; }
@@ -98,7 +100,7 @@ namespace NoHoPython.Syntax.Statements
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
-            IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder);
+            IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean);
 
             CodeBlock codeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
             codeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, IfTrueBlock));
@@ -142,7 +144,7 @@ namespace NoHoPython.Syntax.Statements
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
-            IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder);
+            IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean);
 
             CodeBlock codeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
             codeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
@@ -157,6 +159,6 @@ namespace NoHoPython.Syntax.Values
 {
     partial class IfElseValue
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irProgramBuilder), IfTrueValue.GenerateIntermediateRepresentationForValue(irProgramBuilder), IfFalseValue.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irProgramBuilder, Primitive.Boolean), IfTrueValue.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), IfFalseValue.GenerateIntermediateRepresentationForValue(irProgramBuilder, null));
     }
 }

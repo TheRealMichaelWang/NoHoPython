@@ -51,6 +51,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class MarshalIntoEnum : IRValue
     {
+        public bool IsConstant => false;
         public IType Type => TargetType;
 
         public EnumType TargetType { get; private set; }
@@ -90,7 +91,7 @@ namespace NoHoPython.Typing
         public EnumDeclaration EnumDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;
 
-        public readonly List<IType> Options;
+        private Lazy<List<IType>> options;
 
         public EnumType(EnumDeclaration enumDeclaration, List<IType> typeArguments)
         {
@@ -98,12 +99,12 @@ namespace NoHoPython.Typing
             TypeArguments = typeArguments;
             TypeParameter.ValidateTypeArguments(enumDeclaration.TypeParameters, typeArguments);
 
-            Options = enumDeclaration.GetOptions(this);
+            options = new Lazy<List<IType>>(() => enumDeclaration.GetOptions(this));
         }
 
         public bool SupportsType(IType type)
         {
-            foreach (IType option in Options)
+            foreach (IType option in options.Value)
                 if (option.IsCompatibleWith(type))
                     return true;
             return false;
@@ -142,8 +143,6 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.DeclareSymbol(IREnumDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IREnumDeclaration);
 
-            foreach (Typing.TypeParameter parameter in typeParameters)
-                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
             irBuilder.SymbolMarshaller.GoBack();
 
             irBuilder.AddEnumDeclaration(IREnumDeclaration);

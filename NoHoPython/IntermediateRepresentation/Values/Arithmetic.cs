@@ -84,6 +84,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 : (IRValue)new ArithmeticCast(intToOperation[targetType.Id - 1], new ArithmeticCast(toIntOperation[input.Id - 1], primitive));
         }
 
+        public bool IsConstant => false;
+
         public IType Type => outputTypes[Operation];
 
         public ArithmeticCastOperation Operation { get; private set; }
@@ -132,6 +134,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 })
                 : (IRValue)new ArithmeticOperator(operation, left, right);
         }
+
+        public bool IsConstant => false;
 
         public ArithmeticOperation Operation { get; private set; }
         public IType Type { get; private set; }

@@ -9,3 +9,9 @@
 	
 	def main():
 		michael = new person("Michael", 17)
+	
+	class list<T>:
+		array<T> buffer
+		
+		def __init__(int size):
+			buffer = malloc(size)

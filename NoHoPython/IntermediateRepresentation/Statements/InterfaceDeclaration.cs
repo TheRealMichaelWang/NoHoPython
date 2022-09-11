@@ -76,6 +76,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class MarshalIntoInterface : IRValue
     {
+        public bool IsConstant => false;
         public IType Type => TargetType;
 
         public InterfaceType TargetType { get; private set; }
@@ -119,28 +120,32 @@ namespace NoHoPython.Typing
 
         public InterfaceDeclaration InterfaceDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;
-        public readonly List<InterfaceDeclaration.InterfaceProperty> RequiredImplementedProperties;
 
-        private Dictionary<string, InterfaceDeclaration.InterfaceProperty> identifierPropertyMap;
+        private Lazy<List<InterfaceDeclaration.InterfaceProperty>> requiredImplementedProperties;
+        private Lazy<Dictionary<string, InterfaceDeclaration.InterfaceProperty>> identifierPropertyMap;
 
         public InterfaceType(InterfaceDeclaration interfaceDeclaration, List<IType> typeArguments)
         {
             InterfaceDeclaration = interfaceDeclaration;
             TypeArguments = typeArguments;
             TypeParameter.ValidateTypeArguments(interfaceDeclaration.TypeParameters, typeArguments);
+            
+            requiredImplementedProperties = new Lazy<List<InterfaceDeclaration.InterfaceProperty>>(() => interfaceDeclaration.GetRequiredProperties(this));
 
-            RequiredImplementedProperties = interfaceDeclaration.GetRequiredProperties(this);
-
-            identifierPropertyMap = new(RequiredImplementedProperties.Count);
-            foreach (InterfaceDeclaration.InterfaceProperty property in RequiredImplementedProperties)
-                identifierPropertyMap.Add(property.Name, property);
+            identifierPropertyMap = new Lazy<Dictionary<string, InterfaceDeclaration.InterfaceProperty>>(() =>
+            {
+                var toret = new Dictionary<string, InterfaceDeclaration.InterfaceProperty>(requiredImplementedProperties.Value.Count);
+                foreach (InterfaceDeclaration.InterfaceProperty property in requiredImplementedProperties.Value)
+                    toret.Add(property.Name, property);
+                return toret;
+            });
         }
 
-        public bool HasProperty(string identifier) => identifierPropertyMap.ContainsKey(identifier);
+        public bool HasProperty(string identifier) => identifierPropertyMap.Value.ContainsKey(identifier);
 
-        public Property FindProperty(string identifier) => identifierPropertyMap[identifier];
+        public Property FindProperty(string identifier) => identifierPropertyMap.Value[identifier];
 
-        public List<Property> GetProperties() => RequiredImplementedProperties.ConvertAll((InterfaceDeclaration.InterfaceProperty property) => (Property)property);
+        public List<Property> GetProperties() => requiredImplementedProperties.Value.ConvertAll((InterfaceDeclaration.InterfaceProperty property) => (Property)property);
 
         public bool IsCompatibleWith(IType type)
         {
@@ -167,7 +172,7 @@ namespace NoHoPython.Typing
                 return false;
             }
 
-            foreach (InterfaceDeclaration.InterfaceProperty requiredProperty in RequiredImplementedProperties)
+            foreach (InterfaceDeclaration.InterfaceProperty requiredProperty in requiredImplementedProperties.Value)
             {
                 if (!SupportsProperty(requiredProperty))
                     return false;
@@ -191,8 +196,6 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.DeclareSymbol(IRInterfaceDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRInterfaceDeclaration);
 
-            foreach (Typing.TypeParameter parameter in typeParameters)
-                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
             irBuilder.SymbolMarshaller.GoBack();
 
             irBuilder.AddInterfaceDeclaration(IRInterfaceDeclaration);

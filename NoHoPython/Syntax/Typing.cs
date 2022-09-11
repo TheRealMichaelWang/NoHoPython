@@ -112,7 +112,11 @@ namespace NoHoPython.Syntax.Values
 
         public override string ToString() => $"{ToCast} as {TargetType}";
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder) => ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentationForValue(irBuilder), TargetType.ToIRType(irBuilder, this));
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) 
+        {
+            IType targetType = TargetType.ToIRType(irBuilder, this);
+            return ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentationForValue(irBuilder, targetType), targetType);
+        }
     }
 }
 

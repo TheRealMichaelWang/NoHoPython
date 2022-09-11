@@ -58,6 +58,8 @@ namespace NoHoPython.IntermediateRepresentation
 {
     public interface IRValue
     {
+        public bool IsConstant { get; }
+
         public IType Type { get; }
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);

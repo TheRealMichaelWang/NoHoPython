@@ -131,9 +131,8 @@ namespace NoHoPython.Typing
         public RecordDeclaration RecordPrototype;
         public readonly List<IType> TypeArguments;
 
-        public readonly List<RecordDeclaration.RecordProperty> Properties;
-
-        private Dictionary<string, RecordDeclaration.RecordProperty> identifierPropertyMap;
+        private Lazy<List<RecordDeclaration.RecordProperty>> properties;
+        private Lazy<Dictionary<string, RecordDeclaration.RecordProperty>> identifierPropertyMap;
 
         public RecordType(RecordDeclaration recordPrototype, List<IType> typeArguments)
         {
@@ -141,18 +140,22 @@ namespace NoHoPython.Typing
             TypeArguments = typeArguments;
             TypeParameter.ValidateTypeArguments(recordPrototype.TypeParameters, typeArguments);
 
-            Properties = recordPrototype.GetRecordProperties(this);
+            properties = new Lazy<List<RecordDeclaration.RecordProperty>>(() => recordPrototype.GetRecordProperties(this));
 
-            identifierPropertyMap = new Dictionary<string, RecordDeclaration.RecordProperty>(Properties.Count);
-            foreach (RecordDeclaration.RecordProperty property in Properties)
-                identifierPropertyMap.Add(property.Name, property);
+            identifierPropertyMap = new Lazy<Dictionary<string, RecordDeclaration.RecordProperty>>(() =>
+            {
+                var toret = new Dictionary<string, RecordDeclaration.RecordProperty>(properties.Value.Count);
+                foreach (RecordDeclaration.RecordProperty property in properties.Value)
+                    toret.Add(property.Name, property);
+                return toret;
+            });
         }
 
-        public bool HasProperty(string identifier) => identifierPropertyMap.ContainsKey(identifier);
+        public bool HasProperty(string identifier) => identifierPropertyMap.Value.ContainsKey(identifier);
 
-        public Property FindProperty(string identifier) => identifierPropertyMap[identifier];
+        public Property FindProperty(string identifier) => identifierPropertyMap.Value[identifier];
 
-        public List<Property> GetProperties() => Properties.ConvertAll((RecordDeclaration.RecordProperty property) => (Property)property);
+        public List<Property> GetProperties() => properties.Value.ConvertAll((RecordDeclaration.RecordProperty property) => (Property)property);
 
         public bool IsCompatibleWith(IType type)
         {
@@ -176,7 +179,6 @@ namespace NoHoPython.Syntax.Statements
     {
         private IntermediateRepresentation.Statements.RecordDeclaration IRRecordDeclaration;
         private List<IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty> IRProperties;
-        private Dictionary<ProcedureDeclaration, IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty> RecieverProperties;
 
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder)
         {
@@ -187,8 +189,6 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
             irBuilder.ScopeToRecord(IRRecordDeclaration);
 
-            foreach (Typing.TypeParameter parameter in typeParameters)
-                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();
 
@@ -203,14 +203,8 @@ namespace NoHoPython.Syntax.Statements
             IRProperties = Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder, this), property.IsReadOnly, null));
             IRRecordDeclaration.DelayedLinkSetProperties(IRProperties);
 
-            RecieverProperties = new Dictionary<ProcedureDeclaration, IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty>(MessageRecievers.Count);
-            foreach (ProcedureDeclaration messageReciever in MessageRecievers)
-            {
+            foreach(ProcedureDeclaration messageReciever in MessageRecievers)
                 messageReciever.ForwardDeclare(irBuilder);
-                var linkedProperty = new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(messageReciever.Name, new ProcedureType(messageReciever.AnnotatedReturnType == null ? Primitive.Nothing : messageReciever.AnnotatedReturnType.ToIRType(irBuilder, this), messageReciever.Parameters.ConvertAll((ProcedureDeclaration.ProcedureParameter parameter) => parameter.Type.ToIRType(irBuilder, this))), true, null);
-                IRProperties.Add(linkedProperty);
-                RecieverProperties.Add(messageReciever, linkedProperty);
-            }
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();
@@ -225,14 +219,9 @@ namespace NoHoPython.Syntax.Statements
             {
                 var propertyValue = Properties[i].DefaultValue;
                 if (propertyValue != null)
-                    IRProperties[i].DelayedLinkSetDefaultValue(propertyValue.GenerateIntermediateRepresentationForValue(irBuilder));
+                    IRProperties[i].DelayedLinkSetDefaultValue(propertyValue.GenerateIntermediateRepresentationForValue(irBuilder, IRProperties[i].Type));
             }
-            IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) =>
-                {
-                    var linkedReciever = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
-                    RecieverProperties[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(linkedReciever));
-                    return linkedReciever;
-                }));
+            IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder)));
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();

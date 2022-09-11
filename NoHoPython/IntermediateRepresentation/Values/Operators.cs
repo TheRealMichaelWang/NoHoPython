@@ -18,6 +18,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             LessEqual
         }
 
+        public bool IsConstant => false;
         public IType Type => new BooleanType();
 
         public CompareOperation Operation { get; private set; }
@@ -57,6 +58,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Or
         }
 
+        public bool IsConstant => false;
         public IType Type => new BooleanType();
 
         public LogicalOperation Operation { get; private set; }
@@ -84,6 +86,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 : (IRValue)new GetValueAtIndex(array, index);
         }
 
+        public bool IsConstant => false;
         public IType Type { get; private set; }
 
         public IRValue Array { get; private set; }
@@ -116,6 +119,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 : (IRValue)new SetValueAtIndex(array, index, value);
         }
 
+        public bool IsConstant => false;
         public IType Type => Value.Type;
 
         public IRValue Array { get; private set; }
@@ -137,6 +141,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class GetPropertyValue : IRValue
     {
+        public bool IsConstant => false;
         public IType Type => Property.Type;
 
         public IRValue Record { get; private set; }
@@ -153,6 +158,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class SetPropertyValue : IRValue, IRStatement
     {
+        public bool IsConstant => false;
         public IType Type => Property.Type;
 
         public IRValue Record { get; private set; }
@@ -208,21 +214,21 @@ namespace NoHoPython.Syntax.Values
             {TokenType.Or, LogicalOperator.LogicalOperation.Or }
         };
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType)
         {
             return ArithmeticTokens.ContainsKey(Operator)
-                ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder))
+                ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder, null))
                 : ComparativeTokens.ContainsKey(Operator)
-                ? new ComparativeOperator(ComparativeTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder))
+                ? new ComparativeOperator(ComparativeTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder, null))
                 : LogicalTokens.ContainsKey(Operator)
-                ? (IRValue)new LogicalOperator(LogicalTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder))
+                ? (IRValue)new LogicalOperator(LogicalTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder, null))
                 : throw new InvalidOperationException();
         }
     }
 
     partial class GetValueAtIndex
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder, expectedType == null ? null : new ArrayType(expectedType)), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder, Primitive.Integer));
     }
 
     partial class SetValueAtIndex
@@ -230,15 +236,15 @@ namespace NoHoPython.Syntax.Values
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null);
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => IntermediateRepresentation.Values.SetValueAtIndex.ComposeSetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder), Value.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType) => IntermediateRepresentation.Values.SetValueAtIndex.ComposeSetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder, expectedType == null ? null : new ArrayType(expectedType)), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder, Primitive.Integer), Value.GenerateIntermediateRepresentationForValue(irProgramBuilder, expectedType));
     }
 
     partial class GetPropertyValue
     {
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.GetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder), Property);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType) => new IntermediateRepresentation.Values.GetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), Property);
     }
 
     partial class SetPropertyValue
@@ -246,8 +252,8 @@ namespace NoHoPython.Syntax.Values
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null);
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder) => new IntermediateRepresentation.Values.SetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder), Property, Value.GenerateIntermediateRepresentationForValue(irProgramBuilder));
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType) => new IntermediateRepresentation.Values.SetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), Property, Value.GenerateIntermediateRepresentationForValue(irProgramBuilder, null));
     }
 }

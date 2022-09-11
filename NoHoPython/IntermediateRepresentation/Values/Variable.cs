@@ -7,6 +7,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class VariableReference : IRValue
     {
+        public bool IsConstant => false;
         public IType Type { get => Variable.Type; }
 
         public Variable Variable { get; private set; }
@@ -21,6 +22,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class VariableDeclaration : IRValue, IRStatement
     {
+        public bool IsConstant => false;
         public IType Type { get => InitialValue.Type; }
 
         public Variable Variable { get; private set; }
@@ -28,7 +30,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public VariableDeclaration(string name, IRValue setValue, Syntax.AstIRProgramBuilder irBuilder, Syntax.IAstElement errorReportedElement)
         {
-            irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek()), errorReportedElement);
+            irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name), errorReportedElement);
             InitialValue = setValue;
         }
 
@@ -37,7 +39,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class SetVariable : IRValue, IRStatement
     {
-        public IType Type { get => SetValue.Type; }
+        public bool IsConstant => false;
+        public IType Type => SetValue.Type;
 
         public Variable Variable { get; private set; }
         public IRValue SetValue { get; private set; }
@@ -61,13 +64,10 @@ namespace NoHoPython.Scoping
         public IType Type { get; private set; }
         public string Name { get; private set; }
 
-        public IntermediateRepresentation.Statements.ProcedureDeclaration ParentProcedure { get; private set; }
-
-        public Variable(IType type, string name, IntermediateRepresentation.Statements.ProcedureDeclaration parentProcedure)
+        public Variable(IType type, string name)
         {
             Type = type;
             Name = name;
-            ParentProcedure = parentProcedure;
         }
     }
 
@@ -92,7 +92,7 @@ namespace NoHoPython.Syntax.Values
 {
     partial class VariableReference
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType)
         {
             IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
             return valueSymbol is Variable variable
@@ -108,20 +108,20 @@ namespace NoHoPython.Syntax.Values
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null);
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType)
         {
             try
             {
                 IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
                 return valueSymbol is Variable variable
-                    ? (IRValue)new IntermediateRepresentation.Values.SetVariable(variable, SetValue.GenerateIntermediateRepresentationForValue(irBuilder))
+                    ? (IRValue)new IntermediateRepresentation.Values.SetVariable(variable, SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type))
                     : throw new NotAVariableException(valueSymbol, this);
             }
             catch (SymbolNotFoundException)
             {
-                return new VariableDeclaration(Name, SetValue.GenerateIntermediateRepresentationForValue(irBuilder), irBuilder, this);
+                return new VariableDeclaration(Name, SetValue.GenerateIntermediateRepresentationForValue(irBuilder, expectedType), irBuilder, this);
             }
         }
     }

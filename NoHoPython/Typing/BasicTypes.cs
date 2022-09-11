@@ -31,6 +31,7 @@ namespace NoHoPython.Typing
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
 
+        public override string ToString() => TypeName;
         public override int GetHashCode() => Id;
     }
 

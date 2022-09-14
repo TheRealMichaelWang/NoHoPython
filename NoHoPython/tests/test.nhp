@@ -6,6 +6,8 @@
 		def __init__(array<char> name, int age):
 			self.name = name
 			self.age = age
+			def myClosure() int:
+				return self.age
 	
 	def main():
 		michael = new person("Michael", 17)

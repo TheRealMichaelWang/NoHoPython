@@ -82,7 +82,6 @@
         }
 
         public SourceLocation CurrentLocation => visitorStack.Peek().CurrentLocation;
-        private string CurrentWorkingDirectory => visitorStack.Peek().WorkingDirectory;
 
         private Stack<FileVisitor> visitorStack;
         private SortedSet<string> visitedFiles;
@@ -142,6 +141,8 @@
                     {
                         case '\"':
                             return '\"';
+                        case '\'':
+                            return '\'';
                         case 'a':
                             return '\a';
                         case 'b':

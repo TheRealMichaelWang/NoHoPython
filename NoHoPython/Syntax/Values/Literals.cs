@@ -108,6 +108,18 @@ namespace NoHoPython.Syntax.Values
         public override string ToString() => "False";
     }
 
+    public sealed partial class NothingLiteral : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public NothingLiteral(SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+        }
+
+        public override string ToString() => "Nothing";
+    }
+
     public sealed partial class InstantiateNewRecord : IAstValue
     {
         public SourceLocation SourceLocation { get; private set; }

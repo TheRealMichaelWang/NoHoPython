@@ -1,11 +1,11 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Syntax;
+using System.Text;
 
 namespace NoHoPython.Typing
 {
-#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public abstract class Primitive : IType
-#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public static readonly IntegerType Integer = new();
         public static readonly DecimalType Decimal = new();
@@ -19,14 +19,15 @@ namespace NoHoPython.Typing
 
         public abstract int Id { get; }
 
+        public abstract string GetCName();
         public abstract bool IsCompatibleWith(IType type);
         public abstract IType Clone();
         public abstract IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeArgs);
 
-        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, IAstElement errorReportedElement)
         {
             if (!IsCompatibleWith(argument))
-                throw new UnexpectedTypeException(this, argument);
+                throw new UnexpectedTypeException(this, errorReportedElement);
         }
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
@@ -41,6 +42,8 @@ namespace NoHoPython.Typing
         public override int Size => 8;
         public override int Id => 0;
 
+        public override string GetCName() => "long";
+
         public override bool IsCompatibleWith(IType type)
         {
             return type is IntegerType;
@@ -52,6 +55,8 @@ namespace NoHoPython.Typing
         public override string TypeName => "dec";
         public override int Size => 8;
         public override int Id => 1;
+
+        public override string GetCName() => "double";
 
         public override bool IsCompatibleWith(IType type)
         {
@@ -65,6 +70,8 @@ namespace NoHoPython.Typing
         public override int Size => 1;
         public override int Id => 2;
 
+        public override string GetCName() => "char";
+
         public override bool IsCompatibleWith(IType type)
         {
             return type is CharacterType;
@@ -77,6 +84,8 @@ namespace NoHoPython.Typing
         public override int Size => 4;
         public override int Id => 3;
 
+        public override string GetCName() => "int";
+
         public override bool IsCompatibleWith(IType type)
         {
             return type is BooleanType;
@@ -86,6 +95,7 @@ namespace NoHoPython.Typing
     public sealed partial class NothingType : IType
     {
         public string TypeName => "nothing";
+        public string GetCName() => "void";
 
         public bool IsCompatibleWith(IType type)
         {
@@ -99,9 +109,11 @@ namespace NoHoPython.Typing
     public sealed partial class ArrayType : IType
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
-        public string TypeName { get => $"{ElementType.TypeName}[]"; }
+        public string TypeName => $"{ElementType.TypeName}[]";
 
         public IType ElementType { get; private set; }
+
+        public string GetCName() => $"{ElementType.GetCName()}*";
 
         public ArrayType(IType elementType)
         {
@@ -118,7 +130,7 @@ namespace NoHoPython.Typing
     public sealed partial class ProcedureType : IType
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
-        public string TypeName { get => $"({string.Join(", ", ParameterTypes)}) => {ReturnType}"; }
+        public string TypeName => $"({string.Join(", ", ParameterTypes)}) => {ReturnType}";
 
         public IType ReturnType { get; private set; }
         public readonly List<IType> ParameterTypes;
@@ -127,6 +139,7 @@ namespace NoHoPython.Typing
         {
             ReturnType = returnType;
             ParameterTypes = parameterTypes;
+            cName = new Lazy<string>(() => defineCType(this));
         }
 
         public bool IsCompatibleWith(IType type)

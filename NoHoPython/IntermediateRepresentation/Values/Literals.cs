@@ -1,74 +1,84 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.Syntax;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class IntegerLiteral : IRValue
     {
-        public bool IsConstant => true;
+        public IAstElement ErrorReportedElement { get; private set; }
+
         public IType Type { get => new IntegerType(); }
 
         public long Number { get; private set; }
 
-        public IntegerLiteral(long number)
+        public IntegerLiteral(long number, IAstElement errorReportedElement)
         {
             Number = number;
+            ErrorReportedElement = errorReportedElement;
         }
     }
 
     public sealed partial class DecimalLiteral : IRValue
     {
-        public bool IsConstant => true;
+        public IAstElement ErrorReportedElement { get; private set; }
+
         public IType Type { get => new DecimalType(); }
 
         public decimal Number { get; private set; }
 
-        public DecimalLiteral(decimal number)
+        public DecimalLiteral(decimal number, IAstElement errorReportedElement)
         {
             Number = number;
+            ErrorReportedElement = errorReportedElement;
         }
     }
 
     public sealed partial class CharacterLiteral : IRValue
     {
-        public bool IsConstant => true;
+        public IAstElement ErrorReportedElement { get; private set; }
+
         public IType Type { get => new CharacterType(); }
 
         public char Character { get; private set; }
 
-        public CharacterLiteral(char character)
+        public CharacterLiteral(char character, IAstElement errorReportedElement)
         {
             Character = character;
+            ErrorReportedElement = errorReportedElement;
         }
     }
 
     public sealed partial class TrueLiteral : IRValue
     {
-        public bool IsConstant => true;
-        public IType Type => new BooleanType();
+        public IAstElement ErrorReportedElement { get; private set; }
 
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new TrueLiteral();
+        public TrueLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
+
+        public IType Type => new BooleanType();
     }
 
     public sealed partial class FalseLiteral : IRValue
     {
-        public bool IsConstant => true;
-        public IType Type => new BooleanType();
+        public IAstElement ErrorReportedElement { get; private set; }
 
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new FalseLiteral();
+        public FalseLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
+
+        public IType Type => new BooleanType();
     }
 
     public sealed partial class NothingLiteral : IRValue
     {
-        public bool IsConstant => true;
-        public IType Type => new NothingType();
+        public IAstElement ErrorReportedElement { get; private set; }
 
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NothingLiteral();
+        public NothingLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
+
+        public IType Type => new NothingType();
     }
 
     public sealed partial class ArrayLiteral : IRValue
     {
-        public bool IsConstant => Elements.TrueForAll(element => element.IsConstant);
+        public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type { get => new ArrayType(ElementType); }
 
@@ -76,18 +86,20 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public readonly List<IRValue> Elements;
 
-        public ArrayLiteral(IType elementType, List<IRValue> elements)
+        public ArrayLiteral(IType elementType, List<IRValue> elements, IAstElement errorReportedElement)
         {
             ElementType = elementType;
             Elements = elements;
+            ErrorReportedElement = errorReportedElement;
 
             for (int i = 0; i < elements.Count; i++)
                 elements[i] = ArithmeticCast.CastTo(elements[i], ElementType);
         }
 
-        public ArrayLiteral(List<IRValue> elements)
+        public ArrayLiteral(List<IRValue> elements, IAstElement errorReportedElement)
         {
             Elements = new List<IRValue>(elements.Count);
+            ErrorReportedElement = errorReportedElement;
 
             bool CanBeElementType(IType type)
             {
@@ -110,25 +122,29 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     return;
                 }
 
-            throw new UnexpectedTypeException(Primitive.Nothing);
+            throw new UnexpectedTypeException(Primitive.Nothing, errorReportedElement);
         }
     }
 
     public sealed partial class AllocRecord : IRValue
     {
-        public bool IsConstant => false;
+        public IAstElement ErrorReportedElement { get; private set; }
+
         public IType Type { get => RecordPrototype; }
 
         public RecordType RecordPrototype { get; private set; }
         public readonly List<IRValue> ConstructorArguments;
 
-        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments)
+        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, IAstElement errorReportedElement)
         {
             RecordPrototype = recordPrototype;
             ConstructorArguments = constructorArguments;
-            if (RecordPrototype.HasProperty("__init__") && RecordPrototype.FindProperty("__init__").Type is ProcedureType)
-            {
+            ErrorReportedElement = errorReportedElement;
 
+            if (RecordPrototype.HasProperty("__init__") && RecordPrototype.FindProperty("__init__").Type is ProcedureType constructurType)
+            {
+                for (int i = 0; i < ConstructorArguments.Count; i++)
+                    ConstructorArguments[i] = ArithmeticCast.CastTo(ConstructorArguments[i], constructurType.ParameterTypes[i]);
             }
             else
             {
@@ -142,27 +158,32 @@ namespace NoHoPython.Syntax.Values
 {
     partial class IntegerLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.IntegerLiteral(Number);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.IntegerLiteral(Number, this);
     }
 
     partial class DecimalLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.DecimalLiteral(Number);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.DecimalLiteral(Number, this);
     }
 
     partial class TrueLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.TrueLiteral();
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.TrueLiteral(this);
     }
 
     partial class FalseLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.FalseLiteral();
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.FalseLiteral(this);
+    }
+
+    partial class NothingLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.NothingLiteral(this);
     }
 
     partial class CharacterLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.CharacterLiteral(Character);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) => new IntermediateRepresentation.Values.CharacterLiteral(Character, this);
     }
 
     partial class ArrayLiteral
@@ -171,11 +192,11 @@ namespace NoHoPython.Syntax.Values
         {
             List<IRValue> elements = Elements.ConvertAll((IAstValue element) => element.GenerateIntermediateRepresentationForValue(irBuilder, null));
             if (IsStringLiteral)
-                return new IntermediateRepresentation.Values.ArrayLiteral(Primitive.Character, elements);
+                return new IntermediateRepresentation.Values.ArrayLiteral(Primitive.Character, elements, this);
             else if (AnnotatedElementType != null)
-                return new IntermediateRepresentation.Values.ArrayLiteral(AnnotatedElementType.ToIRType(irBuilder, this), elements);
+                return new IntermediateRepresentation.Values.ArrayLiteral(AnnotatedElementType.ToIRType(irBuilder, this), elements, this);
             else
-                return new IntermediateRepresentation.Values.ArrayLiteral(elements);
+                return new IntermediateRepresentation.Values.ArrayLiteral(elements, this);
         }
     }
 
@@ -185,8 +206,8 @@ namespace NoHoPython.Syntax.Values
         {
             IType prototype = RecordType.ToIRType(irBuilder, this);
             return prototype is Typing.RecordType record
-                ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)))
-                : throw new UnexpectedTypeException(prototype);
+                ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), this)
+                : throw new UnexpectedTypeException(prototype, this);
         }
     }
 }

@@ -1,7 +1,9 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
+using NoHoPython.Syntax;
 using NoHoPython.Typing;
+using System.Text;
 
 namespace NoHoPython.Syntax
 {
@@ -15,6 +17,8 @@ namespace NoHoPython.Syntax
         public Stack<ProcedureDeclaration> ScopedProcedures { get; private set; }
         public RecordDeclaration? ScopedRecordDeclaration { get; private set; }
         public SymbolMarshaller SymbolMarshaller { get; private set; }
+
+        public SymbolContainer? CurrentMasterScope => ScopedProcedures.Count > 0 ? ScopedProcedures.Peek() : ScopedRecordDeclaration;
 
         public AstIRProgramBuilder(List<IAstStatement> statements)
         {
@@ -50,24 +54,43 @@ namespace NoHoPython.Syntax
         public void AddEnumDeclaration(EnumDeclaration enumDeclaration) => EnumDeclarations.Add(enumDeclaration);
         public void AddProcDeclaration(ProcedureDeclaration procedureDeclaration) => ProcedureDeclarations.Add(procedureDeclaration);
 
-        public IRProgram ToIRProgram() => new IRProgram(RecordDeclarations, InterfaceDeclarations, EnumDeclarations, ProcedureDeclarations);
+        public IRProgram ToIRProgram() {
+            return new(RecordDeclarations, InterfaceDeclarations, EnumDeclarations, ProcedureDeclarations);
+        }
     }
 }
 
 namespace NoHoPython.IntermediateRepresentation
 {
-    public interface IRValue
+    public interface IRElement
     {
-        public bool IsConstant { get; }
+        public IAstElement ErrorReportedElement { get; }
 
-        public IType Type { get; }
-
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
+        //scope for used types
+        public void ScopeForUsedTypes(Dictionary<Typing.TypeParameter, IType> typeargs);
     }
 
-    public interface IRStatement
+    public partial interface IRValue : IRElement
     {
+        public IType Type { get; }
 
+        //equivalent value but with type parameter references replaced
+        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs);
+
+        //emit corresponding C code
+        public void Emit(StringBuilder emitter, Dictionary<Typing.TypeParameter, IType> typeargs);
+    }
+
+    public interface IRStatement : IRElement
+    {
+        //forward declare type definitions
+        public void ForwardDeclareType(StringBuilder emitter);
+
+        //forward declare functions
+        public void ForwardDeclare(StringBuilder emitter);
+
+        //emit corresponding C code
+        public void Emit(StringBuilder emitter, Dictionary<Typing.TypeParameter, IType> typeargs, int indent);
     }
 
     public sealed class IRProgram
@@ -77,12 +100,23 @@ namespace NoHoPython.IntermediateRepresentation
         public readonly List<EnumDeclaration> EnumDeclarations;
         public readonly List<ProcedureDeclaration> ProcedureDeclarations;
 
+        private List<ProcedureDeclaration> compileHeads;
+
         public IRProgram(List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ProcedureDeclaration> procedureDeclarations)
         {
             RecordDeclarations = recordDeclarations;
             InterfaceDeclarations = interfaceDeclarations;
             EnumDeclarations = enumDeclarations;
             ProcedureDeclarations = procedureDeclarations;
+
+            compileHeads = new List<ProcedureDeclaration>();
+            foreach (ProcedureDeclaration procedureDeclaration in procedureDeclarations)
+                compileHeads.Add(procedureDeclaration);
+        }
+
+        public void Emit(StringBuilder emitter)
+        {
+
         }
     }
 }

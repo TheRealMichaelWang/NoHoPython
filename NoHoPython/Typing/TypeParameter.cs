@@ -7,21 +7,22 @@ namespace NoHoPython.Typing
 {
     public sealed class TypeParameter : IScopeSymbol
     {
-        public static void ValidateTypeArguments(List<TypeParameter> typeParameters, List<IType> typeArguments)
+        public static List<IType> ValidateTypeArguments(List<TypeParameter> typeParameters, List<IType> typeArguments, Syntax.IAstElement errorReportedElement)
         {
             if (typeArguments.Count != typeParameters.Count)
-                throw new UnexpectedTypeArgumentsException(typeParameters.Count, typeArguments.Count);
+                throw new UnexpectedTypeArgumentsException(typeParameters.Count, typeArguments.Count, errorReportedElement);
             for (int i = 0; i < typeArguments.Count; i++)
                 if (!typeParameters[i].SupportsType(typeArguments[i]))
-                    throw new UnexpectedTypeException(new TypeParameterReference(typeParameters[i]), typeArguments[i]);
+                    throw new UnexpectedTypeException(new TypeParameterReference(typeParameters[i]), typeArguments[i], errorReportedElement);
+            return typeArguments;
         }
 
-        public static void MatchTypeargs(Dictionary<TypeParameter, IType> typeargs, List<IType> existingTypeArguments, List<IType> arguments)
+        public static void MatchTypeargs(Dictionary<TypeParameter, IType> typeargs, List<IType> existingTypeArguments, List<IType> arguments, Syntax.IAstElement errorReportedElement)
         {
             if (existingTypeArguments.Count != arguments.Count)
-                throw new UnexpectedTypeArgumentsException(existingTypeArguments.Count, arguments.Count);
+                throw new UnexpectedTypeArgumentsException(existingTypeArguments.Count, errorReportedElement);
             for (int i = 0; i < existingTypeArguments.Count; i++)
-                existingTypeArguments[i].MatchTypeArgumentWithType(typeargs, arguments[i]);
+                existingTypeArguments[i].MatchTypeArgumentWithType(typeargs, arguments[i], errorReportedElement);
         }
 
         public static string GetMangledTypeArgumentNames(List<IType> typeArguments) => string.Join('_', typeArguments.Select((IType type) => type.TypeName));
@@ -31,10 +32,13 @@ namespace NoHoPython.Typing
         public string Name { get; private set; }
         public IType? RequiredImplementedInterface { get; private set; }
 
-        public TypeParameter(string name, IType? requiredImplementedInterface)
+        public SymbolContainer? ParentContainer { get; private set; }
+
+        public TypeParameter(string name, IType? requiredImplementedInterface, SymbolContainer? parentContainer)
         {
             Name = name;
             RequiredImplementedInterface = requiredImplementedInterface;
+            ParentContainer = parentContainer;
         }
 
         public bool SupportsType(IType type)
@@ -51,6 +55,8 @@ namespace NoHoPython.Typing
 
         public TypeParameter TypeParameter { get; private set; }
 
+        public string GetCName() => throw new InvalidOperationException();
+
         public TypeParameterReference(TypeParameter typeParameter)
         {
             TypeParameter = typeParameter;
@@ -63,17 +69,17 @@ namespace NoHoPython.Typing
 
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => typeargs[TypeParameter].Clone();
 
-        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
             if (typeargs.ContainsKey(TypeParameter))
             {
                 if (!typeargs[TypeParameter].IsCompatibleWith(argument))
-                    throw new UnexpectedTypeException(typeargs[TypeParameter], argument);
+                    throw new UnexpectedTypeException(typeargs[TypeParameter], errorReportedElement);
             }
             else
             {
                 if (!TypeParameter.SupportsType(argument))
-                    throw new UnexpectedTypeException(argument);
+                    throw new UnexpectedTypeException(argument, errorReportedElement);
                 typeargs.Add(TypeParameter, argument);
             }
         }
@@ -99,19 +105,19 @@ namespace NoHoPython.Typing
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArrayType(ElementType.SubstituteWithTypearg(typeargs));
 
-        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
             if (argument is ArrayType arrayType)
-                ElementType.MatchTypeArgumentWithType(typeargs, arrayType.ElementType);
+                ElementType.MatchTypeArgumentWithType(typeargs, arrayType.ElementType, errorReportedElement);
             else
-                throw new UnexpectedTypeException(argument);
+                throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
         {
             if (argument.Type is ArrayType arrayType)
             {
-                ElementType.MatchTypeArgumentWithType(typeargs, arrayType.ElementType);
+                ElementType.MatchTypeArgumentWithType(typeargs, arrayType.ElementType, argument.ErrorReportedElement);
                 return argument;
             }
             else
@@ -145,10 +151,10 @@ namespace NoHoPython.Typing
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
 
-        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
             if (!IsCompatibleWith(argument))
-                throw new UnexpectedTypeException(this, argument);
+                throw new UnexpectedTypeException(this, errorReportedElement);
         }
     }
 
@@ -156,19 +162,19 @@ namespace NoHoPython.Typing
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new EnumType(EnumDeclaration, TypeArguments.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList());
 
-        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
             if (argument is EnumType enumType && EnumDeclaration == enumType.EnumDeclaration)
-                TypeParameter.MatchTypeargs(typeargs, TypeArguments, enumType.TypeArguments);
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, enumType.TypeArguments, errorReportedElement);
             else
-                throw new UnexpectedTypeException(argument);
+                throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
         {
             if (argument.Type is EnumType enumType && EnumDeclaration == enumType.EnumDeclaration)
             {
-                TypeParameter.MatchTypeargs(typeargs, TypeArguments, enumType.TypeArguments);
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, enumType.TypeArguments, argument.ErrorReportedElement);
                 return argument;
             }
             else
@@ -180,19 +186,19 @@ namespace NoHoPython.Typing
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new RecordType(RecordPrototype, TypeArguments.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList());
 
-        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
             if (argument is RecordType recordType && RecordPrototype == recordType.RecordPrototype)
-                TypeParameter.MatchTypeargs(typeargs, TypeArguments, recordType.TypeArguments);
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, recordType.TypeArguments, errorReportedElement);
             else
-                throw new UnexpectedTypeException(argument);
+                throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
         {
             if (argument.Type is RecordType recordType && RecordPrototype == recordType.RecordPrototype)
             {
-                TypeParameter.MatchTypeargs(typeargs, TypeArguments, recordType.TypeArguments);
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, recordType.TypeArguments, argument.ErrorReportedElement);
                 return argument;
             }
             else
@@ -204,19 +210,19 @@ namespace NoHoPython.Typing
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new InterfaceType(InterfaceDeclaration, TypeArguments.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList());
 
-        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
             if (argument is InterfaceType interfaceType && InterfaceDeclaration == interfaceType.InterfaceDeclaration)
-                TypeParameter.MatchTypeargs(typeargs, TypeArguments, interfaceType.TypeArguments);
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, interfaceType.TypeArguments, errorReportedElement);
             else
-                throw new UnexpectedTypeException(argument);
+                throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
         {
             if (argument.Type is InterfaceType interfaceType && InterfaceDeclaration == interfaceType.InterfaceDeclaration)
             {
-                TypeParameter.MatchTypeargs(typeargs, TypeArguments, interfaceType.TypeArguments);
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, interfaceType.TypeArguments, argument.ErrorReportedElement);
                 return argument;
             }
             else
@@ -228,23 +234,23 @@ namespace NoHoPython.Typing
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureType(ReturnType.SubstituteWithTypearg(typeargs), ParameterTypes.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList());
 
-        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument)
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
             if (argument is ProcedureType procedureType)
             {
-                ReturnType.MatchTypeArgumentWithType(typeargs, procedureType.ReturnType);
-                TypeParameter.MatchTypeargs(typeargs, ParameterTypes, procedureType.ParameterTypes);
+                ReturnType.MatchTypeArgumentWithType(typeargs, procedureType.ReturnType,errorReportedElement);
+                TypeParameter.MatchTypeargs(typeargs, ParameterTypes, procedureType.ParameterTypes, errorReportedElement);
             }
             else
-                throw new UnexpectedTypeException(argument);
+                throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
         {
             if (argument.Type is ProcedureType procedureType)
             {
-                ReturnType.MatchTypeArgumentWithType(typeargs, procedureType.ReturnType);
-                TypeParameter.MatchTypeargs(typeargs, ParameterTypes, procedureType.ParameterTypes);
+                ReturnType.MatchTypeArgumentWithType(typeargs, procedureType.ReturnType, argument.ErrorReportedElement);
+                TypeParameter.MatchTypeargs(typeargs, ParameterTypes, procedureType.ParameterTypes, argument.ErrorReportedElement);
                 return argument;
             }
             else
@@ -257,71 +263,86 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class IntegerLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new IntegerLiteral(Number);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new IntegerLiteral(Number, ErrorReportedElement);
     }
 
     partial class DecimalLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new DecimalLiteral(Number);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new DecimalLiteral(Number, ErrorReportedElement);
     }
 
     partial class CharacterLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new CharacterLiteral(Character);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new CharacterLiteral(Character, ErrorReportedElement);
+    }
+
+    partial class TrueLiteral
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new TrueLiteral(ErrorReportedElement);
+    }
+
+    partial class FalseLiteral
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new FalseLiteral(ErrorReportedElement);
+    }
+
+    partial class NothingLiteral
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new NothingLiteral(ErrorReportedElement);
     }
 
     partial class ArrayLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArrayLiteral(ElementType.SubstituteWithTypearg(typeargs), Elements.Select((IRValue element) => element.SubstituteWithTypearg(typeargs)).ToList());
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArrayLiteral(ElementType.SubstituteWithTypearg(typeargs), Elements.Select((IRValue element) => element.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
     }
 
     partial class AllocRecord
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AllocRecord((RecordType)RecordPrototype.SubstituteWithTypearg(typeargs), ConstructorArguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList());
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AllocRecord((RecordType)RecordPrototype.SubstituteWithTypearg(typeargs), ConstructorArguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
     }
 
     partial class IfElseValue
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new IfElseValue(Type.SubstituteWithTypearg(typeargs), Condition.SubstituteWithTypearg(typeargs), IfTrueValue.SubstituteWithTypearg(typeargs), IfFalseValue.SubstituteWithTypearg(typeargs));
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new IfElseValue(Type.SubstituteWithTypearg(typeargs), Condition.SubstituteWithTypearg(typeargs), IfTrueValue.SubstituteWithTypearg(typeargs), IfFalseValue.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class ArithmeticCast
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticCast(Operation, Input.SubstituteWithTypearg(typeargs));
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticCast(Operation, Input.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class ArithmeticOperator
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs));
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class ComparativeOperator
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ComparativeOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs));
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ComparativeOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class LogicalOperator
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new LogicalOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs));
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new LogicalOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class GetValueAtIndex
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetValueAtIndex(Array.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs));
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetValueAtIndex(Array.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class SetValueAtIndex
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new SetValueAtIndex(Array.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs));
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new SetValueAtIndex(Array.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class GetPropertyValue
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.Name);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.Name, ErrorReportedElement);
     }
 
     partial class SetPropertyValue
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new SetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.Name, Value.SubstituteWithTypearg(typeargs));
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new SetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.Name, Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 }

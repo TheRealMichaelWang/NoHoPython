@@ -32,6 +32,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             public InterfaceProperty SubstituteWithTypeargs(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs));
         }
 
+        public Syntax.IAstElement ErrorReportedElement { get; private set; }
 
         public bool IsGloballyNavigable => true;
 
@@ -40,10 +41,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public readonly List<TypeParameter> TypeParameters;
         private List<InterfaceProperty>? requiredImplementedProperties;
 
-        public InterfaceDeclaration(string name, List<TypeParameter> typeParameters) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
+        public InterfaceDeclaration(string name, List<TypeParameter> typeParameters, Syntax.IAstElement errorReportedElement) : base()
         {
             Name = name;
             TypeParameters = typeParameters;
+            ErrorReportedElement = errorReportedElement;
         }
 
         public List<InterfaceProperty> GetRequiredProperties(InterfaceType interfaceType)
@@ -76,34 +78,36 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class MarshalIntoInterface : IRValue
     {
-        public bool IsConstant => false;
+        public Syntax.IAstElement ErrorReportedElement { get; private set; }
+
         public IType Type => TargetType;
 
         public InterfaceType TargetType { get; private set; }
         public IRValue Value { get; private set; }
 
-        public MarshalIntoInterface(InterfaceType targetType, IRValue value)
+        public MarshalIntoInterface(InterfaceType targetType, IRValue value, Syntax.IAstElement errorReportedElement)
         {
             TargetType = targetType;
             Value = value;
+            ErrorReportedElement = errorReportedElement;
 
             if (value.Type is TypeParameterReference typeParameterReference)
             {
                 if (typeParameterReference.TypeParameter.RequiredImplementedInterface is not null && typeParameterReference.TypeParameter.RequiredImplementedInterface is IPropertyContainer requiredContainer)
                 {
                     if (!TargetType.SupportsProperties(requiredContainer.GetProperties()))
-                        throw new UnexpectedTypeException(typeParameterReference);
+                        throw new UnexpectedTypeException(typeParameterReference, errorReportedElement);
                 }
                 else
-                    throw new UnexpectedTypeException(typeParameterReference);
+                    throw new UnexpectedTypeException(typeParameterReference, errorReportedElement);
             }
             if (value.Type is IPropertyContainer propertyContainer)
             {
                 if (!TargetType.SupportsProperties(propertyContainer.GetProperties()))
-                    throw new UnexpectedTypeException(value.Type);
+                    throw new UnexpectedTypeException(value.Type, errorReportedElement);
             }
             else
-                throw new UnexpectedTypeException(value.Type);
+                throw new UnexpectedTypeException(value.Type, errorReportedElement);
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => ArithmeticCast.CastTo(Value.SubstituteWithTypearg(typeargs), TargetType.SubstituteWithTypearg(typeargs));
@@ -124,11 +128,15 @@ namespace NoHoPython.Typing
         private Lazy<List<InterfaceDeclaration.InterfaceProperty>> requiredImplementedProperties;
         private Lazy<Dictionary<string, InterfaceDeclaration.InterfaceProperty>> identifierPropertyMap;
 
-        public InterfaceType(InterfaceDeclaration interfaceDeclaration, List<IType> typeArguments)
+        public InterfaceType(InterfaceDeclaration interfaceDeclaration, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(interfaceDeclaration, TypeParameter.ValidateTypeArguments(interfaceDeclaration.TypeParameters, typeArguments, errorReportedElement))
+        {
+
+        }
+
+        private InterfaceType(InterfaceDeclaration interfaceDeclaration, List<IType> typeArguments)
         {
             InterfaceDeclaration = interfaceDeclaration;
             TypeArguments = typeArguments;
-            TypeParameter.ValidateTypeArguments(interfaceDeclaration.TypeParameters, typeArguments);
             
             requiredImplementedProperties = new Lazy<List<InterfaceDeclaration.InterfaceProperty>>(() => interfaceDeclaration.GetRequiredProperties(this));
 
@@ -192,9 +200,12 @@ namespace NoHoPython.Syntax.Statements
         {
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRInterfaceDeclaration = new IntermediateRepresentation.Statements.InterfaceDeclaration(Identifier, typeParameters);
+            IRInterfaceDeclaration = new IntermediateRepresentation.Statements.InterfaceDeclaration(Identifier, typeParameters, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRInterfaceDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRInterfaceDeclaration);
+
+            foreach (Typing.TypeParameter parameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
 
             irBuilder.SymbolMarshaller.GoBack();
 

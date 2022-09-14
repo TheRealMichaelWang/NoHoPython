@@ -44,7 +44,7 @@ namespace NoHoPython.Syntax
             void MatchTypeArgCount(int expected)
             {
                 if (typeArguments.Count != expected)
-                    throw new UnexpectedTypeArgumentsException(expected, typeArguments.Count);
+                    throw new UnexpectedTypeArgumentsException(expected, typeArguments.Count, errorReportedElement);
             }
 
             switch (Identifier)
@@ -66,11 +66,14 @@ namespace NoHoPython.Syntax
                 case "mem":
                     MatchTypeArgCount(1);
                     return new ArrayType(typeArguments[0]);
+                case "nothing":
+                case "void":
+                    return new NothingType();
                 case "fn":
                 case "proc":
                     {
                         return typeArguments.Count < 1
-                            ? throw new UnexpectedTypeArgumentsException(typeArguments.Count)
+                            ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
                             : (IType)new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1));
                     }
                 default:
@@ -82,11 +85,11 @@ namespace NoHoPython.Syntax
                             return new TypeParameterReference(typeParameter);
                         }
                         else if (typeSymbol is IntermediateRepresentation.Statements.RecordDeclaration recordDeclaration)
-                            return new RecordType(recordDeclaration, typeArguments);
+                            return new RecordType(recordDeclaration, typeArguments, errorReportedElement);
                         else if (typeSymbol is IntermediateRepresentation.Statements.InterfaceDeclaration interfaceDeclaration)
-                            return new InterfaceType(interfaceDeclaration, typeArguments);
+                            return new InterfaceType(interfaceDeclaration, typeArguments, errorReportedElement);
                         else if (typeSymbol is IntermediateRepresentation.Statements.EnumDeclaration enumDeclaration)
-                            return new EnumType(enumDeclaration, typeArguments);
+                            return new EnumType(enumDeclaration, typeArguments, errorReportedElement);
                         throw new NotATypeException(typeSymbol);
                     }
             }
@@ -128,8 +131,14 @@ namespace NoHoPython.Syntax.Parsing
         {
             TypeParameter ParseTypeParameter()
             {
-                MatchToken(TokenType.Identifier);
-                string identifier = scanner.LastToken.Identifier;
+                string identifier;
+                if (scanner.LastToken.Type == TokenType.Nothing)
+                    identifier = "nothing";
+                else
+                {
+                    MatchToken(TokenType.Identifier);
+                    identifier = scanner.LastToken.Identifier;
+                }
                 scanner.ScanToken();
 
                 if (scanner.LastToken.Type == TokenType.Colon)

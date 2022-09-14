@@ -7,6 +7,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public sealed partial class EnumDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
+        public Syntax.IAstElement ErrorReportedElement { get; private set; }
+
         public bool IsGloballyNavigable => true;
 
         public string Name { get; private set; }
@@ -14,10 +16,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public readonly List<TypeParameter> TypeParameters;
         private List<IType>? options;
 
-        public EnumDeclaration(string name, List<TypeParameter> typeParameters) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
+        public EnumDeclaration(string name, List<TypeParameter> typeParameters, Syntax.IAstElement errorReportedElement) : base()
         {
             Name = name;
             TypeParameters = typeParameters;
+            ErrorReportedElement = errorReportedElement;
         }
 
         public List<IType> GetOptions(EnumType enumType)
@@ -51,29 +54,31 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class MarshalIntoEnum : IRValue
     {
-        public bool IsConstant => false;
+        public Syntax.IAstElement ErrorReportedElement { get; private set; }
+
         public IType Type => TargetType;
 
         public EnumType TargetType { get; private set; }
         public IRValue Value { get; private set; }
 
-        public MarshalIntoEnum(EnumType targetType, IRValue value)
+        public MarshalIntoEnum(EnumType targetType, IRValue value, Syntax.IAstElement errorReportedElement)
         {
             TargetType = targetType;
             Value = value;
+            ErrorReportedElement = errorReportedElement;
 
             if (value.Type is TypeParameterReference typeParameterReference)
             {
                 if (typeParameterReference.TypeParameter.RequiredImplementedInterface is not null)
                 {
                     if (!targetType.SupportsType(typeParameterReference.TypeParameter.RequiredImplementedInterface))
-                        throw new UnexpectedTypeException(value.Type);
+                        throw new UnexpectedTypeException(value.Type, errorReportedElement);
                 }
                 else
-                    throw new UnexpectedTypeException(value.Type);
+                    throw new UnexpectedTypeException(value.Type, errorReportedElement);
             }
             else if (!TargetType.SupportsType(value.Type))
-                throw new UnexpectedTypeException(value.Type);
+                throw new UnexpectedTypeException(value.Type, errorReportedElement);
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => ArithmeticCast.CastTo(Value.SubstituteWithTypearg(typeargs), TargetType.SubstituteWithTypearg(typeargs));
@@ -93,11 +98,17 @@ namespace NoHoPython.Typing
 
         private Lazy<List<IType>> options;
 
-        public EnumType(EnumDeclaration enumDeclaration, List<IType> typeArguments)
+        public string GetCName() => throw new NotImplementedException();
+
+        public EnumType(EnumDeclaration enumDeclaration, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(enumDeclaration, TypeParameter.ValidateTypeArguments(enumDeclaration.TypeParameters, typeArguments, errorReportedElement))
+        {
+            
+        }
+
+        private EnumType(EnumDeclaration enumDeclaration, List<IType> typeArguments)
         {
             EnumDeclaration = enumDeclaration;
             TypeArguments = typeArguments;
-            TypeParameter.ValidateTypeArguments(enumDeclaration.TypeParameters, typeArguments);
 
             options = new Lazy<List<IType>>(() => enumDeclaration.GetOptions(this));
         }
@@ -139,9 +150,12 @@ namespace NoHoPython.Syntax.Statements
         {
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IREnumDeclaration = new IntermediateRepresentation.Statements.EnumDeclaration(Identifier, typeParameters);
+            IREnumDeclaration = new IntermediateRepresentation.Statements.EnumDeclaration(Identifier, typeParameters, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IREnumDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IREnumDeclaration);
+
+            foreach (Typing.TypeParameter parameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
 
             irBuilder.SymbolMarshaller.GoBack();
 

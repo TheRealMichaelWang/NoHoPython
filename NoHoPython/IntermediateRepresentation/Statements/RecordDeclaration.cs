@@ -68,9 +68,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
+        public Syntax.IAstElement ErrorReportedElement { get; private set; }
+        public SymbolContainer? ParentContainer { get; private set; }
+
         public bool IsGloballyNavigable => false;
 
-        public RecordType SelfType => new(this, TypeParameters.ConvertAll((TypeParameter parameter) => (IType)new TypeParameterReference(parameter)));
+        public RecordType SelfType => new(this, TypeParameters.ConvertAll((TypeParameter parameter) => (IType)new TypeParameterReference(parameter)), ErrorReportedElement);
 
         public string Name { get; private set; }
         public readonly List<TypeParameter> TypeParameters;
@@ -78,10 +81,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         private List<RecordProperty>? properties;
         private List<ProcedureDeclaration>? messageRecievers;
 
-        public RecordDeclaration(string name, List<TypeParameter> typeParameters) : base(typeParameters.ConvertAll<IScopeSymbol>((TypeParameter typeParam) => typeParam))
+        public RecordDeclaration(string name, List<TypeParameter> typeParameters, SymbolContainer? parentContainer, Syntax.IAstElement errorReportedElement) : base()
         {
             Name = name;
             TypeParameters = typeParameters;
+            ErrorReportedElement = errorReportedElement;
+            ParentContainer = parentContainer;
             properties = null;
             messageRecievers = null;
         }
@@ -134,11 +139,15 @@ namespace NoHoPython.Typing
         private Lazy<List<RecordDeclaration.RecordProperty>> properties;
         private Lazy<Dictionary<string, RecordDeclaration.RecordProperty>> identifierPropertyMap;
 
-        public RecordType(RecordDeclaration recordPrototype, List<IType> typeArguments)
+        public RecordType(RecordDeclaration recordPrototype, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(recordPrototype, TypeParameter.ValidateTypeArguments(recordPrototype.TypeParameters, typeArguments, errorReportedElement))
+        {
+
+        }
+
+        private RecordType(RecordDeclaration recordPrototype, List<IType> typeArguments)
         {
             RecordPrototype = recordPrototype;
             TypeArguments = typeArguments;
-            TypeParameter.ValidateTypeArguments(recordPrototype.TypeParameters, typeArguments);
 
             properties = new Lazy<List<RecordDeclaration.RecordProperty>>(() => recordPrototype.GetRecordProperties(this));
 
@@ -184,10 +193,13 @@ namespace NoHoPython.Syntax.Statements
         {
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRRecordDeclaration = new IntermediateRepresentation.Statements.RecordDeclaration(Identifier, typeParameters);
+            IRRecordDeclaration = new IntermediateRepresentation.Statements.RecordDeclaration(Identifier, typeParameters, irBuilder.CurrentMasterScope, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRRecordDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
             irBuilder.ScopeToRecord(IRRecordDeclaration);
+
+            foreach (Typing.TypeParameter parameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();

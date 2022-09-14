@@ -6,12 +6,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public List<IRStatement>? Statements { get; private set; }
 
-        public CodeBlock(List<IRStatement> statements, SymbolContainer? parent, List<Variable> variables) : base(parent, variables)
+        public CodeBlock(List<IRStatement> statements, SymbolContainer? parent) : base(parent)
         {
             Statements = statements;
         }
 
-        public CodeBlock(SymbolContainer? parent, List<Variable> variables) : base(parent, variables)
+        public CodeBlock(SymbolContainer? parent) : base(parent)
         {
 
         }

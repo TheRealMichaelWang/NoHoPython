@@ -1,6 +1,7 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
+using NoHoPython.Syntax;
 using System.Diagnostics;
 
 namespace NoHoPython.Scoping
@@ -9,11 +10,9 @@ namespace NoHoPython.Scoping
     {
         private Dictionary<string, IScopeSymbol> symbols;
 
-        public SymbolContainer(List<IScopeSymbol> symbols)
+        public SymbolContainer()
         {
-            this.symbols = new Dictionary<string, IScopeSymbol>(symbols.Count);
-            foreach (IScopeSymbol symbol in symbols)
-                this.symbols.Add(symbol.Name, symbol);
+            this.symbols = new Dictionary<string, IScopeSymbol>();
         }
 
         public virtual IScopeSymbol? FindSymbol(string identifier, Syntax.IAstElement errorReportedElement)
@@ -23,12 +22,13 @@ namespace NoHoPython.Scoping
 
         public virtual void DeclareSymbol(IScopeSymbol symbol, Syntax.IAstElement errorReportElement)
         {
-            if (FindSymbol(symbol.Name, errorReportElement) == null)
+            IScopeSymbol? existingSymbol = FindSymbol(symbol.Name, errorReportElement);
+            if (existingSymbol == null)
             {
                 symbols.Add(symbol.Name, symbol);
                 return;
             }
-            throw new SymbolAlreadyExistsException(symbols[symbol.Name], this, errorReportElement);
+            throw new SymbolAlreadyExistsException(existingSymbol, this, errorReportElement);
         }
     }
 
@@ -36,14 +36,17 @@ namespace NoHoPython.Scoping
     {
         public sealed class Module : SymbolContainer, IScopeSymbol, IRStatement
         {
+            public IAstElement ErrorReportedElement { get; private set; }
+
             public bool IsGloballyNavigable => true;
             public string Name { get; private set; }
 
             private List<IRStatement>? statements;
 
-            public Module(string name, List<IScopeSymbol> symbols) : base(symbols)
+            public Module(string name, IAstElement errorReportedElement) : base()
             {
                 Name = name;
+                ErrorReportedElement = errorReportedElement;
                 statements = null;
             }
 
@@ -62,7 +65,9 @@ namespace NoHoPython.Scoping
         {
             usedModuleStack = new Stack<Module>();
             scopeStack = new Stack<SymbolContainer>();
-            NavigateToScope(new Module("__main__", new List<IScopeSymbol>()));
+#pragma warning disable CS8625 // default module must be here
+            NavigateToScope(new Module("__main__", null));
+#pragma warning restore CS8625
         }
 
         public IScopeSymbol FindSymbol(string identifier, Syntax.IAstElement errorReportedElement)
@@ -120,14 +125,14 @@ namespace NoHoPython.Scoping
 
         public CodeBlock NewCodeBlock()
         {
-            CodeBlock codeBlock = new(scopeStack.Peek(), new List<Variable>());
+            CodeBlock codeBlock = new(scopeStack.Peek());
             NavigateToScope(codeBlock);
             return codeBlock;
         }
 
         public Module NewModule(string name, Syntax.IAstElement errorReportedElement)
         {
-            Module module = new(name, new List<IScopeSymbol>());
+            Module module = new(name, errorReportedElement);
             DeclareSymbol(module, errorReportedElement);
             NavigateToScope(module);
             return module;

@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="tests\syntax-test.nhp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

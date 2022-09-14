@@ -203,6 +203,8 @@ namespace NoHoPython.Syntax.Parsing
                         case TokenType.New:
                             scanner.ScanToken();
                             return new InstantiateNewRecord(ParseType(), ParseArguments(), location);
+                        case TokenType.Nothing:
+                            return new NothingLiteral(location);
                         default:
                             throw new UnexpectedTokenException(scanner.LastToken, location);
                     }

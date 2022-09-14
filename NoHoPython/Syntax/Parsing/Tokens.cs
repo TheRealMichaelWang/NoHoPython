@@ -30,6 +30,7 @@
         New,
         As,
         Readonly,
+        Nothing,
 
         //symbols
         OpenBracket,

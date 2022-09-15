@@ -4,6 +4,7 @@ using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Diagnostics;
+using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
@@ -24,6 +25,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public Property FindProperty(string identifier);
 
         public List<Property> GetProperties();
+
+        public void EmitGetProperty(StringBuilder emitter, string valueCSource, Property property);
     }
 
     public abstract class Property

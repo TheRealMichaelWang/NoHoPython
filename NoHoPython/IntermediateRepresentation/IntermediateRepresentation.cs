@@ -70,7 +70,7 @@ namespace NoHoPython.IntermediateRepresentation
         public void ScopeForUsedTypes(Dictionary<Typing.TypeParameter, IType> typeargs);
     }
 
-    public partial interface IRValue : IRElement
+    public interface IRValue : IRElement
     {
         public IType Type { get; }
 

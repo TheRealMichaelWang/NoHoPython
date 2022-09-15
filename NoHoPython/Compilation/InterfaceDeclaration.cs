@@ -1,5 +1,4 @@
-﻿using NoHoPython.IntermediateRepresentation;
-using NoHoPython.IntermediateRepresentation.Statements;
+﻿using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Text;
@@ -31,7 +30,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine($"typedef struct {interfaceType.GetStandardIdentifier()} {interfaceType.GetCName()};");
         }
 
-        public void ScopeForUsedTypes() { }
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs) { }
 
         public void ForwardDeclareType(StringBuilder emitter)
         {
@@ -49,8 +48,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             foreach (InterfaceType interfaceType in interfaceTypeOverloads[this])
             {
+                interfaceType.EmitMarshallerHeader(emitter);
                 emitter.AppendLine($"void free_interface{interfaceType.GetStandardIdentifier()}({interfaceType.GetCName()}* interface);");
-                emitter.AppendLine($"{interfaceType.GetCName()} copy_interface{interfaceType.GetStandardIdentifier()}({interfaceType.GetCName()}* record);");
+                emitter.AppendLine($"{interfaceType.GetCName()} copy_interface{interfaceType.GetStandardIdentifier()}({interfaceType.GetCName()}* interface);");
             }
         }
 
@@ -61,6 +61,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             foreach (InterfaceType interfaceType in interfaceTypeOverloads[this])
             {
+                interfaceType.EmitMarshaller(emitter);
                 interfaceType.EmitDestructor(emitter);
                 interfaceType.EmitCopier(emitter);
             }
@@ -75,6 +76,13 @@ namespace NoHoPython.Typing
         public string GetStandardIdentifier() => $"_nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetCName()))}_";
 
         public string GetCName() => $"{GetStandardIdentifier()}_t";
+
+        public void EmitFreeValue(StringBuilder emitter, string valueCSource) => emitter.AppendLine($"free_interface{GetStandardIdentifier()}(&{valueCSource});");
+        public void EmitCopyValue(StringBuilder emitter, string valueCSource) => emitter.Append($"copy_interface{GetStandardIdentifier()}(&{valueCSource})");
+
+        public void EmitGetProperty(StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}.{property.Name}");
+
+        public void EmitMarshallerHeader(StringBuilder emitter) => emitter.AppendLine($"{GetCName()} marshal_interface{GetStandardIdentifier()}({string.Join(", ", requiredImplementedProperties.Value.ConvertAll((prop) => $"{prop.Type.GetCName()} {prop.Name}"))});");
 
         public void ScopeForUsedTypes()
         {
@@ -93,19 +101,84 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
+        public void EmitMarshaller(StringBuilder emitter)
+        {
+            emitter.Append($"{GetCName()} marshal_interface{GetStandardIdentifier()}({string.Join(", ", requiredImplementedProperties.Value.ConvertAll((prop) => $"{prop.Type.GetCName()} {prop.Name}"))})");
+            emitter.AppendLine(" {");
+            
+            emitter.AppendLine($"\t{GetCName()} marshalled_interface;");
+            foreach(var property in requiredImplementedProperties.Value)
+            {
+                emitter.Append($"\tmarshalled_interface->{property.Name} = ");
+                property.Type.EmitCopyValue(emitter, property.Name);
+                emitter.AppendLine(";");
+            }
+            emitter.AppendLine("\treturn marshalled_interface;");
+            emitter.AppendLine("}");
+        }
+
         public void EmitDestructor(StringBuilder emitter)
         {
-            emitter.Append($"void free_interface{GetStandardIdentifier()}({GetCName()}* interface) ");
+            emitter.Append($"void free_interface{GetStandardIdentifier()}({GetCName()}* interface)");
             emitter.AppendLine(" {");
 
             foreach (var property in requiredImplementedProperties.Value)
-                IRValue.EmitFreeValue(emitter, $"interface->{property.Name}", property.Type);
+            {
+                emitter.Append('\t');
+                property.Type.EmitFreeValue(emitter, $"interface->{property.Name}");
+            }
             emitter.AppendLine("}");
         }
 
         public void EmitCopier(StringBuilder emitter)
         {
+            emitter.AppendLine($"{GetCName()} copy_interface{GetStandardIdentifier()}({GetCName()}* interface)");
+            emitter.AppendLine(" {");
 
+            emitter.AppendLine($"\t{GetCName()} copied_interface;");
+            foreach (var property in requiredImplementedProperties.Value)
+            {
+                emitter.Append($"\tcopied_interface->{property.Name} = ");
+                property.Type.EmitCopyValue(emitter, $"interface->{property}");
+                emitter.AppendLine(";");
+            }
+            emitter.AppendLine("\treturn copied_interface;");
+            emitter.AppendLine("}");
+        }
+    }
+}
+
+namespace NoHoPython.IntermediateRepresentation.Values
+{
+    partial class MarshalIntoInterface
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs)
+        {
+            TargetType.SubstituteWithTypearg(typeargs).ScopeForUsedTypes();
+            Value.ScopeForUsedTypes(typeargs);
+        }
+
+        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        {
+            InterfaceType realPrototype = (InterfaceType)TargetType.SubstituteWithTypearg(typeargs);
+
+            List<Property> properties = realPrototype.GetProperties();
+            List<string> emittedValues = new List<string>(properties.Count);
+            foreach(Property property in properties)
+            {
+                StringBuilder valueEmitter = new StringBuilder();
+                Value.Emit(valueEmitter, typeargs);
+
+                StringBuilder getPropertyEmitter = new StringBuilder();
+                if (Value.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
+                    propertyContainer.EmitGetProperty(getPropertyEmitter, valueEmitter.ToString(), property);
+                else
+                    throw new InvalidOperationException();
+                
+                emittedValues.Add(getPropertyEmitter.ToString());
+            }
+
+            emitter.Append($"marshal_interface{realPrototype.GetStandardIdentifier()}({string.Join(", ", emittedValues)})");
         }
     }
 }

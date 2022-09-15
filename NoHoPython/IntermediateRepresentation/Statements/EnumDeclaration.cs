@@ -98,8 +98,6 @@ namespace NoHoPython.Typing
 
         private Lazy<List<IType>> options;
 
-        public string GetCName() => throw new NotImplementedException();
-
         public EnumType(EnumDeclaration enumDeclaration, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(enumDeclaration, TypeParameter.ValidateTypeArguments(enumDeclaration.TypeParameters, typeArguments, errorReportedElement))
         {
             

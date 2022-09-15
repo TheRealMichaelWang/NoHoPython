@@ -3,20 +3,6 @@ using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Text;
 
-namespace NoHoPython.IntermediateRepresentation
-{
-    partial interface IRValue
-    {
-        public static void EmitFreeValue(StringBuilder emitter, string valueCSource, IType type)
-        {
-            if (type is RecordType recordType)
-                emitter.AppendLine($"free_record{recordType.GetStandardIdentifier()}(&{valueCSource});");
-            else if (type is InterfaceType interfaceType)
-                emitter.AppendLine($"free_interface{interfaceType.GetStandardIdentifier()}(&{valueCSource});");
-        }
-    }
-}
-
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
     partial class RecordDeclaration
@@ -41,10 +27,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public static void ForwardDeclareRecordTypes(StringBuilder emitter)
         {
             foreach (RecordType recordType in usedRecordTypes)
-                emitter.AppendLine($"typedef struct {recordType.GetStandardIdentifier()} {recordType.GetCName()};");
+                emitter.AppendLine($"typedef struct {recordType.GetStandardIdentifier()} {recordType.GetStandardIdentifier()}_t;");
         }
 
-        public void ScopeForUsedTypes() { }
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs) { }
 
         public void ForwardDeclareType(StringBuilder emitter) 
         {
@@ -62,9 +48,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             foreach (RecordType recordType in recordTypeOverloads[this]) 
             {
-                emitter.Append($"void init_record{recordType.GetStandardIdentifier()}(");
-                emitter.AppendLine($"void free_record{recordType.GetStandardIdentifier()}({recordType.GetCName()}* record);");
-                emitter.AppendLine($"{recordType.GetCName()} copy_record{recordType.GetStandardIdentifier()}({recordType.GetCName()}* record);");
+                emitter.AppendLine($"void{recordType.GetCName()} init_record(");
+ 
+
+                emitter.AppendLine($"void free_record{recordType.GetStandardIdentifier()}({recordType.GetCName()} record);");
+                emitter.AppendLine($"{recordType.GetCName()} copy_record{recordType.GetStandardIdentifier()}({recordType.GetCName()} record);");
             }
         }
 
@@ -87,7 +75,13 @@ namespace NoHoPython.Typing
     {
         public string GetStandardIdentifier() => $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetCName()))}_";
 
-        public string GetCName() => $"{GetStandardIdentifier()}_t";
+        public string GetCName() => $"{GetStandardIdentifier()}_t*";
+        public string GetCHeapSizer() => $"sizeof({GetStandardIdentifier()}_t";
+
+        public void EmitFreeValue(StringBuilder emitter, string valueCSource) => emitter.AppendLine($"free_record{GetStandardIdentifier()}({valueCSource});");
+        public void EmitCopyValue(StringBuilder emitter, string valueCSource) => emitter.Append($"copy_record{GetStandardIdentifier()}({valueCSource})");
+
+        public void EmitGetProperty(StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}->{property.Name}");
 
         public void ScopeForUsedTypes()
         {

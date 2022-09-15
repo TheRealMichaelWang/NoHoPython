@@ -1,5 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.Scoping;
+using System.Text;
 
 namespace NoHoPython.Typing
 {
@@ -8,6 +9,11 @@ namespace NoHoPython.Typing
         public string TypeName { get; }
 
         public string GetCName();
+
+        public void EmitFreeValue(StringBuilder emitter, string valueCSource);
+
+        public void EmitCopyValue(StringBuilder emitter, string valueCSource);
+
         public void ScopeForUsedTypes();
 
         public bool IsCompatibleWith(IType type);

@@ -32,9 +32,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public Variable Variable { get; private set; }
         public IRValue InitialValue { get; private set; }
 
-        public VariableDeclaration(string name, IRValue setValue, Syntax.AstIRProgramBuilder irBuilder, IAstElement errorReportedELement)
+        public VariableDeclaration(string name, IRValue setValue, AstIRProgramBuilder irBuilder, IAstElement errorReportedELement)
         {
             irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false), errorReportedELement);
+            irBuilder.SymbolMarshaller.CurrentCodeBlock.DeclaredVariables.Add(Variable);
             InitialValue = setValue;
             ErrorReportedElement = errorReportedELement;
         }
@@ -87,7 +88,7 @@ namespace NoHoPython.Scoping
 
     public class VariableContainer : SymbolContainer
     {
-        private SymbolContainer? parentContainer;
+        protected SymbolContainer? parentContainer;
 
         public VariableContainer(SymbolContainer? parentContainer) : base()
         {
@@ -110,7 +111,7 @@ namespace NoHoPython.Syntax.Values
         {
             IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
             return valueSymbol is Variable variable
-                ? new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable), this)
+                ? new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), this)
                 : valueSymbol is IntermediateRepresentation.Statements.ProcedureDeclaration procedureDeclaration
                 ? (IRValue)new AnonymizeProcedure(procedureDeclaration, this)
                 : throw new NotAVariableException(valueSymbol, this);
@@ -130,7 +131,7 @@ namespace NoHoPython.Syntax.Values
             {
                 IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
                 return valueSymbol is Variable variable
-                    ? (IRValue)new IntermediateRepresentation.Values.SetVariable(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable), SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type), this)
+                    ? (IRValue)new IntermediateRepresentation.Values.SetVariable(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, true, this), SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type), this)
                     : throw new NotAVariableException(valueSymbol, this);
             }
             catch (SymbolNotFoundException)

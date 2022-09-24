@@ -1,11 +1,10 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Syntax;
-using System.Text;
 
 namespace NoHoPython.Typing
 {
-    public abstract class Primitive : IType
+    public abstract partial class Primitive : IType
     {
         public static readonly IntegerType Integer = new();
         public static readonly DecimalType Decimal = new();
@@ -19,7 +18,8 @@ namespace NoHoPython.Typing
 
         public abstract int Id { get; }
 
-        public abstract string GetCName();
+        public abstract IRValue GetDefaultValue(IAstElement errorReportedElement);
+
         public abstract bool IsCompatibleWith(IType type);
         public abstract IType Clone();
         public abstract IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeArgs);
@@ -42,7 +42,7 @@ namespace NoHoPython.Typing
         public override int Size => 8;
         public override int Id => 0;
 
-        public override string GetCName() => "long";
+        public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new IntegerLiteral(0, errorReportedElement);
 
         public override bool IsCompatibleWith(IType type)
         {
@@ -56,7 +56,7 @@ namespace NoHoPython.Typing
         public override int Size => 8;
         public override int Id => 1;
 
-        public override string GetCName() => "double";
+        public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new DecimalLiteral(0, errorReportedElement);
 
         public override bool IsCompatibleWith(IType type)
         {
@@ -70,7 +70,7 @@ namespace NoHoPython.Typing
         public override int Size => 1;
         public override int Id => 2;
 
-        public override string GetCName() => "char";
+        public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new CharacterLiteral('\0', errorReportedElement);
 
         public override bool IsCompatibleWith(IType type)
         {
@@ -84,7 +84,7 @@ namespace NoHoPython.Typing
         public override int Size => 4;
         public override int Id => 3;
 
-        public override string GetCName() => "int";
+        public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new FalseLiteral(errorReportedElement);
 
         public override bool IsCompatibleWith(IType type)
         {
@@ -95,7 +95,7 @@ namespace NoHoPython.Typing
     public sealed partial class NothingType : IType
     {
         public string TypeName => "nothing";
-        public string GetCName() => "void";
+        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new NothingLiteral(errorReportedElement);
 
         public bool IsCompatibleWith(IType type)
         {
@@ -113,7 +113,7 @@ namespace NoHoPython.Typing
 
         public IType ElementType { get; private set; }
 
-        public string GetCName() => $"{ElementType.GetCName()}*";
+        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new ArrayLiteral(ElementType, new List<IRValue>(), errorReportedElement);
 
         public ArrayType(IType elementType)
         {
@@ -135,11 +135,12 @@ namespace NoHoPython.Typing
         public IType ReturnType { get; private set; }
         public readonly List<IType> ParameterTypes;
 
+        public IRValue GetDefaultValue(IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+
         public ProcedureType(IType returnType, List<IType> parameterTypes)
         {
             ReturnType = returnType;
             ParameterTypes = parameterTypes;
-            cName = new Lazy<string>(() => defineCType(this));
         }
 
         public bool IsCompatibleWith(IType type)

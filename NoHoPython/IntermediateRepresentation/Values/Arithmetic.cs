@@ -33,7 +33,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {ArithmeticCastOperation.IntToBoolean, new IntegerType() },
             {ArithmeticCastOperation.DecimalToInt, new DecimalType() },
             {ArithmeticCastOperation.CharToInt, new CharacterType() },
-            {ArithmeticCastOperation.BooleanToInt, new CharacterType() }
+            {ArithmeticCastOperation.BooleanToInt, new BooleanType() }
         };
 
         private static ArithmeticCastOperation[] toIntOperation = new ArithmeticCastOperation[]
@@ -55,7 +55,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (typeTarget.IsCompatibleWith(value.Type))
                 return value;
             else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to{typeTarget.TypeName}"))
-                return new AnonymousProcedureCall(new GetPropertyValue(value, $"to{typeTarget.TypeName}"), new List<IRValue>(), value.ErrorReportedElement);
+                return new AnonymousProcedureCall(new GetPropertyValue(value, $"to{typeTarget.TypeName}", value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
             else return typeTarget is EnumType enumType
                 ? new MarshalIntoEnum(enumType, value, value.ErrorReportedElement)
                 : typeTarget is InterfaceType interfaceType
@@ -74,7 +74,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (targetType.IsCompatibleWith(primitive.Type))
                 throw new UnexpectedTypeException(primitive.Type, primitive.ErrorReportedElement);
 
-            Primitive input = (Primitive)primitive;
+            Primitive input = (Primitive)primitive.Type;
             return targetType is IntegerType
                 ? new ArithmeticCast(toIntOperation[input.Id - 1], primitive, primitive.ErrorReportedElement)
                 : primitive.Type is IntegerType

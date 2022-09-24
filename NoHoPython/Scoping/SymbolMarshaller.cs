@@ -2,7 +2,9 @@
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Syntax;
+using NoHoPython.Typing;
 using System.Diagnostics;
+using System.Text;
 
 namespace NoHoPython.Scoping
 {
@@ -37,17 +39,19 @@ namespace NoHoPython.Scoping
         public sealed class Module : SymbolContainer, IScopeSymbol, IRStatement
         {
             public IAstElement ErrorReportedElement { get; private set; }
+            public SymbolContainer? ParentContainer { get; private set; }
 
             public bool IsGloballyNavigable => true;
             public string Name { get; private set; }
 
             private List<IRStatement>? statements;
 
-            public Module(string name, IAstElement errorReportedElement) : base()
+            public Module(string name, SymbolContainer? parentContainer, IAstElement errorReportedElement) : base()
             {
                 Name = name;
                 ErrorReportedElement = errorReportedElement;
                 statements = null;
+                ParentContainer = parentContainer;
             }
 
             public void DelayedLinkSetStatements(List<IRStatement> statements)
@@ -56,7 +60,15 @@ namespace NoHoPython.Scoping
                     throw new InvalidOperationException();
                 this.statements = statements;
             }
+
+            public void ScopeForUsedTypes(Dictionary<Typing.TypeParameter, IType> typeargs) => throw new InvalidOperationException();
+            public void ForwardDeclareType(StringBuilder emitter) => throw new InvalidOperationException();
+            public void ForwardDeclare(StringBuilder emitter) => throw new InvalidOperationException();
+            public void Emit(StringBuilder emitter, Dictionary<Typing.TypeParameter, IType> typeargs, int indent) => throw new InvalidOperationException();
         }
+
+        public Module CurrentModule => usedModuleStack.Peek();
+        public CodeBlock CurrentCodeBlock => (CodeBlock)scopeStack.Peek();
 
         private Stack<Module> usedModuleStack;
         private Stack<SymbolContainer> scopeStack;
@@ -66,7 +78,7 @@ namespace NoHoPython.Scoping
             usedModuleStack = new Stack<Module>();
             scopeStack = new Stack<SymbolContainer>();
 #pragma warning disable CS8625 // default module must be here
-            NavigateToScope(new Module("__main__", null));
+            NavigateToScope(new Module(string.Empty, null, null));
 #pragma warning restore CS8625
         }
 
@@ -132,7 +144,7 @@ namespace NoHoPython.Scoping
 
         public Module NewModule(string name, Syntax.IAstElement errorReportedElement)
         {
-            Module module = new(name, errorReportedElement);
+            Module module = new(name, scopeStack.Peek(), errorReportedElement);
             DeclareSymbol(module, errorReportedElement);
             NavigateToScope(module);
             return module;

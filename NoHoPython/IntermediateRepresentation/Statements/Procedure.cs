@@ -7,9 +7,10 @@ using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
-    public sealed class ProcedureDeclaration : CodeBlock, IScopeSymbol, IRStatement
+    public sealed partial class ProcedureDeclaration : CodeBlock, IScopeSymbol, IRStatement
     {
         public IAstElement ErrorReportedElement { get; private set; }
+        public SymbolContainer? ParentContainer { get; private set; }
 
         public bool IsGloballyNavigable => true;
         public string Name { get; private set; }
@@ -28,6 +29,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Name = name;
             TypeParameters = typeParameters;
             ReturnType = returnType;
+            ParentContainer = parentContainer;
             ErrorReportedElement = errorReportedElement;
             CapturedVariables = new List<Variable>();
             this.isTopLevelStatement = isTopLevelStatement;
@@ -40,17 +42,21 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Parameters = parameters;
         }
 
-        public Variable SanitizeVariable(Variable variable)
+        public Variable SanitizeVariable(Variable variable, bool willStet, IAstElement errorReportedElement)
         {
             if (variable.ParentProcedure == this)
                 return variable;
             if (!CapturedVariables.Contains(variable))
+            {
                 CapturedVariables.Add(variable);
+                if (willStet)
+                    throw new CannotMutateCapturedVaraible(variable, errorReportedElement);
+            }
             return variable;
         }
     }
 
-    public sealed class ProcedureReference
+    public sealed partial class ProcedureReference
     {
         public IType ReturnType { get; private set; }
         private IAstElement errorReportedElement;
@@ -59,6 +65,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         private Dictionary<Typing.TypeParameter, IType> typeArguments;
 
         public ProcedureDeclaration ProcedureDeclaration { get; private set; }
+
+        public bool IsAnonymous { get; private set; }
 
         private static Dictionary<Typing.TypeParameter, IType> MatchTypeArguments(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments, IType? returnType, IAstElement errorReportedElement)
         {
@@ -77,25 +85,29 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             return typeArguments;
         }
 
-        public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments, IType? returnType, IAstElement errorReportedElement) : this(MatchTypeArguments(procedureDeclaration, arguments, returnType, errorReportedElement), procedureDeclaration, errorReportedElement)
+        public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments, IType? returnType, bool isAnonymous, IAstElement errorReportedElement) : this(MatchTypeArguments(procedureDeclaration, arguments, returnType, errorReportedElement), procedureDeclaration, isAnonymous, errorReportedElement)
         {
 
         }
 
-        public ProcedureReference(ProcedureDeclaration procedureDeclaration, IAstElement errorReportedElement) : this(new Dictionary<Typing.TypeParameter, IType>(), procedureDeclaration, errorReportedElement)
+        public ProcedureReference(ProcedureDeclaration procedureDeclaration, bool isAnonymous, IAstElement errorReportedElement) : this(new Dictionary<Typing.TypeParameter, IType>(), procedureDeclaration, isAnonymous, errorReportedElement)
         {
             this.errorReportedElement = errorReportedElement;
         }
 
-        private ProcedureReference(Dictionary<Typing.TypeParameter, IType> typeArguments, ProcedureDeclaration procedureDeclaration, IAstElement errorReportedElement)
+        private ProcedureReference(Dictionary<Typing.TypeParameter, IType> typeArguments, ProcedureDeclaration procedureDeclaration, bool isAnonymous, IAstElement errorReportedElement)
         {
             ProcedureDeclaration = procedureDeclaration;
+            IsAnonymous = isAnonymous;
             this.typeArguments = typeArguments;
             this.errorReportedElement = errorReportedElement;
+
 #pragma warning disable CS8604 // Panic should happen at runtime. Parameters might (but shouldn't unless bug) be null b/c of linking.
             ParameterTypes = procedureDeclaration.Parameters.Select((Variable param) => param.Type.SubstituteWithTypearg(typeArguments)).ToList();
 #pragma warning restore CS8604 
+            
             ReturnType = procedureDeclaration.ReturnType.SubstituteWithTypearg(typeArguments);
+            anonProcedureType = new ProcedureType(ReturnType, ParameterTypes);
         }
 
         public ProcedureReference SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs)
@@ -103,26 +115,47 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Dictionary<Typing.TypeParameter, IType> newTypeargs = new(typeargs.Count);
             foreach (KeyValuePair<Typing.TypeParameter, IType> typearg in typeArguments)
                 newTypeargs.Add(typearg.Key, typearg.Value.SubstituteWithTypearg(typeargs));
-            return new ProcedureReference(newTypeargs, ProcedureDeclaration, errorReportedElement);
+            return new ProcedureReference(newTypeargs, ProcedureDeclaration, IsAnonymous, errorReportedElement);
+        }
+
+        public bool IsCompatibleWith(ProcedureReference procedureReference)
+        {
+            if (ProcedureDeclaration != procedureReference.ProcedureDeclaration)
+                return false;
+            if (IsAnonymous != procedureReference.IsAnonymous)
+                return false;
+            foreach (Typing.TypeParameter typeParameter in ProcedureDeclaration.TypeParameters)
+                if (!procedureReference.typeArguments[typeParameter].IsCompatibleWith(typeArguments[typeParameter]))
+                    return false;
+            return true;
         }
     }
 
-    public sealed class ReturnStatement : IRStatement
+    public sealed partial class ReturnStatement : IRStatement
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public IRValue ToReturn { get; private set; }
 
-        public ReturnStatement(IRValue toReturn, ProcedureDeclaration procedureDeclaration, IAstStatement errorReportedStatement)
+        private CodeBlock parentCodeBlock;
+
+#pragma warning disable CS8618
+        public ReturnStatement(IRValue toReturn, AstIRProgramBuilder irBuilder, IAstStatement errorReportedStatement)
+#pragma warning restore CS8618
         {
-            ToReturn = ArithmeticCast.CastTo(toReturn, procedureDeclaration.ReturnType);
+            ToReturn = ArithmeticCast.CastTo(toReturn, irBuilder.ScopedProcedures.Peek().ReturnType);
             ErrorReportedElement = errorReportedStatement;
+#pragma warning disable CS8600 // null runtime errors not possible during parsing
+#pragma warning disable CS8601
+            this.parentCodeBlock = (CodeBlock)irBuilder.CurrentMasterScope;
+#pragma warning restore CS8601 
+#pragma warning restore CS8600
         }
     }
 }
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
-    public sealed class LinkedProcedureCall : IRValue, IRStatement
+    public sealed partial class LinkedProcedureCall : IRValue, IRStatement
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type => Procedure.ReturnType;
@@ -130,7 +163,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public ProcedureReference Procedure { get; private set; }
         public readonly List<IRValue> Arguments;
 
-        public LinkedProcedureCall(ProcedureDeclaration procedure, List<IRValue> arguments, IType? returnType, IAstElement errorReportedElement) : this(new ProcedureReference(procedure, arguments, returnType, errorReportedElement), arguments, errorReportedElement)
+        public LinkedProcedureCall(ProcedureDeclaration procedure, List<IRValue> arguments, IType? returnType, IAstElement errorReportedElement) : this(new ProcedureReference(procedure, arguments, returnType, false, errorReportedElement), arguments, errorReportedElement)
         {
 
         }
@@ -145,7 +178,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new LinkedProcedureCall(Procedure.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
     }
 
-    public sealed class AnonymousProcedureCall : IRValue, IRStatement
+    public sealed partial class AnonymousProcedureCall : IRValue, IRStatement
     {
         public IAstElement ErrorReportedElement { get; private set; }
 
@@ -178,7 +211,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymousProcedureCall(ProcedureValue.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
     }
 
-    public sealed class AnonymizeProcedure : IRValue
+    public sealed partial class AnonymizeProcedure : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type { get => new ProcedureType(Procedure.ReturnType, Procedure.ParameterTypes); }
@@ -191,9 +224,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ErrorReportedElement = errorReportedElement;
         }
 
-        public AnonymizeProcedure(ProcedureDeclaration procedure, IAstElement errorReportedElement) : this(new ProcedureReference(procedure, errorReportedElement), errorReportedElement)
+        public AnonymizeProcedure(ProcedureDeclaration procedure, IAstElement errorReportedElement) : this(new ProcedureReference(procedure, true, errorReportedElement), errorReportedElement)
         {
-
+            
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs), ErrorReportedElement);
@@ -211,7 +244,7 @@ namespace NoHoPython.Syntax.Statements
         {
             return irBuilder.ScopedProcedures.Count == 0
                 ? throw new UnexpectedReturnStatement(this)
-                : (IRStatement)new IntermediateRepresentation.Statements.ReturnStatement(ReturnValue.GenerateIntermediateRepresentationForValue(irBuilder, irBuilder.ScopedProcedures.Peek().ReturnType), irBuilder.ScopedProcedures.Peek(), this);
+                : (IRStatement)new IntermediateRepresentation.Statements.ReturnStatement(ReturnValue.GenerateIntermediateRepresentationForValue(irBuilder, irBuilder.ScopedProcedures.Peek().ReturnType), irBuilder, this);
         }
     }
 
@@ -229,14 +262,15 @@ namespace NoHoPython.Syntax.Statements
 
             List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, IRProcedureDeclaration, false));
             IRProcedureDeclaration.DelayedLinkSetParameters(parameters);
-            
+
+            SymbolContainer? oldMasterScope = irBuilder.CurrentMasterScope;
             irBuilder.SymbolMarshaller.DeclareSymbol(IRProcedureDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
             irBuilder.ScopedProcedures.Push(IRProcedureDeclaration);
 
             foreach (Variable parameter in parameters)
                 irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
-            if (irBuilder.CurrentMasterScope is IntermediateRepresentation.Statements.RecordDeclaration parentRecord)
+            if (oldMasterScope is IntermediateRepresentation.Statements.RecordDeclaration parentRecord)
             {
                 Variable selfVariable = new Variable(parentRecord.SelfType, "self", IRProcedureDeclaration, true);
                 irBuilder.SymbolMarshaller.DeclareSymbol(selfVariable, this);
@@ -253,6 +287,10 @@ namespace NoHoPython.Syntax.Statements
 
             irBuilder.AddProcDeclaration(IRProcedureDeclaration);
         }
+
+#pragma warning disable CS8602 // Only called after ForwardDeclare, when parameter is initialized
+        public IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty GenerateProperty() => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(Name, new ProcedureType(IRProcedureDeclaration.ReturnType, IRProcedureDeclaration.Parameters.ConvertAll((param) => param.Type)), true);
+#pragma warning restore CS8602
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {

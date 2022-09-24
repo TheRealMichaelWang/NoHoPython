@@ -130,6 +130,8 @@ namespace NoHoPython.Typing
         private Lazy<List<InterfaceDeclaration.InterfaceProperty>> requiredImplementedProperties;
         private Lazy<Dictionary<string, InterfaceDeclaration.InterfaceProperty>> identifierPropertyMap;
 
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+
         public InterfaceType(InterfaceDeclaration interfaceDeclaration, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(interfaceDeclaration, TypeParameter.ValidateTypeArguments(interfaceDeclaration.TypeParameters, typeArguments, errorReportedElement))
         {
 
@@ -202,7 +204,7 @@ namespace NoHoPython.Syntax.Statements
         {
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRInterfaceDeclaration = new IntermediateRepresentation.Statements.InterfaceDeclaration(Identifier, typeParameters, this);
+            IRInterfaceDeclaration = new IntermediateRepresentation.Statements.InterfaceDeclaration(Identifier, typeParameters, irBuilder.SymbolMarshaller.CurrentModule, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRInterfaceDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRInterfaceDeclaration);
 

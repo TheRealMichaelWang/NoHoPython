@@ -37,6 +37,7 @@ namespace NoHoPython.Syntax.Parsing
 
             while (scanner.LastToken.Type == TokenType.Colon)
             {
+                idBuilder.Append(':');
                 scanner.ScanToken();
                 MatchToken(TokenType.Identifier);
                 idBuilder.Append(scanner.LastToken.Identifier);
@@ -201,8 +202,15 @@ namespace NoHoPython.Syntax.Parsing
                             scanner.ScanToken();
                             return new FalseLiteral(location);
                         case TokenType.New:
-                            scanner.ScanToken();
-                            return new InstantiateNewRecord(ParseType(), ParseArguments(), location);
+                            {
+                                scanner.ScanToken();
+                                AstType type = ParseType();
+
+                                if (scanner.LastToken.Type == TokenType.OpenParen)
+                                    return new InstantiateNewRecord(type, ParseArguments(), location);
+                                else
+                                    return ParseAllocArray(type, location);
+                            }
                         case TokenType.Nothing:
                             return new NothingLiteral(location);
                         default:

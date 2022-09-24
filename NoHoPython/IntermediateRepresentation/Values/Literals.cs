@@ -126,6 +126,24 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    public sealed partial class AllocArray : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public IType Type { get => new ArrayType(ElementType); }
+
+        public IType ElementType { get; private set; }
+        public IRValue Length { get; private set; }
+        public IRValue ProtoValue { get; private set; }
+
+        public AllocArray(IAstElement errorReportedElement, IType elementType, IRValue length, IRValue protoValue)
+        {
+            ErrorReportedElement = errorReportedElement;
+            ElementType = elementType;
+            Length = ArithmeticCast.CastTo(length, Primitive.Integer);
+            ProtoValue = ArithmeticCast.CastTo(protoValue, ElementType);
+        }
+    }
+
     public sealed partial class AllocRecord : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
@@ -141,15 +159,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ConstructorArguments = constructorArguments;
             ErrorReportedElement = errorReportedElement;
 
-            if (RecordPrototype.HasProperty("__init__") && RecordPrototype.FindProperty("__init__").Type is ProcedureType constructurType)
+            if (RecordPrototype.HasProperty("__init__") && RecordPrototype.FindProperty("__init__").Type is ProcedureType constructorType)
             {
                 for (int i = 0; i < ConstructorArguments.Count; i++)
-                    ConstructorArguments[i] = ArithmeticCast.CastTo(ConstructorArguments[i], constructurType.ParameterTypes[i]);
+                    ConstructorArguments[i] = ArithmeticCast.CastTo(ConstructorArguments[i], constructorType.ParameterTypes[i]);
             }
-            else
-            {
-
-            }
+            else if (constructorArguments.Count != 0)
+                throw new UnexpectedArgumentsException(ConstructorArguments.ConvertAll((arg) => arg.Type), new List<Scoping.Variable>(), errorReportedElement);
         }
     }
 }
@@ -197,6 +213,16 @@ namespace NoHoPython.Syntax.Values
                 return new IntermediateRepresentation.Values.ArrayLiteral(AnnotatedElementType.ToIRType(irBuilder, this), elements, this);
             else
                 return new IntermediateRepresentation.Values.ArrayLiteral(elements, this);
+        }
+    }
+
+    partial class AllocArray
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType)
+        {
+            IType elementType = ElementType.ToIRType(irBuilder, this);
+
+            return new IntermediateRepresentation.Values.AllocArray(this, elementType, Length.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer), ProtoValue == null ? elementType.GetDefaultValue(this) : ProtoValue.GenerateIntermediateRepresentationForValue(irBuilder, elementType));
         }
     }
 

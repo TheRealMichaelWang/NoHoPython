@@ -6,23 +6,27 @@ namespace NoHoPython.Typing
 {
     public interface IType
     {
+        public bool RequiresDisposal { get; }
+
         public string TypeName { get; }
 
         public string GetCName();
+        public string GetStandardIdentifier();
 
         public void EmitFreeValue(StringBuilder emitter, string valueCSource);
-
         public void EmitCopyValue(StringBuilder emitter, string valueCSource);
+        public void EmitMoveValue(StringBuilder emitter, string destC, string valueCSource);
+        public void EmitClosureBorrowValue(StringBuilder emitter, string valueCSource);
+        public void EmitRecordCopyValue(StringBuilder emitter, string valueCSource, string recordCSource);
 
         public void ScopeForUsedTypes();
 
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement);
+
         public bool IsCompatibleWith(IType type);
-
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
-
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement);
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument);
-
         public IType Clone();
 
         public string ToString() => TypeName;

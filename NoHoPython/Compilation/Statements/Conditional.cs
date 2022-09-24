@@ -1,18 +1,31 @@
-﻿using NoHoPython.Typing;
+﻿using NoHoPython.Scoping;
+using NoHoPython.Typing;
 using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class IfElseValue
     {
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs)
+        {
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes();
+            Condition.ScopeForUsedTypes(typeargs);
+            IfTrueValue.ScopeForUsedTypes(typeargs);
+            IfFalseValue.ScopeForUsedTypes(typeargs);
+        }
+
         public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
             emitter.Append('(');
-            Condition.Emit(emitter, typeargs);
+            emitter.Append('(');
+            IRValue.EmitMemorySafe(Condition, emitter, typeargs);
             emitter.Append(") ? (");
-            IfTrueValue.Emit(emitter, typeargs);
+            IRValue.EmitMemorySafe(IfTrueValue, emitter, typeargs);
             emitter.Append(") : (");
-            IfFalseValue.Emit(emitter, typeargs);
+            IRValue.EmitMemorySafe(IfFalseValue, emitter, typeargs);
+            emitter.Append(')');
             emitter.Append(')');
         }
     }
@@ -24,7 +37,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public static void CIndent(StringBuilder emitter, int indent) => emitter.Append(new string('\t', indent));
 
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs)
+        public virtual void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
@@ -32,7 +45,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements.ForEach((statement) => statement.ScopeForUsedTypes(typeargs));
         }
 
-        public void ForwardDeclareType(StringBuilder emitter)
+        public virtual void ForwardDeclareType(StringBuilder emitter)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
@@ -40,7 +53,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements.ForEach((statement) => statement.ForwardDeclareType(emitter));
         }
 
-        public void ForwardDeclare(StringBuilder emitter)
+        public virtual void ForwardDeclare(StringBuilder emitter)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
@@ -48,18 +61,38 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements.ForEach((statement) => statement.ForwardDeclare(emitter));
         }
 
-        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void EmitNoOpen(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            if (Statements == null)
+                throw new InvalidOperationException();
+            foreach(Variable variable in DeclaredVariables)
+            {
+                CIndent(emitter, indent + 1);
+                emitter.AppendLine($"{variable.Type.SubstituteWithTypearg(typeargs).GetCName()} {variable.Name};");
+            }
+
+            Statements.ForEach((statement) => statement.Emit(emitter, typeargs, indent + 1));
+
+            foreach (Variable variable in DeclaredVariables)
+            {
+                if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+                {
+                    CIndent(emitter, indent + 1);
+                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(emitter, variable.Name);
+                }
+            }
+
+            CIndent(emitter, indent);
+            emitter.AppendLine("}");
+        }
+
+        public virtual void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
 
             emitter.AppendLine(" {");
-            Statements.ForEach((statement) => {
-                CIndent(emitter, indent + 1);
-                statement.Emit(emitter, typeargs, indent + 1);
-            });
-            CIndent(emitter, indent);
-            emitter.AppendLine("}");
+            EmitNoOpen(emitter, typeargs, indent);
         }
     }
 

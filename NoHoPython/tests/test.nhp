@@ -15,5 +15,11 @@
 	class list<T>:
 		array<T> buffer
 		
-		def __init__(int size):
-			buffer = malloc(size)
+		def __init__(int size, T default):
+			buffer = new T[size](default)
+
+def fib(int n) int:
+	return (n <= 1) if 1 else fib(n - 1) + fib(n - 2)
+
+def main():
+	myproject:main()

@@ -48,18 +48,20 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public sealed partial class RecordProperty : Property
         {
             public override bool IsReadOnly => isReadOnly;
-            public IRValue? DefaultValue { get; private set; }
+            public IRValue DefaultValue { get; private set; }
 
             private bool isReadOnly;
 
-            public RecordProperty(string name, IType type, bool isReadOnly, IRValue? defaultValue) : base(name, type)
+#pragma warning disable CS8618 // Not immediatley initialized because of linking
+            private RecordProperty(string name, IType type, bool isReadOnly, IRValue? defaultValue) : base(name, type)
+#pragma warning restore CS8618 //
             {
                 this.isReadOnly = isReadOnly;
-                DefaultValue = defaultValue;
-
-                if (defaultValue != null)
-                    DefaultValue = ArithmeticCast.CastTo(defaultValue, type);
+                if(defaultValue != null)
+                    DefaultValue = ArithmeticCast.CastTo(defaultValue, Type);
             }
+
+            public RecordProperty(string name, IType type, bool isReadOnly) : this(name, type, isReadOnly, null) { }
 
             public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), isReadOnly, DefaultValue == null ? null : DefaultValue.SubstituteWithTypearg(typeargs));
 
@@ -67,7 +69,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 if (DefaultValue != null)
                     throw new InvalidOperationException();
-                DefaultValue = defaultValue;
+                DefaultValue = ArithmeticCast.CastTo(defaultValue, Type);
             }
         }
 
@@ -142,6 +144,8 @@ namespace NoHoPython.Typing
         private Lazy<List<RecordDeclaration.RecordProperty>> properties;
         private Lazy<Dictionary<string, RecordDeclaration.RecordProperty>> identifierPropertyMap;
 
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+
         public RecordType(RecordDeclaration recordPrototype, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(recordPrototype, TypeParameter.ValidateTypeArguments(recordPrototype.TypeParameters, typeArguments, errorReportedElement))
         {
 
@@ -191,6 +195,7 @@ namespace NoHoPython.Syntax.Statements
     {
         private IntermediateRepresentation.Statements.RecordDeclaration IRRecordDeclaration;
         private List<IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty> IRProperties;
+        private Dictionary<ProcedureDeclaration, IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty> messageRecieverPropertyMap;
 
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder)
         {
@@ -215,12 +220,18 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
             irBuilder.ScopeToRecord(IRRecordDeclaration);
 
-            IRProperties = Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder, this), property.IsReadOnly, null));
-            IRRecordDeclaration.DelayedLinkSetProperties(IRProperties);
+            IRProperties = Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder, this), property.IsReadOnly));
+            messageRecieverPropertyMap = new(MessageRecievers.Count);
 
-            foreach(ProcedureDeclaration messageReciever in MessageRecievers)
+            foreach (ProcedureDeclaration messageReciever in MessageRecievers)
+            {
                 messageReciever.ForwardDeclare(irBuilder);
+                var recordProperty = messageReciever.GenerateProperty();
+                IRProperties.Add(recordProperty);
+                messageRecieverPropertyMap.Add(messageReciever, recordProperty);
+            }
 
+            IRRecordDeclaration.DelayedLinkSetProperties(IRProperties);
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();
         }
@@ -235,8 +246,14 @@ namespace NoHoPython.Syntax.Statements
                 var propertyValue = Properties[i].DefaultValue;
                 if (propertyValue != null)
                     IRProperties[i].DelayedLinkSetDefaultValue(propertyValue.GenerateIntermediateRepresentationForValue(irBuilder, IRProperties[i].Type));
+                else
+                    IRProperties[i].DelayedLinkSetDefaultValue(IRProperties[i].Type.GetDefaultValue(this));
             }
-            IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder)));
+            IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => {
+                var irProcedure = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
+                messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, this));
+                return irProcedure;
+            }));
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();

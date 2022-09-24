@@ -12,7 +12,13 @@
             if (scopeSymbol.ParentContainer == null)
                 return scopeSymbol.Name;
             else if (scopeSymbol.ParentContainer is IScopeSymbol parentSymbol)
-                return GetAbsolouteName(parentSymbol) + "_" + scopeSymbol.Name;
+            {
+                string parentId = GetAbsolouteName(parentSymbol);
+                if (parentId == string.Empty)
+                    return scopeSymbol.Name;
+                else
+                    return parentId + "_" + scopeSymbol.Name;
+            }
             else
                 throw new InvalidDataException();
         }

@@ -8,6 +8,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     public sealed partial class EnumDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
+        public SymbolContainer? ParentContainer { get; private set; }
 
         public bool IsGloballyNavigable => true;
 
@@ -16,11 +17,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public readonly List<TypeParameter> TypeParameters;
         private List<IType>? options;
 
-        public EnumDeclaration(string name, List<TypeParameter> typeParameters, Syntax.IAstElement errorReportedElement) : base()
+        public EnumDeclaration(string name, List<TypeParameter> typeParameters, SymbolContainer? parentContainer, Syntax.IAstElement errorReportedElement) : base()
         {
             Name = name;
             TypeParameters = typeParameters;
             ErrorReportedElement = errorReportedElement;
+            ParentContainer = parentContainer;
         }
 
         public List<IType> GetOptions(EnumType enumType)
@@ -98,6 +100,8 @@ namespace NoHoPython.Typing
 
         private Lazy<List<IType>> options;
 
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+
         public EnumType(EnumDeclaration enumDeclaration, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(enumDeclaration, TypeParameter.ValidateTypeArguments(enumDeclaration.TypeParameters, typeArguments, errorReportedElement))
         {
             
@@ -148,7 +152,7 @@ namespace NoHoPython.Syntax.Statements
         {
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IREnumDeclaration = new IntermediateRepresentation.Statements.EnumDeclaration(Identifier, typeParameters, this);
+            IREnumDeclaration = new IntermediateRepresentation.Statements.EnumDeclaration(Identifier, typeParameters, irBuilder.CurrentMasterScope, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IREnumDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IREnumDeclaration);
 

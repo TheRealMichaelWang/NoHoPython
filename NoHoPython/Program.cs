@@ -1,6 +1,7 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.Syntax;
 using NoHoPython.Syntax.Parsing;
+using System.Text;
 
 public static class Program
 {
@@ -16,6 +17,10 @@ public static class Program
 
             AstIRProgramBuilder astIRProgramBuilder = new AstIRProgramBuilder(statements);
             IRProgram program = astIRProgramBuilder.ToIRProgram();
+
+            StringBuilder output = new StringBuilder();
+            program.Emit(output);
+            File.WriteAllText(args[1], output.ToString());
         }
         catch (SyntaxError syntaxError)
         {
@@ -24,6 +29,10 @@ public static class Program
         catch (IRGenerationError compilerError)
         {
             compilerError.Print();
+        }
+        catch (CCodegenError codegenError)
+        {
+            codegenError.Print();
         }
 
         return 0;

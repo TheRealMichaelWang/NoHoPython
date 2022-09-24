@@ -55,8 +55,6 @@ namespace NoHoPython.Typing
 
         public TypeParameter TypeParameter { get; private set; }
 
-        public string GetCName() => throw new InvalidOperationException();
-
         public TypeParameterReference(TypeParameter typeParameter)
         {
             TypeParameter = typeParameter;
@@ -67,7 +65,13 @@ namespace NoHoPython.Typing
             return type is TypeParameterReference typeParameterReference && TypeParameter == typeParameterReference.TypeParameter;
         }
 
-        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => typeargs[TypeParameter].Clone();
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs)
+        {
+            if (!typeargs.ContainsKey(TypeParameter))
+                return Clone();
+
+            return typeargs[TypeParameter].Clone();
+        }
 
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
@@ -294,6 +298,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class ArrayLiteral
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArrayLiteral(ElementType.SubstituteWithTypearg(typeargs), Elements.Select((IRValue element) => element.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
+    }
+
+    partial class AllocArray
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AllocArray(ErrorReportedElement, ElementType.SubstituteWithTypearg(typeargs), Length.SubstituteWithTypearg(typeargs), ProtoValue.SubstituteWithTypearg(typeargs));
     }
 
     partial class AllocRecord

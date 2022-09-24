@@ -1,5 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
@@ -17,7 +18,36 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void Print()
         {
-            Console.WriteLine($"Compilation Error: {Message}");
+            Console.WriteLine($"IR Generation Error: {Message}");
+
+            Console.WriteLine($"\nIn file \"{AstElement.SourceLocation.File}\", row {AstElement.SourceLocation.Row}, col {AstElement.SourceLocation.Column}:\n");
+
+            if (AstElement is IAstValue astValue)
+            {
+                Console.WriteLine($"\t{astValue}");
+            }
+            else if (AstElement is IAstStatement astStatement)
+                Console.WriteLine(astStatement.ToString(0));
+        }
+    }
+
+    public abstract class CCodegenError : Exception
+    {
+        public IRElement? IRElement { get; private set; }
+
+        public CCodegenError(IRElement? iRElement, string message) : base(message)
+        {
+            IRElement = iRElement;
+        }
+
+        public void Print()
+        {
+            Console.WriteLine($"Codegen(to C) Error: {Message}");
+
+            if (IRElement == null)
+                return;
+
+            IAstElement AstElement = IRElement.ErrorReportedElement;
             Console.WriteLine($"\nIn file \"{AstElement.SourceLocation.File}\", row {AstElement.SourceLocation.Row}, col {AstElement.SourceLocation.Column}:\n");
 
             if (AstElement is IAstValue astValue)
@@ -80,6 +110,52 @@ namespace NoHoPython.IntermediateRepresentation
         public NotAVariableException(IScopeSymbol scopeSymbol, IAstElement astElement) : base(astElement, $"{scopeSymbol.Name} is not a variable. Rather it is a {scopeSymbol}.")
         {
             ScopeSymbol = scopeSymbol;
+        }
+    }
+
+    public sealed class CannotMutateCapturedVaraible : IRGenerationError
+    {
+        public Variable CapturedVariable { get; private set; }
+
+        public CannotMutateCapturedVaraible(Variable capturedVariable, IAstElement astElement) : base(astElement, $"Cannot mutate captured variable {capturedVariable.Name}.")
+        {
+            CapturedVariable = capturedVariable;
+        }
+    }
+
+    public sealed class NoDefaultValueError : IRGenerationError
+    {
+        public IType Type { get; private set; }
+
+        public NoDefaultValueError(IType type, IAstElement astElement) : base(astElement, $"Unable to get default value for {type.TypeName}.")
+        {
+            Type = type;
+        }
+    }
+
+    public sealed class CannotEmitDestructorException : CCodegenError
+    {
+        public IRValue Value { get; private set; }
+
+        public CannotEmitDestructorException(IRValue value) : base(value, "Cannot emit destructor for value. Please move to a variable.")
+        {
+            Value = value;
+        }
+    }
+
+    public sealed class CannotCompileNothingError : CCodegenError
+    {
+        public CannotCompileNothingError(IRElement? errorReportedElement) : base(errorReportedElement, "(Internal Error)Cannot actually compile/emit a nothing literal nor scope a nothing type.")
+        {
+
+        }
+    }
+
+    public sealed class UnexpectedTypeParameterError : CCodegenError
+    {
+        public UnexpectedTypeParameterError(Typing.TypeParameter typeParameter, IRElement? errorReportedElement) : base(errorReportedElement, $"(Internal Error)Could not scope or compile/emit the type parameter {typeParameter.Name}.")
+        {
+
         }
     }
 }

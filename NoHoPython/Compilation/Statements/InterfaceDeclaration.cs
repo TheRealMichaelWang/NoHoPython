@@ -12,8 +12,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public static bool DeclareUsedInterfaceType(InterfaceType interfaceType)
         {
-            foreach (InterfaceType usedRecord in usedInterfaceTypes)
-                if (interfaceType.IsCompatibleWith(usedRecord))
+            foreach (InterfaceType usedInterface in usedInterfaceTypes)
+                if (interfaceType.IsCompatibleWith(usedInterface))
                     return false;
 
             usedInterfaceTypes.Add(interfaceType);
@@ -26,8 +26,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public static void ForwardDeclareInterfaceTypes(StringBuilder emitter)
         {
-            foreach (InterfaceType interfaceType in usedInterfaceTypes)
-                emitter.AppendLine($"typedef struct {interfaceType.GetStandardIdentifier()} {interfaceType.GetCName()};");
+            foreach (InterfaceType usedInterface in usedInterfaceTypes)
+                emitter.AppendLine($"typedef struct {usedInterface.GetStandardIdentifier()} {usedInterface.GetCName()};");
         }
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs) { }
@@ -49,8 +49,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (InterfaceType interfaceType in interfaceTypeOverloads[this])
             {
                 interfaceType.EmitMarshallerHeader(emitter);
-                emitter.AppendLine($"void free_interface{interfaceType.GetStandardIdentifier()}({interfaceType.GetCName()}* interface);");
-                emitter.AppendLine($"{interfaceType.GetCName()} copy_interface{interfaceType.GetStandardIdentifier()}({interfaceType.GetCName()}* interface);");
+                emitter.AppendLine($"void free_interface{interfaceType.GetStandardIdentifier()}({interfaceType.GetCName()} interface);");
+                emitter.AppendLine($"{interfaceType.GetCName()} copy_interface{interfaceType.GetStandardIdentifier()}({interfaceType.GetCName()} interface);");
+                emitter.AppendLine($"{interfaceType.GetCName()} move_interface{interfaceType.GetStandardIdentifier()}({interfaceType.GetCName()}* dest, {interfaceType.GetCName()} src);");
             }
         }
 
@@ -64,6 +65,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 interfaceType.EmitMarshaller(emitter);
                 interfaceType.EmitDestructor(emitter);
                 interfaceType.EmitCopier(emitter);
+                interfaceType.EmitMover(emitter);
             }
         }
     }
@@ -73,12 +75,17 @@ namespace NoHoPython.Typing
 {
     partial class InterfaceType
     {
-        public string GetStandardIdentifier() => $"_nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetCName()))}_";
+        public bool RequiresDisposal => true;
+
+        public string GetStandardIdentifier() => $"_nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier()))}_";
 
         public string GetCName() => $"{GetStandardIdentifier()}_t";
 
-        public void EmitFreeValue(StringBuilder emitter, string valueCSource) => emitter.AppendLine($"free_interface{GetStandardIdentifier()}(&{valueCSource});");
-        public void EmitCopyValue(StringBuilder emitter, string valueCSource) => emitter.Append($"copy_interface{GetStandardIdentifier()}(&{valueCSource})");
+        public void EmitFreeValue(StringBuilder emitter, string valueCSource) => emitter.AppendLine($"free_interface{GetStandardIdentifier()}({valueCSource});");
+        public void EmitCopyValue(StringBuilder emitter, string valueCSource) => emitter.Append($"copy_interface{GetStandardIdentifier()}({valueCSource})");
+        public void EmitMoveValue(StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"move_interface{GetStandardIdentifier()}(&{destC}, {valueCSource})");
+        public void EmitClosureBorrowValue(StringBuilder emitter, string valueCSource) => EmitCopyValue(emitter, valueCSource);
+        public void EmitRecordCopyValue(StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(emitter, valueCSource);
 
         public void EmitGetProperty(StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}.{property.Name}");
 
@@ -97,8 +104,8 @@ namespace NoHoPython.Typing
         {
             emitter.AppendLine("struct " + GetStandardIdentifier() + " {");
             foreach (var property in requiredImplementedProperties.Value)
-                emitter.Append($"\t{GetCName()} {property.Name};");
-            emitter.AppendLine("}");
+                emitter.Append($"\t{property.Type.GetCName()} {property.Name};");
+            emitter.AppendLine("};");
         }
 
         public void EmitMarshaller(StringBuilder emitter)
@@ -119,30 +126,42 @@ namespace NoHoPython.Typing
 
         public void EmitDestructor(StringBuilder emitter)
         {
-            emitter.Append($"void free_interface{GetStandardIdentifier()}({GetCName()}* interface)");
+            emitter.Append($"void free_interface{GetStandardIdentifier()}({GetCName()} interface)");
             emitter.AppendLine(" {");
 
             foreach (var property in requiredImplementedProperties.Value)
             {
                 emitter.Append('\t');
-                property.Type.EmitFreeValue(emitter, $"interface->{property.Name}");
+                property.Type.EmitFreeValue(emitter, $"interface.{property.Name}");
             }
             emitter.AppendLine("}");
         }
 
         public void EmitCopier(StringBuilder emitter)
         {
-            emitter.AppendLine($"{GetCName()} copy_interface{GetStandardIdentifier()}({GetCName()}* interface)");
+            emitter.AppendLine($"{GetCName()} copy_interface{GetStandardIdentifier()}({GetCName()} interface)");
             emitter.AppendLine(" {");
 
             emitter.AppendLine($"\t{GetCName()} copied_interface;");
             foreach (var property in requiredImplementedProperties.Value)
             {
-                emitter.Append($"\tcopied_interface->{property.Name} = ");
-                property.Type.EmitCopyValue(emitter, $"interface->{property}");
+                emitter.Append($"\tcopied_interface.{property.Name} = ");
+                property.Type.EmitCopyValue(emitter, $"interface.{property}");
                 emitter.AppendLine(";");
             }
             emitter.AppendLine("\treturn copied_interface;");
+            emitter.AppendLine("}");
+        }
+
+        public void EmitMover(StringBuilder emitter)
+        {
+            emitter.AppendLine($"{GetCName()} move_interface{GetStandardIdentifier()}({GetCName()}* dest, {GetCName()} src) {{");
+            emitter.AppendLine($"\t{GetCName()} temp_buffer = *dest;");
+            emitter.AppendLine($"\t*dest = src;");
+            emitter.Append('\t');
+            EmitFreeValue(emitter, "temp_buffer");
+            emitter.AppendLine(";");
+            emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
         }
     }
@@ -152,6 +171,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class MarshalIntoInterface
     {
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs)
         {
             TargetType.SubstituteWithTypearg(typeargs).ScopeForUsedTypes();

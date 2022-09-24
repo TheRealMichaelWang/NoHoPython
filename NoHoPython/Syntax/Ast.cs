@@ -3,7 +3,7 @@ using NoHoPython.Typing;
 
 namespace NoHoPython.Syntax
 {
-    public interface IAstElement : ISourceLocatable {}
+    public interface IAstElement : ISourceLocatable { }
 
     public interface IAstValue : IAstElement
     {

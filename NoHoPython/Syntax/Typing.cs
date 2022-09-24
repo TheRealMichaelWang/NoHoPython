@@ -18,7 +18,7 @@ namespace NoHoPython.Syntax
 
         public override string ToString() => Identifier + (RequiredImplementedType == null ? string.Empty : $": {RequiredImplementedType}");
 
-        public Typing.TypeParameter ToIRTypeParameter(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) => new(Identifier, RequiredImplementedType == null ? null : RequiredImplementedType.ToIRType(irBuilder, errorReportedElement));
+        public Typing.TypeParameter ToIRTypeParameter(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) => new(Identifier, RequiredImplementedType == null ? null : RequiredImplementedType.ToIRType(irBuilder, errorReportedElement), null);
     }
 
     public sealed class AstType

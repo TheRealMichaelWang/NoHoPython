@@ -116,7 +116,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"\t{GetCName()} marshalled_interface;");
             foreach(var property in requiredImplementedProperties.Value)
             {
-                emitter.Append($"\tmarshalled_interface->{property.Name} = ");
+                emitter.Append($"\tmarshalled_interface.{property.Name} = ");
                 property.Type.EmitCopyValue(emitter, property.Name);
                 emitter.AppendLine(";");
             }
@@ -146,7 +146,7 @@ namespace NoHoPython.Typing
             foreach (var property in requiredImplementedProperties.Value)
             {
                 emitter.Append($"\tcopied_interface.{property.Name} = ");
-                property.Type.EmitCopyValue(emitter, $"interface.{property}");
+                property.Type.EmitCopyValue(emitter, $"interface.{property.Name}");
                 emitter.AppendLine(";");
             }
             emitter.AppendLine("\treturn copied_interface;");

@@ -26,7 +26,11 @@ def main() int:
 	while i < 20:
 		myList.pushBack(i)
 		i = i + 1
+	myiter = myList as indexable<int>
 	while i:
 		i = i - 1
-		elem = myList[i]
+		elem = myiter[i]
 	return 0
+interface indexable<T>:
+	fn<T, int> getAtIndex
+	fn<T, int, T> setAtIndex

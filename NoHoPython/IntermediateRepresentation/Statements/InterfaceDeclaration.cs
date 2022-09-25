@@ -62,7 +62,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 typeargs.Add(TypeParameters[i], interfaceType.TypeArguments[i]);
 
             List<InterfaceProperty> interfaceRequiredProperties = new(requiredImplementedProperties.Count);
-            for (int i = 0; i < interfaceRequiredProperties.Count; i++)
+            for (int i = 0; i < requiredImplementedProperties.Count; i++)
                 interfaceRequiredProperties.Add(requiredImplementedProperties[i].SubstituteWithTypeargs(typeargs));
             return interfaceRequiredProperties;
         }
@@ -218,7 +218,9 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
+            irBuilder.SymbolMarshaller.NavigateToScope(IRInterfaceDeclaration);
             IRInterfaceDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((InterfaceProperty property) => new IntermediateRepresentation.Statements.InterfaceDeclaration.InterfaceProperty(property.Identifier, property.Type.ToIRType(irBuilder, this))));
+            irBuilder.SymbolMarshaller.GoBack();
         }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => IRInterfaceDeclaration;

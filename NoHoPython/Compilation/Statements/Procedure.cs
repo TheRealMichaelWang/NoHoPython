@@ -305,6 +305,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier()}_record_copier_t _nhp_record_copier;");
             foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
                 emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName()} {variable.GetStandardIdentifier()};");
+            emitter.AppendLine("\tint _nhp_freeing;");
             emitter.AppendLine("};");
         }
 
@@ -323,6 +324,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine($"\tclosure->_nhp_destructor = ({anonProcedureType.GetStandardIdentifier()}_destructor_t)(&free{GetStandardIdentifier()});");
                 emitter.AppendLine($"\tclosure->_nhp_copier = ({anonProcedureType.GetStandardIdentifier()}_copier_t)(&copy{GetStandardIdentifier()});");
                 emitter.AppendLine($"\tclosure->_nhp_record_copier = ({anonProcedureType.GetStandardIdentifier()}_record_copier_t)(&record_copy{GetStandardIdentifier()});");
+                emitter.AppendLine("\tclosure->_nhp_freeing = 0;");
 
                 foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
                 {
@@ -348,6 +350,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine($"void free{GetStandardIdentifier()}({anonProcedureType.GetCName()} to_free_anon) {{");
             emitter.AppendLine($"\t{GetClosureCaptureCType()}* to_free = ({GetClosureCaptureCType()}*)to_free_anon;");
 
+            emitter.AppendLine("\tif(to_free->_nhp_freeing)");
+            emitter.AppendLine("\t\treturn;");
+            emitter.AppendLine("\tto_free->_nhp_freeing = 1;");
+
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables) 
             {
                 emitter.Append('\t');
@@ -370,6 +376,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine("\tclosure->_nhp_destructor = to_copy->_nhp_destructor;");
             emitter.AppendLine("\tclosure->_nhp_copier = to_copy->_nhp_copier;");
             emitter.AppendLine("\tclosure->_nhp_record_copier = to_copy->_nhp_record_copier;");
+            emitter.AppendLine("\tclosure->_nhp_freeing = 0;");
 
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
@@ -393,6 +400,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine("\tclosure->_nhp_destructor = to_copy->_nhp_destructor;");
             emitter.AppendLine("\tclosure->_nhp_copier = to_copy->_nhp_copier;");
             emitter.AppendLine("\tclosure->_nhp_record_copier = to_copy->_nhp_record_copier;");
+            emitter.AppendLine("\tclosure->_nhp_freeing = 0;");
 
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {

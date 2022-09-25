@@ -149,6 +149,18 @@ namespace NoHoPython.Typing
         public override IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new IntegerType();
     }
 
+    partial class HandleType
+    {
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleType();
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
+
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
+        {
+            if (!IsCompatibleWith(argument))
+                throw new UnexpectedTypeException(this, errorReportedElement);
+        }
+    }
+
     partial class NothingType
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NothingType();
@@ -323,6 +335,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class ArithmeticOperator
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
+    partial class ArrayOperator
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArrayOperator(Operation, ArrayValue.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class ComparativeOperator

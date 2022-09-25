@@ -105,6 +105,19 @@ namespace NoHoPython.Typing
         public override string ToString() => TypeName;
     }
 
+    public sealed partial class HandleType : IType
+    {
+        public string TypeName => "handle";
+        public IRValue GetDefaultValue(IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+
+        public bool IsCompatibleWith(IType type)
+        {
+            return type is HandleType;
+        }
+
+        public override string ToString() => TypeName;
+    }
+
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class ArrayType : IType
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).

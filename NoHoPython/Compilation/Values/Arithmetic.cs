@@ -103,4 +103,29 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
         }
     }
+
+    partial class ArrayOperator
+    {
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs)
+        {
+            ArrayValue.Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes();
+            ArrayValue.ScopeForUsedTypes(typeargs);
+        }
+
+        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        {
+            IRValue.EmitMemorySafe(ArrayValue, emitter, typeargs);
+            switch (Operation)
+            {
+                case ArrayOperation.GetArrayLength:
+                    emitter.Append(".length");
+                    break;
+                case ArrayOperation.GetArrayHandle:
+                    emitter.Append(".buffer");
+                    break;
+            }
+        }
+    }
 }

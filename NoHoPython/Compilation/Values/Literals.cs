@@ -113,7 +113,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
             StringBuilder arrayBuilder = new StringBuilder();
-            if(Elements.TrueForAll((IRValue element) => element is CharacterLiteral)) //is string literal
+            if (Elements.Count == 0)
+                arrayBuilder.Append("NULL");
+            else if(Elements.TrueForAll((IRValue element) => element is CharacterLiteral)) //is string literal
             {
                 arrayBuilder.Append("\"");
                 Elements.ForEach((element) => CharacterLiteral.EmitCChar(arrayBuilder, ((CharacterLiteral)element).Character));
@@ -150,7 +152,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            emitter.Append("marshal_proto(");
+            emitter.Append($"marshal_proto{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier()}(");
             Length.Emit(emitter, typeargs);
             emitter.Append(", ");
 
@@ -160,7 +162,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 StringBuilder valueBuilder = new StringBuilder();
                 ProtoValue.Emit(valueBuilder, typeargs);
-                Type.SubstituteWithTypearg(typeargs).EmitCopyValue(emitter, valueBuilder.ToString());
+                ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(emitter, valueBuilder.ToString());
             }
             emitter.Append(')');
         }

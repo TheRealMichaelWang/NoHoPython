@@ -44,10 +44,26 @@ namespace NoHoPython.Typing
             emitter.AppendLine("};");
         }
 
+        private void EmitInitializerConstructorHeader(StringBuilder emitter)
+        {
+            ProcedureType constructorType = (ProcedureType)FindProperty("__init__").Type;
+            emitter.Append($"{GetCName()} construct_{GetStandardIdentifier()}(");
+            for (int i = 0; i < constructorType.ParameterTypes.Count; i++)
+            {
+                if (i > 0)
+                    emitter.Append(", ");
+                emitter.Append($"{constructorType.ParameterTypes[i].GetCName()} param{i}");
+            }
+            emitter.Append(')');
+        }
+
         public void EmitConstructorCHeader(StringBuilder emitter)
         {
-            if (HasProperty("__init__") && FindProperty("__init__").Type is ProcedureType constructorType)
-                emitter.AppendLine($"{GetCName()} construct_{GetStandardIdentifier()}({string.Join(", ", constructorType.ParameterTypes.ConvertAll((arg) => $"{arg.GetCName()} {arg.GetCName()}_param"))});");
+            if (HasProperty("__init__") && FindProperty("__init__").Type is ProcedureType constructorType) 
+            {
+                EmitInitializerConstructorHeader(emitter);
+                emitter.AppendLine(";");
+            }
             else
                 emitter.AppendLine($"{GetCName()} construct_{GetStandardIdentifier()}();");
         }
@@ -77,12 +93,13 @@ namespace NoHoPython.Typing
 
             if (HasProperty("__init__") && FindProperty("__init__").Type is ProcedureType constructorType)
             {
-                emitter.AppendLine($"{GetCName()} construct_{GetStandardIdentifier()}({string.Join(", ", constructorType.ParameterTypes.ConvertAll((arg) => $"{arg.GetCName()} {arg.GetStandardIdentifier()}_param"))}) {{");
+                EmitInitializerConstructorHeader(emitter);
+                emitter.AppendLine(" {");
                 emitInitializer();
 
                 emitter.Append("\t_nhp_self->__init__->_nhp_this_anon(_nhp_self->__init__");
-                foreach(IType arg in constructorType.ParameterTypes)
-                    emitter.Append($", {arg.GetStandardIdentifier()}_param");
+                for (int i = 0; i < constructorType.ParameterTypes.Count; i++)
+                    emitter.Append($", param{i}");
                 emitter.AppendLine(");");
             }
             else

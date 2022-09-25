@@ -77,6 +77,8 @@ namespace NoHoPython.Scoping
         public ProcedureDeclaration ParentProcedure;
         public SymbolContainer? ParentContainer => ParentProcedure;
 
+        public string GetStandardIdentifier() => $"_nhp_var_{Name}";
+
         public Variable(IType type, string name, ProcedureDeclaration parentProcedure, bool isRecordSelf)
         {
             Type = type;

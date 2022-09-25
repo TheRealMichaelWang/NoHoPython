@@ -198,6 +198,11 @@
                             ScanChar();
                             return TokenType.Set;
                         }
+                        else if(lastChar == ':')
+                        {
+                            ScanChar();
+                            return TokenType.ModuleAccess;
+                        }
                         return TokenType.Colon;
                     }
                 case '.':

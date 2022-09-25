@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using NoHoPython.IntermediateRepresentation;
 using System.Text;
-using System.Threading.Tasks;
-using NoHoPython.IntermediateRepresentation;
 
 namespace NoHoPython.Typing
 {
@@ -42,6 +38,23 @@ namespace NoHoPython.Typing
     partial class BooleanType
     {
         public override string GetCName() => "int";
+    }
+
+    partial class HandleType
+    {
+        public bool RequiresDisposal => false;
+
+        public string GetCName() => "void*";
+        public string GetStandardIdentifier() => TypeName;
+
+        public void EmitFreeValue(StringBuilder emitter, string valueCSource) { }
+        public void EmitCopyValue(StringBuilder emitter, string valueCSource) => emitter.Append(valueCSource);
+        public void EmitMoveValue(StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"({destC} = {valueCSource})");
+
+        public void EmitClosureBorrowValue(StringBuilder emitter, string valueCSource) => EmitCopyValue(emitter, valueCSource);
+        public void EmitRecordCopyValue(StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(emitter, valueCSource);
+
+        public void ScopeForUsedTypes() { }
     }
 
     partial class NothingType

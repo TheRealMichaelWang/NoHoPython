@@ -15,7 +15,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            emitter.Append(this.Variable.Name);
+            emitter.Append(Variable.GetStandardIdentifier());
         }
     }
 
@@ -35,7 +35,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            emitter.Append($"({Variable.Name} = ");
+            emitter.Append($"({Variable.GetStandardIdentifier()} = ");
             if (InitialValue.RequiresDisposal(typeargs))
                 InitialValue.Emit(emitter, typeargs);
             else
@@ -75,12 +75,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
             SetValue.Emit(valueBuilder, typeargs);
 
             if (SetValue.RequiresDisposal(typeargs))
-                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(emitter, Variable.Name, valueBuilder.ToString());
+                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(emitter, Variable.GetStandardIdentifier(), valueBuilder.ToString());
             else
             {
                 StringBuilder copyBuilder = new StringBuilder();
                 Type.SubstituteWithTypearg(typeargs).EmitCopyValue(copyBuilder, valueBuilder.ToString());
-                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(emitter, Variable.Name, copyBuilder.ToString());
+                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(emitter, Variable.GetStandardIdentifier(), copyBuilder.ToString());
             }
         }
 

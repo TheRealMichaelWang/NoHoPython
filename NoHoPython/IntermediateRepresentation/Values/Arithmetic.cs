@@ -56,15 +56,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return value;
             else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to{typeTarget.TypeName}"))
                 return new AnonymousProcedureCall(new GetPropertyValue(value, $"to{typeTarget.TypeName}", value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
+            else if (value.Type is ArrayType)
+                return typeTarget is HandleType
+                    ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement)
+                    : typeTarget is IntegerType
+                    ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayLength, value, value.ErrorReportedElement)
+                    : throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
             else return typeTarget is EnumType enumType
                 ? new MarshalIntoEnum(enumType, value, value.ErrorReportedElement)
                 : typeTarget is InterfaceType interfaceType
                 ? new MarshalIntoInterface(interfaceType, value, value.ErrorReportedElement)
                 : typeTarget is RecordType recordType
-                    ? new AllocRecord(recordType, new List<IRValue>() {value}, value.ErrorReportedElement)
+                    ? new AllocRecord(recordType, new List<IRValue>() { value }, value.ErrorReportedElement)
                     : typeTarget is Primitive primitive
-                                ? PrimitiveCast(value, primitive)
-                                : throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
+                        ? PrimitiveCast(value, primitive)
+                        : throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
         }
 
         private static IRValue PrimitiveCast(IRValue primitive, Primitive targetType)
@@ -171,6 +177,29 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             else
                 throw new UnexpectedTypeException(left.Type, errorReportedElement);
+        }
+    }
+
+    public sealed partial class ArrayOperator : IRValue
+    {
+        public enum ArrayOperation
+        {
+            GetArrayLength,
+            GetArrayHandle
+        }
+
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public ArrayOperation Operation { get; private set; }
+        public IType Type => Operation == ArrayOperation.GetArrayLength ? new IntegerType() : new HandleType();
+
+        public IRValue ArrayValue { get; private set; }
+
+        public ArrayOperator(ArrayOperation arrayOperation, IRValue arrayValue, IAstElement errorReportedElement)
+        {
+            Operation = arrayOperation;
+            ArrayValue = arrayValue;
+            ErrorReportedElement = errorReportedElement;
         }
     }
 }

@@ -68,7 +68,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach(Variable variable in DeclaredVariables)
             {
                 CIndent(emitter, indent + 1);
-                emitter.AppendLine($"{variable.Type.SubstituteWithTypearg(typeargs).GetCName()} {variable.Name};");
+                emitter.AppendLine($"{variable.Type.SubstituteWithTypearg(typeargs).GetCName()} {variable.GetStandardIdentifier()};");
             }
 
             Statements.ForEach((statement) => statement.Emit(emitter, typeargs, indent + 1));
@@ -78,7 +78,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
                 {
                     CIndent(emitter, indent + 1);
-                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(emitter, variable.Name);
+                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(emitter, variable.GetStandardIdentifier());
                 }
             }
 

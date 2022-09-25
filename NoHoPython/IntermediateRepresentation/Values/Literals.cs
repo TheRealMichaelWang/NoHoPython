@@ -206,11 +206,17 @@ namespace NoHoPython.Syntax.Values
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType)
         {
-            List<IRValue> elements = Elements.ConvertAll((IAstValue element) => element.GenerateIntermediateRepresentationForValue(irBuilder, null));
-            if (IsStringLiteral)
-                return new IntermediateRepresentation.Values.ArrayLiteral(Primitive.Character, elements, this);
-            else if (AnnotatedElementType != null)
-                return new IntermediateRepresentation.Values.ArrayLiteral(AnnotatedElementType.ToIRType(irBuilder, this), elements, this);
+            IType? inferedElementType = IsStringLiteral
+                ? Primitive.Character
+                : AnnotatedElementType != null
+                ? AnnotatedElementType.ToIRType(irBuilder, this)
+                : expectedType != null && expectedType is ArrayType arrayType
+                ? arrayType.ElementType
+                : null;
+
+            List<IRValue> elements = Elements.ConvertAll((IAstValue element) => element.GenerateIntermediateRepresentationForValue(irBuilder, inferedElementType));
+            if (inferedElementType != null)
+                return new IntermediateRepresentation.Values.ArrayLiteral(inferedElementType, elements, this);
             else
                 return new IntermediateRepresentation.Values.ArrayLiteral(elements, this);
         }

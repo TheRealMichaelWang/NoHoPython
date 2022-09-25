@@ -63,11 +63,16 @@ namespace NoHoPython.Syntax
                     MatchTypeArgCount(0);
                     return new DecimalType();
                 case "array":
-                case "mem":
                     MatchTypeArgCount(1);
                     return new ArrayType(typeArguments[0]);
+                case "handle":
+                case "ptr":
+                case "pointer":
+                    MatchTypeArgCount(0);
+                    return new HandleType();
                 case "nothing":
                 case "void":
+                    MatchTypeArgCount(0);
                     return new NothingType();
                 case "fn":
                 case "proc":
@@ -187,9 +192,7 @@ namespace NoHoPython.Syntax.Parsing
 
         private AstType ParseType()
         {
-            MatchToken(TokenType.Identifier);
-            string identifier = scanner.LastToken.Identifier;
-            scanner.ScanToken();
+            string identifier = ParseIdentifier();
 
             return scanner.LastToken.Type == TokenType.Less
                 ? new AstType(identifier, ParseTypeArguments())

@@ -115,6 +115,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Dictionary<Typing.TypeParameter, IType> newTypeargs = new(typeargs.Count);
             foreach (KeyValuePair<Typing.TypeParameter, IType> typearg in typeArguments)
                 newTypeargs.Add(typearg.Key, typearg.Value.SubstituteWithTypearg(typeargs));
+            foreach (KeyValuePair<Typing.TypeParameter, IType> typearg in typeargs)
+                if (!typeArguments.ContainsKey(typearg.Key))
+                    newTypeargs.Add(typearg.Key, typearg.Value);
             return new ProcedureReference(newTypeargs, ProcedureDeclaration, IsAnonymous, errorReportedElement);
         }
 

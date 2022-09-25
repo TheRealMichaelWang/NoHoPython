@@ -35,7 +35,7 @@ namespace NoHoPython.Syntax.Parsing
             idBuilder.Append(scanner.LastToken.Identifier);
             scanner.ScanToken();
 
-            while (scanner.LastToken.Type == TokenType.Colon)
+            while (scanner.LastToken.Type == TokenType.ModuleAccess)
             {
                 idBuilder.Append(':');
                 scanner.ScanToken();

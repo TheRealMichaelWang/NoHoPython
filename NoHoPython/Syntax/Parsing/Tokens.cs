@@ -44,6 +44,7 @@
         Colon,
         Period,
         Set,
+        ModuleAccess,
 
         //operators
         Add,

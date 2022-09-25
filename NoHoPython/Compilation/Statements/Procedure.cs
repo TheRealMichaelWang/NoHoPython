@@ -51,8 +51,7 @@ namespace NoHoPython.Typing
                 {
                     emitter.Append(", ");
                     emitter.Append(procedureInfo.Item1.ParameterTypes[i].GetCName());
-                    emitter.Append(' ');
-                    emitter.Append($"{procedureInfo.Item1.ParameterTypes[i].GetCName()}_param");
+                    emitter.Append($" param{i}");
                 }
                 emitter.AppendLine(");");
 
@@ -247,7 +246,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 ProcedureDeclaration.Parameters.ForEach((parameter) =>
                 {
                     emitter.Append(", ");
-                    emitter.Append($"{parameter.Type.SubstituteWithTypearg(typeArguments).GetCName()} {parameter.Name}");
+                    emitter.Append($"{parameter.Type.SubstituteWithTypearg(typeArguments).GetCName()} {parameter.GetStandardIdentifier()}");
                 });
                 emitter.Append(") ");
 #pragma warning restore CS8602 
@@ -255,9 +254,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             else
             {
                 if (ProcedureDeclaration.CapturedVariables.Count > 0)
-                    emitter.Append(string.Join(", ", (ProcedureDeclaration.Parameters.Concat(ProcedureDeclaration.CapturedVariables)).Select((parameter) => parameter.Type.SubstituteWithTypearg(typeArguments).GetCName() + " " + parameter.Name)));
+                    emitter.Append(string.Join(", ", (ProcedureDeclaration.Parameters.Concat(ProcedureDeclaration.CapturedVariables)).Select((parameter) => parameter.Type.SubstituteWithTypearg(typeArguments).GetCName() + " " + parameter.GetStandardIdentifier())));
                 else
-                    emitter.Append(string.Join(", ", ProcedureDeclaration.Parameters.Select((parameter) => parameter.Type.SubstituteWithTypearg(typeArguments).GetCName() + " " + parameter.Name)));
+                    emitter.Append(string.Join(", ", ProcedureDeclaration.Parameters.Select((parameter) => parameter.Type.SubstituteWithTypearg(typeArguments).GetCName() + " " + parameter.GetStandardIdentifier())));
                 emitter.Append(")");
             }
 #pragma warning restore CS8604 
@@ -266,7 +265,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void EmitCaptureCFunctionHeader(StringBuilder emitter)
         {
             emitter.Append($"{anonProcedureType.GetCName()} capture_{GetStandardIdentifier()}(");
-            emitter.Append(string.Join(", ", ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => $"{capturedVar.Type.SubstituteWithTypearg(typeArguments).GetCName()} {capturedVar.Name}")));
+            emitter.Append(string.Join(", ", ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => $"{capturedVar.Type.SubstituteWithTypearg(typeArguments).GetCName()} {capturedVar.GetStandardIdentifier()}")));
             emitter.Append(")");
         }
 
@@ -288,7 +287,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             EmitCFunctionHeader(emitter);
             emitter.AppendLine(" {");
             foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
-                emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName()} {variable.Name} = _nhp_captured->{variable.Name};");
+                emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName()} {variable.GetStandardIdentifier()} = _nhp_captured->{variable.GetStandardIdentifier()};");
             if(ReturnType is not NothingType)
                 emitter.AppendLine($"\t{ReturnType} _nhp_toret;");
             return typeArguments;
@@ -305,7 +304,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier()}_copier_t _nhp_copier;");
             emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier()}_record_copier_t _nhp_record_copier;");
             foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
-                emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName()} {variable.Name};");
+                emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName()} {variable.GetStandardIdentifier()};");
             emitter.AppendLine("};");
         }
 
@@ -327,8 +326,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
                 foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
                 {
-                    emitter.Append($"\tclosure->{capturedVariable.Name} = ");
-                    capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitClosureBorrowValue(emitter, capturedVariable.Name);
+                    emitter.Append($"\tclosure->{capturedVariable.GetStandardIdentifier()} = ");
+                    capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitClosureBorrowValue(emitter, capturedVariable.GetStandardIdentifier());
                     emitter.AppendLine(";");
                 }
             }
@@ -352,7 +351,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables) 
             {
                 emitter.Append('\t');
-                capturedVariable.Type.EmitFreeValue(emitter, $"to_free->{capturedVariable.Name}");
+                capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitFreeValue(emitter, $"to_free->{capturedVariable.GetStandardIdentifier()}");
             }
             
             emitter.AppendLine("\tfree(to_free);");
@@ -374,8 +373,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
-                emitter.Append($"\tclosure->{capturedVariable.Name} = ");
-                capturedVariable.Type.EmitClosureBorrowValue(emitter, $"to_copy->{capturedVariable.Name}");
+                emitter.Append($"\tclosure->{capturedVariable.GetStandardIdentifier()} = ");
+                capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitClosureBorrowValue(emitter, $"to_copy->{capturedVariable.GetStandardIdentifier()}");
                 emitter.AppendLine(";");
             }
             emitter.AppendLine($"\treturn ({anonProcedureType.GetCName()})closure;");
@@ -397,8 +396,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
-                emitter.Append($"\tclosure->{capturedVariable.Name} = ");
-                capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitClosureBorrowValue(emitter, capturedVariable.IsRecordSelf ? $"({capturedVariable.Type.SubstituteWithTypearg(typeArguments).GetCName()})record" : $"to_copy->{capturedVariable.Name}");
+                emitter.Append($"\tclosure->{capturedVariable.GetStandardIdentifier()} = ");
+                capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitClosureBorrowValue(emitter, capturedVariable.IsRecordSelf ? $"({capturedVariable.Type.SubstituteWithTypearg(typeArguments).GetCName()})record" : $"to_copy->{capturedVariable.GetStandardIdentifier()}");
                 emitter.AppendLine(";");
             }
             emitter.AppendLine($"\treturn ({anonProcedureType.GetCName()})closure;");
@@ -442,7 +441,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach(Variable variable in toFree)
             {
                 CodeBlock.CIndent(emitter, indent);
-                variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(emitter, variable.Name);
+                variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(emitter, variable.GetStandardIdentifier());
             }
 
             CodeBlock.CIndent(emitter, indent);
@@ -554,7 +553,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier()}({string.Join(", ", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => (capturedVar.IsRecordSelf) ? "_nhp_self" :capturedVar.Name))})");
+            emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier()}({string.Join(", ", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => (capturedVar.IsRecordSelf) ? "_nhp_self" :capturedVar.GetStandardIdentifier()))})");
         }
     }
 }

@@ -263,13 +263,16 @@ namespace NoHoPython.Syntax.Statements
 
             IRProcedureDeclaration = new(Name, typeParameters, AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this), irBuilder.CurrentMasterScope, irBuilder.ScopedProcedures.Count == 0 && irBuilder.ScopedRecordDeclaration == null, this);
 
-            List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, IRProcedureDeclaration, false));
-            IRProcedureDeclaration.DelayedLinkSetParameters(parameters);
-
             SymbolContainer? oldMasterScope = irBuilder.CurrentMasterScope;
             irBuilder.SymbolMarshaller.DeclareSymbol(IRProcedureDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
             irBuilder.ScopedProcedures.Push(IRProcedureDeclaration);
+
+            foreach (Typing.TypeParameter parameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
+
+            List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, IRProcedureDeclaration, false));
+            IRProcedureDeclaration.DelayedLinkSetParameters(parameters);
 
             foreach (Variable parameter in parameters)
                 irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
@@ -279,9 +282,6 @@ namespace NoHoPython.Syntax.Statements
                 irBuilder.SymbolMarshaller.DeclareSymbol(selfVariable, this);
                 IRProcedureDeclaration.CapturedVariables.Add(selfVariable);
             }
-
-            foreach (Typing.TypeParameter parameter in typeParameters)
-                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
 
             IAstStatement.ForwardDeclareBlock(irBuilder, Statements);
 

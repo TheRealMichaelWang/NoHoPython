@@ -303,6 +303,7 @@
                     "and" => TokenType.And,
                     "or" => TokenType.Or,
                     "new" => TokenType.New,
+                    "as" => TokenType.As,
                     _ => TokenType.Identifier
                 }, keyword);
             }

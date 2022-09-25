@@ -39,8 +39,9 @@ namespace NoHoPython.Typing
             emitter.AppendLine("struct " + GetStandardIdentifier() + " {");
             foreach (var property in properties.Value)
                 emitter.AppendLine($"\t{property.Type.GetCName()} {property.Name};");
-            emitter.AppendLine("\tint ref_count;");
-            emitter.AppendLine("\tint min_refs;");
+            emitter.AppendLine("\tint _nhp_ref_count;");
+            emitter.AppendLine("\tint _nhp_min_refs;");
+            emitter.AppendLine("\tint _nhp_freeing;");
             emitter.AppendLine("};");
         }
 
@@ -73,7 +74,8 @@ namespace NoHoPython.Typing
             void emitInitializer()
             {
                 emitter.AppendLine($"\t{GetCName()} _nhp_self = malloc({GetCHeapSizer()});");
-                emitter.AppendLine("\t_nhp_self->ref_count = 0;");
+                emitter.AppendLine("\t_nhp_self->_nhp_ref_count = 0;");
+                emitter.AppendLine("\t_nhp_self->_nhp_freeing = 0;");
                 foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
                 {
                     emitter.Append($"\t_nhp_self->{recordProperty.Name} = ");
@@ -107,7 +109,7 @@ namespace NoHoPython.Typing
                 emitter.AppendLine($"{GetCName()} construct_{GetStandardIdentifier()}() {{");
                 emitInitializer();
             }
-            emitter.AppendLine("\t_nhp_self->min_refs = _nhp_self->ref_count;");
+            emitter.AppendLine("\t_nhp_self->_nhp_min_refs = _nhp_self->_nhp_ref_count;");
             emitter.AppendLine("\treturn _nhp_self;");
             emitter.AppendLine("}");
         }
@@ -116,10 +118,14 @@ namespace NoHoPython.Typing
         {
             emitter.AppendLine($"void free_record{GetStandardIdentifier()}({GetCName()} record) {{");
 
-            emitter.AppendLine("\tif(record->ref_count == record->min_refs) {");
-            emitter.AppendLine("\t\trecord->ref_count--;");
+            emitter.AppendLine("\tif(record->_nhp_freeing)");
+            emitter.AppendLine("\t\treturn;");
+
+            emitter.AppendLine("\tif(record->_nhp_ref_count == record->_nhp_min_refs) {");
+            emitter.AppendLine("\t\trecord->_nhp_ref_count--;");
             emitter.AppendLine("\t\treturn;");
             emitter.AppendLine("\t}");
+            emitter.AppendLine("\trecord->_nhp_freeing = 1;");
 
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
             {
@@ -137,7 +143,8 @@ namespace NoHoPython.Typing
         {
             emitter.AppendLine($"{GetCName()} copy_record{GetStandardIdentifier()}({GetCName()} record) {{");
             emitter.AppendLine($"\t{GetCName()} copied_record = malloc({GetCHeapSizer()});");
-            emitter.AppendLine("\tcopied_record->ref_count = 0;");
+            emitter.AppendLine("\tcopied_record->_nhp_ref_count = 0;");
+            emitter.AppendLine("\tcopied_record->_nhp_freeing = 0;");
 
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
             {
@@ -146,7 +153,7 @@ namespace NoHoPython.Typing
                 emitter.AppendLine(";");
             }
 
-            emitter.AppendLine("\tcopied_record->min_refs = copied_record->ref_count;");
+            emitter.AppendLine("\tcopied_record->_nhp_min_refs = copied_record->_nhp_ref_count;");
             emitter.AppendLine("\treturn copied_record;");
             emitter.AppendLine("}");
         }
@@ -164,7 +171,7 @@ namespace NoHoPython.Typing
         public void EmitBorrower(StringBuilder emitter)
         {
             emitter.AppendLine($"{GetCName()} borrow_record{GetStandardIdentifier()}({GetCName()} record) {{");
-            emitter.AppendLine("\trecord->ref_count++;");
+            emitter.AppendLine("\trecord->_nhp_ref_count++;");
             emitter.AppendLine("\treturn record;");
             emitter.AppendLine("}");
         }

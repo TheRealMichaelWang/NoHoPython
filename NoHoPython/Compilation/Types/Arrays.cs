@@ -36,7 +36,7 @@ namespace NoHoPython.Typing
         {
             emitter.AppendLine("int _nhp_bounds_check(int index, int max_length) {");
             emitter.AppendLine("\tif(index < 0 || index >= max_length) {");
-            emitter.AppendLine("\t\tputs(\"Index out of bounds.\");");
+            emitter.AppendLine("\t\tprintf(\"Index out of bounds. Index was %i, alloced length was %i.\", index, max_length);");
             emitter.AppendLine("\t\tabort();");
             emitter.AppendLine("\t}");
             emitter.AppendLine("\treturn index;");
@@ -142,7 +142,7 @@ namespace NoHoPython.Typing
             ElementType.EmitCopyValue(emitter, "to_copy.buffer[i]");
             emitter.AppendLine(";");
 
-            emitter.AppendLine("\treturn to_copy;");
+            emitter.AppendLine("\treturn copied;");
             emitter.AppendLine("}");
         }
 

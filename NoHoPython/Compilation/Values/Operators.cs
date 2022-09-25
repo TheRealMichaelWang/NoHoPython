@@ -115,12 +115,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             StringBuilder destBuilder = new();
             IRValue.EmitMemorySafe(Array, destBuilder, typeargs);
-            emitter.Append(".buffer[_nhp_bounds_check(");
+            destBuilder.Append(".buffer[_nhp_bounds_check(");
             IRValue.EmitMemorySafe(Index, destBuilder, typeargs);
-            emitter.Append(", ");
+            destBuilder.Append(", ");
             IRValue.EmitMemorySafe(Array, destBuilder, typeargs);
-            emitter.Append(".length");
-            emitter.Append(")]");
+            destBuilder.Append(".length");
+            destBuilder.Append(")]");
 
             StringBuilder valueBuilder = new();
             if (Value.RequiresDisposal(typeargs))
@@ -129,7 +129,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 StringBuilder toCopyBuilder = new();
                 Value.Emit(toCopyBuilder, typeargs);
-                Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(emitter, toCopyBuilder.ToString());
+                Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(valueBuilder, toCopyBuilder.ToString());
             }
 
             Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(emitter, destBuilder.ToString(), valueBuilder.ToString());
@@ -159,8 +159,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            IRValue.EmitMemorySafe(Record, emitter, typeargs);
-            emitter.Append($".{Property.Name}");
+            StringBuilder valueBuilder = new StringBuilder();
+            IRValue.EmitMemorySafe(Record, valueBuilder, typeargs);
+            IPropertyContainer propertyContainer = (IPropertyContainer)Record.Type;
+            propertyContainer.EmitGetProperty(emitter, valueBuilder.ToString(), Property);
         }
     }
 

@@ -438,11 +438,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
 
             List<Variable> toFree = parentCodeBlock.GetCurrentLocals();
-            foreach(Variable variable in toFree)
-            {
-                CodeBlock.CIndent(emitter, indent);
-                variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(emitter, variable.GetStandardIdentifier());
-            }
+            foreach (Variable variable in toFree)
+                if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+                {
+                    CodeBlock.CIndent(emitter, indent);
+                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(emitter, variable.GetStandardIdentifier());
+                }
 
             CodeBlock.CIndent(emitter, indent);
             if (ToReturn.Type is not NothingType)
@@ -530,9 +531,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             CodeBlock.CIndent(emitter, indent);
 
-            StringBuilder valueEmitter = new StringBuilder();
-            Emit(valueEmitter, typeargs);
-            ProcedureType.ReturnType.SubstituteWithTypearg(typeargs).EmitFreeValue(emitter, valueEmitter.ToString());
+            if (ProcedureType.ReturnType.SubstituteWithTypearg(typeargs).RequiresDisposal)
+            {
+                StringBuilder valueEmitter = new StringBuilder();
+                Emit(valueEmitter, typeargs);
+                ProcedureType.ReturnType.SubstituteWithTypearg(typeargs).EmitFreeValue(emitter, valueEmitter.ToString());
+            }
+            else
+                Emit(emitter, typeargs);
 
             emitter.AppendLine(";");
         }

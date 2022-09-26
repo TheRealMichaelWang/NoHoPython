@@ -53,13 +53,17 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void EmitArrayTypeMarshallers(StringBuilder emitter)
         {
-            emitter.AppendLine("int _nhp_bounds_check(int index, int max_length) {");
-            emitter.AppendLine("\tif(index < 0 || index >= max_length) {");
-            emitter.AppendLine("\t\tprintf(\"Index out of bounds. Index was %i, alloced length was %i.\", index, max_length);");
-            emitter.AppendLine("\t\tabort();");
-            emitter.AppendLine("\t}");
-            emitter.AppendLine("\treturn index;");
-            emitter.AppendLine("}");
+            if (DoBoundsChecking)
+            {
+                emitter.AppendLine("int _nhp_bounds_check(int index, int max_length, const char* src_loc, const char* assertion_src) {");
+                emitter.AppendLine("\tif(index < 0 || index >= max_length) {");
+                emitter.AppendLine("\t\tprintf(\"Index out of bounds, %s. Index was %i, alloced length was %i.\\n\\t\", src_loc, index, max_length);");
+                emitter.AppendLine("\t\tputs(assertion_src);");
+                emitter.AppendLine("\t\tabort();");
+                emitter.AppendLine("\t}");
+                emitter.AppendLine("\treturn index;");
+                emitter.AppendLine("}");
+            }
 
             foreach (ArrayType arrayType in usedArrayTypes)
             {
@@ -76,6 +80,7 @@ namespace NoHoPython.Typing
 {
     partial class ArrayType
     {
+        public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
 
         public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource)

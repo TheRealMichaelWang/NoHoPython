@@ -90,12 +90,27 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
             IRValue.EmitMemorySafe(Array, irProgram, emitter, typeargs);
-            emitter.Append(".buffer[_nhp_bounds_check(");
-            IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
-            emitter.Append(", ");
-            IRValue.EmitMemorySafe(Array, irProgram, emitter, typeargs);
-            emitter.Append(".length");
-            emitter.Append(")]");
+            if (irProgram.DoBoundsChecking)
+            {
+                emitter.Append(".buffer[_nhp_bounds_check(");
+                IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
+                emitter.Append(", ");
+                IRValue.EmitMemorySafe(Array, irProgram, emitter, typeargs);
+                emitter.Append(".length, ");
+                CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString());
+                emitter.Append(", ");
+                if (ErrorReportedElement is Syntax.IAstStatement statement)
+                    CharacterLiteral.EmitCString(emitter, statement.ToString(0));
+                else if (ErrorReportedElement is Syntax.IAstValue value)
+                    CharacterLiteral.EmitCString(emitter, value.ToString());
+                emitter.Append(")]");
+            }
+            else
+            {
+                emitter.Append(".buffer[");
+                IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
+                emitter.Append(']');
+            }
         }
     }
 
@@ -115,13 +130,28 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             StringBuilder destBuilder = new();
             IRValue.EmitMemorySafe(Array, irProgram, destBuilder, typeargs);
-            destBuilder.Append(".buffer[_nhp_bounds_check(");
-            IRValue.EmitMemorySafe(Index, irProgram, destBuilder, typeargs);
-            destBuilder.Append(", ");
-            IRValue.EmitMemorySafe(Array, irProgram, destBuilder, typeargs);
-            destBuilder.Append(".length");
-            destBuilder.Append(")]");
-
+            if (irProgram.DoBoundsChecking)
+            {
+                destBuilder.Append(".buffer[_nhp_bounds_check(");
+                IRValue.EmitMemorySafe(Index, irProgram, destBuilder, typeargs);
+                destBuilder.Append(", ");
+                IRValue.EmitMemorySafe(Array, irProgram, destBuilder, typeargs);
+                destBuilder.Append(".length, ");
+                CharacterLiteral.EmitCString(destBuilder, ErrorReportedElement.SourceLocation.ToString());
+                destBuilder.Append(", ");
+                if (ErrorReportedElement is Syntax.IAstStatement statement)
+                    CharacterLiteral.EmitCString(destBuilder, statement.ToString(0));
+                else if (ErrorReportedElement is Syntax.IAstValue value)
+                    CharacterLiteral.EmitCString(destBuilder, value.ToString());
+                destBuilder.Append(")]");
+            }
+            else
+            {
+                destBuilder.Append(".buffer[");
+                IRValue.EmitMemorySafe(Index, irProgram, destBuilder, typeargs);
+                destBuilder.Append(']');
+            }
+                    
             StringBuilder valueBuilder = new();
             if (Value.RequiresDisposal(typeargs))
                 Value.Emit(irProgram, valueBuilder, typeargs);

@@ -214,7 +214,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 capturedItem.Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
 #pragma warning restore CS8602
             base.ScopeForUsedTypes(typeargs, irBuilder);
-            scoping = false;
+            scoping = false; 
         }
 
         public override void ForwardDeclare(IRProgram irProgram, StringBuilder emitter)
@@ -484,6 +484,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             else
                 emitter.Append("return;");
         }
+    }
+
+    partial class ForeignCProcedureDeclaration
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
+
+        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent) { }
     }
 }
 

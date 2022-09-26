@@ -19,7 +19,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             DeclaredVariables = new List<Variable>();
         }
 
-        public void DelayedLinkSetStatements(List<IRStatement> statements)
+        public virtual void DelayedLinkSetStatements(List<IRStatement> statements)
         {
             if (Statements != null)
                 throw new InvalidOperationException();

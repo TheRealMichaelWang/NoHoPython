@@ -122,6 +122,7 @@ namespace NoHoPython.Typing
     public sealed partial class InterfaceType : IType, IPropertyContainer
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
+        public bool IsNativeCType => false;
         public string TypeName { get => InterfaceDeclaration.Name; }
 
         public InterfaceDeclaration InterfaceDeclaration { get; private set; }

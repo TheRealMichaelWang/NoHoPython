@@ -136,6 +136,7 @@ namespace NoHoPython.Typing
     public sealed partial class RecordType : IType, IPropertyContainer
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
+        public bool IsNativeCType => false;
         public string TypeName { get => RecordPrototype.Name; }
 
         public RecordDeclaration RecordPrototype;

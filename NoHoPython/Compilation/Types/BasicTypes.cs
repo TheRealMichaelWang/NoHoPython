@@ -5,6 +5,7 @@ namespace NoHoPython.Typing
 {
     partial class Primitive
     {
+        public bool IsNativeCType => true;
         public bool RequiresDisposal => false;
 
         public abstract string GetCName(IRProgram irProgram);
@@ -42,6 +43,7 @@ namespace NoHoPython.Typing
 
     partial class HandleType
     {
+        public bool IsNativeCType => true;
         public bool RequiresDisposal => false;
 
         public string GetCName(IRProgram irProgram) => "void*";
@@ -59,6 +61,7 @@ namespace NoHoPython.Typing
 
     partial class NothingType
     {
+        public bool IsNativeCType => true;
         public bool RequiresDisposal => false;
 
         public string GetCName(IRProgram irProgram) => "void";

@@ -15,6 +15,7 @@
         Interface,
         Enum,
         Define,
+        CDefine,
         While,
         For,
         If,

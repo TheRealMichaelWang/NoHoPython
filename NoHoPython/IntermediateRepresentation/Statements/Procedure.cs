@@ -42,6 +42,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Parameters = parameters;
         }
 
+        public override void DelayedLinkSetStatements(List<IRStatement> statements)
+        {
+            base.DelayedLinkSetStatements(statements);
+            if (ReturnType is not NothingType && !base.CodeBlockAllCodePathsReturn())
+                throw new NotAllCodePathsReturnError(ErrorReportedElement);
+        }
+
         public Variable SanitizeVariable(Variable variable, bool willStet, IAstElement errorReportedElement)
         {
             if (variable.ParentProcedure == this)
@@ -152,6 +159,33 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             this.parentCodeBlock = (CodeBlock)irBuilder.CurrentMasterScope;
 #pragma warning restore CS8601 
 #pragma warning restore CS8600
+        }
+    }
+
+    public sealed partial class ForeignCProcedureDeclaration : IRStatement, IScopeSymbol
+    {
+        public SymbolContainer? ParentContainer { get; private set; }
+        public IAstElement ErrorReportedElement { get; private set; }
+        public bool IsGloballyNavigable => true;
+
+        public string Name { get; private set; }
+
+        public readonly List<IType> ParameterTypes;
+        public IType ReturnType { get; private set; }
+
+        public ForeignCProcedureDeclaration(string name, List<IType> parameterTypes, IType returnType, IAstElement errorReportedElement, SymbolContainer? parentContainer)
+        {
+            Name = name;
+            ErrorReportedElement = errorReportedElement;
+            ParentContainer = parentContainer;
+            ParameterTypes = parameterTypes;
+            ReturnType = returnType;
+
+            foreach (IType parameterType in parameterTypes)
+                if (!parameterType.IsNativeCType)
+                    throw new UnexpectedTypeException(parameterType, errorReportedElement);
+            if (!ReturnType.IsNativeCType)
+                throw new UnexpectedTypeException(ReturnType, errorReportedElement);
         }
     }
 }
@@ -306,6 +340,21 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.ScopedProcedures.Pop();
             return IRProcedureDeclaration;
         }
+    }
+
+    partial class ForeignCProcedureDeclaration
+    {
+        private IntermediateRepresentation.Statements.ForeignCProcedureDeclaration IRForeignDeclaration;
+
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
+        {
+            IRForeignDeclaration = new IntermediateRepresentation.Statements.ForeignCProcedureDeclaration(Identifier, ParameterTypes.ConvertAll((type) => type.ToIRType(irBuilder, this)), ReturnType.ToIRType(irBuilder, this), this, irBuilder.CurrentMasterScope);
+            irBuilder.SymbolMarshaller.DeclareSymbol(IRForeignDeclaration, this);
+        }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => IRForeignDeclaration;
     }
 }
 

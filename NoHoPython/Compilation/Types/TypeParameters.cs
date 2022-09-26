@@ -5,6 +5,7 @@ namespace NoHoPython.Typing
 {
     partial class TypeParameterReference
     {
+        public bool IsNativeCType => false;
         public bool RequiresDisposal => throw new UnexpectedTypeParameterError(TypeParameter, null);
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);

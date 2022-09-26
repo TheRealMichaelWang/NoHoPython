@@ -6,6 +6,7 @@ namespace NoHoPython.Typing
 {
     public interface IType
     {
+        public bool IsNativeCType { get; }
         public bool RequiresDisposal { get; }
 
         public string TypeName { get; }

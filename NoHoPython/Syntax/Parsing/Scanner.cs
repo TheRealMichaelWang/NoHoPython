@@ -291,6 +291,7 @@
                     "record" => TokenType.Record,
                     "readonly" => TokenType.Readonly,
                     "def" => TokenType.Define,
+                    "cdef" => TokenType.CDefine,
                     "while" => TokenType.While,
                     "for" => TokenType.For,
                     "if" => TokenType.If,

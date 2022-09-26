@@ -291,6 +291,8 @@ namespace NoHoPython.Syntax.Parsing
             {
                 case TokenType.Define:
                     return ParseProcedureDeclaration();
+                case TokenType.CDefine:
+                    return ParseForeignCProcedure();
                 case TokenType.Enum:
                     return ParseEnumDeclaration();
                 case TokenType.Interface:

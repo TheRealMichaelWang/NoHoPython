@@ -65,6 +65,7 @@ namespace NoHoPython.Scoping
             public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => throw new InvalidOperationException();
             public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) => throw new InvalidOperationException();
             public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<Typing.TypeParameter, IType> typeargs, int indent) => throw new InvalidOperationException();
+            public bool AllCodePathsReturn() => throw new InvalidOperationException();
         }
 
         public Module CurrentModule => usedModuleStack.Peek();
@@ -73,7 +74,7 @@ namespace NoHoPython.Scoping
         private Stack<Module> usedModuleStack;
         private Stack<SymbolContainer> scopeStack;
 
-        public SymbolMarshaller(List<IScopeSymbol> symbols)
+        public SymbolMarshaller()
         {
             usedModuleStack = new Stack<Module>();
             scopeStack = new Stack<SymbolContainer>();

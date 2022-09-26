@@ -143,6 +143,7 @@ namespace NoHoPython.Typing
     public sealed partial class ProcedureType : IType
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
+        public bool IsNativeCType => false;
         public string TypeName => $"({string.Join(", ", ParameterTypes)}) => {ReturnType}";
 
         public IType ReturnType { get; private set; }

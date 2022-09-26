@@ -133,6 +133,14 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
+    public sealed class NotAllCodePathsReturnError : IRGenerationError
+    {
+        public NotAllCodePathsReturnError(IAstElement astElement) : base(astElement, $"Not all code paths return a value.")
+        {
+
+        }
+    }
+
     public sealed class CannotEmitDestructorException : CCodegenError
     {
         public IRValue Value { get; private set; }

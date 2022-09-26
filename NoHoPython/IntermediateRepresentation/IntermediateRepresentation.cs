@@ -21,7 +21,7 @@ namespace NoHoPython.Syntax
 
         public AstIRProgramBuilder(List<IAstStatement> statements)
         {
-            SymbolMarshaller = new SymbolMarshaller(new List<IScopeSymbol>());
+            SymbolMarshaller = new SymbolMarshaller();
             EnumDeclarations = new List<EnumDeclaration>();
             InterfaceDeclarations = new List<InterfaceDeclaration>();
             RecordDeclarations = new List<RecordDeclaration>();
@@ -99,7 +99,7 @@ namespace NoHoPython.IntermediateRepresentation
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs);
     }
 
-    public interface IRStatement : IRElement
+    public partial interface IRStatement : IRElement
     {
         //forward declare type definitions
         public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter);

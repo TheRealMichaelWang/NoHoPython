@@ -93,6 +93,7 @@ namespace NoHoPython.Typing
     public sealed partial class EnumType : IType
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
+        public bool IsNativeCType => false;
         public string TypeName { get => EnumDeclaration.Name; }
 
         public EnumDeclaration EnumDeclaration { get; private set; }

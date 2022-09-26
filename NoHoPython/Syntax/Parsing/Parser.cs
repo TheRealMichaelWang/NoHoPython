@@ -64,6 +64,9 @@ namespace NoHoPython.Syntax.Parsing
                 case TokenType.Return:
                     scanner.ScanToken();
                     return new ReturnStatement(ParseExpression(), location);
+                case TokenType.Assert:
+                    scanner.ScanToken();
+                    return new AssertStatement(ParseExpression(), location);
                 case TokenType.Define:
                     return ParseProcedureDeclaration();
                 default:

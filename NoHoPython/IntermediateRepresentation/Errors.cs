@@ -20,7 +20,7 @@ namespace NoHoPython.IntermediateRepresentation
         {
             Console.WriteLine($"IR Generation Error: {Message}");
 
-            Console.WriteLine($"\nIn file \"{AstElement.SourceLocation.File}\", row {AstElement.SourceLocation.Row}, col {AstElement.SourceLocation.Column}:\n");
+            Console.WriteLine($"\nIn {AstElement.SourceLocation}:\n");
 
             if (AstElement is IAstValue astValue)
             {
@@ -48,7 +48,7 @@ namespace NoHoPython.IntermediateRepresentation
                 return;
 
             IAstElement AstElement = IRElement.ErrorReportedElement;
-            Console.WriteLine($"\nIn file \"{AstElement.SourceLocation.File}\", row {AstElement.SourceLocation.Row}, col {AstElement.SourceLocation.Column}:\n");
+            Console.WriteLine($"\nIn {AstElement.SourceLocation}:\n");
 
             if (AstElement is IAstValue astValue)
             {

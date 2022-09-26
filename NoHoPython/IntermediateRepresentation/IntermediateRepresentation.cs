@@ -98,7 +98,7 @@ namespace NoHoPython.IntermediateRepresentation
         public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent);
     }
 
-    public sealed class IRProgram
+    public sealed partial class IRProgram
     {
         public readonly List<RecordDeclaration> RecordDeclarations;
         public readonly List<InterfaceDeclaration> InterfaceDeclarations;
@@ -161,6 +161,7 @@ namespace NoHoPython.IntermediateRepresentation
 
             //emit function behavior
             ArrayType.EmitMarshallers(emitter);
+            AssertStatement.EmitAsserter(emitter);
             ProcedureType.EmitMovers(emitter);
             EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(emitter, new Dictionary<TypeParameter, IType>(), 0));
             InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(emitter, new Dictionary<TypeParameter, IType>(), 0));

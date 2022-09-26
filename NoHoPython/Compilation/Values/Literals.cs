@@ -27,43 +27,52 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public static void EmitCChar(StringBuilder emitter, char c)
         {
-            if (char.IsControl(c))
+            switch (c)
             {
-                switch (c)
-                {
-                    case '\"':
-                        emitter.Append("\\\"");
-                        break;
-                    case '\'':
-                        emitter.Append("\\\'");
-                        break;
-                    case '\a':
-                        emitter.Append("\\\a");
-                        break;
-                    case '\b':
-                        emitter.Append("\\\b");
-                        break;
-                    case '\f':
-                        emitter.Append("\\\f");
-                        break;
-                    case '\t':
-                        emitter.Append("\\\t");
-                        break;
-                    case '\r':
-                        emitter.Append("\\\r");
-                        break;
-                    case '\n':
-                        emitter.Append("\\\n");
-                        break;
-                    case '\0':
-                        emitter.Append("\\0");
-                        break;
-                    default:
+                case '\\':
+                    emitter.Append("\\\\");
+                    break;
+                case '\"':
+                    emitter.Append("\\\"");
+                    break;
+                case '\'':
+                    emitter.Append("\\\'");
+                    break;
+                case '\a':
+                    emitter.Append("\\\a");
+                    break;
+                case '\b':
+                    emitter.Append("\\\b");
+                    break;
+                case '\f':
+                    emitter.Append("\\\f");
+                    break;
+                case '\t':
+                    emitter.Append("\\\t");
+                    break;
+                case '\r':
+                    emitter.Append("\\\r");
+                    break;
+                case '\n':
+                    emitter.Append("\\\n");
+                    break;
+                case '\0':
+                    emitter.Append("\\0");
+                    break;
+                default:
+                    if (char.IsControl(c))
                         throw new InvalidOperationException();
-                }
+                    emitter.Append(c);
+                    break;
             }
-            else
-                emitter.Append(c);
+        }
+
+        public static void EmitCString(StringBuilder emitter, string str)
+        {
+            emitter.Append('\"');
+            foreach (char c in str)
+                EmitCChar(emitter, c);
+            emitter.Append('\"');
         }
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs) { }

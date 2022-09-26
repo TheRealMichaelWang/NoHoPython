@@ -1,4 +1,5 @@
-﻿using NoHoPython.Scoping;
+﻿using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Text;
 
@@ -120,7 +121,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("if(");
-            Condition.Emit(emitter, typeargs);
+            IRValue.EmitMemorySafe(Condition, emitter, typeargs);
             emitter.Append(')');
             IfTrueBlock.Emit(emitter, typeargs, indent);
 
@@ -142,7 +143,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("if(");
-            Condition.Emit(emitter, typeargs);
+            IRValue.EmitMemorySafe(Condition, emitter, typeargs);
             emitter.Append(')');
             IfTrueBlock.Emit(emitter, typeargs, indent);
         }
@@ -160,9 +161,44 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("while(");
-            Condition.Emit(emitter, typeargs);
+            IRValue.EmitMemorySafe(Condition, emitter, typeargs);
             emitter.Append(')');
             WhileTrueBlock.Emit(emitter, typeargs, indent);
+        }
+    }
+
+    partial class AssertStatement
+    {
+        public static void EmitAsserter(StringBuilder emitter)
+        {
+            emitter.AppendLine("void _nhp_assert(int flag, const char* src_loc, const char* assertion_src) {");
+            emitter.AppendLine("\tif(!flag) {");
+            emitter.AppendLine("\t\tprintf(\"Assertion Failed, %s.\\n\\t\", src_loc);");
+            emitter.AppendLine("\t\tputs(assertion_src);");
+            emitter.AppendLine("\t\tabort();");
+            emitter.AppendLine("\t}");
+            emitter.AppendLine("}");
+        }
+
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs) => Condition.ScopeForUsedTypes(typeargs);
+
+        public void ForwardDeclareType(StringBuilder emitter) { }
+
+        public void ForwardDeclare(StringBuilder emitter) { }
+
+        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            CodeBlock.CIndent(emitter, indent);
+            emitter.Append("_nhp_assert(");
+            IRValue.EmitMemorySafe(Condition, emitter, typeargs);
+            emitter.Append(", ");
+            CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString());
+            emitter.Append(", ");
+            if (ErrorReportedElement is Syntax.IAstStatement statement)
+                CharacterLiteral.EmitCString(emitter, statement.ToString(0));
+            else if (ErrorReportedElement is Syntax.IAstValue value)
+                CharacterLiteral.EmitCString(emitter, value.ToString());
+            emitter.AppendLine(");");
         }
     }
 }

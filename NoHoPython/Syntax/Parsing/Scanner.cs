@@ -299,6 +299,7 @@
                     "break" => TokenType.Break,
                     "continue" => TokenType.Continue,
                     "return" => TokenType.Return,
+                    "assert" => TokenType.Assert,
                     "in" => TokenType.In,
                     "and" => TokenType.And,
                     "or" => TokenType.Or,

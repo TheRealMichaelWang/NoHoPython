@@ -29,7 +29,7 @@ def main() int:
 	myiter = myList as indexable<int>
 	while i:
 		i = i - 1
-		elem = myiter[i]
+		assert(myiter[i] == i)
 	return 0
 interface indexable<T>:
 	fn<T, int> getAtIndex

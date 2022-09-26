@@ -39,7 +39,7 @@ namespace NoHoPython.Syntax.Statements
             TypeParameters = typeParameters;
         }
 
-        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}def {Name}({string.Join(", ", Parameters)}){(AnnotatedReturnType != null ? " " + AnnotatedReturnType.ToString() : "")}:\n{IAstStatement.BlockToString(indent, Statements)}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}def {Name}{(TypeParameters.Count > 0 ? $"<{string.Join(", ", TypeParameters)}>" : string.Empty)}({string.Join(", ", Parameters)}){(AnnotatedReturnType != null ? " " + AnnotatedReturnType.ToString() : "")}:\n{IAstStatement.BlockToString(indent, Statements)}";
     }
 
     public sealed partial class ReturnStatement : IAstStatement

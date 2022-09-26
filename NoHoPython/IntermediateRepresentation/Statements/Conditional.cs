@@ -52,6 +52,19 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ErrorReportedElement = errorReportedElement;
         }
     }
+
+    public sealed partial class AssertStatement : IRStatement
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public IRValue Condition { get; private set; }
+
+        public AssertStatement(IRValue condition, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
+        }
+    }
 }
 
 namespace NoHoPython.IntermediateRepresentation.Values
@@ -163,6 +176,15 @@ namespace NoHoPython.Syntax.Statements
 
             return new IntermediateRepresentation.Statements.WhileBlock(condition, codeBlock, this);
         }
+    }
+
+    partial class AssertStatement
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.AssertStatement(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean), this);
     }
 }
 

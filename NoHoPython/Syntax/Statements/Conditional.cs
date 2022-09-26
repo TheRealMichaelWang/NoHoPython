@@ -74,6 +74,21 @@ namespace NoHoPython.Syntax.Statements
 
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}while {Condition}:\n{IAstStatement.BlockToString(indent, ToExecute)}";
     }
+
+    public sealed partial class AssertStatement : IAstStatement
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public IAstValue Condition { get; private set; }
+
+        public AssertStatement(IAstValue condition, SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+            Condition = condition;
+        }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}assert {Condition}";
+    }
 }
 
 namespace NoHoPython.Syntax.Values

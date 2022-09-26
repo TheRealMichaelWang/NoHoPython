@@ -139,8 +139,7 @@ namespace NoHoPython.Typing
 
         public void EmitCopier(StringBuilder emitter)
         {
-            emitter.AppendLine($"{GetCName()} copy_interface{GetStandardIdentifier()}({GetCName()} interface)");
-            emitter.AppendLine(" {");
+            emitter.AppendLine($"{GetCName()} copy_interface{GetStandardIdentifier()}({GetCName()} interface) {{");
 
             emitter.AppendLine($"\t{GetCName()} copied_interface;");
             foreach (var property in requiredImplementedProperties.Value)
@@ -160,7 +159,6 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"\t*dest = src;");
             emitter.Append('\t');
             EmitFreeValue(emitter, "temp_buffer");
-            emitter.AppendLine(";");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
         }

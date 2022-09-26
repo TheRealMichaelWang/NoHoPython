@@ -8,14 +8,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs)
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes();
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
         }
 
-        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            emitter.Append(Variable.GetStandardIdentifier());
+            emitter.Append(Variable.GetStandardIdentifier(irProgram));
         }
     }
 
@@ -23,34 +23,34 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs)
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes();
-            InitialValue.ScopeForUsedTypes(typeargs);
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            InitialValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void ForwardDeclareType(StringBuilder emitter) { }
+        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
 
-        public void ForwardDeclare(StringBuilder emitter) { }
+        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
-        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            emitter.Append($"({Variable.GetStandardIdentifier()} = ");
+            emitter.Append($"({Variable.GetStandardIdentifier(irProgram)} = ");
             if (InitialValue.RequiresDisposal(typeargs))
-                InitialValue.Emit(emitter, typeargs);
+                InitialValue.Emit(irProgram, emitter, typeargs);
             else
             {
                 StringBuilder valueBuilder = new StringBuilder();
-                InitialValue.Emit(valueBuilder, typeargs);
-                Type.SubstituteWithTypearg(typeargs).EmitCopyValue(emitter, valueBuilder.ToString());
+                InitialValue.Emit(irProgram, valueBuilder, typeargs);
+                Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString());
             }
             emitter.Append(')');
         }
 
-        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
-            Emit(emitter, typeargs);
+            Emit(irProgram, emitter, typeargs);
             emitter.AppendLine(";");
         }
     }
@@ -59,35 +59,35 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs)
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
             Type.SubstituteWithTypearg(typeargs);
-            SetValue.ScopeForUsedTypes(typeargs);
+            SetValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void ForwardDeclareType(StringBuilder emitter) { }
+        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
 
-        public void ForwardDeclare(StringBuilder emitter) { }
+        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
-        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
             StringBuilder valueBuilder = new StringBuilder();
-            SetValue.Emit(valueBuilder, typeargs);
+            SetValue.Emit(irProgram, valueBuilder, typeargs);
 
             if (SetValue.RequiresDisposal(typeargs))
-                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(emitter, Variable.GetStandardIdentifier(), valueBuilder.ToString());
+                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(irProgram), valueBuilder.ToString());
             else
             {
                 StringBuilder copyBuilder = new StringBuilder();
-                Type.SubstituteWithTypearg(typeargs).EmitCopyValue(copyBuilder, valueBuilder.ToString());
-                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(emitter, Variable.GetStandardIdentifier(), copyBuilder.ToString());
+                Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, copyBuilder, valueBuilder.ToString());
+                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(irProgram), copyBuilder.ToString());
             }
         }
 
-        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
-            Emit(emitter, typeargs);
+            Emit(irProgram, emitter, typeargs);
             emitter.AppendLine(";");
         }
     }

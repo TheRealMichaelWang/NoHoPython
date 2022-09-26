@@ -7,69 +7,69 @@ namespace NoHoPython.Typing
     {
         public bool RequiresDisposal => false;
 
-        public abstract string GetCName();
-        public string GetStandardIdentifier() => TypeName;
+        public abstract string GetCName(IRProgram irProgram);
+        public string GetStandardIdentifier(IRProgram irProgram) => TypeName;
 
-        public void EmitFreeValue(StringBuilder emitter, string valueCSource) { }
-        public void EmitCopyValue(StringBuilder emitter, string valueCSource) => emitter.Append(valueCSource);
-        public void EmitMoveValue(StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"({destC} = {valueCSource})");
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) { }
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append(valueCSource);
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"({destC} = {valueCSource})");
 
-        public void EmitClosureBorrowValue(StringBuilder emitter, string valueCSource) => EmitCopyValue(emitter, valueCSource);
-        public void EmitRecordCopyValue(StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(emitter, valueCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
+        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
 
-        public void ScopeForUsedTypes() { }
+        public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }
     }
 
     partial class IntegerType
     {
-        public override string GetCName() => "long";
+        public override string GetCName(IRProgram irProgram) => "long";
     }
 
     partial class DecimalType
     {
-        public override string GetCName() => "double";
+        public override string GetCName(IRProgram irProgram) => "double";
     }
 
     partial class CharacterType
     {
-        public override string GetCName() => "char";
+        public override string GetCName(IRProgram irProgram) => "char";
     }
 
     partial class BooleanType
     {
-        public override string GetCName() => "int";
+        public override string GetCName(IRProgram irProgram) => "int";
     }
 
     partial class HandleType
     {
         public bool RequiresDisposal => false;
 
-        public string GetCName() => "void*";
-        public string GetStandardIdentifier() => TypeName;
+        public string GetCName(IRProgram irProgram) => "void*";
+        public string GetStandardIdentifier(IRProgram irProgram) => TypeName;
 
-        public void EmitFreeValue(StringBuilder emitter, string valueCSource) { }
-        public void EmitCopyValue(StringBuilder emitter, string valueCSource) => emitter.Append(valueCSource);
-        public void EmitMoveValue(StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"({destC} = {valueCSource})");
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) { }
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append(valueCSource);
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"({destC} = {valueCSource})");
 
-        public void EmitClosureBorrowValue(StringBuilder emitter, string valueCSource) => EmitCopyValue(emitter, valueCSource);
-        public void EmitRecordCopyValue(StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(emitter, valueCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
+        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
 
-        public void ScopeForUsedTypes() { }
+        public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }
     }
 
     partial class NothingType
     {
         public bool RequiresDisposal => false;
 
-        public string GetCName() => "void";
-        public string GetStandardIdentifier() => "nothing";
+        public string GetCName(IRProgram irProgram) => "void";
+        public string GetStandardIdentifier(IRProgram irProgram) => "nothing";
 
-        public void EmitFreeValue(StringBuilder emitter, string valueCSource) => throw new CannotCompileNothingError(null);
-        public void EmitCopyValue(StringBuilder emitter, string valueCSource) => throw new CannotCompileNothingError(null);
-        public void EmitMoveValue(StringBuilder emitter, string destC, string valueCSource) => throw new CannotCompileNothingError(null);
-        public void EmitClosureBorrowValue(StringBuilder emitter, string valueCSource) => throw new CannotCompileNothingError(null);
-        public void EmitRecordCopyValue(StringBuilder emitter, string valueCSource, string recordCSource) => throw new CannotCompileNothingError(null);
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => throw new CannotCompileNothingError(null);
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => throw new CannotCompileNothingError(null);
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => throw new CannotCompileNothingError(null);
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => throw new CannotCompileNothingError(null);
+        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => throw new CannotCompileNothingError(null);
 
-        public void ScopeForUsedTypes() { }
+        public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }
     }
 }

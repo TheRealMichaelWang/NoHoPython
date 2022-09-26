@@ -10,16 +10,16 @@ namespace NoHoPython.Typing
 
         public string TypeName { get; }
 
-        public string GetCName();
-        public string GetStandardIdentifier();
+        public string GetCName(IRProgram irProgram);
+        public string GetStandardIdentifier(IRProgram irProgram);
 
-        public void EmitFreeValue(StringBuilder emitter, string valueCSource);
-        public void EmitCopyValue(StringBuilder emitter, string valueCSource);
-        public void EmitMoveValue(StringBuilder emitter, string destC, string valueCSource);
-        public void EmitClosureBorrowValue(StringBuilder emitter, string valueCSource);
-        public void EmitRecordCopyValue(StringBuilder emitter, string valueCSource, string recordCSource);
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource);
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource);
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource);
+        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource);
 
-        public void ScopeForUsedTypes();
+        public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder);
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement);
 

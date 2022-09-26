@@ -61,10 +61,10 @@ namespace NoHoPython.Scoping
                 this.statements = statements;
             }
 
-            public void ScopeForUsedTypes(Dictionary<Typing.TypeParameter, IType> typeargs) => throw new InvalidOperationException();
-            public void ForwardDeclareType(StringBuilder emitter) => throw new InvalidOperationException();
-            public void ForwardDeclare(StringBuilder emitter) => throw new InvalidOperationException();
-            public void Emit(StringBuilder emitter, Dictionary<Typing.TypeParameter, IType> typeargs, int indent) => throw new InvalidOperationException();
+            public void ScopeForUsedTypes(Dictionary<Typing.TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => throw new InvalidOperationException();
+            public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => throw new InvalidOperationException();
+            public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) => throw new InvalidOperationException();
+            public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<Typing.TypeParameter, IType> typeargs, int indent) => throw new InvalidOperationException();
         }
 
         public Module CurrentModule => usedModuleStack.Peek();

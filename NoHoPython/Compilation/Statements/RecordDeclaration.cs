@@ -4,76 +4,162 @@ using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Text;
 
+namespace NoHoPython.Syntax
+{
+    partial class AstIRProgramBuilder
+    {
+        private List<RecordType> usedRecordTypes = new();
+        private Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads = new();
+
+        public bool DeclareUsedRecordType(RecordType recordType)
+        {
+            foreach (RecordType usedRecord in usedRecordTypes)
+                if (recordType.IsCompatibleWith(usedRecord))
+                    return false;
+
+            usedRecordTypes.Add(recordType);
+            if (!recordTypeOverloads.ContainsKey(recordType.RecordPrototype))
+                recordTypeOverloads.Add(recordType.RecordPrototype, new List<RecordType>());
+            recordTypeOverloads[recordType.RecordPrototype].Add(recordType);
+
+            return true;
+        }
+    }
+}
+
+namespace NoHoPython.IntermediateRepresentation
+{
+    partial class IRProgram
+    {
+        private List<RecordType> usedRecordTypes;
+        public readonly Dictionary<RecordDeclaration, List<RecordType>> RecordTypeOverloads;
+
+        public void ForwardDeclareRecordTypes(StringBuilder emitter)
+        {
+            foreach (RecordType recordType in usedRecordTypes)
+                emitter.AppendLine($"typedef struct {recordType.GetStandardIdentifier(this)} {recordType.GetStandardIdentifier(this)}_t;");
+        }
+    }
+}
+
+namespace NoHoPython.IntermediateRepresentation.Statements
+{
+    partial class RecordDeclaration
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) 
+        {
+            if (!irProgram.RecordTypeOverloads.ContainsKey(this))
+                return;
+
+            foreach (RecordType recordType in irProgram.RecordTypeOverloads[this])
+                recordType.EmitCStruct(irProgram, emitter);
+        }
+
+        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter)
+        {
+            if (!irProgram.RecordTypeOverloads.ContainsKey(this))
+                return;
+
+            foreach (RecordType recordType in irProgram.RecordTypeOverloads[this]) 
+            {
+                recordType.EmitConstructorCHeader(irProgram, emitter);
+
+                emitter.AppendLine($"void free_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
+                emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
+                emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src);"); 
+                emitter.AppendLine($"{recordType.GetCName(irProgram)} borrow_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
+            }
+        }
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            if (!irProgram.RecordTypeOverloads.ContainsKey(this))
+                return;
+
+            foreach (RecordType recordType in irProgram.RecordTypeOverloads[this])
+            {
+                recordType.EmitConstructor(irProgram, emitter);
+                recordType.EmitDestructor(irProgram, emitter);
+                recordType.EmitCopier(irProgram, emitter);
+                recordType.EmitMover(irProgram, emitter);
+                recordType.EmitBorrower(irProgram, emitter);
+            }
+        }
+    }
+}
+
 namespace NoHoPython.Typing
 {
     partial class RecordType
     {
         public bool RequiresDisposal => true;
 
-        public string GetStandardIdentifier() => $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier()))}_";
+        public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
 
-        public string GetCName() => $"{GetStandardIdentifier()}_t*";
-        public string GetCHeapSizer() => $"sizeof({GetStandardIdentifier()}_t)";
+        public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t*";
+        public string GetCHeapSizer(IRProgram irProgram) => $"sizeof({GetStandardIdentifier(irProgram)}_t)";
 
-        public void EmitFreeValue(StringBuilder emitter, string valueCSource) => emitter.AppendLine($"free_record{GetStandardIdentifier()}({valueCSource});");
-        public void EmitCopyValue(StringBuilder emitter, string valueCSource) => emitter.Append($"copy_record{GetStandardIdentifier()}({valueCSource})");
-        public void EmitMoveValue(StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"move_record(&{destC}, {valueCSource})");
-        public void EmitClosureBorrowValue(StringBuilder emitter, string valueCSource) => emitter.Append($"borrow_record{GetStandardIdentifier()}({valueCSource})");
-        public void EmitRecordCopyValue(StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(emitter, valueCSource);
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.AppendLine($"free_record{GetStandardIdentifier(irProgram)}({valueCSource});");
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append($"copy_record{GetStandardIdentifier(irProgram)}({valueCSource})");
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"move_record(&{destC}, {valueCSource})");
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append($"borrow_record{GetStandardIdentifier(irProgram)}({valueCSource})");
+        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
 
         public void EmitGetProperty(StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}->{property.Name}");
 
-        public void ScopeForUsedTypes()
+        public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
-            if (RecordDeclaration.DeclareUsedRecordType(this)) 
+            if (irBuilder.DeclareUsedRecordType(this)) 
                 foreach (var property in properties.Value)
                 {
-                    property.Type.ScopeForUsedTypes();
+                    property.Type.ScopeForUsedTypes(irBuilder);
                     if (property.DefaultValue != null)
-                        property.DefaultValue.ScopeForUsedTypes(new Dictionary<TypeParameter, IType>());
+                        property.DefaultValue.ScopeForUsedTypes(new Dictionary<TypeParameter, IType>(), irBuilder);
                 }
         }
 
-        public void EmitCStruct(StringBuilder emitter)
+        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.AppendLine("struct " + GetStandardIdentifier() + " {");
+            emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
             foreach (var property in properties.Value)
-                emitter.AppendLine($"\t{property.Type.GetCName()} {property.Name};");
+                emitter.AppendLine($"\t{property.Type.GetCName(irProgram)} {property.Name};");
             emitter.AppendLine("\tint _nhp_ref_count;");
             emitter.AppendLine("\tint _nhp_min_refs;");
             emitter.AppendLine("\tint _nhp_freeing;");
             emitter.AppendLine("};");
         }
 
-        private void EmitInitializerConstructorHeader(StringBuilder emitter)
+        private void EmitInitializerConstructorHeader(IRProgram irProgram, StringBuilder emitter)
         {
             ProcedureType constructorType = (ProcedureType)FindProperty("__init__").Type;
-            emitter.Append($"{GetCName()} construct_{GetStandardIdentifier()}(");
+            emitter.Append($"{GetCName(irProgram)} construct_{GetStandardIdentifier(irProgram)}(");
             for (int i = 0; i < constructorType.ParameterTypes.Count; i++)
             {
                 if (i > 0)
                     emitter.Append(", ");
-                emitter.Append($"{constructorType.ParameterTypes[i].GetCName()} param{i}");
+                emitter.Append($"{constructorType.ParameterTypes[i].GetCName(irProgram)} param{i}");
             }
             emitter.Append(')');
         }
 
-        public void EmitConstructorCHeader(StringBuilder emitter)
+        public void EmitConstructorCHeader(IRProgram irProgram, StringBuilder emitter)
         {
             if (HasProperty("__init__") && FindProperty("__init__").Type is ProcedureType constructorType) 
             {
-                EmitInitializerConstructorHeader(emitter);
+                EmitInitializerConstructorHeader(irProgram, emitter);
                 emitter.AppendLine(";");
             }
             else
-                emitter.AppendLine($"{GetCName()} construct_{GetStandardIdentifier()}();");
+                emitter.AppendLine($"{GetCName(irProgram)} construct_{GetStandardIdentifier(irProgram)}();");
         }
 
-        public void EmitConstructor(StringBuilder emitter)
+        public void EmitConstructor(IRProgram irProgram, StringBuilder emitter)
         {
             void emitInitializer()
             {
-                emitter.AppendLine($"\t{GetCName()} _nhp_self = malloc({GetCHeapSizer()});");
+                emitter.AppendLine($"\t{GetCName(irProgram)} _nhp_self = malloc({GetCHeapSizer(irProgram)});");
                 emitter.AppendLine("\t_nhp_self->_nhp_ref_count = 0;");
                 emitter.AppendLine("\t_nhp_self->_nhp_freeing = 0;");
                 foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
@@ -81,12 +167,12 @@ namespace NoHoPython.Typing
                     emitter.Append($"\t_nhp_self->{recordProperty.Name} = ");
                     
                     if(recordProperty.DefaultValue.RequiresDisposal(new Dictionary<TypeParameter, IType>()))
-                        recordProperty.DefaultValue.Emit(emitter, new Dictionary<TypeParameter, IType>());
+                        recordProperty.DefaultValue.Emit(irProgram, emitter, new Dictionary<TypeParameter, IType>());
                     else
                     {
                         StringBuilder valueBuilder = new StringBuilder();
-                        recordProperty.DefaultValue.Emit(valueBuilder, new Dictionary<TypeParameter, IType>());
-                        recordProperty.Type.EmitCopyValue(emitter, valueBuilder.ToString());
+                        recordProperty.DefaultValue.Emit(irProgram, valueBuilder, new Dictionary<TypeParameter, IType>());
+                        recordProperty.Type.EmitCopyValue(irProgram, emitter, valueBuilder.ToString());
                     }
                     
                     emitter.AppendLine(";");
@@ -95,7 +181,7 @@ namespace NoHoPython.Typing
 
             if (HasProperty("__init__") && FindProperty("__init__").Type is ProcedureType constructorType)
             {
-                EmitInitializerConstructorHeader(emitter);
+                EmitInitializerConstructorHeader(irProgram, emitter);
                 emitter.AppendLine(" {");
                 emitInitializer();
 
@@ -106,7 +192,7 @@ namespace NoHoPython.Typing
             }
             else
             {
-                emitter.AppendLine($"{GetCName()} construct_{GetStandardIdentifier()}() {{");
+                emitter.AppendLine($"{GetCName(irProgram)} construct_{GetStandardIdentifier(irProgram)}() {{");
                 emitInitializer();
             }
             emitter.AppendLine("\t_nhp_self->_nhp_min_refs = _nhp_self->_nhp_ref_count;");
@@ -114,9 +200,9 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitDestructor(StringBuilder emitter)
+        public void EmitDestructor(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.AppendLine($"void free_record{GetStandardIdentifier()}({GetCName()} record) {{");
+            emitter.AppendLine($"void free_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record) {{");
 
             emitter.AppendLine("\tif(record->_nhp_freeing)");
             emitter.AppendLine("\t\treturn;");
@@ -132,24 +218,24 @@ namespace NoHoPython.Typing
                 if (recordProperty.Type.RequiresDisposal)
                 {
                     emitter.Append('\t');
-                    recordProperty.Type.EmitFreeValue(emitter, $"record->{recordProperty.Name}");
+                    recordProperty.Type.EmitFreeValue(irProgram, emitter, $"record->{recordProperty.Name}");
                 }
             }
 
             emitter.AppendLine("}");
         }
 
-        public void EmitCopier(StringBuilder emitter)
+        public void EmitCopier(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.AppendLine($"{GetCName()} copy_record{GetStandardIdentifier()}({GetCName()} record) {{");
-            emitter.AppendLine($"\t{GetCName()} copied_record = malloc({GetCHeapSizer()});");
+            emitter.AppendLine($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record) {{");
+            emitter.AppendLine($"\t{GetCName(irProgram)} copied_record = malloc({GetCHeapSizer(irProgram)});");
             emitter.AppendLine("\tcopied_record->_nhp_ref_count = 0;");
             emitter.AppendLine("\tcopied_record->_nhp_freeing = 0;");
 
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
             {
                 emitter.Append($"\tcopied_record->{recordProperty.Name} = ");
-                recordProperty.Type.EmitRecordCopyValue(emitter, $"record->{recordProperty.Name}", "copied_record");
+                recordProperty.Type.EmitRecordCopyValue(irProgram, emitter, $"record->{recordProperty.Name}", "copied_record");
                 emitter.AppendLine(";");
             }
 
@@ -158,94 +244,22 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitMover(StringBuilder emitter)
+        public void EmitMover(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.AppendLine($"{GetCName()} move_record{GetStandardIdentifier()}({GetCName()}* dest, {GetCName()} src) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} move_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
             emitter.Append('\t');
-            EmitFreeValue(emitter, "*dest");
+            EmitFreeValue(irProgram, emitter, "*dest");
             emitter.AppendLine("\t*dest = src;");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
         }
 
-        public void EmitBorrower(StringBuilder emitter)
+        public void EmitBorrower(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.AppendLine($"{GetCName()} borrow_record{GetStandardIdentifier()}({GetCName()} record) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} borrow_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record) {{");
             emitter.AppendLine("\trecord->_nhp_ref_count++;");
             emitter.AppendLine("\treturn record;");
             emitter.AppendLine("}");
-        }
-    }
-}
-
-
-namespace NoHoPython.IntermediateRepresentation.Statements
-{
-    partial class RecordDeclaration
-    {
-        private static List<RecordType> usedRecordTypes = new List<RecordType>();
-        private static Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads = new Dictionary<RecordDeclaration, List<RecordType>>();
-
-        public static bool DeclareUsedRecordType(RecordType recordType)
-        {
-            foreach (RecordType usedRecord in usedRecordTypes)
-                if (recordType.IsCompatibleWith(usedRecord))
-                    return false;
-            
-            usedRecordTypes.Add(recordType);
-            if (!recordTypeOverloads.ContainsKey(recordType.RecordPrototype))
-                recordTypeOverloads.Add(recordType.RecordPrototype, new List<RecordType>());
-            recordTypeOverloads[recordType.RecordPrototype].Add(recordType);
-            
-            return true;
-        }
-
-        public static void ForwardDeclareRecordTypes(StringBuilder emitter)
-        {
-            foreach (RecordType recordType in usedRecordTypes)
-                emitter.AppendLine($"typedef struct {recordType.GetStandardIdentifier()} {recordType.GetStandardIdentifier()}_t;");
-        }
-
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs) { }
-
-        public void ForwardDeclareType(StringBuilder emitter) 
-        {
-            if (!recordTypeOverloads.ContainsKey(this))
-                return;
-
-            foreach (RecordType recordType in recordTypeOverloads[this])
-                recordType.EmitCStruct(emitter);
-        }
-
-        public void ForwardDeclare(StringBuilder emitter)
-        {
-            if (!recordTypeOverloads.ContainsKey(this))
-                return;
-
-            foreach (RecordType recordType in recordTypeOverloads[this]) 
-            {
-                recordType.EmitConstructorCHeader(emitter);
-
-                emitter.AppendLine($"void free_record{recordType.GetStandardIdentifier()}({recordType.GetCName()} record);");
-                emitter.AppendLine($"{recordType.GetCName()} copy_record{recordType.GetStandardIdentifier()}({recordType.GetCName()} record);");
-                emitter.AppendLine($"{recordType.GetCName()} move_record{recordType.GetStandardIdentifier()}({recordType.GetCName()}* dest, {recordType.GetCName()} src);"); 
-                emitter.AppendLine($"{recordType.GetCName()} borrow_record{recordType.GetStandardIdentifier()}({recordType.GetCName()} record);");
-            }
-        }
-
-        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
-        {
-            if (!recordTypeOverloads.ContainsKey(this))
-                return;
-
-            foreach (RecordType recordType in recordTypeOverloads[this])
-            {
-                recordType.EmitConstructor(emitter);
-                recordType.EmitDestructor(emitter);
-                recordType.EmitCopier(emitter);
-                recordType.EmitMover(emitter);
-                recordType.EmitBorrower(emitter);
-            }
         }
     }
 }

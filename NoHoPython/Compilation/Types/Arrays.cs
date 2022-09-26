@@ -1,38 +1,57 @@
-﻿using System.Text;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.Typing;
+using System.Text;
 
-namespace NoHoPython.Typing
+namespace NoHoPython.Syntax
 {
-    partial class ArrayType
+    partial class AstIRProgramBuilder
     {
-        private static List<ArrayType> usedArrayTypes = new List<ArrayType>();
+        private List<ArrayType> usedArrayTypes = new();
 
-        public static void ForwardDeclareArrayTypes(StringBuilder emitter)
+        public void ScopeForUsedArrayType(ArrayType toscope)
+        {
+            toscope.ElementType.ScopeForUsedTypes(this);
+            foreach (ArrayType arrayType in usedArrayTypes)
+                if (arrayType.IsCompatibleWith(toscope))
+                    return;
+            usedArrayTypes.Add(toscope);
+        }
+    }
+}
+
+namespace NoHoPython.IntermediateRepresentation
+{
+    partial class IRProgram
+    {
+        private List<ArrayType> usedArrayTypes;
+
+        public void EmitArrayTypeTypedefs(StringBuilder emitter)
         {
             foreach (ArrayType arrayType in usedArrayTypes)
-                emitter.AppendLine($"typedef struct {arrayType.GetStandardIdentifier()} {arrayType.GetCName()};");
+                emitter.AppendLine($"typedef struct {arrayType.GetStandardIdentifier(this)} {arrayType.GetCName(this)};");
         }
 
-        public static void EmitCStructs(StringBuilder emitter)
+        public void EmitArrayTypeCStructs(StringBuilder emitter)
         {
             foreach (ArrayType arrayType in usedArrayTypes)
-                arrayType.EmitCStruct(emitter);
+                arrayType.EmitCStruct(this, emitter);
         }
 
-        public static void ForwardDeclare(StringBuilder emitter)
+        public void ForwardDeclareArrayTypes(StringBuilder emitter)
         {
             foreach (ArrayType arrayType in usedArrayTypes)
             {
-                emitter.AppendLine($"{arrayType.GetCName()} marshal{arrayType.GetStandardIdentifier()}(const {arrayType.ElementType.GetCName()}* buffer, int length);");
-                emitter.AppendLine($"{arrayType.GetCName()} marshal_proto{arrayType.GetStandardIdentifier()}(int length, {arrayType.ElementType.GetCName()} proto);");
-                emitter.AppendLine($"{arrayType.GetCName()} copy{arrayType.GetStandardIdentifier()}({arrayType.GetCName()} to_copy);");
-                emitter.AppendLine($"{arrayType.GetCName()} move{arrayType.GetStandardIdentifier()}({arrayType.GetCName()}* src, {arrayType.GetCName()} dest);");
+                emitter.AppendLine($"{arrayType.GetCName(this)} marshal{arrayType.GetStandardIdentifier(this)}(const {arrayType.ElementType.GetCName(this)}* buffer, int length);");
+                emitter.AppendLine($"{arrayType.GetCName(this)} marshal_proto{arrayType.GetStandardIdentifier(this)}(int length, {arrayType.ElementType.GetCName(this)} proto);");
+                emitter.AppendLine($"{arrayType.GetCName(this)} copy{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_copy);");
+                emitter.AppendLine($"{arrayType.GetCName(this)} move{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)}* src, {arrayType.GetCName(this)} dest);");
 
                 if (arrayType.ElementType.RequiresDisposal)
-                    emitter.AppendLine($"void free{arrayType.GetStandardIdentifier()}({arrayType.GetCName()} to_free);");
+                    emitter.AppendLine($"void free{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_free);");
             }
         }
 
-        public static void EmitMarshallers(StringBuilder emitter)
+        public void EmitArrayTypeMarshallers(StringBuilder emitter)
         {
             emitter.AppendLine("int _nhp_bounds_check(int index, int max_length) {");
             emitter.AppendLine("\tif(index < 0 || index >= max_length) {");
@@ -44,72 +63,71 @@ namespace NoHoPython.Typing
 
             foreach (ArrayType arrayType in usedArrayTypes)
             {
-                arrayType.EmitMarshaller(emitter);
-                arrayType.EmitDestructor(emitter);
-                arrayType.EmitMover(emitter);
-                arrayType.EmitCopier(emitter);
+                arrayType.EmitMarshaller(this, emitter);
+                arrayType.EmitDestructor(this, emitter);
+                arrayType.EmitMover(this, emitter);
+                arrayType.EmitCopier(this, emitter);
             }
         }
+    }
+}
 
+namespace NoHoPython.Typing
+{
+    partial class ArrayType
+    {
         public bool RequiresDisposal => true;
 
-        public void EmitFreeValue(StringBuilder emitter, string valueCSource)
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource)
         {
             if (ElementType.RequiresDisposal)
-                emitter.AppendLine($"free{GetStandardIdentifier()}({valueCSource});");
+                emitter.AppendLine($"free{GetStandardIdentifier(irProgram)}({valueCSource});");
             else
                 emitter.AppendLine($"free({valueCSource}.buffer);");
         }
 
-        public void EmitCopyValue(StringBuilder emitter, string valueCSource) => emitter.Append($"copy{GetStandardIdentifier()}({valueCSource})");
-        public void EmitMoveValue(StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"move{GetStandardIdentifier()}(&{destC}, {valueCSource})");
-        public void EmitClosureBorrowValue(StringBuilder emitter, string valueCSource) => EmitCopyValue(emitter, valueCSource);
-        public void EmitRecordCopyValue(StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(emitter, valueCSource);
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append($"copy{GetStandardIdentifier(irProgram)}({valueCSource})");
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
+        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
 
-        public void ScopeForUsedTypes()
+        public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) => irBuilder.ScopeForUsedArrayType(this);
+
+        public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
+
+        public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_array_{ElementType.GetStandardIdentifier(irProgram)}";
+
+        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter)
         {
-            ElementType.ScopeForUsedTypes();
-            foreach (ArrayType arrayType in usedArrayTypes)
-                if (arrayType.IsCompatibleWith(this))
-                    return;
-            usedArrayTypes.Add(this);
-        }
-
-        public string GetCName() => $"{GetStandardIdentifier()}_t";
-
-        public string GetStandardIdentifier() => $"_nhp_array_{ElementType.GetStandardIdentifier()}";
-
-        public void EmitCStruct(StringBuilder emitter)
-        {
-            emitter.AppendLine($"struct {GetStandardIdentifier()} {{");
-            emitter.AppendLine($"\t{ElementType.GetCName()}* buffer;");
+            emitter.AppendLine($"struct {GetStandardIdentifier(irProgram)} {{");
+            emitter.AppendLine($"\t{ElementType.GetCName(irProgram)}* buffer;");
             emitter.AppendLine("\tint length;");
             emitter.AppendLine("};");
         }
 
-        public void EmitMarshaller(StringBuilder emitter)
+        public void EmitMarshaller(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.AppendLine($"{GetCName()} marshal{GetStandardIdentifier()}(const {ElementType.GetCName()}* buffer, int length) {{");
-            emitter.AppendLine($"\t{GetCName()} to_alloc;");
-            emitter.AppendLine($"\tto_alloc.buffer = malloc(length * sizeof({ElementType.GetCName()}));");
-            emitter.AppendLine($"\tmemcpy(to_alloc.buffer, buffer, length * sizeof({ElementType.GetCName()}));");
+            emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}(const {ElementType.GetCName(irProgram)}* buffer, int length) {{");
+            emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
+            emitter.AppendLine($"\tto_alloc.buffer = malloc(length * sizeof({ElementType.GetCName(irProgram)}));");
+            emitter.AppendLine($"\tmemcpy(to_alloc.buffer, buffer, length * sizeof({ElementType.GetCName(irProgram)}));");
             emitter.AppendLine("\tto_alloc.length = length;");
             emitter.AppendLine("\treturn to_alloc;");
             emitter.AppendLine("}");
 
-            emitter.AppendLine($"{GetCName()} marshal_proto{GetStandardIdentifier()}(int length, {ElementType.GetCName()} proto) {{");
-            emitter.AppendLine($"\t{GetCName()} to_alloc;");
-            emitter.AppendLine($"\tto_alloc.buffer = malloc(length * sizeof({ElementType.GetCName()}));");
+            emitter.AppendLine($"{GetCName(irProgram)} marshal_proto{GetStandardIdentifier(irProgram)}(int length, {ElementType.GetCName(irProgram)} proto) {{");
+            emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
+            emitter.AppendLine($"\tto_alloc.buffer = malloc(length * sizeof({ElementType.GetCName(irProgram)}));");
 
             emitter.AppendLine($"\tfor(int i = 0; i < to_alloc.length; i++)");
             emitter.Append("\t\tto_alloc.buffer[i] = ");
-            ElementType.EmitCopyValue(emitter, "proto");
+            ElementType.EmitCopyValue(irProgram, emitter, "proto");
             emitter.AppendLine(";");
 
             if (ElementType.RequiresDisposal)
             {
                 emitter.Append('\t');
-                ElementType.EmitFreeValue(emitter, "proto");
+                ElementType.EmitFreeValue(irProgram, emitter, "proto");
             }
 
             emitter.AppendLine("\tto_alloc.length = length;");
@@ -117,40 +135,40 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitDestructor(StringBuilder emitter)
+        public void EmitDestructor(IRProgram irProgram, StringBuilder emitter)
         {
             if (!ElementType.RequiresDisposal)
                 return;
 
-            emitter.AppendLine($"void free{GetStandardIdentifier()}({GetCName()} to_free) {{");
+            emitter.AppendLine($"void free{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_free) {{");
             emitter.AppendLine("\tfor(int i = 0; i < to_free.length; i++) {{");
             emitter.Append("\t\t");
-            ElementType.EmitFreeValue(emitter, "to_free.buffer[i]");
+            ElementType.EmitFreeValue(irProgram, emitter, "to_free.buffer[i]");
             emitter.AppendLine("\t}");
             emitter.AppendLine("\tfree(to_free.buffer);");
             emitter.AppendLine("}");
         }
 
-        public void EmitCopier(StringBuilder emitter)
+        public void EmitCopier(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.AppendLine($"{GetCName()} copy{GetStandardIdentifier()}({GetCName()} to_copy) {{");
-            emitter.AppendLine($"\t{GetCName()} copied;");
-            emitter.AppendLine($"\tcopied.buffer = malloc(to_copy.length * sizeof({ElementType.GetCName()}));");
+            emitter.AppendLine($"{GetCName(irProgram)} copy{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_copy) {{");
+            emitter.AppendLine($"\t{GetCName(irProgram)} copied;");
+            emitter.AppendLine($"\tcopied.buffer = malloc(to_copy.length * sizeof({ElementType.GetCName(irProgram)}));");
 
             emitter.AppendLine("\tfor(int i = 0; i < to_copy.length; i++)");
             emitter.Append("\t\tcopied.buffer[i] = ");
-            ElementType.EmitCopyValue(emitter, "to_copy.buffer[i]");
+            ElementType.EmitCopyValue(irProgram, emitter, "to_copy.buffer[i]");
             emitter.AppendLine(";");
 
             emitter.AppendLine("\treturn copied;");
             emitter.AppendLine("}");
         }
 
-        public void EmitMover(StringBuilder emitter)
+        public void EmitMover(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.AppendLine($"{GetCName()} move{GetStandardIdentifier()}({GetCName()}* dest, {GetCName()} src) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} move{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
             emitter.Append('\t');
-            EmitFreeValue(emitter, "(*dest)");
+            EmitFreeValue(irProgram, emitter, "(*dest)");
             emitter.AppendLine("\t*dest = src;");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");

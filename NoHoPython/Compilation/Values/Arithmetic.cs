@@ -7,18 +7,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs) 
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) 
         {
-            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes();
-            Input.ScopeForUsedTypes(typeargs);
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            Input.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
             void EmitCCast(string castTo)
             {
                 emitter.Append($"(({castTo})");
-                IRValue.EmitMemorySafe(Input, emitter, typeargs);
+                IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
                 emitter.Append(')');
             }
 
@@ -26,7 +26,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 case ArithmeticCastOperation.BooleanToInt:
                 case ArithmeticCastOperation.CharToInt:
-                    IRValue.EmitMemorySafe(Input, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
                     break;
                 case ArithmeticCastOperation.DecimalToInt:
                     EmitCCast("long");
@@ -39,7 +39,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     break;
                 case ArithmeticCastOperation.IntToBoolean:
                     emitter.Append('(');
-                    IRValue.EmitMemorySafe(Input, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
                     emitter.Append(" ? 1 : 0");
                     emitter.Append(')');
                     break;
@@ -51,38 +51,38 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs)
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes();
-            Left.ScopeForUsedTypes(typeargs);
-            Right.ScopeForUsedTypes(typeargs);
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            Left.ScopeForUsedTypes(typeargs, irBuilder);
+            Right.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
             if (Operation == ArithmeticOperation.Exponentiate)
             {
                 if(Type is DecimalType)
                 {
                     emitter.Append("pow(");
-                    IRValue.EmitMemorySafe(Left, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
                     emitter.Append(", ");
-                    IRValue.EmitMemorySafe(Right, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
                     emitter.Append(')');
                 }
                 else
                 {
                     emitter.Append("(int)pow((double)");
-                    IRValue.EmitMemorySafe(Left, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
                     emitter.Append(", (double)");
-                    IRValue.EmitMemorySafe(Right, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
                     emitter.Append(')');
                 }
             }
             else
             {
                 emitter.Append('(');
-                IRValue.EmitMemorySafe(Left, emitter, typeargs);
+                IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
                 switch (Operation)
                 {
                     case ArithmeticOperation.Add:
@@ -98,7 +98,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         emitter.Append(" / ");
                         break;
                 }
-                IRValue.EmitMemorySafe(Right, emitter, typeargs);
+                IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
                 emitter.Append(')');
             }
         }
@@ -108,15 +108,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs)
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            ArrayValue.Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes();
-            ArrayValue.ScopeForUsedTypes(typeargs);
+            ArrayValue.Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            ArrayValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            IRValue.EmitMemorySafe(ArrayValue, emitter, typeargs);
+            IRValue.EmitMemorySafe(ArrayValue, irProgram, emitter, typeargs);
             switch (Operation)
             {
                 case ArrayOperation.GetArrayLength:

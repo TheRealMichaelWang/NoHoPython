@@ -1,0 +1,5 @@
+﻿cdef puts(handle str) nothing
+
+def main() int:
+	puts(msg = "Hello World!")
+	return 0

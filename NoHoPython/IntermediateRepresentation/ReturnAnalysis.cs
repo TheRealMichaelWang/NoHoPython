@@ -84,6 +84,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool AllCodePathsReturn() => false;
     }
 
+    partial class ForeignFunctionCall
+    {
+        public bool AllCodePathsReturn() => false;
+    }
+
     partial class SetValueAtIndex
     {
         public bool AllCodePathsReturn() => false;

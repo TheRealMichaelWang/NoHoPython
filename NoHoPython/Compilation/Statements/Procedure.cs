@@ -537,7 +537,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
-            Emit(irProgram, emitter, typeargs);
+
+            if (Procedure.SubstituteWithTypearg(typeargs).ReturnType.RequiresDisposal)
+            {
+                StringBuilder valueEmitter = new StringBuilder();
+                Emit(irProgram, valueEmitter, typeargs);
+                Procedure.SubstituteWithTypearg(typeargs).ReturnType.EmitFreeValue(irProgram, emitter, valueEmitter.ToString());
+            }
+            else
+                Emit(irProgram, emitter, typeargs);
+
             emitter.AppendLine(";");
         }
     }
@@ -597,13 +606,42 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Procedure.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
         }
 
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        {
+            emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({string.Join(", ", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => (capturedVar.IsRecordSelf) ? "_nhp_self" :capturedVar.GetStandardIdentifier(irProgram)))})");
+        }
+    }
+
+    partial class ForeignFunctionCall
+    {
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            Arguments.ForEach((argument) => argument.ScopeForUsedTypes(typeargs, irBuilder));
+        }
+
         public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
 
         public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({string.Join(", ", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => (capturedVar.IsRecordSelf) ? "_nhp_self" :capturedVar.GetStandardIdentifier(irProgram)))})");
+            emitter.Append($"{ForeignCProcedure.Name}(");
+            for(int i = 0; i < Arguments.Count; i++)
+            {
+                if (i > 0)
+                    emitter.Append(", ");
+                Arguments[i].Emit(irProgram, emitter, typeargs);
+            }
+            emitter.Append(')');
+        }
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            CodeBlock.CIndent(emitter, indent);
+            Emit(irProgram, emitter, typeargs);
+            emitter.AppendLine(";");
         }
     }
 }

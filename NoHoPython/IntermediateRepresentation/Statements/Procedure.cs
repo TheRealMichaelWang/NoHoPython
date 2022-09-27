@@ -268,6 +268,28 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
+
+    public sealed partial class ForeignFunctionCall : IRValue, IRStatement
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public IType Type => ForeignCProcedure.ReturnType;
+
+        public ForeignCProcedureDeclaration ForeignCProcedure { get; private set; }
+        public readonly List<IRValue> Arguments;
+
+        public ForeignFunctionCall(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            ForeignCProcedure = foreignCProcedure;
+            if (ForeignCProcedure.ParameterTypes.Count != arguments.Count)
+                throw new UnexpectedTypeArgumentsException(ForeignCProcedure.ParameterTypes.Count, arguments.Count, errorReportedElement);
+            for (int i = 0; i < ForeignCProcedure.ParameterTypes.Count; i++)
+                arguments[i] = ArithmeticCast.CastTo(arguments[i], ForeignCProcedure.ParameterTypes[i]);
+            Arguments = arguments;
+        }
+
+        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new ForeignFunctionCall(ForeignCProcedure, Arguments.ConvertAll((argument) => argument.SubstituteWithTypearg(typeargs)), ErrorReportedElement);
+    }
 }
 
 namespace NoHoPython.Syntax.Statements
@@ -372,6 +394,10 @@ namespace NoHoPython.Syntax.Values
             IScopeSymbol procedureSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
             return procedureSymbol is ProcedureDeclaration procedureDeclaration
                 ? (IRValue)new LinkedProcedureCall(procedureDeclaration, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), expectedType, this)
+                : procedureSymbol is Variable variable
+                ? new AnonymousProcedureCall(new IntermediateRepresentation.Values.VariableReference(variable, this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), this)
+                : procedureSymbol is ForeignCProcedureDeclaration foreignFunction
+                ? new ForeignFunctionCall(foreignFunction, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), this)
                 : throw new NotAProcedureException(procedureSymbol, this);
         }
     }

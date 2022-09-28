@@ -124,7 +124,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
             emitter.AppendLine($"\tto_alloc.buffer = malloc(length * sizeof({ElementType.GetCName(irProgram)}));");
 
-            emitter.AppendLine($"\tfor(int i = 0; i < to_alloc.length; i++)");
+            emitter.AppendLine($"\tfor(int i = 0; i < length; i++)");
             emitter.Append("\t\tto_alloc.buffer[i] = ");
             ElementType.EmitCopyValue(irProgram, emitter, "proto");
             emitter.AppendLine(";");
@@ -158,6 +158,7 @@ namespace NoHoPython.Typing
         {
             emitter.AppendLine($"{GetCName(irProgram)} copy{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_copy) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} copied;");
+            emitter.AppendLine("\tcopied.length = to_copy.length;");
             emitter.AppendLine($"\tcopied.buffer = malloc(to_copy.length * sizeof({ElementType.GetCName(irProgram)}));");
 
             emitter.AppendLine("\tfor(int i = 0; i < to_copy.length; i++)");

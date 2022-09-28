@@ -118,7 +118,7 @@ namespace NoHoPython.IntermediateRepresentation
         public readonly List<EnumDeclaration> EnumDeclarations;
         public readonly List<ProcedureDeclaration> ProcedureDeclarations;
 
-        public readonly List<string> IncludedCFiles;
+        public readonly SortedSet<string> IncludedCFiles;
 
         public bool DoBoundsChecking { get; private set; }
 
@@ -130,7 +130,7 @@ namespace NoHoPython.IntermediateRepresentation
             InterfaceDeclarations = interfaceDeclarations;
             EnumDeclarations = enumDeclarations;
             ProcedureDeclarations = procedureDeclarations;
-            IncludedCFiles = includedCFiles;
+            IncludedCFiles = new SortedSet<string>(includedCFiles);
             
             this.uniqueProcedureTypes = uniqueProcedureTypes;
             this.usedArrayTypes = usedArrayTypes;
@@ -142,6 +142,12 @@ namespace NoHoPython.IntermediateRepresentation
             InterfaceTypeOverloads = interfaceTypeOverload;
             this.usedRecordTypes = usedRecordTypes;
             RecordTypeOverloads = recordTypeOverloads;
+        }
+
+        public void IncludeCFile(string cFile)
+        {
+            if (!IncludedCFiles.Contains(cFile))
+                IncludedCFiles.Add(cFile);
         }
 
         public void Emit(StringBuilder emitter)
@@ -173,7 +179,7 @@ namespace NoHoPython.IntermediateRepresentation
             EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclare(this, emitter));
             InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, emitter));
             RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, emitter));
-            ProcedureDeclarations.ForEach((procedure) => procedure.ForwardDeclare(this, emitter));
+            ProcedureDeclarations.ForEach((procedure) => procedure.ForwardDeclareActual(this, emitter));
             EmitAnonProcedureCapturedContecies(emitter);
 
             //emit function behavior
@@ -183,7 +189,7 @@ namespace NoHoPython.IntermediateRepresentation
             EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new Dictionary<TypeParameter, IType>(), 0));
             InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(this, emitter, new Dictionary<TypeParameter, IType>(), 0));
             RecordDeclarations.ForEach((record) => record.Emit(this, emitter, new Dictionary<TypeParameter, IType>(), 0));
-            ProcedureDeclarations.ForEach((proc) => proc.Emit(this, emitter, new Dictionary<TypeParameter, IType>(), 0));
+            ProcedureDeclarations.ForEach((proc) => proc.EmitActual(this, emitter, new Dictionary<TypeParameter, IType>(), 0));
         }
     }
 }

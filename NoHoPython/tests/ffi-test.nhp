@@ -1,5 +1,63 @@
-﻿cdef puts(handle str) nothing
+﻿cinclude "<stdlib.h>"
+cinclude "<stdio.h>"
 
-def main() int:
-	puts(msg = "Hello World!")
-	return 0
+mod memutils:
+	def memcpy<T>(array<T> src, array<T> dest, int srcOffset, int destOffset, int length):
+		i = 0
+		while i < length:
+			src[i + srcOffset] = dest[i + destOffset]
+			i = i + 1
+
+class list<T>:
+	array<T> buffer
+	int count = 0
+	def __init__(int allocLength, T default):
+		self.buffer = new T[allocLength](default)
+	def getAtIndex(int index) T:
+		return self.buffer[index]
+	def setAtIndex(int index, T element) T:
+		return self.buffer[index] = element
+	def pushBack(T element):
+		if self.count == (self.buffer as int):
+			newBuffer = new T[self.count + 10](element)
+			memutils::memcpy(newBuffer, self.buffer, 0, 0, self.count)
+			self.buffer = newBuffer
+		self.buffer[self.count] = element
+		self.count = self.count + 1
+	def forall(fn<nothing, T> todo):
+		i = 0
+		while i < self.count:
+			todo(self.buffer[i])
+			i = i + 1
+	def toArray(T default) array<T>:
+		buffer = new T[self.count](default)
+		i = 0
+		def setElemClosure(T elem):
+			buffer[i] = elem
+			i = i + 1
+		self.forall(todo=setElemClosure)
+		return buffer
+
+mod cstuffs:
+	cdef puts(handle str) nothing
+	cdef atoi(handle str) int
+	cdef getchar() char
+
+mod io:
+	def input() array<char>:
+		buffer = new list<char>(20, '\0')
+		lastChar = cstuffs::getchar()
+		while lastChar != '\n':
+			buffer.pushBack(lastChar)
+			lastChar = cstuffs::getchar()
+		return buffer.toArray('f')
+	def print(array<char> msg):
+		printbuf = new char[1 + msg]('\0')
+		memutils::memcpy(printbuf, msg, 0, 0, msg)
+		cstuffs::puts(printbuf)
+
+def main():
+	io::print(msg = "Hello World!")
+	name = io::input()
+	io::print(msg = "Your name is:")
+	io::print(name)

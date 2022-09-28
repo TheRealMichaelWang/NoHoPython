@@ -8,11 +8,18 @@ namespace NoHoPython.Syntax.Parsing
     {
         private Scanner scanner;
         private int currentExpectedIndents;
+        private List<string> includedCFiles;
 
         public AstParser(Scanner scanner)
         {
             this.scanner = scanner;
             currentExpectedIndents = 0;
+            includedCFiles = new();
+        }
+
+        public void IncludeCFiles(IntermediateRepresentation.IRProgram irProgram)
+        {
+            includedCFiles.ForEach((file) => irProgram.IncludeCFile(file));
         }
 
         private void MatchToken(TokenType expectedLastTokenType)
@@ -69,6 +76,8 @@ namespace NoHoPython.Syntax.Parsing
                     return new AssertStatement(ParseExpression(), location);
                 case TokenType.Define:
                     return ParseProcedureDeclaration();
+                case TokenType.CDefine:
+                    return ParseForeignCProcedure();
                 default:
                     throw new UnexpectedTokenException(scanner.LastToken, location);
             }
@@ -325,6 +334,15 @@ namespace NoHoPython.Syntax.Parsing
                             scanner.ScanToken();
                             MatchAndScanToken(TokenType.Newline);
                             scanner.IncludeFile(file);
+                            continue;
+                        }
+                    case TokenType.CInclude:
+                        {
+                            scanner.ScanToken();
+                            MatchToken(TokenType.StringLiteral);
+                            includedCFiles.Add(scanner.LastToken.Identifier);
+                            scanner.ScanToken();
+                            MatchAndScanToken(TokenType.Newline);
                             continue;
                         }
                     default:

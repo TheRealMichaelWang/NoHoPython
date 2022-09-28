@@ -119,7 +119,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public ProcedureReference SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs)
         {
-            Dictionary<Typing.TypeParameter, IType> newTypeargs = new(typeargs.Count);
+            Dictionary<Typing.TypeParameter, IType> newTypeargs = new(typeArguments.Count + typeargs.Count);
             foreach (KeyValuePair<Typing.TypeParameter, IType> typearg in typeArguments)
                 newTypeargs.Add(typearg.Key, typearg.Value.SubstituteWithTypearg(typeargs));
             foreach (KeyValuePair<Typing.TypeParameter, IType> typearg in typeargs)
@@ -134,9 +134,18 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return false;
             if (IsAnonymous != procedureReference.IsAnonymous)
                 return false;
-            foreach (Typing.TypeParameter typeParameter in ProcedureDeclaration.TypeParameters)
-                if (!procedureReference.typeArguments[typeParameter].IsCompatibleWith(typeArguments[typeParameter]))
+            if (procedureReference.typeArguments.Count != typeArguments.Count)
+                return false;
+
+            foreach (KeyValuePair<Typing.TypeParameter, IType> typearg in typeArguments)
+                if (procedureReference.typeArguments.ContainsKey(typearg.Key))
+                {
+                    if (!typearg.Value.IsCompatibleWith(procedureReference.typeArguments[typearg.Key]))
+                        return false;
+                }
+                else
                     return false;
+
             return true;
         }
     }

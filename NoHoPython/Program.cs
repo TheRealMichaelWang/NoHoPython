@@ -17,7 +17,8 @@ public static class Program
 
             AstIRProgramBuilder astIRProgramBuilder = new AstIRProgramBuilder(statements);
             IRProgram program = astIRProgramBuilder.ToIRProgram();
-            
+            parser.IncludeCFiles(program);
+
             StringBuilder output = new StringBuilder();
             program.Emit(output);
             File.WriteAllText(args[1], output.ToString());
@@ -37,4 +38,4 @@ public static class Program
 
         return 0;
     }
-}
+} 

@@ -25,6 +25,7 @@
         Continue,
         Return,
         Include,
+        CInclude,
         Assert,
         In,
         And,

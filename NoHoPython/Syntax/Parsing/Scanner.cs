@@ -306,6 +306,8 @@
                     "or" => TokenType.Or,
                     "new" => TokenType.New,
                     "as" => TokenType.As,
+                    "include" => TokenType.Include,
+                    "cinclude" => TokenType.CInclude,
                     _ => TokenType.Identifier
                 }, keyword);
             }

@@ -39,22 +39,22 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     emitter.Append("\\\'");
                     break;
                 case '\a':
-                    emitter.Append("\\\a");
+                    emitter.Append("\\a");
                     break;
                 case '\b':
-                    emitter.Append("\\\b");
+                    emitter.Append("\\b");
                     break;
                 case '\f':
-                    emitter.Append("\\\f");
+                    emitter.Append("\\f");
                     break;
                 case '\t':
-                    emitter.Append("\\\t");
+                    emitter.Append("\\t");
                     break;
                 case '\r':
-                    emitter.Append("\\\r");
+                    emitter.Append("\\r");
                     break;
                 case '\n':
-                    emitter.Append("\\\n");
+                    emitter.Append("\\n");
                     break;
                 case '\0':
                     emitter.Append("\\0");

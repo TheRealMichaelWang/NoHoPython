@@ -217,7 +217,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             scoping = false; 
         }
 
-        public override void ForwardDeclare(IRProgram irProgram, StringBuilder emitter)
+        public override void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
+
+        public void ForwardDeclareActual(IRProgram irProgram, StringBuilder emitter)
         {
             if (!irProgram.ProcedureOverloads.ContainsKey(this))
                 return;
@@ -227,7 +229,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             base.ForwardDeclare(irProgram, emitter);
         }
 
-        public override void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public override void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent) { }
+
+        public void EmitActual(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (!irProgram.ProcedureOverloads.ContainsKey(this))
                 return;
@@ -314,7 +318,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
                 emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier(irProgram)} = _nhp_captured->{variable.GetStandardIdentifier(irProgram)};");
             if(ReturnType is not NothingType)
-                emitter.AppendLine($"\t{ReturnType} _nhp_toret;");
+                emitter.AppendLine($"\t{ReturnType.GetCName(irProgram)} _nhp_toret;");
             return typeArguments;
         }
 

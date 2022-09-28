@@ -45,7 +45,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public override void DelayedLinkSetStatements(List<IRStatement> statements)
         {
             base.DelayedLinkSetStatements(statements);
-            if (ReturnType is not NothingType && !base.CodeBlockAllCodePathsReturn())
+            if (ReturnType is not NothingType && !CodeBlockAllCodePathsReturn())
                 throw new NotAllCodePathsReturnError(ErrorReportedElement);
         }
 

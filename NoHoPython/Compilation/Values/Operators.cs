@@ -209,20 +209,36 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            StringBuilder toCopyBuilder = new();
-            if (Value.RequiresDisposal(typeargs))
-                Value.Emit(irProgram, toCopyBuilder, typeargs);
-            else
-            {
-                StringBuilder valueBuilder = new();
-                Value.Emit(irProgram, valueBuilder, typeargs);
-                Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, toCopyBuilder, valueBuilder.ToString());
-            }
 
             StringBuilder recordBuilder = new();
             IRValue.EmitMemorySafe(Record, irProgram, recordBuilder, typeargs);
 
-            Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"{recordBuilder}->{Property.Name}", toCopyBuilder.ToString());
+            if (IsInitializingProperty)
+            {
+                emitter.Append($"({recordBuilder}->{Property.Name} = ");
+                if (Value.RequiresDisposal(typeargs))
+                    Value.Emit(irProgram, emitter, typeargs);
+                else
+                {
+                    StringBuilder valueBuilder = new();
+                    Value.Emit(irProgram, valueBuilder, typeargs);
+                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString());
+                }
+                emitter.Append(')');
+            }
+            else
+            {
+                StringBuilder toCopyBuilder = new();
+                if (Value.RequiresDisposal(typeargs))
+                    Value.Emit(irProgram, toCopyBuilder, typeargs);
+                else
+                {
+                    StringBuilder valueBuilder = new();
+                    Value.Emit(irProgram, valueBuilder, typeargs);
+                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, toCopyBuilder, valueBuilder.ToString());
+                }
+                Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"{recordBuilder}->{Property.Name}", toCopyBuilder.ToString());
+            }
         }
 
         public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }

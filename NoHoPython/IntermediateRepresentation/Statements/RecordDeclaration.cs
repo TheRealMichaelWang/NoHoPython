@@ -45,16 +45,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     public sealed partial class RecordDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
-        public sealed partial class RecordProperty : Property
+        public sealed partial class RecordProperty : Property, IComparable
         {
             public override bool IsReadOnly => isReadOnly;
-            public IRValue DefaultValue { get; private set; }
+            public IRValue? DefaultValue { get; private set; }
 
             private bool isReadOnly;
 
-#pragma warning disable CS8618 // Not immediatley initialized because of linking
             private RecordProperty(string name, IType type, bool isReadOnly, IRValue? defaultValue) : base(name, type)
-#pragma warning restore CS8618 //
             {
                 this.isReadOnly = isReadOnly;
                 if(defaultValue != null)
@@ -70,6 +68,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (DefaultValue != null)
                     throw new InvalidOperationException();
                 DefaultValue = ArithmeticCast.CastTo(defaultValue, Type);
+            }
+
+            public int CompareTo(object? obj)
+            {
+                if (obj is Property property)
+                    return Name.CompareTo(property.Name);
+                throw new InvalidOperationException();
             }
         }
 
@@ -126,6 +131,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (this.messageRecievers != null)
                 throw new InvalidOperationException();
             this.messageRecievers = messageRecievers;
+        }
+
+        public void AnalyzePropertyInitialization(ProcedureDeclaration constructor)
+        {
+            SortedSet<RecordProperty> initializedProperties = new();
+            constructor.CodeBlockAnalyzePropertyInitialization(initializedProperties);
+#pragma warning disable CS8602 // Only called during IR generation, following linking
+            foreach (RecordProperty property in properties)
+#pragma warning restore CS8602
+                if (!initializedProperties.Contains(property))
+                    throw new PropertyNotInitialized(property, ErrorReportedElement);
         }
     }
 }
@@ -232,6 +248,7 @@ namespace NoHoPython.Syntax.Statements
                 messageRecieverPropertyMap.Add(messageReciever, recordProperty);
             }
 
+            //link property definitions
             IRRecordDeclaration.DelayedLinkSetProperties(IRProperties);
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();
@@ -242,19 +259,28 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
             irBuilder.ScopeToRecord(IRRecordDeclaration);
 
+            //link default values to existing properties
             for (int i = 0; i < Properties.Count; i++)
             {
                 var propertyValue = Properties[i].DefaultValue;
                 if (propertyValue != null)
                     IRProperties[i].DelayedLinkSetDefaultValue(propertyValue.GenerateIntermediateRepresentationForValue(irBuilder, IRProperties[i].Type));
-                else
-                    IRProperties[i].DelayedLinkSetDefaultValue(IRProperties[i].Type.GetDefaultValue(this));
             }
+
+            IntermediateRepresentation.Statements.ProcedureDeclaration? Constructor = null;
             IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => {
                 var irProcedure = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
                 messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, this));
+
+                if (reciever.Name == "__init__") 
+                    Constructor = irProcedure;
+
                 return irProcedure;
             }));
+
+            if (Constructor == null)
+                throw new RecordMustDefineConstructorError(IRRecordDeclaration);
+            IRRecordDeclaration.AnalyzePropertyInitialization(Constructor);
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();

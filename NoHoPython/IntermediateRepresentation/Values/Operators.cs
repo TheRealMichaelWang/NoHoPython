@@ -172,7 +172,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IType Type => Property.Type;
 
         public IRValue Record { get; private set; }
-        public Property Property { get; private set; }
+        public RecordDeclaration.RecordProperty Property { get; private set; }
 
         public IRValue Value { get; private set; }
 
@@ -180,10 +180,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             Record = record;
             ErrorReportedElement = errorReportedElement;
+            IsInitializingProperty = false;
 
-            if (record.Type is IPropertyContainer propertyContainer)
+            if (record.Type is RecordType propertyContainer)
             {
-                Property = propertyContainer.FindProperty(propertyName);
+                Property = (RecordDeclaration.RecordProperty)propertyContainer.FindProperty(propertyName);
 
                 if (Property.IsReadOnly)
                     throw new CannotMutateReadonlyPropertyException(Property);

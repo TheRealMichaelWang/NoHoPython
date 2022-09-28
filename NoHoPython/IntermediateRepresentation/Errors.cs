@@ -141,15 +141,46 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
-    public sealed class CannotEmitDestructorException : CCodegenError
+    public sealed class CannotUseUninitializedProperty : IRGenerationError
+    {
+        public Property Property { get; private set; }
+
+        public CannotUseUninitializedProperty(Property property, IAstElement astElement) : base(astElement, $"Unable to use unitialized property {property.Name} of type {property.Type.TypeName}.")
+        {
+            Property = property;
+        }
+    }
+
+    public sealed class PropertyNotInitialized : IRGenerationError
+    {
+        public Property Property { get; private set; }
+
+        public PropertyNotInitialized(Property property, IAstElement astElement) : base(astElement, $"Not all constructor code paths initialize property {property.Name} of type {property.Type.TypeName}.")
+        {
+            Property = property;
+        }
+    }
+
+    public sealed class RecordMustDefineConstructorError : IRGenerationError
+    {
+        public RecordDeclaration RecordDeclaration { get; private set; }
+
+        public RecordMustDefineConstructorError(RecordDeclaration recordDeclaration) : base(recordDeclaration.ErrorReportedElement, $"Record {recordDeclaration.Name} doesn't define a constructor (do so using __init__).")
+        {
+            RecordDeclaration = recordDeclaration;
+        }
+    }
+
+    public sealed class CannotEmitDestructorError : CCodegenError
     {
         public IRValue Value { get; private set; }
 
-        public CannotEmitDestructorException(IRValue value) : base(value, "Cannot emit destructor for value. Please move to a variable.")
+        public CannotEmitDestructorError(IRValue value) : base(value, "Cannot emit destructor for value. Please move to a variable.")
         {
             Value = value;
         }
     }
+
 
     public sealed class CannotCompileNothingError : CCodegenError
     {

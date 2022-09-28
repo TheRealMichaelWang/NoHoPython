@@ -154,7 +154,7 @@ namespace NoHoPython.IntermediateRepresentation
         public static void EmitMemorySafe(IRValue value, IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeArgs)
         {
             if (value.RequiresDisposal(typeArgs))
-                throw new CannotEmitDestructorException(value);
+                throw new CannotEmitDestructorError(value);
             value.Emit(irProgram, emitter, typeArgs);
         }
     }

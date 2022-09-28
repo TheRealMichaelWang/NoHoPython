@@ -66,6 +66,8 @@ namespace NoHoPython.Scoping
             public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) => throw new InvalidOperationException();
             public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<Typing.TypeParameter, IType> typeargs, int indent) => throw new InvalidOperationException();
             public bool AllCodePathsReturn() => throw new InvalidOperationException();
+
+            public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => throw new InvalidOperationException();
         }
 
         public Module CurrentModule => usedModuleStack.Peek();

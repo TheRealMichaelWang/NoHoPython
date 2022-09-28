@@ -131,7 +131,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine("};");
         }
 
-        private void EmitInitializerConstructorHeader(IRProgram irProgram, StringBuilder emitter)
+        public void EmitConstructorCHeader(IRProgram irProgram, StringBuilder emitter)
         {
             ProcedureType constructorType = (ProcedureType)FindProperty("__init__").Type;
             emitter.Append($"{GetCName(irProgram)} construct_{GetStandardIdentifier(irProgram)}(");
@@ -144,29 +144,20 @@ namespace NoHoPython.Typing
             emitter.Append(')');
         }
 
-        public void EmitConstructorCHeader(IRProgram irProgram, StringBuilder emitter)
-        {
-            if (HasProperty("__init__") && FindProperty("__init__").Type is ProcedureType constructorType) 
-            {
-                EmitInitializerConstructorHeader(irProgram, emitter);
-                emitter.AppendLine(";");
-            }
-            else
-                emitter.AppendLine($"{GetCName(irProgram)} construct_{GetStandardIdentifier(irProgram)}();");
-        }
-
         public void EmitConstructor(IRProgram irProgram, StringBuilder emitter)
         {
-            void emitInitializer()
-            {
-                emitter.AppendLine($"\t{GetCName(irProgram)} _nhp_self = malloc({GetCHeapSizer(irProgram)});");
-                emitter.AppendLine("\t_nhp_self->_nhp_ref_count = 0;");
-                emitter.AppendLine("\t_nhp_self->_nhp_freeing = 0;");
-                foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
+            ProcedureType constructorType = (ProcedureType)FindProperty("__init__").Type;
+            EmitConstructorCHeader(irProgram, emitter);
+            emitter.AppendLine(" {"); 
+            
+            emitter.AppendLine($"\t{GetCName(irProgram)} _nhp_self = malloc({GetCHeapSizer(irProgram)});");
+            emitter.AppendLine("\t_nhp_self->_nhp_ref_count = 0;");
+            emitter.AppendLine("\t_nhp_self->_nhp_freeing = 0;");
+            foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
+                if (recordProperty.DefaultValue != null)
                 {
                     emitter.Append($"\t_nhp_self->{recordProperty.Name} = ");
-                    
-                    if(recordProperty.DefaultValue.RequiresDisposal(new Dictionary<TypeParameter, IType>()))
+                    if (recordProperty.DefaultValue.RequiresDisposal(new Dictionary<TypeParameter, IType>()))
                         recordProperty.DefaultValue.Emit(irProgram, emitter, new Dictionary<TypeParameter, IType>());
                     else
                     {
@@ -174,27 +165,13 @@ namespace NoHoPython.Typing
                         recordProperty.DefaultValue.Emit(irProgram, valueBuilder, new Dictionary<TypeParameter, IType>());
                         recordProperty.Type.EmitCopyValue(irProgram, emitter, valueBuilder.ToString());
                     }
-                    
                     emitter.AppendLine(";");
                 }
-            }
 
-            if (HasProperty("__init__") && FindProperty("__init__").Type is ProcedureType constructorType)
-            {
-                EmitInitializerConstructorHeader(irProgram, emitter);
-                emitter.AppendLine(" {");
-                emitInitializer();
-
-                emitter.Append("\t_nhp_self->__init__->_nhp_this_anon(_nhp_self->__init__");
-                for (int i = 0; i < constructorType.ParameterTypes.Count; i++)
-                    emitter.Append($", param{i}");
-                emitter.AppendLine(");");
-            }
-            else
-            {
-                emitter.AppendLine($"{GetCName(irProgram)} construct_{GetStandardIdentifier(irProgram)}() {{");
-                emitInitializer();
-            }
+            emitter.Append("\t_nhp_self->__init__->_nhp_this_anon(_nhp_self->__init__");
+            for (int i = 0; i < constructorType.ParameterTypes.Count; i++)
+                emitter.Append($", param{i}");
+            emitter.AppendLine(");");
             emitter.AppendLine("\t_nhp_self->_nhp_min_refs = _nhp_self->_nhp_ref_count;");
             emitter.AppendLine("\treturn _nhp_self;");
             emitter.AppendLine("}");

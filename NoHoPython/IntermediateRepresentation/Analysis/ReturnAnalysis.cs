@@ -38,7 +38,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class ForeignCProcedureDeclaration
     {
-        public bool AllCodePathsReturn() => throw new InvalidOperationException();
+        public bool AllCodePathsReturn() => false;
     }
 
     partial class ProcedureDeclaration
@@ -63,7 +63,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class WhileBlock
     {
-        public bool AllCodePathsReturn() => WhileTrueBlock.CodeBlockAllCodePathsReturn();
+        public bool AllCodePathsReturn() => false;
     }
 
     partial class ReturnStatement

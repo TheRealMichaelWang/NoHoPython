@@ -215,12 +215,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Record.AnalyzePropertyInitialization(initializedProperties);
             Value.AnalyzePropertyInitialization(initializedProperties);
 
-            if (Record is VariableReference variableReference && variableReference.Variable.IsRecordSelf)
+            if (Property.DefaultValue == null && Record is VariableReference variableReference && variableReference.Variable.IsRecordSelf)
             {
                 initializedProperties.Add(Property);
-                if(Property.DefaultValue == null)
-                    IsInitializingProperty = true;
+                IsInitializingProperty = true;
             }
+            else if (Property.IsReadOnly)
+                throw new CannotMutateReadonlyPropertyException(Property, ErrorReportedElement);
         }
     }
 

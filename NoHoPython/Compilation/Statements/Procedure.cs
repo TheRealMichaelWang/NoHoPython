@@ -269,8 +269,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.Append($"{ReturnType.GetCName(irProgram)} {GetStandardIdentifier(irProgram)}(");
             if (IsAnonymous)
             {
-                if (ProcedureDeclaration.CapturedVariables.Count > 0)
-                    emitter.Append($"{GetClosureCaptureCType(irProgram)}* _nhp_captured");
+                //if (ProcedureDeclaration.CapturedVariables.Count > 0)
+                emitter.Append($"{GetClosureCaptureCType(irProgram)}* _nhp_captured");
 #pragma warning disable CS8602 // Parameters initialized by compilation
                 ProcedureDeclaration.Parameters.ForEach((parameter) =>
                 {
@@ -346,26 +346,18 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             EmitCaptureCFunctionHeader(irProgram, emitter);
             emitter.AppendLine(" {");
 
-            if(ProcedureDeclaration.CapturedVariables.Count > 0)
-            {
-                emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* closure = malloc(sizeof({GetStandardIdentifier(irProgram)}_captured_t));");
-                emitter.AppendLine($"\tclosure->_nhp_this_anon = ({anonProcedureType.GetStandardIdentifier(irProgram)}_t)(&{GetStandardIdentifier(irProgram)});");
-                emitter.AppendLine($"\tclosure->_nhp_destructor = ({anonProcedureType.GetStandardIdentifier(irProgram)}_destructor_t)(&free{GetStandardIdentifier(irProgram)});");
-                emitter.AppendLine($"\tclosure->_nhp_copier = ({anonProcedureType.GetStandardIdentifier(irProgram)}_copier_t)(&copy{GetStandardIdentifier(irProgram)});");
-                emitter.AppendLine($"\tclosure->_nhp_record_copier = ({anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t)(&record_copy{GetStandardIdentifier(irProgram)});");
-                emitter.AppendLine("\tclosure->_nhp_freeing = 0;");
+            emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* closure = malloc(sizeof({GetStandardIdentifier(irProgram)}_captured_t));");
+            emitter.AppendLine($"\tclosure->_nhp_this_anon = ({anonProcedureType.GetStandardIdentifier(irProgram)}_t)(&{GetStandardIdentifier(irProgram)});");
+            emitter.AppendLine($"\tclosure->_nhp_destructor = ({anonProcedureType.GetStandardIdentifier(irProgram)}_destructor_t)(&free{GetStandardIdentifier(irProgram)});");
+            emitter.AppendLine($"\tclosure->_nhp_copier = ({anonProcedureType.GetStandardIdentifier(irProgram)}_copier_t)(&copy{GetStandardIdentifier(irProgram)});");
+            emitter.AppendLine($"\tclosure->_nhp_record_copier = ({anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t)(&record_copy{GetStandardIdentifier(irProgram)});");
+            emitter.AppendLine("\tclosure->_nhp_freeing = 0;");
 
-                foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
-                {
-                    emitter.Append($"\tclosure->{capturedVariable.GetStandardIdentifier(irProgram)} = ");
-                    capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitClosureBorrowValue(irProgram, emitter, capturedVariable.GetStandardIdentifier(irProgram));
-                    emitter.AppendLine(";");
-                }
-            }
-            else
+            foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
-                emitter.AppendLine($"\t{anonProcedureType.GetCName(irProgram)} closure = malloc(sizeof({anonProcedureType.GetStandardIdentifier(irProgram)}));");
-                emitter.AppendLine($"\t*closure = ({anonProcedureType.GetStandardIdentifier(irProgram)})(&{GetStandardIdentifier(irProgram)});");
+                emitter.Append($"\tclosure->{capturedVariable.GetStandardIdentifier(irProgram)} = ");
+                capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitClosureBorrowValue(irProgram, emitter, capturedVariable.GetStandardIdentifier(irProgram));
+                emitter.AppendLine(";");
             }
             emitter.AppendLine($"\treturn ({anonProcedureType.GetCName(irProgram)})closure;");
             emitter.AppendLine("}");

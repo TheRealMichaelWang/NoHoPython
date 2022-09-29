@@ -339,8 +339,6 @@ namespace NoHoPython.Syntax.Statements
             List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, IRProcedureDeclaration, false));
             IRProcedureDeclaration.DelayedLinkSetParameters(parameters);
 
-            foreach (Variable parameter in parameters)
-                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
             if (oldMasterScope is IntermediateRepresentation.Statements.RecordDeclaration parentRecord)
             {
                 Variable selfVariable = new Variable(parentRecord.SelfType, "self", IRProcedureDeclaration, true);
@@ -365,6 +363,10 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
             irBuilder.ScopedProcedures.Push(IRProcedureDeclaration);
 
+#pragma warning disable CS8602 // Parameters set during forward declaration
+            foreach (Variable parameter in IRProcedureDeclaration.Parameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
+#pragma warning restore CS8602
             IRProcedureDeclaration.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, Statements));
 
             irBuilder.SymbolMarshaller.GoBack();

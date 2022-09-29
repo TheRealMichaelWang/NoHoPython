@@ -65,6 +65,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (RecordType recordType in irProgram.RecordTypeOverloads[this]) 
             {
                 recordType.EmitConstructorCHeader(irProgram, emitter);
+                emitter.AppendLine(";");
 
                 emitter.AppendLine($"void free_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
                 emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
@@ -184,7 +185,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine("\tif(record->_nhp_freeing)");
             emitter.AppendLine("\t\treturn;");
 
-            emitter.AppendLine("\tif(record->_nhp_ref_count == record->_nhp_min_refs) {");
+            emitter.AppendLine("\tif(record->_nhp_ref_count > record->_nhp_min_refs) {");
             emitter.AppendLine("\t\trecord->_nhp_ref_count--;");
             emitter.AppendLine("\t\treturn;");
             emitter.AppendLine("\t}");
@@ -198,7 +199,7 @@ namespace NoHoPython.Typing
                     recordProperty.Type.EmitFreeValue(irProgram, emitter, $"record->{recordProperty.Name}");
                 }
             }
-
+            emitter.AppendLine("\tfree(record);");
             emitter.AppendLine("}");
         }
 

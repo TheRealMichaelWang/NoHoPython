@@ -117,7 +117,12 @@ namespace NoHoPython.Syntax.Parsing
                         statements.Add(result);
 
                     if (scanner.LastToken.Type == TokenType.EndOfFile)
-                        break;
+                    {
+                        lastCountedIndents = 0;
+                        currentExpectedIndents = 0;
+                        skipIndentCounting = true;
+                        return statements;
+                    }
                     if (!skipIndentCounting)
                         MatchAndScanToken(TokenType.Newline);
                 }
@@ -318,7 +323,7 @@ namespace NoHoPython.Syntax.Parsing
         public List<IAstStatement> ParseAll()
         {
             List<IAstStatement> topLevelStatements = new();
-            while (scanner.LastToken.Type != TokenType.EndOfFile)
+            while (true)
             {
                 skipIndentCounting = false;
                 switch (scanner.LastToken.Type)
@@ -332,7 +337,7 @@ namespace NoHoPython.Syntax.Parsing
                             MatchToken(TokenType.StringLiteral);
                             string file = scanner.LastToken.Identifier;
                             scanner.ScanToken();
-                            MatchAndScanToken(TokenType.Newline);
+                            MatchToken(TokenType.Newline);
                             scanner.IncludeFile(file);
                             continue;
                         }
@@ -342,15 +347,19 @@ namespace NoHoPython.Syntax.Parsing
                             MatchToken(TokenType.StringLiteral);
                             includedCFiles.Add(scanner.LastToken.Identifier);
                             scanner.ScanToken();
-                            MatchAndScanToken(TokenType.Newline);
+                            MatchToken(TokenType.Newline);
                             continue;
                         }
+                    case TokenType.EndOfFile:
+                        scanner.ScanToken();
+                        if (scanner.LastToken.Type == TokenType.EndOfFile)
+                            return topLevelStatements;
+                        break;
                     default:
                         topLevelStatements.Add(ParseTopLevel());
                         break;
                 }
             }
-            return topLevelStatements;
         }
     }
 }

@@ -8,11 +8,11 @@ using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
-    public sealed class CannotMutateReadonlyPropertyException : Exception
+    public sealed class CannotMutateReadonlyPropertyException : IRGenerationError
     {
         public Property Property { get; private set; }
 
-        public CannotMutateReadonlyPropertyException(Property property) : base($"Cannot mutate read-only property {property.Name}.")
+        public CannotMutateReadonlyPropertyException(Property property, Syntax.IAstElement astElement) : base(astElement, $"Cannot mutate read-only property {property.Name}.")
         {
             Property = property;
             Debug.Assert(Property.IsReadOnly);
@@ -140,7 +140,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 #pragma warning disable CS8602 // Only called during IR generation, following linking
             foreach (RecordProperty property in properties)
 #pragma warning restore CS8602
-                if (!initializedProperties.Contains(property))
+                if (property.DefaultValue == null && !initializedProperties.Contains(property))
                     throw new PropertyNotInitialized(property, ErrorReportedElement);
         }
     }

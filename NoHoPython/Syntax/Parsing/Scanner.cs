@@ -39,6 +39,7 @@
 
             public int Row { get; private set; }
             public int Column { get; private set; }
+            public char LastChar { get; private set; }
 
             private readonly string source;
             private int position;
@@ -75,9 +76,9 @@
                     }
                     else
                         Column++;
-                    return source[position++];
+                    return LastChar = source[position++];
                 }
-                return '\0';
+                return LastChar = '\0';
             }
         }
 
@@ -87,7 +88,7 @@
         private SortedSet<string> visitedFiles;
 
         public Token LastToken { get; private set; }
-        private char lastChar;
+        private char lastChar => visitorStack.Peek().LastChar;
 
         private readonly string standardLibraryDirectory;
 
@@ -98,7 +99,6 @@
             visitedFiles = new SortedSet<string>();
 
             IncludeFile(firstFileToVisit);
-            ScanChar();
             ScanToken();
         }
 
@@ -110,23 +110,10 @@
 
             visitorStack.Push(visitor);
             visitedFiles.Add(fileName);
+            ScanChar();
         }
 
-        private char ScanChar()
-        {
-            char c = visitorStack.Peek().ScanChar();
-            if (c == '\0')
-            {
-                if (visitorStack.Count > 1)
-                {
-                    visitorStack.Pop();
-                    return ScanChar();
-                }
-                return lastChar = '\0';
-            }
-            else
-                return lastChar = c;
-        }
+        private char ScanChar() => visitorStack.Peek().ScanChar();
 
         private char ScanCharLiteral()
         {
@@ -256,6 +243,8 @@
                 case '\t':
                     return TokenType.Tab;
                 case '\0':
+                    if(visitorStack.Count > 1)
+                        visitorStack.Pop();
                     return TokenType.EndOfFile;
                 default:
                     throw new UnexpectedCharacterException(symChar);

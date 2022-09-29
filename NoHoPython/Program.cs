@@ -11,6 +11,8 @@ public static class Program
 
         try
         {
+            DateTime compileStart = DateTime.Now;
+
             AstParser parser = new(new Scanner(args[0], Environment.CurrentDirectory));
 
             List<IAstStatement> statements = parser.ParseAll();
@@ -22,6 +24,8 @@ public static class Program
             StringBuilder output = new StringBuilder();
             program.Emit(output);
             File.WriteAllText(args[1], output.ToString());
+
+            Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {args[0]}.");
         }
         catch (SyntaxError syntaxError)
         {

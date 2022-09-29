@@ -1,0 +1,13 @@
+﻿include "stdlib/list.nhp"
+cinclude "<stdio.h>"
+
+def main():
+	list = new data::list<int>(5, 0)
+	i = 0
+	while i < 20:
+		list.pushBack(i)
+		i = i + 1
+	def printElem(int j):
+		cdef printf(handle, int) nothing
+		printf(fmt="%i\n\0", j + i)
+	list.forall(todo=printElem)

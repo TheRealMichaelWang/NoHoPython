@@ -178,8 +178,6 @@ namespace NoHoPython.Syntax.Parsing
             while (scanner.LastToken.Type != TokenType.CloseParen)
             {
                 parameters.Add(ParseType());
-                scanner.ScanToken();
-
                 if (scanner.LastToken.Type != TokenType.CloseParen)
                     MatchAndScanToken(TokenType.Comma);
             }

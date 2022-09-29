@@ -185,9 +185,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (record.Type is RecordType propertyContainer)
             {
                 Property = (RecordDeclaration.RecordProperty)propertyContainer.FindProperty(propertyName);
-
-                if (Property.IsReadOnly)
-                    throw new CannotMutateReadonlyPropertyException(Property);
                 Value = ArithmeticCast.CastTo(value, Property.Type);
             }
             else

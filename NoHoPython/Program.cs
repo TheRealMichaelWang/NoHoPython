@@ -16,6 +16,13 @@ public static class Program
 
             AstIRProgramBuilder astIRProgramBuilder = new AstIRProgramBuilder(statements);
             IRProgram program = astIRProgramBuilder.ToIRProgram();
+            parser.IncludeCFiles(program);
+
+            StringBuilder output = new StringBuilder();
+            program.Emit(output);
+            File.WriteAllText(args[1], output.ToString());
+
+            Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {args[1]}.");
         }
         catch (SyntaxError syntaxError)
         {

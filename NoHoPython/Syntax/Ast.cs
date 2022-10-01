@@ -1,14 +1,15 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.Typing;
 
 namespace NoHoPython.Syntax
 {
-    public interface IAstElement : ISourceLocatable {}
+    public interface IAstElement : ISourceLocatable { }
 
     public interface IAstValue : IAstElement
     {
         string ToString();
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType);
     }
 
     public interface IAstStatement : IAstElement
@@ -43,6 +44,8 @@ namespace NoHoPython.Syntax
             Column = column;
             File = file;
         }
+
+        public override string ToString() => $"file \"{File}\", row {Row}, col {Column}";
     }
 
     public interface ISourceLocatable

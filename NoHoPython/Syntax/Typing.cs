@@ -18,7 +18,19 @@ namespace NoHoPython.Syntax
 
         public override string ToString() => Identifier + (RequiredImplementedType == null ? string.Empty : $": {RequiredImplementedType}");
 
-        public Typing.TypeParameter ToIRTypeParameter(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) => new(Identifier, RequiredImplementedType == null ? null : RequiredImplementedType.ToIRType(irBuilder, errorReportedElement));
+        public Typing.TypeParameter ToIRTypeParameter(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        {
+            if (RequiredImplementedType == null)
+                return new(Identifier, null, null);
+            else
+            {
+                IType type = RequiredImplementedType.ToIRType(irBuilder, errorReportedElement);
+                if (type is InterfaceType interfaceType)
+                    return new(Identifier, interfaceType, null);
+                else
+                    throw new UnexpectedTypeException(type, errorReportedElement);
+            }
+        }
     }
 
     public sealed class AstType
@@ -44,7 +56,7 @@ namespace NoHoPython.Syntax
             void MatchTypeArgCount(int expected)
             {
                 if (typeArguments.Count != expected)
-                    throw new UnexpectedTypeArgumentsException(expected, typeArguments.Count);
+                    throw new UnexpectedTypeArgumentsException(expected, typeArguments.Count, errorReportedElement);
             }
 
             switch (Identifier)
@@ -63,14 +75,22 @@ namespace NoHoPython.Syntax
                     MatchTypeArgCount(0);
                     return new DecimalType();
                 case "array":
-                case "mem":
                     MatchTypeArgCount(1);
                     return new ArrayType(typeArguments[0]);
+                case "handle":
+                case "ptr":
+                case "pointer":
+                    MatchTypeArgCount(0);
+                    return new HandleType();
+                case "nothing":
+                case "void":
+                    MatchTypeArgCount(0);
+                    return new NothingType();
                 case "fn":
                 case "proc":
                     {
                         return typeArguments.Count < 1
-                            ? throw new UnexpectedTypeArgumentsException(typeArguments.Count)
+                            ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
                             : (IType)new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1));
                     }
                 default:
@@ -82,11 +102,11 @@ namespace NoHoPython.Syntax
                             return new TypeParameterReference(typeParameter);
                         }
                         else if (typeSymbol is IntermediateRepresentation.Statements.RecordDeclaration recordDeclaration)
-                            return new RecordType(recordDeclaration, typeArguments);
+                            return new RecordType(recordDeclaration, typeArguments, errorReportedElement);
                         else if (typeSymbol is IntermediateRepresentation.Statements.InterfaceDeclaration interfaceDeclaration)
-                            return new InterfaceType(interfaceDeclaration, typeArguments);
+                            return new InterfaceType(interfaceDeclaration, typeArguments, errorReportedElement);
                         else if (typeSymbol is IntermediateRepresentation.Statements.EnumDeclaration enumDeclaration)
-                            return new EnumType(enumDeclaration, typeArguments);
+                            return new EnumType(enumDeclaration, typeArguments, errorReportedElement);
                         throw new NotATypeException(typeSymbol);
                     }
             }
@@ -112,7 +132,11 @@ namespace NoHoPython.Syntax.Values
 
         public override string ToString() => $"{ToCast} as {TargetType}";
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder) => ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentationForValue(irBuilder), TargetType.ToIRType(irBuilder, this));
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType) 
+        {
+            IType targetType = TargetType.ToIRType(irBuilder, this);
+            return ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentationForValue(irBuilder, targetType), targetType);
+        }
     }
 }
 
@@ -124,8 +148,14 @@ namespace NoHoPython.Syntax.Parsing
         {
             TypeParameter ParseTypeParameter()
             {
-                MatchToken(TokenType.Identifier);
-                string identifier = scanner.LastToken.Identifier;
+                string identifier;
+                if (scanner.LastToken.Type == TokenType.Nothing)
+                    identifier = "nothing";
+                else
+                {
+                    MatchToken(TokenType.Identifier);
+                    identifier = scanner.LastToken.Identifier;
+                }
                 scanner.ScanToken();
 
                 if (scanner.LastToken.Type == TokenType.Colon)
@@ -174,9 +204,14 @@ namespace NoHoPython.Syntax.Parsing
 
         private AstType ParseType()
         {
-            MatchToken(TokenType.Identifier);
-            string identifier = scanner.LastToken.Identifier;
-            scanner.ScanToken();
+            string identifier;
+            if (scanner.LastToken.Type == TokenType.Nothing)
+            {
+                identifier = "nothing";
+                scanner.ScanToken();
+            }
+            else
+                identifier = ParseIdentifier();
 
             return scanner.LastToken.Type == TokenType.Less
                 ? new AstType(identifier, ParseTypeArguments())

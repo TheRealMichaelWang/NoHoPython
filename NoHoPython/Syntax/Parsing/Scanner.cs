@@ -39,6 +39,7 @@
 
             public int Row { get; private set; }
             public int Column { get; private set; }
+            public char LastChar { get; private set; }
 
             private readonly string source;
             private int position;
@@ -75,20 +76,19 @@
                     }
                     else
                         Column++;
-                    return source[position++];
+                    return LastChar = source[position++];
                 }
-                return '\0';
+                return LastChar = '\0';
             }
         }
 
         public SourceLocation CurrentLocation => visitorStack.Peek().CurrentLocation;
-        private string CurrentWorkingDirectory => visitorStack.Peek().WorkingDirectory;
 
         private Stack<FileVisitor> visitorStack;
         private SortedSet<string> visitedFiles;
 
         public Token LastToken { get; private set; }
-        private char lastChar;
+        private char lastChar => visitorStack.Peek().LastChar;
 
         private readonly string standardLibraryDirectory;
 
@@ -99,7 +99,6 @@
             visitedFiles = new SortedSet<string>();
 
             IncludeFile(firstFileToVisit);
-            ScanChar();
             ScanToken();
         }
 
@@ -111,23 +110,10 @@
 
             visitorStack.Push(visitor);
             visitedFiles.Add(fileName);
+            ScanChar();
         }
 
-        private char ScanChar()
-        {
-            char c = visitorStack.Peek().ScanChar();
-            if (c == '\0')
-            {
-                if (visitorStack.Count > 1)
-                {
-                    visitorStack.Pop();
-                    return ScanChar();
-                }
-                return lastChar = '\0';
-            }
-            else
-                return lastChar = c;
-        }
+        private char ScanChar() => visitorStack.Peek().ScanChar();
 
         private char ScanCharLiteral()
         {
@@ -142,6 +128,8 @@
                     {
                         case '\"':
                             return '\"';
+                        case '\'':
+                            return '\'';
                         case 'a':
                             return '\a';
                         case 'b':
@@ -197,6 +185,11 @@
                             ScanChar();
                             return TokenType.Set;
                         }
+                        else if(lastChar == ':')
+                        {
+                            ScanChar();
+                            return TokenType.ModuleAccess;
+                        }
                         return TokenType.Colon;
                     }
                 case '.':
@@ -250,6 +243,8 @@
                 case '\t':
                     return TokenType.Tab;
                 case '\0':
+                    if(visitorStack.Count > 1)
+                        visitorStack.Pop();
                     return TokenType.EndOfFile;
                 default:
                     throw new UnexpectedCharacterException(symChar);
@@ -277,6 +272,9 @@
                     "true" => TokenType.True,
                     "False" => TokenType.False,
                     "false" => TokenType.False,
+                    "None" => TokenType.Nothing,
+                    "Nothing" => TokenType.Nothing,
+                    "nothing" => TokenType.Nothing,
                     "module" => TokenType.Module,
                     "mod" => TokenType.Module,
                     "interface" => TokenType.Interface,
@@ -285,6 +283,8 @@
                     "record" => TokenType.Record,
                     "readonly" => TokenType.Readonly,
                     "def" => TokenType.Define,
+                    "cdef" => TokenType.CDefine,
+                    "match" => TokenType.Match,
                     "while" => TokenType.While,
                     "for" => TokenType.For,
                     "if" => TokenType.If,
@@ -293,10 +293,14 @@
                     "break" => TokenType.Break,
                     "continue" => TokenType.Continue,
                     "return" => TokenType.Return,
+                    "assert" => TokenType.Assert,
                     "in" => TokenType.In,
                     "and" => TokenType.And,
                     "or" => TokenType.Or,
                     "new" => TokenType.New,
+                    "as" => TokenType.As,
+                    "include" => TokenType.Include,
+                    "cinclude" => TokenType.CInclude,
                     _ => TokenType.Identifier
                 }, keyword);
             }

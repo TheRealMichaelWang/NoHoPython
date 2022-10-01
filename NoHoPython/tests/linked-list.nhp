@@ -1,0 +1,63 @@
+﻿enum nullable<T>:
+	T
+	None
+
+class node<T>:
+	T elem
+	nullable<node<T>> next
+	
+	def __init__(T elem, nullable<node<T>> next):
+		self.elem = elem
+		self.next = next
+
+class list<T>:
+	nullable<node<T>> head
+	
+	def __init__():
+		self.head = None
+	
+	def isEmpty() bool:
+		match self.head:
+			node<T> head:
+				return False
+			None:
+				return True
+	
+	def pushFront(T elem):
+		self.head = new node<T>(elem, self.head)
+	
+	def pushBack(T elem):
+		def internalPushBack(node<T> parent):
+			match parent.next:
+				node<T> next:
+					internalPushBack(next)
+				None:
+					parent.next = new node<T>(elem, None)
+		match self.head:
+			node<T> head:
+				internalPushBack(head)
+			None:
+				self.head = new node<T>(elem, None)
+	
+	def popFront() nullable<T>:
+		match self.head:
+			node<T> head:
+				toret = head.elem
+				self.head = head.next
+				return toret
+			None:
+				return None
+
+def main():
+	cdef printf(handle, int) None
+	myList = new list<int>()
+	i = 0
+	while i < 20:
+		myList.pushBack(i)
+		i = i + 1
+	while True:
+		match res=myList.popFront():
+			int j:
+				printf(fmt="%i\n\0", j)
+			None:
+				return None

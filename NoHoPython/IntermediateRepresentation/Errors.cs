@@ -1,5 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
@@ -17,8 +18,37 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void Print()
         {
-            Console.WriteLine($"Compilation Error: {Message}");
-            Console.WriteLine($"\nIn file \"{AstElement.SourceLocation.File}\", row {AstElement.SourceLocation.Row}, col {AstElement.SourceLocation.Column}:\n");
+            Console.WriteLine($"IR Generation Error: {Message}");
+
+            Console.WriteLine($"\nIn {AstElement.SourceLocation}:\n");
+
+            if (AstElement is IAstValue astValue)
+            {
+                Console.WriteLine($"\t{astValue}");
+            }
+            else if (AstElement is IAstStatement astStatement)
+                Console.WriteLine(astStatement.ToString(0));
+        }
+    }
+
+    public abstract class CCodegenError : Exception
+    {
+        public IRElement? IRElement { get; private set; }
+
+        public CCodegenError(IRElement? iRElement, string message) : base(message)
+        {
+            IRElement = iRElement;
+        }
+
+        public void Print()
+        {
+            Console.WriteLine($"Codegen(to C) Error: {Message}");
+
+            if (IRElement == null)
+                return;
+
+            IAstElement AstElement = IRElement.ErrorReportedElement;
+            Console.WriteLine($"\nIn {AstElement.SourceLocation}:\n");
 
             if (AstElement is IAstValue astValue)
             {
@@ -44,12 +74,12 @@ namespace NoHoPython.IntermediateRepresentation
     public sealed class UnexpectedArgumentsException : IRGenerationError
     {
         public readonly List<IType> ArgumentTypes;
-        public readonly List<IType> ParameterTypes;
+        public readonly List<Variable> Parameters;
 
-        public UnexpectedArgumentsException(List<IType> argumentTypes, List<IType> parameterTypes, IAstElement astElement) : base(astElement, $"Procedure expected ({string.Join(", ", parameterTypes.Select((IType param) => param.TypeName))}), but got ({string.Join(", ", argumentTypes.Select((IType argument) => argument.TypeName))}) instead.")
+        public UnexpectedArgumentsException(List<IType> argumentTypes, List<Variable> parameters, IAstElement astElement) : base(astElement, $"Procedure expected ({string.Join(", ", parameters.Select((Variable param) => param.Type + " " + param.Name))}), but got ({string.Join(", ", argumentTypes.Select((IType argument) => argument.TypeName))}) instead.")
         {
             ArgumentTypes = argumentTypes;
-            ParameterTypes = parameterTypes;
+            Parameters = parameters;
         }
     }
 
@@ -80,6 +110,113 @@ namespace NoHoPython.IntermediateRepresentation
         public NotAVariableException(IScopeSymbol scopeSymbol, IAstElement astElement) : base(astElement, $"{scopeSymbol.Name} is not a variable. Rather it is a {scopeSymbol}.")
         {
             ScopeSymbol = scopeSymbol;
+        }
+    }
+
+    public sealed class CannotMutateCapturedVaraible : IRGenerationError
+    {
+        public Variable CapturedVariable { get; private set; }
+
+        public CannotMutateCapturedVaraible(Variable capturedVariable, IAstElement astElement) : base(astElement, $"Cannot mutate captured variable {capturedVariable.Name}.")
+        {
+            CapturedVariable = capturedVariable;
+        }
+    }
+
+    public sealed class NoDefaultValueError : IRGenerationError
+    {
+        public IType Type { get; private set; }
+
+        public NoDefaultValueError(IType type, IAstElement astElement) : base(astElement, $"Unable to get default value for {type.TypeName}.")
+        {
+            Type = type;
+        }
+    }
+
+    public sealed class NotAllCodePathsReturnError : IRGenerationError
+    {
+        public NotAllCodePathsReturnError(IAstElement astElement) : base(astElement, $"Not all code paths return a value.")
+        {
+
+        }
+    }
+
+    public sealed class CannotUseUninitializedProperty : IRGenerationError
+    {
+        public Property Property { get; private set; }
+
+        public CannotUseUninitializedProperty(Property property, IAstElement astElement) : base(astElement, $"Unable to use unitialized property {property.Name} of type {property.Type.TypeName}.")
+        {
+            Property = property;
+        }
+    }
+
+    public sealed class PropertyNotInitialized : IRGenerationError
+    {
+        public Property Property { get; private set; }
+
+        public PropertyNotInitialized(Property property, IAstElement astElement) : base(astElement, $"Not all constructor code paths initialize property {property.Name} of type {property.Type.TypeName}.")
+        {
+            Property = property;
+        }
+    }
+
+    public sealed class RecordMustDefineConstructorError : IRGenerationError
+    {
+        public RecordDeclaration RecordDeclaration { get; private set; }
+
+        public RecordMustDefineConstructorError(RecordDeclaration recordDeclaration) : base(recordDeclaration.ErrorReportedElement, $"Record {recordDeclaration.Name} doesn't define a constructor (do so using __init__).")
+        {
+            RecordDeclaration = recordDeclaration;
+        }
+    }
+
+    public sealed class UnhandledMatchOption : IRGenerationError
+    {
+        public EnumType EnumType { get; private set; }
+        public IType UnhandledType { get; private set; }
+
+        public UnhandledMatchOption(EnumType enumType, IType unhandledType, IAstStatement astStatement) : base(astStatement, $"Match statement doesn't implement handler for type {unhandledType.TypeName}, which is implemented by matched enum {enumType.TypeName}.")
+        {
+            EnumType = enumType;
+            UnhandledType = unhandledType;
+        }
+    }
+
+    public sealed class NoPostEvalPureValue : IRGenerationError
+    {
+        public IRValue Value { get; private set; }
+
+        public NoPostEvalPureValue(IRValue value) : base(value.ErrorReportedElement, $"Value must be evaluated twice; no pure evaluation can be generated.")
+        {
+            Value = value;
+        }
+    }
+
+    public sealed class CannotEmitDestructorError : CCodegenError
+    {
+        public IRValue Value { get; private set; }
+
+        public CannotEmitDestructorError(IRValue value) : base(value, "Cannot emit destructor for value. Please move to a variable.")
+        {
+            Value = value;
+        }
+    }
+
+
+    public sealed class CannotCompileNothingError : CCodegenError
+    {
+        public CannotCompileNothingError(IRElement? errorReportedElement) : base(errorReportedElement, "(Internal Error)Cannot actually compile/emit a nothing literal nor scope a nothing type.")
+        {
+
+        }
+    }
+
+    public sealed class UnexpectedTypeParameterError : CCodegenError
+    {
+        public UnexpectedTypeParameterError(Typing.TypeParameter typeParameter, IRElement? errorReportedElement) : base(errorReportedElement, $"(Internal Error)Could not scope or compile/emit the type parameter {typeParameter.Name}.")
+        {
+
         }
     }
 }

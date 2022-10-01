@@ -8,11 +8,18 @@ namespace NoHoPython.Syntax.Parsing
     {
         private Scanner scanner;
         private int currentExpectedIndents;
+        private List<string> includedCFiles;
 
         public AstParser(Scanner scanner)
         {
             this.scanner = scanner;
             currentExpectedIndents = 0;
+            includedCFiles = new();
+        }
+
+        public void IncludeCFiles(IntermediateRepresentation.IRProgram irProgram)
+        {
+            includedCFiles.ForEach((file) => irProgram.IncludeCFile(file));
         }
 
         private void MatchToken(TokenType expectedLastTokenType)
@@ -35,8 +42,9 @@ namespace NoHoPython.Syntax.Parsing
             idBuilder.Append(scanner.LastToken.Identifier);
             scanner.ScanToken();
 
-            while (scanner.LastToken.Type == TokenType.Colon)
+            while (scanner.LastToken.Type == TokenType.ModuleAccess)
             {
+                idBuilder.Append(':');
                 scanner.ScanToken();
                 MatchToken(TokenType.Identifier);
                 idBuilder.Append(scanner.LastToken.Identifier);
@@ -63,8 +71,15 @@ namespace NoHoPython.Syntax.Parsing
                 case TokenType.Return:
                     scanner.ScanToken();
                     return new ReturnStatement(ParseExpression(), location);
+                case TokenType.Assert:
+                    scanner.ScanToken();
+                    return new AssertStatement(ParseExpression(), location);
                 case TokenType.Define:
                     return ParseProcedureDeclaration();
+                case TokenType.CDefine:
+                    return ParseForeignCProcedure();
+                case TokenType.Match:
+                    return ParseMatchStatement();
                 default:
                     throw new UnexpectedTokenException(scanner.LastToken, location);
             }
@@ -104,7 +119,12 @@ namespace NoHoPython.Syntax.Parsing
                         statements.Add(result);
 
                     if (scanner.LastToken.Type == TokenType.EndOfFile)
-                        break;
+                    {
+                        lastCountedIndents = 0;
+                        currentExpectedIndents = 0;
+                        skipIndentCounting = true;
+                        return statements;
+                    }
                     if (!skipIndentCounting)
                         MatchAndScanToken(TokenType.Newline);
                 }
@@ -201,8 +221,18 @@ namespace NoHoPython.Syntax.Parsing
                             scanner.ScanToken();
                             return new FalseLiteral(location);
                         case TokenType.New:
+                            {
+                                scanner.ScanToken();
+                                AstType type = ParseType();
+
+                                if (scanner.LastToken.Type == TokenType.OpenParen)
+                                    return new InstantiateNewRecord(type, ParseArguments(), location);
+                                else
+                                    return ParseAllocArray(type, location);
+                            }
+                        case TokenType.Nothing:
                             scanner.ScanToken();
-                            return new InstantiateNewRecord(ParseType(), ParseArguments(), location);
+                            return new NothingLiteral(location);
                         default:
                             throw new UnexpectedTokenException(scanner.LastToken, location);
                     }
@@ -278,6 +308,8 @@ namespace NoHoPython.Syntax.Parsing
             {
                 case TokenType.Define:
                     return ParseProcedureDeclaration();
+                case TokenType.CDefine:
+                    return ParseForeignCProcedure();
                 case TokenType.Enum:
                     return ParseEnumDeclaration();
                 case TokenType.Interface:
@@ -294,7 +326,7 @@ namespace NoHoPython.Syntax.Parsing
         public List<IAstStatement> ParseAll()
         {
             List<IAstStatement> topLevelStatements = new();
-            while (scanner.LastToken.Type != TokenType.EndOfFile)
+            while (true)
             {
                 skipIndentCounting = false;
                 switch (scanner.LastToken.Type)
@@ -308,16 +340,29 @@ namespace NoHoPython.Syntax.Parsing
                             MatchToken(TokenType.StringLiteral);
                             string file = scanner.LastToken.Identifier;
                             scanner.ScanToken();
-                            MatchAndScanToken(TokenType.Newline);
+                            MatchToken(TokenType.Newline);
                             scanner.IncludeFile(file);
                             continue;
                         }
+                    case TokenType.CInclude:
+                        {
+                            scanner.ScanToken();
+                            MatchToken(TokenType.StringLiteral);
+                            includedCFiles.Add(scanner.LastToken.Identifier);
+                            scanner.ScanToken();
+                            MatchToken(TokenType.Newline);
+                            continue;
+                        }
+                    case TokenType.EndOfFile:
+                        scanner.ScanToken();
+                        if (scanner.LastToken.Type == TokenType.EndOfFile)
+                            return topLevelStatements;
+                        break;
                     default:
                         topLevelStatements.Add(ParseTopLevel());
                         break;
                 }
             }
-            return topLevelStatements;
         }
     }
 }

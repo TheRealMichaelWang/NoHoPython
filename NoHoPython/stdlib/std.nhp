@@ -1,0 +1,61 @@
+cinclude "<stdlib.h>"
+cinclude "<math.h>"
+
+enum nullable<T>:
+	T
+	None
+
+enum numerical:
+	dec
+	int
+
+mod std:
+	mod cinterop:
+		cdef abort() None
+		cdef acos(dec) dec
+		cdef asin(dec) dec
+		cdef atan(dec) dec
+		cdef sin(dec) dec
+		cdef cos(dec) dec
+		cdef tan(dec) dec
+		cdef exit(int) None
+		cdef atan2(dec) dec
+		cdef atof(handle) dec
+		cdef atol(handle) int
+		cdef fabs(dec) dec
+		cdef abs(int) int
+	mot __utils__:
+		def numToDec(numerical num) dec:
+			match num:
+				dec d:
+					return d
+				int i:
+					return i as dec
+	
+	def abort():
+		cinterop::abort()
+	
+	def exit(int status):
+		cinterop::exit(status)
+	
+	def abs(numerical num) numerical:
+		match num:
+			dec d:
+				return cinterop::fabs(d)
+			int i:
+				return cinterop::abs(i)
+	
+	def sin(numerical num) numerical:
+		return cinterop::sin(__utils__::numToDec(num))
+	def cos(numerical num) numerical:
+		return cinterop::cos(__utils__::numToDec(num))
+	def tan(numerical num) numerical:
+		return cinterop::tan(__utils__::numToDec(num))
+	def asin(numerical num) numerical:
+		return cinterop::asin(__utils__::numToDec(num))
+	def acos(numerical num) numerical:
+		return cinterop::acos(__utils__::numToDec(num))
+	def atan(numerical num) numerical:
+		return cinterop::atan(__utils__::numToDec(num))
+	def atan2(numerical n, numerical d):
+		return cinterop::atan2(__utils__::numToDec(n), __utils__::numToDec(d))

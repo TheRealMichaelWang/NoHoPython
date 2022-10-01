@@ -1,6 +1,7 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
 
@@ -50,6 +51,44 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
             WhileTrueBlock = whileTrueBlock;
             ErrorReportedElement = errorReportedElement;
+        }
+    }
+
+    public sealed partial class MatchStatement : IRStatement
+    {
+        public sealed partial class MatchHandler
+        {
+            public IType MatchedType { get; private set; }
+
+            public Variable? MatchedVariable { get; private set; }
+            public CodeBlock ToExecute { get; private set; }
+
+            public MatchHandler(IType matchedType, string? matchIdentifier, List<IAstStatement> toExecute, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+            {
+                MatchedType = matchedType;
+                ToExecute = irBuilder.SymbolMarshaller.NewCodeBlock();
+                if (matchIdentifier != null)
+                {
+                    MatchedVariable = new(matchedType, matchIdentifier, irBuilder.ScopedProcedures.Peek(), false);
+                    irBuilder.SymbolMarshaller.DeclareSymbol(MatchedVariable, errorReportedElement);
+                }
+                else
+                    MatchedVariable = null;
+                ToExecute.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, toExecute));
+                irBuilder.SymbolMarshaller.GoBack();
+            }
+        }
+
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public IRValue MatchValue { get; private set; }
+        public readonly List<MatchHandler> MatchHandlers;
+
+        public MatchStatement(IRValue matchValue, List<MatchHandler> matchHandlers, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            MatchValue = matchValue;
+            MatchHandlers = matchHandlers;
         }
     }
 
@@ -175,6 +214,36 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.GoBack();
 
             return new IntermediateRepresentation.Statements.WhileBlock(condition, codeBlock, this);
+        }
+    }
+
+    partial class MatchStatement
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) => MatchHandlers.ForEach((handler) => IAstStatement.ForwardDeclareBlock(irBuilder, handler.Statements));
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        {
+            IRValue matchValue = MatchedValue.GenerateIntermediateRepresentationForValue(irBuilder, null);
+            if(matchValue.Type is EnumType enumType)
+            {
+                HashSet<IType> handledTypes = new(enumType.GetOptions(), new ITypeComparer());
+
+                List<IntermediateRepresentation.Statements.MatchStatement.MatchHandler> matchHandlers = new(MatchHandlers.Count);
+                foreach(MatchHandler handler in MatchHandlers)
+                {
+                    IType handledType = handler.MatchType.ToIRType(irBuilder, this);
+                    if (!handledTypes.Contains(handledType))
+                        throw new UnexpectedTypeException(handledType, this);
+                    handledTypes.Remove(handledType);
+                    matchHandlers.Add(new(handledType, handler.MatchIdentifier, handler.Statements, irBuilder, this));
+                }
+                foreach (IType unhandledOption in handledTypes)
+                    throw new UnhandledMatchOption(enumType, unhandledOption, this);
+                return new IntermediateRepresentation.Statements.MatchStatement(matchValue, matchHandlers, this);
+            }
+            throw new UnexpectedTypeException(matchValue.Type, this);
         }
     }
 

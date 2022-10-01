@@ -95,7 +95,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append(".buffer[_nhp_bounds_check(");
                 IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
                 emitter.Append(", ");
-                IRValue.EmitMemorySafe(Array, irProgram, emitter, typeargs);
+                IRValue.EmitMemorySafe(Array.GetPostEvalPure(), irProgram, emitter, typeargs);
                 emitter.Append(".length, ");
                 CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString());
                 emitter.Append(", ");
@@ -135,7 +135,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 destBuilder.Append(".buffer[_nhp_bounds_check(");
                 IRValue.EmitMemorySafe(Index, irProgram, destBuilder, typeargs);
                 destBuilder.Append(", ");
-                IRValue.EmitMemorySafe(Array, irProgram, destBuilder, typeargs);
+                IRValue.EmitMemorySafe(Array.GetPostEvalPure(), irProgram, destBuilder, typeargs);
                 destBuilder.Append(".length, ");
                 CharacterLiteral.EmitCString(destBuilder, ErrorReportedElement.SourceLocation.ToString());
                 destBuilder.Append(", ");
@@ -191,8 +191,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             StringBuilder valueBuilder = new StringBuilder();
             IRValue.EmitMemorySafe(Record, irProgram, valueBuilder, typeargs);
-            IPropertyContainer propertyContainer = (IPropertyContainer)Record.Type;
-            propertyContainer.EmitGetProperty(emitter, valueBuilder.ToString(), Property);
+
+            if (Record.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
+                propertyContainer.EmitGetProperty(emitter, valueBuilder.ToString(), Property);
+            else
+                throw new UnexpectedTypeException(Record.Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
         }
     }
 

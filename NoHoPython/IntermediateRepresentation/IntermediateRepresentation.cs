@@ -1,4 +1,4 @@
-﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
@@ -95,6 +95,9 @@ namespace NoHoPython.IntermediateRepresentation
         //equivalent value but with type parameter references replaced
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
 
+        //gets a pure value - one that doesn't mutate state once evaluated - that can be safley evaluated following evaluation of the parent value
+        public IRValue GetPostEvalPure();
+
         //emit corresponding C code
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs);
     }
@@ -162,9 +165,9 @@ namespace NoHoPython.IntermediateRepresentation
 
             //emit typedefs
             EmitArrayTypeTypedefs(emitter);
-            EmitAnonProcedureTypedefs(emitter);
             ForwardDeclareEnumTypes(emitter);
             ForwardDeclareInterfaceTypes(emitter);
+            EmitAnonProcedureTypedefs(emitter);
             ForwardDeclareRecordTypes(emitter);
 
             //emit c structs

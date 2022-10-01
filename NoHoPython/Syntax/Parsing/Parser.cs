@@ -78,6 +78,8 @@ namespace NoHoPython.Syntax.Parsing
                     return ParseProcedureDeclaration();
                 case TokenType.CDefine:
                     return ParseForeignCProcedure();
+                case TokenType.Match:
+                    return ParseMatchStatement();
                 default:
                     throw new UnexpectedTokenException(scanner.LastToken, location);
             }
@@ -229,6 +231,7 @@ namespace NoHoPython.Syntax.Parsing
                                     return ParseAllocArray(type, location);
                             }
                         case TokenType.Nothing:
+                            scanner.ScanToken();
                             return new NothingLiteral(location);
                         default:
                             throw new UnexpectedTokenException(scanner.LastToken, location);

@@ -9,6 +9,12 @@ public static class Program
     {
         Console.Title = "North-Hollywood Python Compiler";
 
+        if (args.Length == 0)
+        {
+            Console.WriteLine("No input file supplied;aborting program.");
+            return 0;
+        }
+
         try
         {
             DateTime compileStart = DateTime.Now;
@@ -25,7 +31,7 @@ public static class Program
             program.Emit(output);
             File.WriteAllText(args[1], output.ToString());
 
-            Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {args[0]}.");
+            Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {args[1]}.");
         }
         catch (SyntaxError syntaxError)
         {

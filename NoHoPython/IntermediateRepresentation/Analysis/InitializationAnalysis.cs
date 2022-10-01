@@ -1,9 +1,4 @@
 ﻿using NoHoPython.IntermediateRepresentation.Statements;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NoHoPython.IntermediateRepresentation
 {
@@ -82,6 +77,36 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     partial class WhileBlock
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
+    }
+
+    partial class MatchStatement
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
+        {
+            List<SortedSet<RecordDeclaration.RecordProperty>> handlerInitialized = new(MatchHandlers.Count);
+            foreach(MatchHandler handler in MatchHandlers)
+            {
+                SortedSet<RecordDeclaration.RecordProperty> handlerInitted = new();
+                handler.ToExecute.CodeBlockAnalyzePropertyInitialization(handlerInitted);
+                handlerInitialized.Add(handlerInitted);
+            }
+            if(handlerInitialized.Count > 0)
+            {
+                SortedSet<RecordDeclaration.RecordProperty> commonInit = handlerInitialized[0];
+                foreach(RecordDeclaration.RecordProperty common in commonInit)
+                {
+                    bool initFlag = true;
+                    for (int i = 1; i < handlerInitialized.Count; i++)
+                        if (!handlerInitialized[i].Contains(common))
+                        {
+                            initFlag = false;
+                            break;
+                        }
+                    if (initFlag)
+                        initializedProperties.Add(common);
+                }
+            }
+        }
     }
 
     partial class ReturnStatement

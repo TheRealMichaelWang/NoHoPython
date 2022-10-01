@@ -59,10 +59,12 @@ namespace NoHoPython.IntermediateRepresentation
                 static void emitType(IRProgram irProgram, StringBuilder emitter, IType type)
                 {
                     if (type is RecordType ||
-                       type is EnumType ||
-                       type is InterfaceType ||
                        type is ProcedureType)
                         emitter.Append("void*");
+                    else if (type is EnumType enumType)
+                        emitter.Append(enumType.GetCName(irProgram));
+                    else if (type is InterfaceType interfaceType)
+                        emitter.Append(interfaceType.GetCName(irProgram));
                     else if (type is TypeParameterReference)
                         throw new InvalidOperationException();
                     else
@@ -237,7 +239,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return;
             
             foreach (ProcedureReference procedureReference in irProgram.ProcedureOverloads[this])
-                base.EmitNoOpen(irProgram, emitter, procedureReference.Emit(irProgram, emitter), indent);
+                base.EmitNoOpen(irProgram, emitter, procedureReference.Emit(irProgram, emitter), indent, false);
         }
     }
 
@@ -315,8 +317,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             EmitCFunctionHeader(irProgram, emitter);
             emitter.AppendLine(" {");
-            foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
-                emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier(irProgram)} = _nhp_captured->{variable.GetStandardIdentifier(irProgram)};");
+            if (IsAnonymous)
+            {
+                foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
+                    emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier(irProgram)} = _nhp_captured->{variable.GetStandardIdentifier(irProgram)};");
+            }
             if(ReturnType is not NothingType)
                 emitter.AppendLine($"\t{ReturnType.GetCName(irProgram)} _nhp_toret;");
             return typeArguments;
@@ -448,10 +453,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
-            CodeBlock.CIndent(emitter, indent);
-
             if (ToReturn.Type is not NothingType)
             {
+                CodeBlock.CIndent(emitter, indent);
                 emitter.Append("_nhp_toret = ");
 
                 if (ToReturn.RequiresDisposal(typeargs))
@@ -478,7 +482,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (ToReturn.Type is not NothingType)
                 emitter.AppendLine("return _nhp_toret;");
             else
-                emitter.Append("return;");
+                emitter.AppendLine("return;");
         }
     }
 
@@ -567,7 +571,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
             emitter.Append("->_nhp_this_anon(");
-            IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
+            IRValue.EmitMemorySafe(ProcedureValue.GetPostEvalPure(), irProgram, emitter, typeargs);
             foreach (IRValue argument in Arguments)
             {
                 emitter.Append(", ");

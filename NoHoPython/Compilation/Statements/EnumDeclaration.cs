@@ -49,8 +49,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     partial class EnumDeclaration
     {
-        public bool RequiresDisposal => true;
-
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
         public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter)
@@ -70,9 +68,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach(EnumType usedEnum in irProgram.EnumTypeOverloads[this])
             {
                 usedEnum.EmitMarshallerHeaders(irProgram, emitter);
-                emitter.AppendLine($"void free_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} enum);");
-                emitter.AppendLine($"{usedEnum.GetCName(irProgram)} copy_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} enum);"); 
-                emitter.AppendLine($"{usedEnum.GetCName(irProgram)} move_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)}* dest, {usedEnum.GetCName(irProgram)} src);");
+                if (usedEnum.RequiresDisposal)
+                {
+                    emitter.AppendLine($"void free_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum);");
+                    emitter.AppendLine($"{usedEnum.GetCName(irProgram)} copy_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum);");
+                    emitter.AppendLine($"{usedEnum.GetCName(irProgram)} move_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)}* dest, {usedEnum.GetCName(irProgram)} src);");
+                }
             }
         }
 
@@ -84,9 +85,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (EnumType enumType in irProgram.EnumTypeOverloads[this])
             {
                 enumType.EmitMarshallers(irProgram, emitter);
-                enumType.EmitDestructor(irProgram, emitter);
-                enumType.EmitCopier(irProgram, emitter);
-                enumType.EmitMover(irProgram, emitter);
+                if (enumType.RequiresDisposal)
+                {
+                    enumType.EmitDestructor(irProgram, emitter);
+                    enumType.EmitCopier(irProgram, emitter);
+                    enumType.EmitMover(irProgram, emitter);
+                }
             }
         }
     }
@@ -96,19 +100,38 @@ namespace NoHoPython.Typing
 {
     partial class EnumType
     {
-        public bool RequiresDisposal => true;
+        public bool RequiresDisposal => !options.Value.TrueForAll((option) => !option.RequiresDisposal);
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.AppendLine($"free_enum{GetStandardIdentifier(irProgram)}({valueCSource});");
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append($"copy_enum{GetStandardIdentifier(irProgram)}({valueCSource})");
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"move_enum{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource)
+        {
+            if(RequiresDisposal)
+                emitter.AppendLine($"free_enum{GetStandardIdentifier(irProgram)}({valueCSource});");
+        }
+
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource)
+        {
+            if (RequiresDisposal)
+                emitter.Append($"copy_enum{GetStandardIdentifier(irProgram)}({valueCSource})");
+            else
+                emitter.Append(valueCSource);
+        }
+
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
+        {
+            if (RequiresDisposal)
+                emitter.Append($"move_enum{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+            else
+                emitter.Append($"({destC} = {valueCSource})");
+        }
+
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
 
-        public string GetCEnumOptionForType(IRProgram irProgram, IType type) => $"{GetStandardIdentifier(irProgram)}OPTION_{type.GetCName(irProgram)}";
+        public string GetCEnumOptionForType(IRProgram irProgram, IType type) => $"{GetStandardIdentifier(irProgram)}OPTION_{type.GetStandardIdentifier(irProgram)}";
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -122,11 +145,12 @@ namespace NoHoPython.Typing
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter)
         {
             emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
-            emitter.AppendLine("\t{GetStandardIdentifier(irProgram)}_options_t option;");
+            emitter.AppendLine($"\t{GetStandardIdentifier(irProgram)}_options_t option;");
 
             emitter.AppendLine($"\tunion {GetStandardIdentifier(irProgram)}_data {{");
             foreach (IType option in options.Value)
-                emitter.AppendLine($"\t\t{option.GetCName(irProgram)} {option.GetCName(irProgram)}_set;");
+                if(option is not NothingType)
+                    emitter.AppendLine($"\t\t{option.GetCName(irProgram)} {option.GetStandardIdentifier(irProgram)}_set;");
             emitter.AppendLine("\t} data;");
             emitter.AppendLine("};");
         }
@@ -142,14 +166,14 @@ namespace NoHoPython.Typing
             }
             emitter.AppendLine();
             emitter.Append("} ");
-            emitter.AppendLine($"{GetStandardIdentifier(irProgram)}_options_t");
+            emitter.AppendLine($"{GetStandardIdentifier(irProgram)}_options_t;");
         }
 
         public void EmitMarshallerHeaders(IRProgram irProgram, StringBuilder emitter)
         {
             foreach (IType option in options.Value)
                 if (option is not NothingType)
-                    emitter.AppendLine($"{GetCName(irProgram)} marshal_enum{GetStandardIdentifier(irProgram)}_with_{option.GetCName(irProgram)}({option.GetCName(irProgram)} option);");
+                    emitter.AppendLine($"{GetCName(irProgram)} marshal_enum{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}({option.GetCName(irProgram)} option);");
                 else
                     emitter.AppendLine($"{GetCName(irProgram)} marshal_enum{GetStandardIdentifier(irProgram)}_with_nothing();");
         }
@@ -160,9 +184,9 @@ namespace NoHoPython.Typing
             {
                 if (option is not NothingType)
                 {
-                    emitter.AppendLine($"{GetCName(irProgram)} marshal_enum{GetStandardIdentifier(irProgram)}_with_{option.GetCName(irProgram)}({option.GetCName(irProgram)} option) {{");
+                    emitter.AppendLine($"{GetCName(irProgram)} marshal_enum{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}({option.GetCName(irProgram)} option) {{");
                     emitter.AppendLine($"\t{GetCName(irProgram)} marshalled_enum;");
-                    emitter.AppendLine($"\tmarshalled_enum.data.{option.GetCName(irProgram)}_set = option;");
+                    emitter.AppendLine($"\tmarshalled_enum.data.{option.GetStandardIdentifier(irProgram)}_set = option;");
                 }
                 else
                 {
@@ -177,14 +201,14 @@ namespace NoHoPython.Typing
 
         public void EmitDestructor(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.AppendLine($"void free_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} enum) {{");
-            emitter.AppendLine("\tswitch(enum.option) {");
+            emitter.AppendLine($"void free_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum) {{");
+            emitter.AppendLine("\tswitch(_nhp_enum.option) {");
             foreach(IType option in options.Value)
                 if (option.RequiresDisposal)
                 {
                     emitter.AppendLine($"\tcase {GetCEnumOptionForType(irProgram, option)}:");
                     emitter.Append("\t\t");
-                    option.EmitFreeValue(irProgram, emitter, $"enum.{option.GetCName(irProgram)}_set");
+                    option.EmitFreeValue(irProgram, emitter, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set");
                     emitter.AppendLine("\t\tbreak;");
                 }
             emitter.AppendLine("\t}");
@@ -193,19 +217,19 @@ namespace NoHoPython.Typing
 
         public void EmitCopier(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.AppendLine($"{GetCName(irProgram)} copy_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} enum) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} copy_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum) {{");
 
             emitter.AppendLine($"\t{GetCName(irProgram)} copied_enum;");
-            emitter.AppendLine("\tcopied_enum.option = enum.option;");
+            emitter.AppendLine("\tcopied_enum.option = _nhp_enum.option;");
 
-            emitter.AppendLine("\tswitch(enum.option) {");
+            emitter.AppendLine("\tswitch(_nhp_enum.option) {");
             foreach (IType option in options.Value)
                 if (option is not NothingType)
                 {
                     emitter.AppendLine($"\tcase {GetCEnumOptionForType(irProgram, option)}:");
                     emitter.Append("\t\t");
-                    emitter.AppendLine($"copied_enum.{option.GetCName(irProgram)}_set = ");
-                    option.EmitCopyValue(irProgram, emitter, $"enum.{option.GetCName(irProgram)}_set");
+                    emitter.Append($"copied_enum.data.{option.GetStandardIdentifier(irProgram)}_set = ");
+                    option.EmitCopyValue(irProgram, emitter, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set");
                     emitter.AppendLine(";");
                     emitter.AppendLine("\t\tbreak;");
                 }
@@ -222,7 +246,6 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"\t*dest = src;");
             emitter.Append('\t');
             EmitFreeValue(irProgram, emitter, "temp_buffer");
-            emitter.AppendLine(";");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
         }
@@ -233,7 +256,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class MarshalIntoEnum
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => TargetType.SubstituteWithTypearg(typeargs).RequiresDisposal;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -245,10 +268,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             EnumType realPrototype = (EnumType)TargetType.SubstituteWithTypearg(typeargs);
 
-            if (Value.Type is NothingType)
+            if (Value.Type is not NothingType)
             {
-                emitter.Append($"marshal_enum{realPrototype.GetStandardIdentifier(irProgram)}_with_{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}(");
-                Value.Emit(irProgram, emitter, typeargs);
+                emitter.Append($"marshal_enum{realPrototype.GetStandardIdentifier(irProgram)}_with_{Value.Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
+                if(Value.RequiresDisposal(typeargs))
+                    Value.Emit(irProgram, emitter, typeargs);
+                else
+                {
+                    StringBuilder valueBuilder = new();
+                    Value.Emit(irProgram, valueBuilder, typeargs);
+                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString());
+                }
                 emitter.Append(')');
             }
             else

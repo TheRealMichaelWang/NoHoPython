@@ -1,0 +1,40 @@
+﻿cinclude "<stdio.h>"
+include "list.nhp"
+
+interface printableObj:
+	fn<array<char>> toString
+
+enum printable
+	printableObj
+	array<char>
+	char
+	int
+	dec
+
+mod io:
+	mod cinterop:
+		cdef putchar(char) None
+		cdef puts(handle) None
+		cdef getchar() char
+	
+	def printObj(printableObj obj):
+		print(msg=obj.toString())
+	def print(printable obj):
+		match obj:
+			printableObj obj:
+				printObj(obj)
+			array<char> msg:
+				cinterop::puts(c)
+			char c:
+				cinterop::putchar(c)
+			int i:
+				def printf(handle, int)
+				printf("%i\0", i)
+			dec d:
+				def printf(handle, dec)
+				printf("%f\0", d)
+	def scanLine() array<char>:
+		list = new list<char>
+		while (c = cinterop::getChar()) != '\n':
+			list.pushBack(c)
+		return list.toArray()

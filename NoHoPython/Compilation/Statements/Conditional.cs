@@ -62,7 +62,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements.ForEach((statement) => statement.ForwardDeclare(irProgram, emitter));
         }
 
-        public void EmitNoOpen(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void EmitNoOpen(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent, bool insertFinalBreak)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
@@ -75,6 +75,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements.ForEach((statement) => statement.Emit(irProgram, emitter, typeargs, indent + 1));
 
             if (!CodeBlockAllCodePathsReturn())
+            {
                 foreach (Variable variable in DeclaredVariables)
                 {
                     if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
@@ -83,7 +84,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                         variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, variable.GetStandardIdentifier(irProgram));
                     }
                 }
-
+                if (insertFinalBreak)
+                {
+                    CIndent(emitter, indent + 1);
+                    emitter.AppendLine("break;");
+                }
+            }
             CIndent(emitter, indent);
             emitter.AppendLine("}");
         }
@@ -94,7 +100,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 throw new InvalidOperationException();
 
             emitter.AppendLine(" {");
-            EmitNoOpen(irProgram, emitter, typeargs, indent);
+            EmitNoOpen(irProgram, emitter, typeargs, indent, false);
         }
     }
 
@@ -165,6 +171,51 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
             emitter.Append(')');
             WhileTrueBlock.Emit(irProgram, emitter, typeargs, indent);
+        }
+    }
+
+    partial class MatchStatement
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            MatchValue.ScopeForUsedTypes(typeargs, irBuilder);
+            MatchValue.Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            foreach (MatchHandler handler in MatchHandlers)
+                handler.ToExecute.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => MatchHandlers.ForEach((handler) => handler.ToExecute.ForwardDeclareType(irProgram, emitter));
+
+        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) => MatchHandlers.ForEach((handler) => handler.ToExecute.ForwardDeclare(irProgram, emitter));
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            CodeBlock.CIndent(emitter, indent);
+            emitter.Append("switch(");
+            IRValue.EmitMemorySafe(MatchValue, irProgram, emitter, typeargs);
+            emitter.AppendLine(".option) {");
+
+            EnumType enumType = (EnumType)MatchValue.Type.SubstituteWithTypearg(typeargs);
+            foreach(MatchHandler handler in MatchHandlers)
+            {
+                IType currentOption = handler.MatchedType.SubstituteWithTypearg(typeargs);
+
+                CodeBlock.CIndent(emitter, indent);
+                emitter.AppendLine($"case {enumType.GetCEnumOptionForType(irProgram, currentOption)}: {{");
+                
+
+                if (handler.MatchedVariable != null)
+                {
+                    CodeBlock.CIndent(emitter, indent + 1);
+                    emitter.Append($"{currentOption.GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier(irProgram)} = ");
+                    IRValue.EmitMemorySafe(MatchValue.GetPostEvalPure(), irProgram, emitter, typeargs);
+                    emitter.AppendLine($".data.{currentOption.GetStandardIdentifier(irProgram)}_set;");
+                }
+
+                handler.ToExecute.EmitNoOpen(irProgram, emitter, typeargs, indent, true);
+            }
+            CodeBlock.CIndent(emitter, indent);
+            emitter.AppendLine("}");
         }
     }
 

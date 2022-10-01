@@ -69,7 +69,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value = value;
             ErrorReportedElement = errorReportedElement;
 
-            if (value.Type is TypeParameterReference typeParameterReference)
+            if (TargetType.SupportsType(value.Type))
+                return;
+            else if (value.Type is TypeParameterReference typeParameterReference)
             {
                 if (typeParameterReference.TypeParameter.RequiredImplementedInterface is not null)
                 {
@@ -79,7 +81,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 else
                     throw new UnexpectedTypeException(value.Type, errorReportedElement);
             }
-            else if (!TargetType.SupportsType(value.Type))
+            else 
                 throw new UnexpectedTypeException(value.Type, errorReportedElement);
         }
 
@@ -94,7 +96,7 @@ namespace NoHoPython.Typing
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public bool IsNativeCType => false;
-        public string TypeName { get => EnumDeclaration.Name; }
+        public string TypeName { get => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}"; }
 
         public EnumDeclaration EnumDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;
@@ -115,6 +117,8 @@ namespace NoHoPython.Typing
 
             options = new Lazy<List<IType>>(() => enumDeclaration.GetOptions(this));
         }
+
+        public List<IType> GetOptions() => options.Value;
 
         public bool SupportsType(IType type)
         {
@@ -167,7 +171,9 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
+            irBuilder.SymbolMarshaller.NavigateToScope(IREnumDeclaration);
             IREnumDeclaration.DelayedLinkSetOptions(Options.ConvertAll((AstType option) => option.ToIRType(irBuilder, this)));
+            //irBuilder.AddEnumDeclaration(IREnumDeclaration);
         }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => IREnumDeclaration;

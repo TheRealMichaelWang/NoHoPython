@@ -18,7 +18,19 @@ namespace NoHoPython.Syntax
 
         public override string ToString() => Identifier + (RequiredImplementedType == null ? string.Empty : $": {RequiredImplementedType}");
 
-        public Typing.TypeParameter ToIRTypeParameter(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) => new(Identifier, RequiredImplementedType == null ? null : RequiredImplementedType.ToIRType(irBuilder, errorReportedElement), null);
+        public Typing.TypeParameter ToIRTypeParameter(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        {
+            if (RequiredImplementedType == null)
+                return new(Identifier, null, null);
+            else
+            {
+                IType type = RequiredImplementedType.ToIRType(irBuilder, errorReportedElement);
+                if (type is InterfaceType interfaceType)
+                    return new(Identifier, interfaceType, null);
+                else
+                    throw new UnexpectedTypeException(type, errorReportedElement);
+            }
+        }
     }
 
     public sealed class AstType
@@ -192,7 +204,14 @@ namespace NoHoPython.Syntax.Parsing
 
         private AstType ParseType()
         {
-            string identifier = ParseIdentifier();
+            string identifier;
+            if (scanner.LastToken.Type == TokenType.Nothing)
+            {
+                identifier = "nothing";
+                scanner.ScanToken();
+            }
+            else
+                identifier = ParseIdentifier();
 
             return scanner.LastToken.Type == TokenType.Less
                 ? new AstType(identifier, ParseTypeArguments())

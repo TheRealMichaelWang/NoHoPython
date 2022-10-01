@@ -159,13 +159,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ConstructorArguments = constructorArguments;
             ErrorReportedElement = errorReportedElement;
 
-            if (RecordPrototype.HasProperty("__init__") && RecordPrototype.FindProperty("__init__").Type is ProcedureType constructorType)
-            {
-                for (int i = 0; i < ConstructorArguments.Count; i++)
-                    ConstructorArguments[i] = ArithmeticCast.CastTo(ConstructorArguments[i], constructorType.ParameterTypes[i]);
-            }
-            else if (constructorArguments.Count != 0)
-                throw new UnexpectedArgumentsException(ConstructorArguments.ConvertAll((arg) => arg.Type), new List<Scoping.Variable>(), errorReportedElement);
+            ProcedureType constructorType = (ProcedureType)RecordPrototype.FindProperty("__init__").Type;
+            if (ConstructorArguments.Count != constructorType.ParameterTypes.Count)
+                throw new UnexpectedTypeArgumentsException(constructorType.ParameterTypes.Count, ConstructorArguments.Count, errorReportedElement);
+
+            for (int i = 0; i < ConstructorArguments.Count; i++)
+                ConstructorArguments[i] = ArithmeticCast.CastTo(ConstructorArguments[i], constructorType.ParameterTypes[i]);
         }
     }
 }

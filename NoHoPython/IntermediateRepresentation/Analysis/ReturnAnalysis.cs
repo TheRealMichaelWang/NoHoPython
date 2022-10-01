@@ -61,6 +61,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public bool AllCodePathsReturn() => IfTrueBlock.CodeBlockAllCodePathsReturn() && IfFalseBlock.CodeBlockAllCodePathsReturn();
     }
 
+    partial class MatchStatement
+    {
+        public bool AllCodePathsReturn()
+        {
+            foreach (MatchHandler handler in MatchHandlers)
+                if (!handler.ToExecute.CodeBlockAllCodePathsReturn())
+                    return false;
+            return true;
+        }
+    }
+
     partial class WhileBlock
     {
         public bool AllCodePathsReturn() => false;

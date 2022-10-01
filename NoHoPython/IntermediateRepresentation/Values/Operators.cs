@@ -98,7 +98,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Array { get; private set; }
         public IRValue Index { get; private set; }
 
-        private GetValueAtIndex(IRValue array, IRValue index, IAstElement errorReportedElement)
+        public GetValueAtIndex(IRValue array, IRValue index, IAstElement errorReportedElement)
         {
             Array = array;
             Index = index;
@@ -161,6 +161,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Record = record;
             Property = record.Type is IPropertyContainer propertyContainer
                 ? propertyContainer.FindProperty(propertyName)
+                : record.Type is TypeParameterReference typeParameter
+                ? typeParameter.TypeParameter.RequiredImplementedInterface == null 
+                ? throw new UnexpectedTypeException(record.Type, errorReportedElement)
+                : typeParameter.TypeParameter.RequiredImplementedInterface.FindProperty(propertyName)
                 : throw new UnexpectedTypeException(record.Type, errorReportedElement);
             ErrorReportedElement = errorReportedElement;
         }

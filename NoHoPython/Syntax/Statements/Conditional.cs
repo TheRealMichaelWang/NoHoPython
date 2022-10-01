@@ -75,6 +75,40 @@ namespace NoHoPython.Syntax.Statements
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}while {Condition}:\n{IAstStatement.BlockToString(indent, ToExecute)}";
     }
 
+    public sealed partial class MatchStatement : IAstStatement
+    {
+        public sealed partial class MatchHandler
+        {
+            public AstType MatchType { get; private set; }
+            public string? MatchIdentifier { get; private set; }
+
+            public readonly List<IAstStatement> Statements;
+
+            public MatchHandler(AstType matchType, string? matchIdentifier, List<IAstStatement> statements)
+            {
+                MatchType = matchType;
+                MatchIdentifier = matchIdentifier;
+                Statements = statements;
+            }
+
+            public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{MatchType}{(MatchIdentifier == null ? string.Empty : $" {MatchIdentifier}")}:\n{IAstStatement.BlockToString(indent, Statements)}";
+        }
+
+        public SourceLocation SourceLocation { get; private set; }
+
+        public IAstValue MatchedValue { get; private set; }
+        public readonly List<MatchHandler> MatchHandlers;
+
+        public MatchStatement(IAstValue matchedValue, List<MatchHandler> matchHandlers, SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+            MatchedValue = matchedValue;
+            MatchHandlers = matchHandlers;
+        }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}match {MatchedValue}:{string.Join("",MatchHandlers.ConvertAll((statement) => $"\n{statement.ToString(indent + 1)}"))}";
+    }
+
     public sealed partial class AssertStatement : IAstStatement
     {
         public SourceLocation SourceLocation { get; private set; }
@@ -188,6 +222,34 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Newline);
 
             return new WhileBlock(condition, ParseCodeBlock(), location);
+        }
+
+        private MatchStatement ParseMatchStatement()
+        {
+            SourceLocation location = scanner.CurrentLocation;
+            MatchAndScanToken(TokenType.Match);
+
+            IAstValue toMatch = ParseExpression();
+            MatchAndScanToken(TokenType.Colon);
+            MatchAndScanToken(TokenType.Newline);
+
+            List<MatchStatement.MatchHandler> handlers = ParseBlock(() =>
+            {
+                AstType type = ParseType();
+
+                string? identifier = null;
+                if (scanner.LastToken.Type == TokenType.Identifier)
+                {
+                    identifier = scanner.LastToken.Identifier;
+                    scanner.ScanToken();
+                }
+
+                MatchAndScanToken(TokenType.Colon);
+                MatchAndScanToken(TokenType.Newline);
+                return new MatchStatement.MatchHandler(type, identifier, ParseCodeBlock());
+            });
+
+            return new MatchStatement(toMatch, handlers, location);
         }
     }
 }

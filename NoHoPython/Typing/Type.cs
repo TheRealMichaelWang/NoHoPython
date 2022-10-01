@@ -33,6 +33,23 @@ namespace NoHoPython.Typing
         public string ToString() => TypeName;
     }
 
+    public sealed class ITypeComparer : IEqualityComparer<IType>
+    {
+        public bool Equals(IType? a, IType? b)
+        {
+            if (a == null || b == null)
+                return false;
+            return a.IsCompatibleWith(b);
+        }
+
+        public int GetHashCode(IType? type)
+        {
+            if (type == null)
+                throw new InvalidOperationException();
+            return type.TypeName.GetHashCode();
+        }
+    }
+
     public sealed class UnexpectedTypeException : IRGenerationError
     {
         public IType? ExpectedType { get; private set; }

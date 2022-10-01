@@ -171,6 +171,28 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
+    public sealed class UnhandledMatchOption : IRGenerationError
+    {
+        public EnumType EnumType { get; private set; }
+        public IType UnhandledType { get; private set; }
+
+        public UnhandledMatchOption(EnumType enumType, IType unhandledType, IAstStatement astStatement) : base(astStatement, $"Match statement doesn't implement handler for type {unhandledType.TypeName}, which is implemented by matched enum {enumType.TypeName}.")
+        {
+            EnumType = enumType;
+            UnhandledType = unhandledType;
+        }
+    }
+
+    public sealed class NoPostEvalPureValue : IRGenerationError
+    {
+        public IRValue Value { get; private set; }
+
+        public NoPostEvalPureValue(IRValue value) : base(value.ErrorReportedElement, $"Value must be evaluated twice; no pure evaluation can be generated.")
+        {
+            Value = value;
+        }
+    }
+
     public sealed class CannotEmitDestructorError : CCodegenError
     {
         public IRValue Value { get; private set; }

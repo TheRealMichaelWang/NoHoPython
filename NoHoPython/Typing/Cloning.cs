@@ -54,4 +54,9 @@
     {
         public IType Clone() => new InterfaceType(InterfaceDeclaration, TypeArguments.Select((IType type) => type.Clone()).ToList());
     }
+
+    partial class HandleType
+    {
+        public IType Clone() => new HandleType();
+    }
 }

@@ -39,7 +39,7 @@ namespace NoHoPython.Syntax.Statements
             TypeParameters = typeParameters;
         }
 
-        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}def {Name}({string.Join(", ", Parameters)}){(AnnotatedReturnType != null ? " " + AnnotatedReturnType.ToString() : "")}:\n{IAstStatement.BlockToString(indent, Statements)}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}def {Name}{(TypeParameters.Count > 0 ? $"<{string.Join(", ", TypeParameters)}>" : string.Empty)}({string.Join(", ", Parameters)}){(AnnotatedReturnType != null ? " " + AnnotatedReturnType.ToString() : "")}:\n{IAstStatement.BlockToString(indent, Statements)}";
     }
 
     public sealed partial class ReturnStatement : IAstStatement
@@ -55,6 +55,27 @@ namespace NoHoPython.Syntax.Statements
         }
 
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}return {ReturnValue}";
+    }
+
+    public sealed partial class ForeignCProcedureDeclaration : IAstStatement
+    {
+        public SourceLocation SourceLocation { get; private set; }
+        
+        public string Identifier { get; private set; }
+        public readonly List<AstType> ParameterTypes;
+        public readonly AstType ReturnType;
+
+#pragma warning disable CS8618 //IR Foreign set during forward declaration
+        public ForeignCProcedureDeclaration(string identifier, List<AstType> parameterTypes, AstType returnType, SourceLocation sourceLocation)
+#pragma warning restore CS8618 
+        {
+            SourceLocation = sourceLocation;
+            Identifier = identifier;
+            ParameterTypes = parameterTypes;
+            ReturnType = returnType;
+        }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}cdef {Identifier}({string.Join(", ", ParameterTypes)}) {ReturnType}";
     }
 }
 
@@ -141,6 +162,28 @@ namespace NoHoPython.Syntax.Parsing
             
             MatchAndScanToken(TokenType.Newline);
             return new ProcedureDeclaration(identifer, typeParameters, parameters, ParseCodeBlock(), returnType, location);
+        }
+
+        private ForeignCProcedureDeclaration ParseForeignCProcedure()
+        {
+            SourceLocation location = scanner.CurrentLocation;
+
+            MatchAndScanToken(TokenType.CDefine);
+            MatchToken(TokenType.Identifier);
+            string identifier = scanner.LastToken.Identifier;
+            scanner.ScanToken();
+
+            MatchAndScanToken(TokenType.OpenParen);
+            List<AstType> parameters = new();
+            while (scanner.LastToken.Type != TokenType.CloseParen)
+            {
+                parameters.Add(ParseType());
+                if (scanner.LastToken.Type != TokenType.CloseParen)
+                    MatchAndScanToken(TokenType.Comma);
+            }
+            scanner.ScanToken();
+
+            return new ForeignCProcedureDeclaration(identifier, parameters, ParseType(), location);
         }
     }
 }

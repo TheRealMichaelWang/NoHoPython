@@ -1,6 +1,7 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.Syntax;
 using NoHoPython.Syntax.Parsing;
+using System.Text;
 
 public static class Program
 {
@@ -8,14 +9,29 @@ public static class Program
     {
         Console.Title = "North-Hollywood Python Compiler";
 
+        if (args.Length == 0)
+        {
+            Console.WriteLine("No input file supplied;aborting program.");
+            return 0;
+        }
+
         try
         {
+            DateTime compileStart = DateTime.Now;
+
             AstParser parser = new(new Scanner(args[0], Environment.CurrentDirectory));
 
             List<IAstStatement> statements = parser.ParseAll();
 
             AstIRProgramBuilder astIRProgramBuilder = new AstIRProgramBuilder(statements);
             IRProgram program = astIRProgramBuilder.ToIRProgram();
+            parser.IncludeCFiles(program);
+
+            StringBuilder output = new StringBuilder();
+            program.Emit(output);
+            File.WriteAllText(args[1], output.ToString());
+
+            Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {args[1]}.");
         }
         catch (SyntaxError syntaxError)
         {
@@ -25,7 +41,11 @@ public static class Program
         {
             compilerError.Print();
         }
+        catch (CCodegenError codegenError)
+        {
+            codegenError.Print();
+        }
 
         return 0;
     }
-}
+} 

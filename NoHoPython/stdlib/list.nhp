@@ -1,0 +1,44 @@
+﻿mod memutils:
+	def memcpy<T>(array<T> src, array<T> dest, int srcOffset, int destOffset, int length):
+		i = 0
+		while i < length:
+			src[i + srcOffset] = dest[i + destOffset]
+			i = i + 1
+
+mod data:
+	class list<T>:
+		readonly T defaultValue
+		array<T> buffer
+		int count
+		
+		def __init__(int capacity, T defaultValue):
+			self.buffer = new T[capacity](self.defaultValue = defaultValue)
+			self.count = 0
+		
+		def pushBack(T elem):
+			if self.count == (self.buffer as int):
+				newBuffer = new T[self.count + 10](self.defaultValue)
+				memutils::memcpy(newBuffer, self.buffer, 0, 0, self.count)
+				self.buffer = newBuffer
+			self.buffer[self.count] = elem
+			self.count = self.count + 1
+		
+		def toArray() array<T>:
+			buffer = new T[self.count](self.defaultValue)
+			i = 0
+			while i < self.count:
+				buffer[i] = self.buffer[i]
+				i = i + 1
+			return buffer
+		
+		def getAtIndex(int index) T:
+			return self.buffer[index]
+		
+		def setAtIndex(int index, T elem) T:
+			return self.buffer[index] = elem
+		
+		def forall(fn<nothing, T> todo):
+			i = 0
+			while i < self.count:
+				todo(self.buffer[i])
+				i = i + 1

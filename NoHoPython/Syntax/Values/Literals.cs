@@ -84,6 +84,25 @@ namespace NoHoPython.Syntax.Values
         }
     }
 
+    public sealed partial class AllocArray : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+        public AstType ElementType { get; private set; }
+
+        public IAstValue Length { get; private set; }
+        public IAstValue? ProtoValue { get; private set; }
+
+        public AllocArray(SourceLocation sourceLocation, AstType elementType, IAstValue length, IAstValue? protoValue)
+        {
+            SourceLocation = sourceLocation;
+            ElementType = elementType;
+            Length = length;
+            ProtoValue = protoValue;
+        }
+
+        public override string ToString() => $"new {ElementType}[{Length}]";
+    }
+
     public sealed partial class TrueLiteral : IAstValue
     {
         public SourceLocation SourceLocation { get; private set; }
@@ -106,6 +125,18 @@ namespace NoHoPython.Syntax.Values
         }
 
         public override string ToString() => "False";
+    }
+
+    public sealed partial class NothingLiteral : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public NothingLiteral(SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+        }
+
+        public override string ToString() => "Nothing";
     }
 
     public sealed partial class InstantiateNewRecord : IAstValue
@@ -152,6 +183,23 @@ namespace NoHoPython.Syntax.Parsing
             scanner.ScanToken();
 
             return new Values.ArrayLiteral(elements, annotatedType, location);
+        }
+
+        private Values.AllocArray ParseAllocArray(AstType elementType, SourceLocation location)
+        {
+            MatchAndScanToken(TokenType.OpenBracket);
+            IAstValue length = ParseExpression();
+            MatchAndScanToken(TokenType.CloseBracket);
+
+            if (scanner.LastToken.Type == TokenType.OpenParen)
+            {
+                scanner.ScanToken();
+                IAstValue protoValue = ParseExpression();
+                MatchAndScanToken(TokenType.CloseParen);
+                return new(location, elementType, length, protoValue);
+            }
+            else
+                return new(location, elementType, length, null);
         }
     }
 }

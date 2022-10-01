@@ -187,6 +187,8 @@ namespace NoHoPython.Syntax.Parsing
 
             scanner.ScanToken();
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? ParseTypeParameters() : new List<TypeParameter>();
+            MatchAndScanToken(TokenType.Colon);
+            MatchAndScanToken(TokenType.Newline);
 
             List<AstType> Options = ParseBlock(ParseType);
             return new EnumDeclaration(identifier, typeParameters, Options, location);

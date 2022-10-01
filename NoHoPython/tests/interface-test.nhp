@@ -1,0 +1,20 @@
+﻿interface person:
+	array<char> name
+	int age
+
+class student:
+	array<char> name
+	int age
+	int grade
+	def __init__(array<char> name, int age, int grade):
+		self.name = name
+		self.age = age
+		self.grade = grade
+
+def ldInterface(person p, student s):
+	assert (p.name as int) == (s.name as int)
+	assert p.age == s.age
+
+def main():
+	michael = new student("Michael", 17, 11)
+	ldInterface(tofree = new student("tim", 18, 12) as person, michael)

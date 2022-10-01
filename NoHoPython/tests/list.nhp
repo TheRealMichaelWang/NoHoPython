@@ -1,0 +1,36 @@
+﻿mod memutils:
+	def memcpy<T>(array<T> src, array<T> dest, int srcOffset, int destOffset, int length):
+		i = 0
+		while i < length:
+			src[i + srcOffset] = dest[i + destOffset]
+			i = i + 1
+class list<T>:
+	array<T> buffer
+	int count = 0
+	def __init__(int allocLength, T default):
+		buffer = new T[allocLength](default)
+	def getAtIndex(int index) T:
+		return self.buffer[index]
+	def setAtIndex(int index, T element) T:
+		return self.buffer[index] = element
+	def pushBack(T element):
+		if self.count == (self.buffer as int):
+			newBuffer = new T[self.count + 10](element)
+			memutils::memcpy(newBuffer, self.buffer, 0, 0, self.count)
+			self.buffer = newBuffer
+		self.buffer[self.count] = element
+		self.count = self.count + 1
+def main() int:
+	myList = new list<int>(10, 0)
+	i = 0
+	while i < 20:
+		myList.pushBack(i)
+		i = i + 1
+	myiter = myList as indexable<int>
+	while i:
+		i = i - 1
+		assert(myiter[i] == i)
+	return 0
+interface indexable<T>:
+	fn<T, int> getAtIndex
+	fn<T, int, T> setAtIndex

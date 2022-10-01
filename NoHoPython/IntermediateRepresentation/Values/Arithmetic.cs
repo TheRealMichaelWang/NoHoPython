@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.Syntax;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
@@ -32,7 +33,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {ArithmeticCastOperation.IntToBoolean, new IntegerType() },
             {ArithmeticCastOperation.DecimalToInt, new DecimalType() },
             {ArithmeticCastOperation.CharToInt, new CharacterType() },
-            {ArithmeticCastOperation.BooleanToInt, new CharacterType() }
+            {ArithmeticCastOperation.BooleanToInt, new BooleanType() }
         };
 
         private static ArithmeticCastOperation[] toIntOperation = new ArithmeticCastOperation[]
@@ -54,48 +55,54 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (typeTarget.IsCompatibleWith(value.Type))
                 return value;
             else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to{typeTarget.TypeName}"))
-                return new AnonymousProcedureCall(new GetPropertyValue(value, $"to{typeTarget.TypeName}"), new List<IRValue>());
+                return new AnonymousProcedureCall(new GetPropertyValue(value, $"to{typeTarget.TypeName}", value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
+            else if (value.Type is ArrayType)
+                return typeTarget is HandleType
+                    ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement)
+                    : typeTarget is IntegerType
+                    ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayLength, value, value.ErrorReportedElement)
+                    : throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
             else return typeTarget is EnumType enumType
-                ? new MarshalIntoEnum(enumType, value)
+                ? new MarshalIntoEnum(enumType, value, value.ErrorReportedElement)
                 : typeTarget is InterfaceType interfaceType
-                ? new MarshalIntoInterface(interfaceType, value)
+                ? new MarshalIntoInterface(interfaceType, value, value.ErrorReportedElement)
                 : typeTarget is RecordType recordType
-                    ? new AllocRecord(recordType, new List<IRValue>()
-                                {
-                    value
-                                })
+                    ? new AllocRecord(recordType, new List<IRValue>() { value }, value.ErrorReportedElement)
                     : typeTarget is Primitive primitive
-                                ? PrimitiveCast(value, primitive)
-                                : throw new UnexpectedTypeException(typeTarget, value.Type);
+                        ? PrimitiveCast(value, primitive)
+                        : throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
         }
 
         private static IRValue PrimitiveCast(IRValue primitive, Primitive targetType)
         {
             if (primitive.Type is not Primitive)
-                throw new UnexpectedTypeException(primitive.Type);
+                throw new UnexpectedTypeException(primitive.Type, primitive.ErrorReportedElement);
             if (targetType.IsCompatibleWith(primitive.Type))
-                throw new UnexpectedTypeException(primitive.Type);
+                throw new UnexpectedTypeException(primitive.Type, primitive.ErrorReportedElement);
 
-            Primitive input = (Primitive)primitive;
+            Primitive input = (Primitive)primitive.Type;
             return targetType is IntegerType
-                ? new ArithmeticCast(toIntOperation[input.Id - 1], primitive)
+                ? new ArithmeticCast(toIntOperation[input.Id - 1], primitive, primitive.ErrorReportedElement)
                 : primitive.Type is IntegerType
-                ? new ArithmeticCast(intToOperation[targetType.Id - 1], primitive)
-                : (IRValue)new ArithmeticCast(intToOperation[targetType.Id - 1], new ArithmeticCast(toIntOperation[input.Id - 1], primitive));
+                ? new ArithmeticCast(intToOperation[targetType.Id - 1], primitive, primitive.ErrorReportedElement)
+                : (IRValue)new ArithmeticCast(intToOperation[targetType.Id - 1], new ArithmeticCast(toIntOperation[input.Id - 1], primitive, primitive.ErrorReportedElement), primitive.ErrorReportedElement);
         }
+
+        public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type => outputTypes[Operation];
 
         public ArithmeticCastOperation Operation { get; private set; }
         public IRValue Input { get; private set; }
 
-        private ArithmeticCast(ArithmeticCastOperation operation, IRValue input)
+        private ArithmeticCast(ArithmeticCastOperation operation, IRValue input, IAstElement errorReportedElement)
         {
             Operation = operation;
             Input = input;
+            ErrorReportedElement = errorReportedElement;
 
             if (!inputTypes[Operation].IsCompatibleWith(input.Type))
-                throw new UnexpectedTypeException(inputTypes[Operation], input.Type);
+                throw new UnexpectedTypeException(inputTypes[Operation], input.Type, errorReportedElement);
         }
     }
 
@@ -123,15 +130,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public static bool IsCommunicative(ArithmeticOperation operation) => ((int)operation % 2) == 0;
 
-        public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right)
+        public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right, Syntax.Values.BinaryOperator binaryOperator)
         {
             return left.Type is IPropertyContainer container && container.HasProperty(operatorOverloadIdentifiers[operation])
-                ? new AnonymousProcedureCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation]), new List<IRValue>()
+                ? new AnonymousProcedureCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation], binaryOperator), new List<IRValue>()
                 {
                     right
-                })
-                : (IRValue)new ArithmeticOperator(operation, left, right);
+                }, binaryOperator)
+                : (IRValue)new ArithmeticOperator(operation, left, right, binaryOperator);
         }
+
+        public IAstElement ErrorReportedElement { get; private set; }
 
         public ArithmeticOperation Operation { get; private set; }
         public IType Type { get; private set; }
@@ -139,11 +148,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Left { get; private set; }
         public IRValue Right { get; private set; }
 
-        public ArithmeticOperator(ArithmeticOperation operation, IRValue left, IRValue right)
+        private ArithmeticOperator(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement)
         {
             Operation = operation;
             Left = left;
             Right = right;
+            ErrorReportedElement = errorReportedElement;
 
             if (left.Type is DecimalType)
             {
@@ -166,7 +176,30 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 Left = ArithmeticCast.CastTo(left, Primitive.Integer);
             }
             else
-                throw new UnexpectedTypeException(left.Type);
+                throw new UnexpectedTypeException(left.Type, errorReportedElement);
+        }
+    }
+
+    public sealed partial class ArrayOperator : IRValue
+    {
+        public enum ArrayOperation
+        {
+            GetArrayLength,
+            GetArrayHandle
+        }
+
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public ArrayOperation Operation { get; private set; }
+        public IType Type => Operation == ArrayOperation.GetArrayLength ? new IntegerType() : new HandleType();
+
+        public IRValue ArrayValue { get; private set; }
+
+        public ArrayOperator(ArrayOperation arrayOperation, IRValue arrayValue, IAstElement errorReportedElement)
+        {
+            Operation = arrayOperation;
+            ArrayValue = arrayValue;
+            ErrorReportedElement = errorReportedElement;
         }
     }
 }

@@ -15,6 +15,8 @@
         Interface,
         Enum,
         Define,
+        CDefine,
+        Match,
         While,
         For,
         If,
@@ -24,12 +26,15 @@
         Continue,
         Return,
         Include,
+        CInclude,
+        Assert,
         In,
         And,
         Or,
         New,
         As,
         Readonly,
+        Nothing,
 
         //symbols
         OpenBracket,
@@ -43,6 +48,7 @@
         Colon,
         Period,
         Set,
+        ModuleAccess,
 
         //operators
         Add,

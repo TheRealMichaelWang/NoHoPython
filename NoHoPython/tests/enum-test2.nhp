@@ -1,0 +1,49 @@
+﻿include "stdlib/io.nhp"
+
+class student:
+	array<char> name
+	int age
+	int grade
+	
+	def __init__(array<char> name, int age, int grade):
+		self.name = name
+		self.age = age
+		self.grade = grade
+	def toString() array<char>:
+		return self.name
+
+class faculty:
+	array<char> name
+	int age
+	int payment
+	
+	def __init__(array<char> name, int age, int payment):
+		self.name = name
+		self.age = age
+		self.payment = payment
+	def toString() array<char>:
+		return self.name
+
+interface person:
+	array<char> name
+	int age
+	
+	fn<array<char>> toString
+
+enum schoolperson:
+	student
+	faculty
+
+def printSchoolPerson(schoolperson sp):
+	match sp:
+		student s:
+			io::print(msg="student:" as printable)
+		faculty f:
+			io::print(msg="faculy:" as printable)
+	io::print(msg=sp as printable)
+
+def main():
+	michael = new student("michael", 17, 11)
+	maine = new faculty("maine", 100, 140)
+	printSchoolPerson(sp=michael as schoolperson)
+	printSchoolPerson(sp=maine as schoolperson)

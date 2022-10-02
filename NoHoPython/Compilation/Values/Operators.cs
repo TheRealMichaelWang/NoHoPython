@@ -193,7 +193,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             IRValue.EmitMemorySafe(Record, irProgram, valueBuilder, typeargs);
 
             if (Record.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
-                propertyContainer.EmitGetProperty(emitter, valueBuilder.ToString(), Property);
+                propertyContainer.EmitGetProperty(irProgram, emitter, valueBuilder.ToString(), Property);
             else
                 throw new UnexpectedTypeException(Record.Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
         }

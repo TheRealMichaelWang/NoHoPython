@@ -108,7 +108,7 @@ namespace NoHoPython.Typing
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append($"borrow_record{GetStandardIdentifier(irProgram)}({valueCSource})");
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
 
-        public void EmitGetProperty(StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}->{property.Name}");
+        public void EmitGetProperty(IRProgram irProgram, StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}->{property.Name}");
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {

@@ -1,10 +1,10 @@
 ﻿cinclude "<stdio.h>"
-include "list.nhp"
+include "stdlib/list.nhp"
 
 interface printableObj:
 	fn<array<char>> toString
 
-enum printable
+enum printable:
 	printableObj
 	array<char>
 	char
@@ -18,23 +18,28 @@ mod io:
 		cdef getchar() char
 	
 	def printObj(printableObj obj):
-		print(msg=obj.toString())
+		print(msg = obj.toString() as printable)
 	def print(printable obj):
 		match obj:
-			printableObj obj:
-				printObj(obj)
+			printableObj a:
+				cdef printf(handle, handle) None
+				printf(fmt="%s\0", msg = a.toString())
 			array<char> msg:
-				cinterop::puts(c)
+				cdef printf(handle, handle) None
+				printf(fmt="%s\0", msg)
 			char c:
 				cinterop::putchar(c)
 			int i:
-				def printf(handle, int)
-				printf("%i\0", i)
+				cdef printf(handle, int) None
+				printf(fmt="%i\0", i)
 			dec d:
-				def printf(handle, dec)
-				printf("%f\0", d)
+				cdef printf(handle, dec) None
+				printf(fmt="%f\0", d)
+	def println(printableObj obj):
+		print(msg = obj as printable)
+		cinterop::putchar('\n')
 	def scanLine() array<char>:
-		list = new list<char>
-		while (c = cinterop::getChar()) != '\n':
+		list = new data::list<char>(10, '\0')
+		while (c = cinterop::getchar()) != '\n':
 			list.pushBack(c)
 		return list.toArray()

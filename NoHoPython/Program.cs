@@ -45,6 +45,10 @@ public static class Program
         {
             codegenError.Print();
         }
+        catch(FileNotFoundException f)
+        {
+            Console.WriteLine(f.Message);
+        }
 
         return 0;
     }

@@ -26,7 +26,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public List<Property> GetProperties();
 
-        public void EmitGetProperty(StringBuilder emitter, string valueCSource, Property property);
+        public void EmitGetProperty(IRProgram irProgram, StringBuilder emitter, string valueCSource, Property property);
     }
 
     public abstract class Property

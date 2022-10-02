@@ -56,11 +56,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return value;
             else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to{typeTarget.TypeName}"))
                 return new AnonymousProcedureCall(new GetPropertyValue(value, $"to{typeTarget.TypeName}", value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
-            else if (value.Type is ArrayType)
-                return typeTarget is HandleType
+            else if(typeTarget is HandleType)
+                return value.Type is ArrayType 
                     ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement)
-                    : typeTarget is IntegerType
-                    ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayLength, value, value.ErrorReportedElement)
                     : throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
             else return typeTarget is EnumType enumType
                 ? new MarshalIntoEnum(enumType, value, value.ErrorReportedElement)
@@ -76,7 +74,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
         private static IRValue PrimitiveCast(IRValue primitive, Primitive targetType)
         {
             if (primitive.Type is not Primitive)
-                throw new UnexpectedTypeException(primitive.Type, primitive.ErrorReportedElement);
+                if (primitive.Type is ArrayType)
+                    return targetType is IntegerType
+                        ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayLength, primitive, primitive.ErrorReportedElement)
+                        : throw new UnexpectedTypeException(targetType, primitive.Type, primitive.ErrorReportedElement);
+                else
+                    throw new UnexpectedTypeException(primitive.Type, primitive.ErrorReportedElement);
+
             if (targetType.IsCompatibleWith(primitive.Type))
                 throw new UnexpectedTypeException(primitive.Type, primitive.ErrorReportedElement);
 

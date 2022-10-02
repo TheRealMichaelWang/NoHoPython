@@ -48,6 +48,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (this.options != null)
                 throw new InvalidOperationException();
             this.options = options;
+            if (options.Count < 2)
+                throw new InsufficientEnumOptions(ErrorReportedElement);
         }
     }
 }
@@ -81,8 +83,20 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 else
                     throw new UnexpectedTypeException(value.Type, errorReportedElement);
             }
-            else 
+            else
+            {
+                foreach(IType options in TargetType.GetOptions())
+                    try
+                    {
+                        Value = ArithmeticCast.CastTo(value, options);
+                        return;
+                    }
+                    catch (UnexpectedTypeException)
+                    {
+                        continue;
+                    }
                 throw new UnexpectedTypeException(value.Type, errorReportedElement);
+            }
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => ArithmeticCast.CastTo(Value.SubstituteWithTypearg(typeargs), TargetType.SubstituteWithTypearg(typeargs));
@@ -92,7 +106,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 namespace NoHoPython.Typing
 {
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
-    public sealed partial class EnumType : IType
+    public sealed partial class EnumType : IType, IPropertyContainer
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public bool IsNativeCType => false;
@@ -102,6 +116,7 @@ namespace NoHoPython.Typing
         public readonly List<IType> TypeArguments;
 
         private Lazy<List<IType>> options;
+        private Lazy<Dictionary<string, Property>> supportedProperties;
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
 
@@ -116,9 +131,48 @@ namespace NoHoPython.Typing
             TypeArguments = typeArguments;
 
             options = new Lazy<List<IType>>(() => enumDeclaration.GetOptions(this));
+            supportedProperties = new Lazy<Dictionary<string, Property>>(() =>
+            {
+                if (!options.Value.TrueForAll((option) => option is IPropertyContainer))
+                    return new();
+
+                IPropertyContainer firstType = (IPropertyContainer)options.Value[0];
+
+                List<Property> firstTypeProperties = firstType.GetProperties();
+                Dictionary<string, Property> properties = new(firstTypeProperties.Count);
+
+                foreach (Property property in firstTypeProperties)
+                {
+                    bool foundFlag = true;
+                    for (int i = 1; i < options.Value.Count; i++)
+                    {
+                        IPropertyContainer optionContainer = (IPropertyContainer)options.Value[i];
+                        if (!optionContainer.HasProperty(property.Name))
+                        {
+                            foundFlag = false;
+                            break;
+                        }
+                        Property optionFoundProperty = optionContainer.FindProperty(property.Name);
+                        if (!property.Type.IsCompatibleWith(optionFoundProperty.Type))
+                        {
+                            foundFlag = false;
+                            break;
+                        }
+                    }
+                    if (foundFlag)
+                        properties.Add(property.Name, property);
+                }
+                return properties;
+            });
         }
 
         public List<IType> GetOptions() => options.Value;
+
+        public List<Property> GetProperties() => supportedProperties.Value.Values.ToList();
+
+        public Property FindProperty(string identifier) => supportedProperties.Value[identifier];
+
+        public bool HasProperty(string identifier) => supportedProperties.Value.ContainsKey(identifier);
 
         public bool SupportsType(IType type)
         {
@@ -132,7 +186,9 @@ namespace NoHoPython.Typing
         {
             if (type is EnumType enumType)
             {
-                if (enumType.EnumDeclaration != enumType.EnumDeclaration)
+                if (EnumDeclaration != enumType.EnumDeclaration)
+                    return false;
+                if (TypeArguments.Count != enumType.TypeArguments.Count)
                     return false;
 
                 for (int i = 0; i < TypeArguments.Count; i++)
@@ -173,7 +229,7 @@ namespace NoHoPython.Syntax.Statements
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IREnumDeclaration);
             IREnumDeclaration.DelayedLinkSetOptions(Options.ConvertAll((AstType option) => option.ToIRType(irBuilder, this)));
-            //irBuilder.AddEnumDeclaration(IREnumDeclaration);
+            irBuilder.SymbolMarshaller.GoBack();
         }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => IREnumDeclaration;

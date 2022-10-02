@@ -103,7 +103,7 @@ namespace NoHoPython.Typing
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
 
-        public void EmitGetProperty(StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}.{property.Name}");
+        public void EmitGetProperty(IRProgram irProgram, StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}.{property.Name}");
 
         public void EmitMarshallerHeader(IRProgram irProgram, StringBuilder emitter) => emitter.AppendLine($"{GetCName(irProgram)} marshal_interface{GetStandardIdentifier(irProgram)}({string.Join(", ", requiredImplementedProperties.Value.ConvertAll((prop) => $"{prop.Type.GetCName(irProgram)} {prop.Name}"))});");
 
@@ -120,7 +120,7 @@ namespace NoHoPython.Typing
         {
             emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
             foreach (var property in requiredImplementedProperties.Value)
-                emitter.Append($"\t{property.Type.GetCName(irProgram)} {property.Name};");
+                emitter.AppendLine($"\t{property.Type.GetCName(irProgram)} {property.Name};");
             emitter.AppendLine("};");
         }
 
@@ -207,7 +207,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 StringBuilder getPropertyEmitter = new StringBuilder();
                 if (Value.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
-                    propertyContainer.EmitGetProperty(getPropertyEmitter, valueEmitter.ToString(), property);
+                    propertyContainer.EmitGetProperty(irProgram, getPropertyEmitter, valueEmitter.ToString(), property);
                 else
                     throw new InvalidOperationException();
                 

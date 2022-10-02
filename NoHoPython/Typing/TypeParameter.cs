@@ -25,8 +25,6 @@ namespace NoHoPython.Typing
                 existingTypeArguments[i].MatchTypeArgumentWithType(typeargs, arguments[i], errorReportedElement);
         }
 
-        public static string GetMangledTypeArgumentNames(List<IType> typeArguments) => string.Join('_', typeArguments.Select((IType type) => type.TypeName));
-
         public bool IsGloballyNavigable => false;
 
         public string Name { get; private set; }

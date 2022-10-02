@@ -68,6 +68,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach(EnumType usedEnum in irProgram.EnumTypeOverloads[this])
             {
                 usedEnum.EmitMarshallerHeaders(irProgram, emitter);
+                usedEnum.EmitPropertyGetHeaders(irProgram, emitter);
                 if (usedEnum.RequiresDisposal)
                 {
                     emitter.AppendLine($"void free_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum);");
@@ -85,6 +86,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (EnumType enumType in irProgram.EnumTypeOverloads[this])
             {
                 enumType.EmitMarshallers(irProgram, emitter);
+                enumType.EmitPropertyGetters(irProgram, emitter);
                 if (enumType.RequiresDisposal)
                 {
                     enumType.EmitDestructor(irProgram, emitter);
@@ -128,6 +130,8 @@ namespace NoHoPython.Typing
                 emitter.Append($"({destC} = {valueCSource})");
         }
 
+        public void EmitGetProperty(IRProgram irProgram, StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"get_{property.Name}{GetStandardIdentifier(irProgram)}({valueCSource})");
+
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
 
@@ -152,6 +156,7 @@ namespace NoHoPython.Typing
                 if(option is not NothingType)
                     emitter.AppendLine($"\t\t{option.GetCName(irProgram)} {option.GetStandardIdentifier(irProgram)}_set;");
             emitter.AppendLine("\t} data;");
+
             emitter.AppendLine("};");
         }
 
@@ -173,9 +178,15 @@ namespace NoHoPython.Typing
         {
             foreach (IType option in options.Value)
                 if (option is not NothingType)
-                    emitter.AppendLine($"{GetCName(irProgram)} marshal_enum{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}({option.GetCName(irProgram)} option);");
+                    emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}({option.GetCName(irProgram)} option);");
                 else
-                    emitter.AppendLine($"{GetCName(irProgram)} marshal_enum{GetStandardIdentifier(irProgram)}_with_nothing();");
+                    emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_nothing();");
+        }
+
+        public void EmitPropertyGetHeaders(IRProgram irProgram, StringBuilder emitter)
+        {
+            foreach (Property property in supportedProperties.Value.Values)
+                emitter.AppendLine($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum);");
         }
 
         public void EmitMarshallers(IRProgram irProgram, StringBuilder emitter)
@@ -184,17 +195,36 @@ namespace NoHoPython.Typing
             {
                 if (option is not NothingType)
                 {
-                    emitter.AppendLine($"{GetCName(irProgram)} marshal_enum{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}({option.GetCName(irProgram)} option) {{");
+                    emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}({option.GetCName(irProgram)} option) {{");
                     emitter.AppendLine($"\t{GetCName(irProgram)} marshalled_enum;");
                     emitter.AppendLine($"\tmarshalled_enum.data.{option.GetStandardIdentifier(irProgram)}_set = option;");
                 }
                 else
                 {
-                    emitter.AppendLine($"{GetCName(irProgram)} marshal_enum{GetStandardIdentifier(irProgram)}_with_nothing() {{");
+                    emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_nothing() {{");
                     emitter.AppendLine($"\t{GetCName(irProgram)} marshalled_enum;");
                 }
                 emitter.AppendLine($"\tmarshalled_enum.option = {GetCEnumOptionForType(irProgram, option)};");
                 emitter.AppendLine("\treturn marshalled_enum;");
+                emitter.AppendLine("}");
+            }
+        }
+
+        public void EmitPropertyGetters(IRProgram irProgram, StringBuilder emitter)
+        {
+            foreach (Property property in supportedProperties.Value.Values)
+            {
+                emitter.AppendLine($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum) {{");
+                emitter.AppendLine("\tswitch(_nhp_enum.option) {");
+                foreach(IType option in options.Value)
+                {
+                    emitter.AppendLine($"\tcase {GetCEnumOptionForType(irProgram, option)}:");
+                    emitter.Append("\t\treturn ");
+                    IPropertyContainer propertyContainer = (IPropertyContainer)option;
+                    propertyContainer.EmitGetProperty(irProgram, emitter, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set", property);
+                    emitter.AppendLine(";");
+                }
+                emitter.AppendLine("\t}");
                 emitter.AppendLine("}");
             }
         }
@@ -270,7 +300,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (Value.Type is not NothingType)
             {
-                emitter.Append($"marshal_enum{realPrototype.GetStandardIdentifier(irProgram)}_with_{Value.Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
+                emitter.Append($"marshal{realPrototype.GetStandardIdentifier(irProgram)}_with_{Value.Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
                 if(Value.RequiresDisposal(typeargs))
                     Value.Emit(irProgram, emitter, typeargs);
                 else
@@ -282,7 +312,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append(')');
             }
             else
-                emitter.Append($"marshal_enum{realPrototype.GetStandardIdentifier(irProgram)}_with_nothing()");
+                emitter.Append($"marshal{realPrototype.GetStandardIdentifier(irProgram)}_with_nothing()");
         }
     }
 }

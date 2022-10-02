@@ -63,10 +63,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             public Variable? MatchedVariable { get; private set; }
             public CodeBlock ToExecute { get; private set; }
 
-            public MatchHandler(IType matchedType, string? matchIdentifier, List<IAstStatement> toExecute, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+            public MatchHandler(IType matchedType, string? matchIdentifier, CodeBlock toExecute, List<IAstStatement> toExecuteStatements, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
             {
                 MatchedType = matchedType;
-                ToExecute = irBuilder.SymbolMarshaller.NewCodeBlock();
+                ToExecute = toExecute;
+                irBuilder.SymbolMarshaller.NavigateToScope(toExecute);
                 if (matchIdentifier != null)
                 {
                     MatchedVariable = new(matchedType, matchIdentifier, irBuilder.ScopedProcedures.Peek(), false);
@@ -74,7 +75,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 }
                 else
                     MatchedVariable = null;
-                ToExecute.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, toExecute));
+                ToExecute.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, toExecuteStatements));
                 irBuilder.SymbolMarshaller.GoBack();
             }
         }
@@ -150,13 +151,23 @@ namespace NoHoPython.Syntax.Statements
 {
     partial class IfBlock
     {
+        private CodeBlock scopedCodeBlock;
+        private CodeBlock? scopedNextIf = null;
+
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
+            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
             IAstStatement.ForwardDeclareBlock(irBuilder, IfTrueBlock);
+            irBuilder.SymbolMarshaller.GoBack();
+
             if (NextIf != null)
+            {
+                scopedNextIf = irBuilder.SymbolMarshaller.NewCodeBlock();
                 NextIf.ForwardDeclare(irBuilder);
+                irBuilder.SymbolMarshaller.GoBack();
+            }
             else if (NextElse != null)
                 NextElse.ForwardDeclare(irBuilder);
         }
@@ -165,63 +176,89 @@ namespace NoHoPython.Syntax.Statements
         {
             IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean);
 
-            CodeBlock codeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
-            codeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, IfTrueBlock));
+            irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
+            scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, IfTrueBlock));
             irBuilder.SymbolMarshaller.GoBack();
 
-            if (NextIf != null)
+            if (scopedNextIf != null)
             {
-                CodeBlock nextIf = irBuilder.SymbolMarshaller.NewCodeBlock();
-                nextIf.DelayedLinkSetStatements(new List<IRStatement>() { NextIf.GenerateIntermediateRepresentationForStatement(irBuilder) });
+                irBuilder.SymbolMarshaller.NavigateToScope(scopedNextIf);
+#pragma warning disable CS8602 // NextIf is never null when scopedNextIf isn't
+                scopedNextIf.DelayedLinkSetStatements(new List<IRStatement>() { NextIf.GenerateIntermediateRepresentationForStatement(irBuilder) });
+#pragma warning restore CS8602
                 irBuilder.SymbolMarshaller.GoBack();
-                return new IfElseBlock(condition, codeBlock, nextIf, this);
+                return new IfElseBlock(condition, scopedCodeBlock, scopedNextIf, this);
             }
             else return NextElse != null
-                ? new IfElseBlock(condition, codeBlock, NextElse.GenerateIRCodeBlock(irBuilder), this)
-                : new IntermediateRepresentation.Statements.IfBlock(condition, codeBlock, this);
+                ? new IfElseBlock(condition, scopedCodeBlock, NextElse.GenerateIRCodeBlock(irBuilder), this)
+                : new IntermediateRepresentation.Statements.IfBlock(condition, scopedCodeBlock, this);
         }
     }
 
     partial class ElseBlock
     {
+        private CodeBlock scopedToExecute;
+
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) => throw new InvalidOperationException();
 
-        public void ForwardDeclare(AstIRProgramBuilder irBuilder) => IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
+        {
+            scopedToExecute = irBuilder.SymbolMarshaller.NewCodeBlock();
+            IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
+            irBuilder.SymbolMarshaller.GoBack();
+        }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => throw new InvalidOperationException();
 
         public CodeBlock GenerateIRCodeBlock(AstIRProgramBuilder irBuilder)
         {
-            CodeBlock codeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
-            codeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
+            irBuilder.SymbolMarshaller.NavigateToScope(scopedToExecute);
+            scopedToExecute.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
             irBuilder.SymbolMarshaller.GoBack();
-            return codeBlock;
+            return scopedToExecute;
         }
     }
 
     partial class WhileBlock
     {
+        private CodeBlock scopedCodeBlock;
+
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclare(AstIRProgramBuilder irBuilder) => IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
+        {
+            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
+            IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
+            irBuilder.SymbolMarshaller.GoBack();
+        }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean);
 
-            CodeBlock codeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
-            codeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
+            irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
+            scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
             irBuilder.SymbolMarshaller.GoBack();
 
-            return new IntermediateRepresentation.Statements.WhileBlock(condition, codeBlock, this);
+            return new IntermediateRepresentation.Statements.WhileBlock(condition, scopedCodeBlock, this);
         }
     }
 
     partial class MatchStatement
     {
+        private Dictionary<MatchHandler, CodeBlock> handlerCodeBlocks;
+
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclare(AstIRProgramBuilder irBuilder) => MatchHandlers.ForEach((handler) => IAstStatement.ForwardDeclareBlock(irBuilder, handler.Statements));
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
+        {
+            handlerCodeBlocks = new Dictionary<MatchHandler, CodeBlock>();
+            MatchHandlers.ForEach((handler) => {
+                handlerCodeBlocks.Add(handler, irBuilder.SymbolMarshaller.NewCodeBlock());
+                IAstStatement.ForwardDeclareBlock(irBuilder, handler.Statements);
+                irBuilder.SymbolMarshaller.GoBack();
+            });
+        }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
@@ -237,7 +274,7 @@ namespace NoHoPython.Syntax.Statements
                     if (!handledTypes.Contains(handledType))
                         throw new UnexpectedTypeException(handledType, this);
                     handledTypes.Remove(handledType);
-                    matchHandlers.Add(new(handledType, handler.MatchIdentifier, handler.Statements, irBuilder, this));
+                    matchHandlers.Add(new(handledType, handler.MatchIdentifier, handlerCodeBlocks[handler], handler.Statements, irBuilder, this));
                 }
                 foreach (IType unhandledOption in handledTypes)
                     throw new UnhandledMatchOption(enumType, unhandledOption, this);

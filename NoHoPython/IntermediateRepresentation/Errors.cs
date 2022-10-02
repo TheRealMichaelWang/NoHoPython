@@ -171,6 +171,14 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
+    public sealed class InsufficientEnumOptions : IRGenerationError
+    {
+        public InsufficientEnumOptions(IAstElement astElement) : base(astElement, "Enum/Variant must have at least two type options.")
+        {
+
+        }
+    }
+
     public sealed class UnhandledMatchOption : IRGenerationError
     {
         public EnumType EnumType { get; private set; }

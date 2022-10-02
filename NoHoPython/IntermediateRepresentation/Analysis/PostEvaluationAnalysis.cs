@@ -21,17 +21,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue GetPostEvalPure() => new AnonymizeProcedure(Procedure, ErrorReportedElement);
     }
 
-    partial class AnonymousProcedureCall
-    {
-        public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
-    }
-
-    partial class ForeignFunctionCall
-    {
-        public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
-    }
-
-    partial class LinkedProcedureCall
+    partial class ProcedureCall
     {
         public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
     }

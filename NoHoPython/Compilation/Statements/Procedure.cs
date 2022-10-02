@@ -500,30 +500,103 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
-    partial class LinkedProcedureCall
+    partial class ProcedureCall
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => Procedure.SubstituteWithTypearg(typeargs).ReturnType.RequiresDisposal;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => Type.SubstituteWithTypearg(typeargs).RequiresDisposal;
 
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        public virtual void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            Procedure.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
-            foreach (IRValue argument in Arguments)
-                argument.ScopeForUsedTypes(typeargs, irBuilder);
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            Arguments.ForEach((arg) => arg.ScopeForUsedTypes(typeargs, irBuilder));
         }
 
         public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
 
         public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public abstract void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments);
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs) => EmitCall(irProgram, emitter, typeargs, new SortedSet<int>());
+
+        protected void EmitArguments(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments)
         {
-            emitter.Append($"{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
-            for(int i = 0; i < Arguments.Count; i++)
+            for (int i = 0; i < Arguments.Count; i++)
             {
                 if (i > 0)
                     emitter.Append(", ");
-                IRValue.EmitMemorySafe(Arguments[i], irProgram, emitter, typeargs);
+                if (Arguments[i].RequiresDisposal(typeargs))
+                {
+                    if (releasedArguments.Contains(i))
+                        emitter.Append($"_nhp_freebuf_{i}");
+                    else
+                        throw new CannotEmitDestructorError(Arguments[i]);
+                }
+                else
+                    Arguments[i].Emit(irProgram, emitter, typeargs);
             }
+        }
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            void emitAndDestroyCall(SortedSet<int> releasedArguments)
+            {
+                if (RequiresDisposal(typeargs))
+                {
+                    StringBuilder valueEmitter = new StringBuilder();
+                    EmitCall(irProgram, valueEmitter, typeargs, releasedArguments);
+                    Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valueEmitter.ToString());
+                }
+                else
+                {
+                    EmitCall(irProgram, emitter, typeargs, releasedArguments);
+                    emitter.AppendLine(";");
+                }
+            }
+
+            CodeBlock.CIndent(emitter, indent);
+
+            if (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)))
+            {
+                SortedSet<int> releasedArguments = new SortedSet<int>();
+                emitter.AppendLine("{");
+                for (int i = 0; i < Arguments.Count; i++)
+                    if (Arguments[i].RequiresDisposal(typeargs))
+                    {
+                        CodeBlock.CIndent(emitter, indent + 1);
+                        emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_freebuf_{i} = ");
+                        Arguments[i].Emit(irProgram, emitter, typeargs);
+                        emitter.AppendLine(";");
+                        releasedArguments.Add(i);
+                    }
+
+                CodeBlock.CIndent(emitter, indent + 1);
+                emitAndDestroyCall(releasedArguments);
+
+                foreach (int i in releasedArguments)
+                {
+                    CodeBlock.CIndent(emitter, indent + 1);
+                    Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_freebuf_{i}");
+                }
+                CodeBlock.CIndent(emitter, indent);
+                emitter.AppendLine("}");
+            }
+            else
+                emitAndDestroyCall(new SortedSet<int>());
+        }
+    }
+
+    partial class LinkedProcedureCall
+    {
+        public override void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            Procedure.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            base.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public override void EmitCall (IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments)
+        {
+            emitter.Append($"{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
+            EmitArguments(irProgram, emitter, typeargs, releasedArguments);
             for(int i = 0; i < Procedure.ProcedureDeclaration.CapturedVariables.Count; i++)
             {
                 if (i > 0 || Arguments.Count > 0)
@@ -533,67 +606,25 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             emitter.Append(')');
         }
-
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
-        {
-            CodeBlock.CIndent(emitter, indent);
-
-            if (Procedure.SubstituteWithTypearg(typeargs).ReturnType.RequiresDisposal)
-            {
-                StringBuilder valueEmitter = new StringBuilder();
-                Emit(irProgram, valueEmitter, typeargs);
-                Procedure.SubstituteWithTypearg(typeargs).ReturnType.EmitFreeValue(irProgram, emitter, valueEmitter.ToString());
-            }
-            else
-                Emit(irProgram, emitter, typeargs);
-
-            emitter.AppendLine(";");
-        }
     }
 
     partial class AnonymousProcedureCall
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => ProcedureType.ReturnType.SubstituteWithTypearg(typeargs).RequiresDisposal;
-
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        public override void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
             ProcedureValue.ScopeForUsedTypes(typeargs, irBuilder);
-            foreach (IRValue argument in Arguments)
-                argument.ScopeForUsedTypes(typeargs, irBuilder);
+            base.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments)
         {
             IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
             emitter.Append("->_nhp_this_anon(");
             IRValue.EmitMemorySafe(ProcedureValue.GetPostEvalPure(), irProgram, emitter, typeargs);
-            foreach (IRValue argument in Arguments)
-            {
+            if(Arguments.Count > 0)
                 emitter.Append(", ");
-                IRValue.EmitMemorySafe(argument, irProgram, emitter, typeargs);
-            }
+            EmitArguments(irProgram, emitter, typeargs, releasedArguments);
             emitter.Append(')');
-        }
-
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
-        {
-            CodeBlock.CIndent(emitter, indent);
-
-            if (ProcedureType.ReturnType.SubstituteWithTypearg(typeargs).RequiresDisposal)
-            {
-                StringBuilder valueEmitter = new StringBuilder();
-                Emit(irProgram, valueEmitter, typeargs);
-                ProcedureType.ReturnType.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valueEmitter.ToString());
-            }
-            else
-                Emit(irProgram, emitter, typeargs);
-
-            emitter.AppendLine(";");
         }
     }
 
@@ -614,34 +645,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ForeignFunctionCall
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
-
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
-        {
-            Arguments.ForEach((argument) => argument.ScopeForUsedTypes(typeargs, irBuilder));
-        }
-
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments)
         {
             emitter.Append($"{ForeignCProcedure.Name}(");
-            for(int i = 0; i < Arguments.Count; i++)
-            {
-                if (i > 0)
-                    emitter.Append(", ");
-                Arguments[i].Emit(irProgram, emitter, typeargs);
-            }
+            EmitArguments(irProgram, emitter, typeargs, releasedArguments);
             emitter.Append(')');
-        }
-
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
-        {
-            CodeBlock.CIndent(emitter, indent);
-            Emit(irProgram, emitter, typeargs);
-            emitter.AppendLine(";");
         }
     }
 }

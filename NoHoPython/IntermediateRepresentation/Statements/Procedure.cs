@@ -201,60 +201,60 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
-    public sealed partial class LinkedProcedureCall : IRValue, IRStatement
+    public abstract partial class ProcedureCall : IRValue, IRStatement
     {
         public IAstElement ErrorReportedElement { get; private set; }
-        public IType Type => Procedure.ReturnType;
+        public abstract IType Type { get; }
+
+        public readonly List<IRValue> Arguments;
+
+        public ProcedureCall(List<IType> expectedParameters, List<IRValue> arguments, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            Arguments = arguments;
+
+            if (expectedParameters.Count != arguments.Count)
+                throw new UnexpectedTypeArgumentsException(expectedParameters.Count, arguments.Count, errorReportedElement);
+            for(int i = 0; i < expectedParameters.Count; i++)
+                Arguments[i] = ArithmeticCast.CastTo(Arguments[i], expectedParameters[i]);
+        }
+
+        public abstract IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs);
+    }
+
+    public sealed partial class LinkedProcedureCall : ProcedureCall
+    {
+        public override IType Type => Procedure.ReturnType;
 
         public ProcedureReference Procedure { get; private set; }
-        public readonly List<IRValue> Arguments;
 
         public LinkedProcedureCall(ProcedureDeclaration procedure, List<IRValue> arguments, IType? returnType, IAstElement errorReportedElement) : this(new ProcedureReference(procedure, arguments, returnType, false, errorReportedElement), arguments, errorReportedElement)
         {
 
         }
 
-        private LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments, IAstElement errorReportedElement)
+        private LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments, IAstElement errorReportedElement) : base(procedure.ParameterTypes, arguments, errorReportedElement)
         {
             Procedure = procedure;
-            Arguments = arguments;
-            ErrorReportedElement = errorReportedElement;
         }
 
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new LinkedProcedureCall(Procedure.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
+        public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new LinkedProcedureCall(Procedure.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
     }
 
-    public sealed partial class AnonymousProcedureCall : IRValue, IRStatement
+    public sealed partial class AnonymousProcedureCall : ProcedureCall
     {
-        public IAstElement ErrorReportedElement { get; private set; }
-
-        public IType Type => ProcedureType.ReturnType;
+        public override IType Type => ProcedureType.ReturnType;
 
         public IRValue ProcedureValue { get; private set; }
-        public readonly List<IRValue> Arguments;
         public ProcedureType ProcedureType { get; private set; }
 
-        public AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments, IAstElement errorReportedElement)
+        public AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments, IAstElement errorReportedElement) : base((procedureValue.Type is ProcedureType procedureType ? procedureType : throw new UnexpectedTypeException(procedureValue.Type, errorReportedElement)).ParameterTypes, arguments, errorReportedElement)
         {
             ProcedureValue = procedureValue;
-            ErrorReportedElement = errorReportedElement;
-
-            if (procedureValue.Type is ProcedureType procedureType)
-            {
-                ProcedureType = procedureType;
-
-                if (procedureType.ParameterTypes.Count != arguments.Count)
-                    throw new UnexpectedTypeArgumentsException(procedureType.ParameterTypes.Count, arguments.Count, errorReportedElement);
-                for (int i = 0; i < procedureType.ParameterTypes.Count; i++)
-                    arguments[i] = ArithmeticCast.CastTo(arguments[i], procedureType.ParameterTypes[i]);
-                Arguments = arguments;
-            }
-            else
-                throw new UnexpectedTypeException(procedureValue.Type, errorReportedElement);
-            ErrorReportedElement = errorReportedElement;
+            ProcedureType = procedureType;
         }
 
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymousProcedureCall(ProcedureValue.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
+        public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymousProcedureCall(ProcedureValue.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
     }
 
     public sealed partial class AnonymizeProcedure : IRValue
@@ -278,26 +278,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
-    public sealed partial class ForeignFunctionCall : IRValue, IRStatement
+    public sealed partial class ForeignFunctionCall : ProcedureCall
     {
-        public IAstElement ErrorReportedElement { get; private set; }
-        public IType Type => ForeignCProcedure.ReturnType;
+        public override IType Type => ForeignCProcedure.ReturnType;
 
         public ForeignCProcedureDeclaration ForeignCProcedure { get; private set; }
-        public readonly List<IRValue> Arguments;
 
-        public ForeignFunctionCall(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, IAstElement errorReportedElement)
+        public ForeignFunctionCall(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, IAstElement errorReportedElement) : base(foreignCProcedure.ParameterTypes, arguments, errorReportedElement)
         {
-            ErrorReportedElement = errorReportedElement;
             ForeignCProcedure = foreignCProcedure;
-            if (ForeignCProcedure.ParameterTypes.Count != arguments.Count)
-                throw new UnexpectedTypeArgumentsException(ForeignCProcedure.ParameterTypes.Count, arguments.Count, errorReportedElement);
-            for (int i = 0; i < ForeignCProcedure.ParameterTypes.Count; i++)
-                arguments[i] = ArithmeticCast.CastTo(arguments[i], ForeignCProcedure.ParameterTypes[i]);
-            Arguments = arguments;
         }
 
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new ForeignFunctionCall(ForeignCProcedure, Arguments.ConvertAll((argument) => argument.SubstituteWithTypearg(typeargs)), ErrorReportedElement);
+        public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new ForeignFunctionCall(ForeignCProcedure, Arguments.ConvertAll((argument) => argument.SubstituteWithTypearg(typeargs)), ErrorReportedElement);
     }
 }
 

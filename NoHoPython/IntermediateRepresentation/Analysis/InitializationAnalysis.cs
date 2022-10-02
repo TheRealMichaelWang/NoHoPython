@@ -141,23 +141,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
     }
 
+    partial class ProcedureCall
+    {
+        public virtual void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Arguments.ForEach((arg) => arg.AnalyzePropertyInitialization(initializedProperties));
+    }
+
     partial class AnonymousProcedureCall
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
+        public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
         {
             ProcedureValue.AnalyzePropertyInitialization(initializedProperties);
-            Arguments.ForEach((arg) => arg.AnalyzePropertyInitialization(initializedProperties));
+            base.AnalyzePropertyInitialization(initializedProperties);
         }
-    }
-
-    partial class ForeignFunctionCall
-    {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Arguments.ForEach((arg) => arg.AnalyzePropertyInitialization(initializedProperties));
-    }
-
-    partial class LinkedProcedureCall
-    {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Arguments.ForEach((arg) => arg.AnalyzePropertyInitialization(initializedProperties));
     }
 
     partial class ArithmeticCast

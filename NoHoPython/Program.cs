@@ -45,7 +45,7 @@ public static class Program
         {
             codegenError.Print();
         }
-        catch(FileNotFoundException f)
+        catch (FileNotFoundException f)
         {
             Console.WriteLine(f.Message);
         }

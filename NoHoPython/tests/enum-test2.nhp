@@ -37,13 +37,13 @@ enum schoolperson:
 def printSchoolPerson(schoolperson sp):
 	match sp:
 		student s:
-			io::print(msg="student:" as printable)
+			io::print("student: ")
 		faculty f:
-			io::print(msg="faculy:" as printable)
-	io::print(msg=sp as printable)
+			io::print("faculty: ")
+	io::println(sp)
 
 def main():
 	michael = new student("michael", 17, 11)
 	maine = new faculty("maine", 100, 140)
-	printSchoolPerson(sp=michael as schoolperson)
-	printSchoolPerson(sp=maine as schoolperson)
+	printSchoolPerson(michael)
+	printSchoolPerson(maine)

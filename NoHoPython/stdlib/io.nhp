@@ -18,15 +18,18 @@ mod io:
 		cdef getchar() char
 	
 	def printObj(printableObj obj):
-		print(msg = obj.toString() as printable)
+		print(obj.toString())
+	def printStr(array<char> buffer):
+		i = 0
+		while i < buffer as int:
+			cinterop::putchar(buffer[i])
+			i = i + 1
 	def print(printable obj):
 		match obj:
 			printableObj a:
-				cdef printf(handle, handle) None
-				printf(fmt="%s\0", msg = a.toString())
+				printStr(a.toString())
 			array<char> msg:
-				cdef printf(handle, handle) None
-				printf(fmt="%s\0", msg)
+				printStr(msg)
 			char c:
 				cinterop::putchar(c)
 			int i:
@@ -36,7 +39,7 @@ mod io:
 				cdef printf(handle, dec) None
 				printf(fmt="%f\0", d)
 	def println(printableObj obj):
-		print(msg = obj as printable)
+		print(obj)
 		cinterop::putchar('\n')
 	def scanLine() array<char>:
 		list = new data::list<char>(10, '\0')

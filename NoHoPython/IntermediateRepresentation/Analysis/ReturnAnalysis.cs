@@ -85,17 +85,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
-    partial class LinkedProcedureCall
-    {
-        public bool AllCodePathsReturn() => false;
-    }
-
-    partial class AnonymousProcedureCall
-    {
-        public bool AllCodePathsReturn() => false;
-    }
-
-    partial class ForeignFunctionCall
+    partial class ProcedureCall
     {
         public bool AllCodePathsReturn() => false;
     }

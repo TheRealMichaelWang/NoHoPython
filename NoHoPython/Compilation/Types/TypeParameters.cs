@@ -18,6 +18,7 @@ namespace NoHoPython.Typing
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => throw new UnexpectedTypeParameterError(TypeParameter, null);
+        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) => throw new UnexpectedTypeParameterError(TypeParameter, null);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) => throw new UnexpectedTypeParameterError(TypeParameter, null);
     }

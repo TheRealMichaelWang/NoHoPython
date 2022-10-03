@@ -15,6 +15,8 @@ namespace NoHoPython.Syntax
                 if (arrayType.IsCompatibleWith(toscope))
                     return;
             usedArrayTypes.Add(toscope);
+
+            typeDependencyTree.Add(toscope, new HashSet<IType>(new ITypeComparer()));
         }
     }
 }
@@ -113,6 +115,9 @@ namespace NoHoPython.Typing
 
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter)
         {
+            if (!irProgram.DeclareCompiledType(emitter, this))
+                return;
+
             emitter.AppendLine($"struct {GetStandardIdentifier(irProgram)} {{");
             emitter.AppendLine($"\t{ElementType.GetCName(irProgram)}* buffer;");
             emitter.AppendLine("\tint length;");

@@ -177,6 +177,7 @@ namespace NoHoPython.Typing
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => emitter.Append($"({valueCSource})->_nhp_record_copier({valueCSource}, {recordCSource})");
+        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) { }
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -233,7 +234,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public override void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent) { }
 
-        public void EmitActual(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void EmitActual(IRProgram irProgram, StringBuilder emitter, int indent)
         {
             if (!irProgram.ProcedureOverloads.ContainsKey(this))
                 return;
@@ -288,7 +289,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     emitter.Append(string.Join(", ", (ProcedureDeclaration.Parameters.Concat(ProcedureDeclaration.CapturedVariables)).Select((parameter) => parameter.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram) + " " + parameter.GetStandardIdentifier(irProgram))));
                 else
                     emitter.Append(string.Join(", ", ProcedureDeclaration.Parameters.Select((parameter) => parameter.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram) + " " + parameter.GetStandardIdentifier(irProgram))));
-                emitter.Append(")");
+                emitter.Append(')');
             }
 #pragma warning restore CS8604 
         }
@@ -297,7 +298,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             emitter.Append($"{anonProcedureType.GetCName(irProgram)} capture_{GetStandardIdentifier(irProgram)}(");
             emitter.Append(string.Join(", ", ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => $"{capturedVar.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {capturedVar.GetStandardIdentifier(irProgram)}")));
-            emitter.Append(")");
+            emitter.Append(')');
         }
 
         public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter)
@@ -462,7 +463,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     ToReturn.Emit(irProgram, emitter, typeargs);
                 else
                 {
-                    StringBuilder valueBuilder = new StringBuilder();
+                    StringBuilder valueBuilder = new();
                     ToReturn.Emit(irProgram, valueBuilder, typeargs);
                     ToReturn.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString());
                 }
@@ -542,7 +543,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 if (RequiresDisposal(typeargs))
                 {
-                    StringBuilder valueEmitter = new StringBuilder();
+                    StringBuilder valueEmitter = new();
                     EmitCall(irProgram, valueEmitter, typeargs, releasedArguments);
                     Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valueEmitter.ToString());
                 }
@@ -557,7 +558,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)))
             {
-                SortedSet<int> releasedArguments = new SortedSet<int>();
+                SortedSet<int> releasedArguments = new();
                 emitter.AppendLine("{");
                 for (int i = 0; i < Arguments.Count; i++)
                     if (Arguments[i].RequiresDisposal(typeargs))
@@ -601,7 +602,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 if (i > 0 || Arguments.Count > 0)
                     emitter.Append(", ");
-                VariableReference variableReference = new VariableReference(Procedure.ProcedureDeclaration.CapturedVariables[i], ErrorReportedElement);
+                VariableReference variableReference = new(Procedure.ProcedureDeclaration.CapturedVariables[i], ErrorReportedElement);
                 variableReference.Emit(irProgram, emitter, typeargs);
             }
             emitter.Append(')');

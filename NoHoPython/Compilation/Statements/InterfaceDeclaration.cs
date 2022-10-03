@@ -22,6 +22,8 @@ namespace NoHoPython.Syntax
                 interfaceTypeOverloads.Add(interfaceType.InterfaceDeclaration, new List<InterfaceType>());
             interfaceTypeOverloads[interfaceType.InterfaceDeclaration].Add(interfaceType);
 
+            typeDependencyTree.Add(interfaceType, new HashSet<IType>(interfaceType.GetProperties().ConvertAll((prop) => prop.Type), new ITypeComparer()));
+
             return true;
         }
     }
@@ -118,6 +120,9 @@ namespace NoHoPython.Typing
 
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter)
         {
+            if (!irProgram.DeclareCompiledType(emitter, this))
+                return;
+
             emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
             foreach (var property in requiredImplementedProperties.Value)
                 emitter.AppendLine($"\t{property.Type.GetCName(irProgram)} {property.Name};");

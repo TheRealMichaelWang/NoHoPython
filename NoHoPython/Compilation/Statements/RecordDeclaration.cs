@@ -22,6 +22,8 @@ namespace NoHoPython.Syntax
                 recordTypeOverloads.Add(recordType.RecordPrototype, new List<RecordType>());
             recordTypeOverloads[recordType.RecordPrototype].Add(recordType);
 
+            typeDependencyTree.Add(recordType, new HashSet<IType>(new ITypeComparer()));
+
             return true;
         }
     }
@@ -123,6 +125,9 @@ namespace NoHoPython.Typing
 
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter)
         {
+            if (!irProgram.DeclareCompiledType(emitter, this))
+                return;
+
             emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
             foreach (var property in properties.Value)
                 emitter.AppendLine($"\t{property.Type.GetCName(irProgram)} {property.Name};");

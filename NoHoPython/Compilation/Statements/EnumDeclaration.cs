@@ -22,6 +22,7 @@ namespace NoHoPython.Syntax
                 enumTypeOverloads.Add(enumType.EnumDeclaration, new List<EnumType>());
             enumTypeOverloads[enumType.EnumDeclaration].Add(enumType);
 
+            typeDependencyTree.Add(enumType, new HashSet<IType>(enumType.GetOptions(), new ITypeComparer()));
             return true;
         }
     }
@@ -148,6 +149,9 @@ namespace NoHoPython.Typing
 
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter)
         {
+            if (!irProgram.DeclareCompiledType(emitter, this))
+                return;
+
             emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
             emitter.AppendLine($"\t{GetStandardIdentifier(irProgram)}_options_t option;");
 

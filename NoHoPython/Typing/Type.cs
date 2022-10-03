@@ -20,6 +20,8 @@ namespace NoHoPython.Typing
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource);
 
+        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter);
+
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder);
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement);

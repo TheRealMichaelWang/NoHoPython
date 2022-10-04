@@ -70,7 +70,10 @@ namespace NoHoPython.Syntax.Parsing
                     }
                 case TokenType.Return:
                     scanner.ScanToken();
-                    return new ReturnStatement(ParseExpression(), location);
+                    if (scanner.LastToken.Type == TokenType.Newline)
+                        return new ReturnStatement(new NothingLiteral(location), location);
+                    else
+                        return new ReturnStatement(ParseExpression(), location);
                 case TokenType.Assert:
                     scanner.ScanToken();
                     return new AssertStatement(ParseExpression(), location);

@@ -44,6 +44,6 @@ def printSchoolPerson(schoolperson sp):
 
 def main():
 	michael = new student("michael", 17, 11)
-	maine = new faculty("maine", 100, 140)
+	maine = new faculty("maine", 40, 140)
 	printSchoolPerson(michael)
 	printSchoolPerson(maine)

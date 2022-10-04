@@ -155,6 +155,21 @@ namespace NoHoPython.IntermediateRepresentation
 
             this.typeDependencyTree = typeDependencyTree;
             this.compiledTypes = new HashSet<IType>(new ITypeComparer());
+
+            void SantizeNoCircularDependencies(IType type, List<IType> dependentTypes)
+            {
+                if (!typeDependencyTree.ContainsKey(type))
+                    return;
+
+                if (dependentTypes.Contains(type, new ITypeComparer()))
+                    throw new CircularDependentTypesError(dependentTypes, type);
+                dependentTypes.Add(type);
+                foreach (IType dependency in typeDependencyTree[type])
+                    SantizeNoCircularDependencies(dependency, dependentTypes);
+                dependentTypes.Remove(type);
+            }
+            foreach (IType type in typeDependencyTree.Keys)
+                SantizeNoCircularDependencies(type, new List<IType>());
         }
 
         public void IncludeCFile(string cFile)

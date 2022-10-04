@@ -144,7 +144,7 @@ namespace NoHoPython.Typing
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public bool IsNativeCType => false;
-        public string TypeName => $"({string.Join(", ", ParameterTypes)}) => {ReturnType}";
+        public string TypeName => $"({string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}) => {ReturnType.TypeName}";
 
         public IType ReturnType { get; private set; }
         public readonly List<IType> ParameterTypes;

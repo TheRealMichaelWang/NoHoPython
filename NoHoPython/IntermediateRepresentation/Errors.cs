@@ -227,6 +227,14 @@ namespace NoHoPython.IntermediateRepresentation
 
         }
     }
+
+    public sealed class CircularDependentTypesError : CCodegenError
+    {
+        public CircularDependentTypesError(List<IType> dependecyChain, IType circularDependentType) : base(null, $"Type {dependecyChain[0].TypeName} is circularly dependent; {string.Join(" -> ", dependecyChain.ConvertAll((type) => type.TypeName))}, and depends on {circularDependentType.TypeName} again. Please note that the size of {dependecyChain[0].TypeName} has to be known during compilation)")
+        {
+
+        }
+    }
 }
 
 namespace NoHoPython.Scoping

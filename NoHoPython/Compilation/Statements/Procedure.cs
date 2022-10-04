@@ -3,6 +3,7 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Text;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace NoHoPython.Syntax
 {
@@ -20,6 +21,8 @@ namespace NoHoPython.Syntax
 
             string name = $"_nhp_anonProcTypeNo{uniqueProcedureTypes.Count}";
             uniqueProcedureTypes.Add(new(procedureType, name));
+
+            typeDependencyTree.Add(procedureType, new HashSet<IType>(new ITypeComparer()));
         }
 
         public bool DeclareUsedProcedureReference(ProcedureReference procedureReference)

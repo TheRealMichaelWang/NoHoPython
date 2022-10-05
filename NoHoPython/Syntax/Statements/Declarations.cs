@@ -9,15 +9,17 @@ namespace NoHoPython.Syntax.Statements
 
         public readonly string Identifier;
         public readonly List<TypeParameter> TypeParameters;
+        public readonly List<AstType> RequiredImplementedInterfaces;
         public readonly List<AstType> Options;
 
 #pragma warning disable CS8618 // IREnumDeclaration initialized upon IR generation
-        public EnumDeclaration(string identifier, List<TypeParameter> typeParameters, List<AstType> options, SourceLocation sourceLocation)
+        public EnumDeclaration(string identifier, List<TypeParameter> typeParameters, List<AstType> requiredImplementedInterfaces, List<AstType> options, SourceLocation sourceLocation)
 #pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
             Identifier = identifier;
             TypeParameters = typeParameters;
+            RequiredImplementedInterfaces = requiredImplementedInterfaces;
             Options = options;
         }
 
@@ -188,10 +190,26 @@ namespace NoHoPython.Syntax.Parsing
             scanner.ScanToken();
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? ParseTypeParameters() : new List<TypeParameter>();
             MatchAndScanToken(TokenType.Colon);
-            MatchAndScanToken(TokenType.Newline);
+
+            List<AstType> requiredImplementedInterfaces = new();
+            if (scanner.LastToken.Type != TokenType.Newline)
+                while(true)
+                {
+                    requiredImplementedInterfaces.Add(ParseType());
+                    if (scanner.LastToken.Type != TokenType.Comma)
+                    {
+                        MatchAndScanToken(TokenType.Colon);
+                        MatchAndScanToken(TokenType.Newline);
+                        break;
+                    }
+                    else
+                        scanner.ScanToken();
+                }
+            else
+                scanner.ScanToken();
 
             List<AstType> Options = ParseBlock(ParseType);
-            return new EnumDeclaration(identifier, typeParameters, Options, location);
+            return new EnumDeclaration(identifier, typeParameters, requiredImplementedInterfaces, Options, location);
         }
 
         private InterfaceDeclaration ParseInterfaceDeclaration()

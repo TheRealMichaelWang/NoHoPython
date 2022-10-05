@@ -37,10 +37,10 @@ public static class Program
         {
             syntaxError.Print();
         }
-        //catch (IRGenerationError compilerError)
-        //{
-        //    compilerError.Print();
-        //}
+        catch (IRGenerationError compilerError)
+        {
+            compilerError.Print();
+        }
         catch (CCodegenError codegenError)
         {
             codegenError.Print();

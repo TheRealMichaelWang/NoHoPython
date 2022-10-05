@@ -30,7 +30,7 @@ interface person:
 	
 	fn<array<char>> toString
 
-enum schoolperson:
+enum schoolperson: printableObj:
 	student
 	faculty
 

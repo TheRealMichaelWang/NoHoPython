@@ -12,7 +12,9 @@ namespace NoHoPython.Syntax.Statements
         public IfBlock? NextIf { get; private set; }
         public ElseBlock? NextElse { get; private set; }
 
+#pragma warning disable CS8618 // null feilds initialized during IR generation
         public IfBlock(IAstValue condition, List<IAstStatement> ifTrueBlock, SourceLocation sourceLocation)
+#pragma warning restore CS8618 
         {
             Condition = condition;
             IfTrueBlock = ifTrueBlock;
@@ -48,7 +50,9 @@ namespace NoHoPython.Syntax.Statements
         public SourceLocation SourceLocation { get; private set; }
         public readonly List<IAstStatement> ToExecute;
 
+#pragma warning disable CS8618 // null feilds initialized during IR generation
         public ElseBlock(List<IAstStatement> toExecute, SourceLocation sourceLocation)
+#pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
             ToExecute = toExecute;
@@ -64,7 +68,9 @@ namespace NoHoPython.Syntax.Statements
         public IAstValue Condition { get; private set; }
         public readonly List<IAstStatement> ToExecute;
 
+#pragma warning disable CS8618 // null feilds initialized during IR generation
         public WhileBlock(IAstValue condition, List<IAstStatement> toExecute, SourceLocation sourceLocation)
+#pragma warning restore CS8618
         {
             SourceLocation = sourceLocation;
 
@@ -99,7 +105,9 @@ namespace NoHoPython.Syntax.Statements
         public IAstValue MatchedValue { get; private set; }
         public readonly List<MatchHandler> MatchHandlers;
 
+#pragma warning disable CS8618 // null feilds initialized during IR generation
         public MatchStatement(IAstValue matchedValue, List<MatchHandler> matchHandlers, SourceLocation sourceLocation)
+#pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
             MatchedValue = matchedValue;
@@ -172,6 +180,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
+            skipIndentCounting = true;
             IfBlock elifBlock = new(condititon, ParseCodeBlock(), location);
             parentBlock.SetNextIf(elifBlock);
             return elifBlock;
@@ -184,6 +193,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
+            skipIndentCounting = true;
             ElseBlock elseBlock = new(ParseCodeBlock(), location);
             parentBlock.SetNextElse(elseBlock);
             return elseBlock;
@@ -191,21 +201,18 @@ namespace NoHoPython.Syntax.Parsing
 
         private IfBlock ParseIfElseBlock()
         {
+            int expectedIndents = currentExpectedIndents;
             IfBlock head = ParseIfBlock();
             IfBlock currentBlock = head;
-            while (true)
+            while (lastCountedIndents == expectedIndents)
             {
                 if (scanner.LastToken.Type == TokenType.Elif)
                 {
-                    skipIndentCounting = false;
                     currentBlock = ParseElifBlock(currentBlock);
+                    continue;
                 }
                 else if (scanner.LastToken.Type == TokenType.Else)
-                {
-                    skipIndentCounting = false;
                     ParseElseBlock(currentBlock);
-                    break;
-                }
                 else
                     break;
             }

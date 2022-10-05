@@ -23,11 +23,11 @@ public static class Program
 
             List<IAstStatement> statements = parser.ParseAll();
 
-            AstIRProgramBuilder astIRProgramBuilder = new AstIRProgramBuilder(statements);
+            AstIRProgramBuilder astIRProgramBuilder = new(statements);
             IRProgram program = astIRProgramBuilder.ToIRProgram();
             parser.IncludeCFiles(program);
 
-            StringBuilder output = new StringBuilder();
+            StringBuilder output = new();
             program.Emit(output);
             File.WriteAllText(args[1], output.ToString());
 
@@ -37,10 +37,10 @@ public static class Program
         {
             syntaxError.Print();
         }
-        catch (IRGenerationError compilerError)
-        {
-            compilerError.Print();
-        }
+        //catch (IRGenerationError compilerError)
+        //{
+        //    compilerError.Print();
+        //}
         catch (CCodegenError codegenError)
         {
             codegenError.Print();

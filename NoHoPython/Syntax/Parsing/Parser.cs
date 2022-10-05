@@ -277,10 +277,10 @@ namespace NoHoPython.Syntax.Parsing
                     else if (scanner.LastToken.Type == TokenType.If)
                     {
                         scanner.ScanToken();
-                        IAstValue ifTrue = ParseExpression();
+                        IAstValue condition = ParseExpression();
                         MatchAndScanToken(TokenType.Else);
 
-                        value = new IfElseValue(value, ifTrue, ParseExpression(), value.SourceLocation);
+                        value = new IfElseValue(condition, value, ParseExpression(), value.SourceLocation);
                     }
                     else if (scanner.LastToken.Type == TokenType.As)
                     {

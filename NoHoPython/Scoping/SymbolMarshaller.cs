@@ -17,12 +17,12 @@ namespace NoHoPython.Scoping
             this.symbols = new Dictionary<string, IScopeSymbol>();
         }
 
-        public virtual IScopeSymbol? FindSymbol(string identifier, Syntax.IAstElement errorReportedElement)
+        public virtual IScopeSymbol? FindSymbol(string identifier, IAstElement errorReportedElement)
         {
             return symbols.ContainsKey(identifier) ? symbols[identifier] : null;
         }
 
-        public virtual void DeclareSymbol(IScopeSymbol symbol, Syntax.IAstElement errorReportElement)
+        public virtual void DeclareSymbol(IScopeSymbol symbol, IAstElement errorReportElement)
         {
             IScopeSymbol? existingSymbol = FindSymbol(symbol.Name, errorReportElement);
             if (existingSymbol == null)
@@ -104,9 +104,7 @@ namespace NoHoPython.Scoping
 
                 string finalIdentifier = parts.Last();
                 IScopeSymbol? result = scopedContainer.FindSymbol(finalIdentifier, errorReportedElement);
-                return result == null
-                    ? throw new SymbolNotFoundException(finalIdentifier, scopedContainer, errorReportedElement)
-                    : result;
+                return result ?? throw new SymbolNotFoundException(finalIdentifier, scopedContainer, errorReportedElement);
             }
 
             try
@@ -129,7 +127,7 @@ namespace NoHoPython.Scoping
             throw new SymbolNotFoundException(identifier, scopeStack.Peek(), errorReportedElement);
         }
 
-        public void DeclareSymbol(IScopeSymbol symbol, Syntax.IAstElement errorReportedElement) => scopeStack.Peek().DeclareSymbol(symbol, errorReportedElement);
+        public void DeclareSymbol(IScopeSymbol symbol, IAstElement errorReportedElement) => scopeStack.Peek().DeclareSymbol(symbol, errorReportedElement);
 
         public void NavigateToScope(SymbolContainer symbolContainer)
         {
@@ -145,7 +143,7 @@ namespace NoHoPython.Scoping
             return codeBlock;
         }
 
-        public Module NewModule(string name, Syntax.IAstElement errorReportedElement)
+        public Module NewModule(string name, IAstElement errorReportedElement)
         {
             Module module = new(name, scopeStack.Peek(), errorReportedElement);
             DeclareSymbol(module, errorReportedElement);
@@ -156,8 +154,11 @@ namespace NoHoPython.Scoping
         public void GoBack()
         {
             SymbolContainer symbolContainer = scopeStack.Pop();
-            if (symbolContainer is Module)
-                Debug.Assert(usedModuleStack.Pop() == symbolContainer);
+            if (symbolContainer is Module) 
+            {
+                Module popped = usedModuleStack.Pop();
+                Debug.Assert(popped == symbolContainer); 
+            }
         }
     }
 }

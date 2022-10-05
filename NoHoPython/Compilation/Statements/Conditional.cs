@@ -203,7 +203,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 CodeBlock.CIndent(emitter, indent);
                 emitter.AppendLine($"case {enumType.GetCEnumOptionForType(irProgram, currentOption)}: {{");
                 
-
                 if (handler.MatchedVariable != null)
                 {
                     CodeBlock.CIndent(emitter, indent + 1);
@@ -214,6 +213,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
                 handler.ToExecute.EmitNoOpen(irProgram, emitter, typeargs, indent, true);
             }
+            if(DefaultHandler != null)
+            {
+                CodeBlock.CIndent(emitter, indent);
+                emitter.AppendLine("default: {");
+                DefaultHandler.EmitNoOpen(irProgram, emitter, typeargs, indent, false);
+            }
+
             CodeBlock.CIndent(emitter, indent);
             emitter.AppendLine("}");
         }

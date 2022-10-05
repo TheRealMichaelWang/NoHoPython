@@ -104,14 +104,16 @@ namespace NoHoPython.Syntax.Statements
 
         public IAstValue MatchedValue { get; private set; }
         public readonly List<MatchHandler> MatchHandlers;
+        public readonly List<IAstStatement>? DefaultHandler;
 
 #pragma warning disable CS8618 // null feilds initialized during IR generation
-        public MatchStatement(IAstValue matchedValue, List<MatchHandler> matchHandlers, SourceLocation sourceLocation)
+        public MatchStatement(IAstValue matchedValue, List<MatchHandler> matchHandlers, List<IAstStatement>? defaultHandler, SourceLocation sourceLocation)
 #pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
             MatchedValue = matchedValue;
             MatchHandlers = matchHandlers;
+            DefaultHandler = defaultHandler;
         }
 
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}match {MatchedValue}:{string.Join("",MatchHandlers.ConvertAll((statement) => $"\n{statement.ToString(indent + 1)}"))}";
@@ -239,9 +241,19 @@ namespace NoHoPython.Syntax.Parsing
             IAstValue toMatch = ParseExpression();
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
+            List<IAstStatement>? defautHandler = null;
 
             List<MatchStatement.MatchHandler> handlers = ParseBlock(() =>
             {
+                if(defautHandler == null && scanner.LastToken.Type == TokenType.Default)
+                {
+                    scanner.ScanToken();
+                    MatchAndScanToken(TokenType.Colon);
+                    MatchAndScanToken(TokenType.Newline);
+                    defautHandler = ParseCodeBlock();
+                    return null;
+                }
+
                 AstType type = ParseType();
 
                 string? identifier = null;
@@ -256,7 +268,7 @@ namespace NoHoPython.Syntax.Parsing
                 return new MatchStatement.MatchHandler(type, identifier, ParseCodeBlock());
             });
 
-            return new MatchStatement(toMatch, handlers, location);
+            return new MatchStatement(toMatch, handlers, defautHandler, location);
         }
     }
 }

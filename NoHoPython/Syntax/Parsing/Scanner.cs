@@ -290,9 +290,8 @@
                     "if" => TokenType.If,
                     "elif" => TokenType.Elif,
                     "else" => TokenType.Else,
-                    "break" => TokenType.Break,
-                    "continue" => TokenType.Continue,
                     "return" => TokenType.Return,
+                    "default" => TokenType.Default,
                     "assert" => TokenType.Assert,
                     "in" => TokenType.In,
                     "and" => TokenType.And,
@@ -332,6 +331,14 @@
                 ScanChar();
                 return LastToken = new Token(TokenType.StringLiteral, buffer);
             }
+            else if(lastChar == '#')
+            {
+                do
+                {
+                    ScanChar();
+                } while (lastChar != '\n');
+                return ScanToken();
+            }    
             else
                 return LastToken = new Token(ScanSymbol(), string.Empty);
         }

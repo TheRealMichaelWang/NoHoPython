@@ -84,12 +84,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public IRValue MatchValue { get; private set; }
         public readonly List<MatchHandler> MatchHandlers;
+        public CodeBlock? DefaultHandler { get; private set; }
 
-        public MatchStatement(IRValue matchValue, List<MatchHandler> matchHandlers, IAstElement errorReportedElement)
+        public MatchStatement(IRValue matchValue, List<MatchHandler> matchHandlers, CodeBlock? defaultHandler, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
             MatchValue = matchValue;
             MatchHandlers = matchHandlers;
+            DefaultHandler = defaultHandler;
         }
     }
 
@@ -247,6 +249,7 @@ namespace NoHoPython.Syntax.Statements
     partial class MatchStatement
     {
         private Dictionary<MatchHandler, CodeBlock> handlerCodeBlocks;
+        private CodeBlock? defaultHandlerCodeBlock = null;
 
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
 
@@ -258,6 +261,12 @@ namespace NoHoPython.Syntax.Statements
                 IAstStatement.ForwardDeclareBlock(irBuilder, handler.Statements);
                 irBuilder.SymbolMarshaller.GoBack();
             });
+            if(DefaultHandler != null)
+            {
+                defaultHandlerCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
+                IAstStatement.ForwardDeclareBlock(irBuilder, DefaultHandler);
+                irBuilder.SymbolMarshaller.GoBack();
+            }
         }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
@@ -276,9 +285,18 @@ namespace NoHoPython.Syntax.Statements
                     handledTypes.Remove(handledType);
                     matchHandlers.Add(new(handledType, handler.MatchIdentifier, handlerCodeBlocks[handler], handler.Statements, irBuilder, this));
                 }
-                foreach (IType unhandledOption in handledTypes)
-                    throw new UnhandledMatchOption(enumType, unhandledOption, this);
-                return new IntermediateRepresentation.Statements.MatchStatement(matchValue, matchHandlers, this);
+                if (defaultHandlerCodeBlock == null)
+                    foreach (IType unhandledOption in handledTypes)
+                        throw new UnhandledMatchOption(enumType, unhandledOption, this);
+                else
+                {
+                    irBuilder.SymbolMarshaller.NavigateToScope(defaultHandlerCodeBlock);
+#pragma warning disable CS8604 // Default handler is not null when defaultHandlerCodeBlock isn't null
+                    defaultHandlerCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, DefaultHandler));
+#pragma warning restore CS8604
+                    irBuilder.SymbolMarshaller.GoBack();
+                }
+                return new IntermediateRepresentation.Statements.MatchStatement(matchValue, matchHandlers, defaultHandlerCodeBlock, this);
             }
             throw new UnexpectedTypeException(matchValue.Type, this);
         }

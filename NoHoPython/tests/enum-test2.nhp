@@ -33,6 +33,8 @@ interface person:
 enum schoolperson: printableObj:
 	student
 	faculty
+	int
+	char
 
 def printSchoolPerson(schoolperson sp):
 	match sp:
@@ -40,10 +42,11 @@ def printSchoolPerson(schoolperson sp):
 			io::print("student: ")
 		faculty f:
 			io::print("faculty: ")
-	io::println(sp)
+		default:
+			io::print("dontfuckingknow: ")
+	#io::println(sp)
 
 def main():
-	michael = new student("michael", 17, 11)
-	maine = new faculty("maine", 40, 140)
-	printSchoolPerson(michael)
-	printSchoolPerson(maine)
+	printSchoolPerson(new student("michael", 17, 11))
+	printSchoolPerson(new faculty("maine", 40, 140))
+	printSchoolPerson(100)

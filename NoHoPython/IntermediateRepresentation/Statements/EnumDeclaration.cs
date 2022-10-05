@@ -56,7 +56,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             for (int i = 0; i < TypeParameters.Count; i++)
                 typeargs.Add(TypeParameters[i], enumType.TypeArguments[i]);
 
-            List<InterfaceType> interfaceTypes = new List<InterfaceType>(requiredImplementedInterfaces.Count);
+            List<InterfaceType> interfaceTypes = new(requiredImplementedInterfaces.Count);
             foreach (InterfaceType requiredImplement in requiredImplementedInterfaces)
                 interfaceTypes.Add(requiredImplement);
             return interfaceTypes;

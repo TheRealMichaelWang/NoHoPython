@@ -39,13 +39,15 @@ namespace NoHoPython.IntermediateRepresentation
                 arrayType.EmitCStruct(this, emitter);
         }
 
-        public void ForwardDeclareArrayTypes(StringBuilder emitter)
+        public void ForwardDeclareArrayTypes(IRProgram irProgram, StringBuilder emitter)
         {
             foreach (ArrayType arrayType in usedArrayTypes)
             {
                 emitter.AppendLine($"{arrayType.GetCName(this)} marshal{arrayType.GetStandardIdentifier(this)}(const {arrayType.ElementType.GetCName(this)}* buffer, int length);");
                 emitter.AppendLine($"{arrayType.GetCName(this)} marshal_proto{arrayType.GetStandardIdentifier(this)}(int length, {arrayType.ElementType.GetCName(this)} proto);");
-                emitter.AppendLine($"{arrayType.GetCName(this)} move{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)}* src, {arrayType.GetCName(this)} dest);");
+
+                if(!irProgram.EmitExpressionStatements)
+                    emitter.AppendLine($"{arrayType.GetCName(this)} move{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)}* src, {arrayType.GetCName(this)} dest);");
 
                 if (arrayType.ElementType.RequiresDisposal)
                 {
@@ -103,7 +105,14 @@ namespace NoHoPython.Typing
                 emitter.Append($"marshal{GetStandardIdentifier(irProgram)}({valueCSource}.buffer, {valueCSource}.length)");
         }
 
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
+        {
+            if (irProgram.EmitExpressionStatements)
+                IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
+            else
+                emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+        }
+
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
 
@@ -189,6 +198,9 @@ namespace NoHoPython.Typing
 
         public void EmitMover(IRProgram irProgram, StringBuilder emitter)
         {
+            if (irProgram.EmitExpressionStatements)
+                return;
+
             emitter.AppendLine($"{GetCName(irProgram)} move{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
             emitter.Append('\t');
             EmitFreeValue(irProgram, emitter, "(*dest)");

@@ -155,19 +155,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public IAstElement ErrorReportedElement { get; private set; }
         public IRValue ToReturn { get; private set; }
 
-        private CodeBlock parentCodeBlock;
+        private List<Variable> activeVariables;
 
-#pragma warning disable CS8618
         public ReturnStatement(IRValue toReturn, AstIRProgramBuilder irBuilder, IAstStatement errorReportedStatement)
-#pragma warning restore CS8618
         {
             ToReturn = ArithmeticCast.CastTo(toReturn, irBuilder.ScopedProcedures.Peek().ReturnType);
+            activeVariables = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetCurrentLocals();
             ErrorReportedElement = errorReportedStatement;
-#pragma warning disable CS8600 // null runtime errors not possible during parsing
-#pragma warning disable CS8601
-            this.parentCodeBlock = (CodeBlock)irBuilder.CurrentMasterScope;
-#pragma warning restore CS8601 
-#pragma warning restore CS8600
         }
     }
 
@@ -333,7 +327,7 @@ namespace NoHoPython.Syntax.Statements
 
             if (oldMasterScope is IntermediateRepresentation.Statements.RecordDeclaration parentRecord)
             {
-                Variable selfVariable = new Variable(parentRecord.SelfType, "self", IRProcedureDeclaration, true);
+                Variable selfVariable = new(parentRecord.SelfType, "self", IRProcedureDeclaration, true);
                 irBuilder.SymbolMarshaller.DeclareSymbol(selfVariable, this);
                 IRProcedureDeclaration.CapturedVariables.Add(selfVariable);
             }
@@ -347,7 +341,7 @@ namespace NoHoPython.Syntax.Statements
         }
 
 #pragma warning disable CS8602 // Only called after ForwardDeclare, when parameter is initialized
-        public IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty GenerateProperty() => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(Name, new ProcedureType(IRProcedureDeclaration.ReturnType, IRProcedureDeclaration.Parameters.ConvertAll((param) => param.Type)), true);
+        public IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty GenerateProperty() => new(Name, new ProcedureType(IRProcedureDeclaration.ReturnType, IRProcedureDeclaration.Parameters.ConvertAll((param) => param.Type)), true);
 #pragma warning restore CS8602
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
@@ -375,7 +369,7 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            IRForeignDeclaration = new IntermediateRepresentation.Statements.ForeignCProcedureDeclaration(Identifier, ParameterTypes.ConvertAll((type) => type.ToIRType(irBuilder, this)), ReturnType.ToIRType(irBuilder, this), this, irBuilder.CurrentMasterScope);
+            IRForeignDeclaration = new IntermediateRepresentation.Statements.ForeignCProcedureDeclaration(Identifier, ParameterTypes.ConvertAll((type) => type.ToIRType(irBuilder, this)), ReturnType.ToIRType(irBuilder, this), this, irBuilder.SymbolMarshaller.CurrentScope);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRForeignDeclaration, this);
         }
 

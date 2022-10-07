@@ -3,6 +3,16 @@ using System.Text;
 
 namespace NoHoPython.Typing
 {
+    partial interface IType
+    {
+        public static void EmitMoveExpressionStatement(IType type, IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
+        {
+            emitter.Append($"({{{type.GetCName(irProgram)} _nhp_es_move_temp = {destC}; {destC} = {valueCSource}; ");
+            type.EmitFreeValue(irProgram, emitter, "_nhp_es_move_temp");
+            emitter.Append($" {destC};}})");
+        }
+    }
+
     partial class Primitive
     {
         public bool IsNativeCType => true;

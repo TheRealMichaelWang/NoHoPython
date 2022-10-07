@@ -109,16 +109,22 @@ namespace NoHoPython.IntermediateRepresentation
             }
         }
 
-        public void ForwardDeclareAnonProcedureTypes(StringBuilder emitter)
+        public void ForwardDeclareAnonProcedureTypes(IRProgram irProgram, StringBuilder emitter)
         {
+            if (irProgram.EmitExpressionStatements)
+                return;
+
             foreach (var uniqueProcedure in uniqueProcedureTypes)
             {
                 emitter.AppendLine($"{uniqueProcedure.Item1.GetCName(this)} move{uniqueProcedure.Item2}({uniqueProcedure.Item1.GetCName(this)}* dest, {uniqueProcedure.Item1.GetCName(this)} src);");
             }
         }
 
-        public void EmitAnonProcedureMovers(StringBuilder emitter)
+        public void EmitAnonProcedureMovers(IRProgram irProgram, StringBuilder emitter)
         {
+            if (irProgram.EmitExpressionStatements)
+                return;
+
             foreach (var uniqueProcedure in uniqueProcedureTypes)
             {
                 emitter.AppendLine($"{uniqueProcedure.Item1.GetCName(this)} move{uniqueProcedure.Item2}({uniqueProcedure.Item1.GetCName(this)}* dest, {uniqueProcedure.Item1.GetCName(this)} src) {{");
@@ -177,7 +183,15 @@ namespace NoHoPython.Typing
 
         public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.AppendLine($"({valueCSource})->_nhp_destructor({valueCSource});"); 
         public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append($"({valueCSource})->_nhp_copier({valueCSource})");
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+        
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
+        {
+            if (irProgram.EmitExpressionStatements)
+                IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
+            else
+                emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+        }
+
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => emitter.Append($"({valueCSource})->_nhp_record_copier({valueCSource}, {recordCSource})");
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) { }
@@ -474,8 +488,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine(";");
             }
 
-            List<Variable> toFree = parentCodeBlock.GetCurrentLocals();
-            foreach (Variable variable in toFree)
+            foreach (Variable variable in activeVariables)
                 if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
                 {
                     CodeBlock.CIndent(emitter, indent);
@@ -520,7 +533,29 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public abstract void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments);
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs) => EmitCall(irProgram, emitter, typeargs, new SortedSet<int>());
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        {
+            if (irProgram.EmitExpressionStatements && !Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)))
+            {
+                emitter.Append("({");
+                SortedSet<int> releasedArguments = new();
+                for (int i = 0; i < Arguments.Count; i++)
+                    if (Arguments[i].RequiresDisposal(typeargs))
+                    {
+                        emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_freebuf_{i};");
+                        releasedArguments.Add(i);
+                    }
+                emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_res = ");
+                EmitCall(irProgram, emitter, typeargs, releasedArguments);
+                emitter.Append(";");
+
+                foreach (int i in releasedArguments)
+                    Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_freebuf_{i}");
+                emitter.Append("})");
+            }
+            else
+                EmitCall(irProgram, emitter, typeargs, new SortedSet<int>());
+        }
 
         protected void EmitArguments(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments)
         {

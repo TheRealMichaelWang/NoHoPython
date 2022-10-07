@@ -48,17 +48,33 @@
             public FileVisitor(string fileName, Scanner scanner)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
             {
-                if (File.Exists(scanner.standardLibraryDirectory + "\\" + fileName))
-                    fileName = scanner.standardLibraryDirectory + "\\" + fileName;
-                else if (!File.Exists(fileName))
+                if (!File.Exists(fileName))
+                {
+                    if (File.Exists(scanner.standardLibraryDirectory + "\\" + fileName))
+                    {
+                        fileName = scanner.standardLibraryDirectory + "\\" + fileName;
+                        goto file_found;
+                    }
+                    else if (scanner.visitorStack.Count > 0)
+                    {
+                        FileVisitor parent = scanner.visitorStack.Peek();
+                        if (File.Exists(parent.WorkingDirectory + "\\" + fileName))
+                        {
+                            fileName = parent.WorkingDirectory + "\\" + fileName;
+                            goto file_found;
+                        }
+                    }
                     throw new FileNotFoundException(fileName);
+                }
+
+            file_found:
                 fileName = Path.GetFullPath(fileName);
 
                 FileName = fileName;
                 source = File.ReadAllText(fileName);
 #pragma warning disable CS8601 // Possible null reference assignment.
                 WorkingDirectory = Path.GetDirectoryName(fileName);
-#pragma warning restore CS8601 // Possible null reference assignment.
+#pragma warning restore CS8601
 
                 Row = 1;
                 Column = 1;
@@ -336,7 +352,7 @@
                 do
                 {
                     ScanChar();
-                } while (lastChar != '\n');
+                } while (lastChar != '\0' && lastChar != '\n');
                 return ScanToken();
             }    
             else

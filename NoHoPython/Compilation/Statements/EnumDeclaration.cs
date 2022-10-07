@@ -74,7 +74,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 {
                     emitter.AppendLine($"void free_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum);");
                     emitter.AppendLine($"{usedEnum.GetCName(irProgram)} copy_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum);");
-                    emitter.AppendLine($"{usedEnum.GetCName(irProgram)} move_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)}* dest, {usedEnum.GetCName(irProgram)} src);");
+                    if(!irProgram.EmitExpressionStatements)
+                        emitter.AppendLine($"{usedEnum.GetCName(irProgram)} move_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)}* dest, {usedEnum.GetCName(irProgram)} src);");
                 }
             }
         }
@@ -126,7 +127,12 @@ namespace NoHoPython.Typing
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
         {
             if (RequiresDisposal)
-                emitter.Append($"move_enum{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+            {
+                if (irProgram.EmitExpressionStatements)
+                    IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
+                else
+                    emitter.Append($"move_enum{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+            }
             else
                 emitter.Append($"({destC} = {valueCSource})");
         }
@@ -275,11 +281,13 @@ namespace NoHoPython.Typing
 
         public void EmitMover(IRProgram irProgram, StringBuilder emitter)
         {
+            if (irProgram.EmitExpressionStatements)
+                return;
+
             emitter.AppendLine($"{GetCName(irProgram)} move_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
-            emitter.AppendLine($"\t{GetCName(irProgram)} temp_buffer = *dest;");
-            emitter.AppendLine($"\t*dest = src;");
             emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "temp_buffer");
+            EmitFreeValue(irProgram, emitter, "*dest");
+            emitter.AppendLine($"\t*dest = src;");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
         }

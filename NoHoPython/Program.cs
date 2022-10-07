@@ -19,7 +19,7 @@ public static class Program
         {
             DateTime compileStart = DateTime.Now;
 
-            AstParser parser = new(new Scanner(args[0], Environment.CurrentDirectory));
+            AstParser parser = new(new Scanner(args[0], Environment.CurrentDirectory + "\\stdlib"));
 
             List<IAstStatement> statements = parser.ParseAll();
 
@@ -47,7 +47,7 @@ public static class Program
         }
         catch (FileNotFoundException f)
         {
-            Console.WriteLine(f.Message);
+            Console.WriteLine($"File not found: {f.Message}");
         }
 
         return 0;

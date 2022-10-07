@@ -4,7 +4,7 @@ using System.Text;
 
 namespace NoHoPython.Typing
 {
-    public interface IType
+    public partial interface IType
     {
         public bool IsNativeCType { get; }
         public bool RequiresDisposal { get; }

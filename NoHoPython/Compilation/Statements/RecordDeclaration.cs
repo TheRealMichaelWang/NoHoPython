@@ -71,8 +71,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
                 emitter.AppendLine($"void free_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
                 emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
-                emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src);"); 
                 emitter.AppendLine($"{recordType.GetCName(irProgram)} borrow_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
+                if (!irProgram.EmitExpressionStatements)
+                    emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src);"); 
             }
         }
 
@@ -106,7 +107,15 @@ namespace NoHoPython.Typing
 
         public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.AppendLine($"free_record{GetStandardIdentifier(irProgram)}({valueCSource});");
         public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append($"copy_record{GetStandardIdentifier(irProgram)}({valueCSource})");
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"move_record(&{destC}, {valueCSource})");
+        
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
+        {
+            if (irProgram.EmitExpressionStatements)
+                IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
+            else
+                emitter.Append($"move_record(&{destC}, {valueCSource})");
+        }
+
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append($"borrow_record{GetStandardIdentifier(irProgram)}({valueCSource})");
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
 
@@ -178,6 +187,7 @@ namespace NoHoPython.Typing
             for (int i = 0; i < constructorType.ParameterTypes.Count; i++)
                 emitter.Append($", param{i}");
             emitter.AppendLine(");");
+            
             emitter.AppendLine("\t_nhp_self->_nhp_min_refs = _nhp_self->_nhp_ref_count;");
             emitter.AppendLine("\treturn _nhp_self;");
             emitter.AppendLine("}");
@@ -195,6 +205,9 @@ namespace NoHoPython.Typing
             emitter.AppendLine("\t\treturn;");
             emitter.AppendLine("\t}");
             emitter.AppendLine("\trecord->_nhp_freeing = 1;");
+
+            if (HasProperty("__del__"))
+                emitter.AppendLine("\trecord->__del__(record->__del__);");
 
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
             {
@@ -229,6 +242,9 @@ namespace NoHoPython.Typing
 
         public void EmitMover(IRProgram irProgram, StringBuilder emitter)
         {
+            if (irProgram.EmitExpressionStatements)
+                return;
+
             emitter.AppendLine($"{GetCName(irProgram)} move_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
             emitter.Append('\t');
             EmitFreeValue(irProgram, emitter, "*dest");

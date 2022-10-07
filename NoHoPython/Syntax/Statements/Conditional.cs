@@ -182,7 +182,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            skipIndentCounting = true;
+            skipIndentCounting = false;
             IfBlock elifBlock = new(condititon, ParseCodeBlock(), location);
             parentBlock.SetNextIf(elifBlock);
             return elifBlock;
@@ -195,7 +195,7 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            skipIndentCounting = true;
+            skipIndentCounting = false;
             ElseBlock elseBlock = new(ParseCodeBlock(), location);
             parentBlock.SetNextElse(elseBlock);
             return elseBlock;
@@ -216,7 +216,10 @@ namespace NoHoPython.Syntax.Parsing
                 else if (scanner.LastToken.Type == TokenType.Else)
                     ParseElseBlock(currentBlock);
                 else
+                {
+                    skipIndentCounting = true;
                     break;
+                }
             }
             return head;
         }

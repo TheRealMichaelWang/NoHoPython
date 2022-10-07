@@ -246,6 +246,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
+            if (irProgram.EliminateAsserts)
+                return;
+
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("_nhp_assert(");
             IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);

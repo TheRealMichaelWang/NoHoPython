@@ -218,7 +218,7 @@ namespace NoHoPython.Syntax.Statements
         {
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRRecordDeclaration = new IntermediateRepresentation.Statements.RecordDeclaration(Identifier, typeParameters, irBuilder.CurrentMasterScope, this);
+            IRRecordDeclaration = new IntermediateRepresentation.Statements.RecordDeclaration(Identifier, typeParameters, irBuilder.SymbolMarshaller.CurrentModule, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRRecordDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
             irBuilder.ScopeToRecord(IRRecordDeclaration);
@@ -268,18 +268,32 @@ namespace NoHoPython.Syntax.Statements
             }
 
             IntermediateRepresentation.Statements.ProcedureDeclaration? Constructor = null;
+            IntermediateRepresentation.Statements.ProcedureDeclaration? Destructor = null;
             IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => {
                 var irProcedure = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
                 messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, this));
 
-                if (reciever.Name == "__init__") 
+                if (reciever.Name == "__init__")
                     Constructor = irProcedure;
+                else if (reciever.Name == "__del__")
+                    Destructor = irProcedure;
 
                 return irProcedure;
             }));
 
             if (Constructor == null)
                 throw new RecordMustDefineConstructorError(IRRecordDeclaration);
+            else if (Constructor.ReturnType is not NothingType)
+                throw new UnexpectedTypeException(Constructor.ReturnType, Primitive.Nothing, Constructor.ErrorReportedElement);
+            if (Destructor != null) 
+            {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                if (Destructor.ReturnType is not NothingType)
+                    throw new UnexpectedTypeException(Destructor.ReturnType, Primitive.Nothing, Destructor.ErrorReportedElement);
+                else if (Destructor.Parameters.Count != 0)
+                    throw new UnexpectedTypeArgumentsException(0, Destructor.Parameters.Count, Destructor.ErrorReportedElement);
+#pragma warning restore CS8602
+            }
             IRRecordDeclaration.AnalyzePropertyInitialization(Constructor);
 
             irBuilder.SymbolMarshaller.GoBack();

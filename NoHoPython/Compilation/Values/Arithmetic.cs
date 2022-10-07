@@ -116,15 +116,36 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            IRValue.EmitMemorySafe(ArrayValue, irProgram, emitter, typeargs);
-            switch (Operation)
+            void EmitOp()
             {
-                case ArrayOperation.GetArrayLength:
-                    emitter.Append(".length");
-                    break;
-                case ArrayOperation.GetArrayHandle:
-                    emitter.Append(".buffer");
-                    break;
+                switch (Operation)
+                {
+                    case ArrayOperation.GetArrayLength:
+                        emitter.Append(".length");
+                        break;
+                    case ArrayOperation.GetArrayHandle:
+                        emitter.Append(".buffer");
+                        break;
+                }
+            }
+
+            if(ArrayValue.RequiresDisposal(typeargs))
+            {
+                if (!irProgram.EmitExpressionStatements)
+                    throw new CannotEmitDestructorError(ArrayValue);
+
+                emitter.Append($"({{{ArrayValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_buffer = ");
+                ArrayValue.Emit(irProgram, emitter, typeargs);
+                emitter.Append($"; {Type.GetCName(irProgram)} _nhp_res = _nhp_buffer");
+                EmitOp();
+                emitter.Append("; ");
+                ArrayValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_buffer");
+                emitter.Append("; _nhp_res;})");
+            }
+            else
+            {
+                ArrayValue.Emit(irProgram, emitter, typeargs);
+                EmitOp();
             }
         }
     }

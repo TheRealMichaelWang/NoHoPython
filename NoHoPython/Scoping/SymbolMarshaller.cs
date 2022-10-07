@@ -72,6 +72,7 @@ namespace NoHoPython.Scoping
 
         public Module CurrentModule => usedModuleStack.Peek();
         public CodeBlock CurrentCodeBlock => (CodeBlock)scopeStack.Peek();
+        public SymbolContainer CurrentScope => scopeStack.Peek();
 
         private Stack<Module> usedModuleStack;
         private Stack<SymbolContainer> scopeStack;

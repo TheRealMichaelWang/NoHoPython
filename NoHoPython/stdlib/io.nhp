@@ -34,10 +34,10 @@ mod io:
 				cinterop::putchar(c)
 			int i:
 				cdef printf(handle, int) None
-				printf(fmt="%i\0", i)
+				printf("%i\0", i)
 			dec d:
 				cdef printf(handle, dec) None
-				printf(fmt="%f\0", d)
+				printf("%f\0", d)
 	def println(printableObj obj):
 		print(obj)
 		cinterop::putchar('\n')

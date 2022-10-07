@@ -69,7 +69,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 interfaceType.EmitMarshallerHeader(irProgram, emitter);
                 emitter.AppendLine($"void free_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface);");
                 emitter.AppendLine($"{interfaceType.GetCName(irProgram)} copy_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface);");
-                emitter.AppendLine($"{interfaceType.GetCName(irProgram)} move_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)}* dest, {interfaceType.GetCName(irProgram)} src);");
+                if (!irProgram.EmitExpressionStatements)
+                    emitter.AppendLine($"{interfaceType.GetCName(irProgram)} move_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)}* dest, {interfaceType.GetCName(irProgram)} src);");
             }
         }
 
@@ -101,7 +102,15 @@ namespace NoHoPython.Typing
 
         public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.AppendLine($"free_interface{GetStandardIdentifier(irProgram)}({valueCSource});");
         public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append($"copy_interface{GetStandardIdentifier(irProgram)}({valueCSource})");
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"move_interface{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
+        {
+            if (irProgram.EmitExpressionStatements)
+                IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
+            else
+                emitter.Append($"move_interface{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+        }
+
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
 
@@ -176,11 +185,13 @@ namespace NoHoPython.Typing
 
         public void EmitMover(IRProgram irProgram, StringBuilder emitter)
         {
+            if (irProgram.EmitExpressionStatements)
+                return;
+
             emitter.AppendLine($"{GetCName(irProgram)} move_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
-            emitter.AppendLine($"\t{GetCName(irProgram)} temp_buffer = *dest;");
-            emitter.AppendLine($"\t*dest = src;");
             emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "temp_buffer");
+            EmitFreeValue(irProgram, emitter, "*dest");
+            emitter.AppendLine($"\t*dest = src;");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
         }

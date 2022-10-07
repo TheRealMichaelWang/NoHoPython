@@ -189,7 +189,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            StringBuilder valueBuilder = new StringBuilder();
+            StringBuilder valueBuilder = new();
             IRValue.EmitMemorySafe(Record, irProgram, valueBuilder, typeargs);
 
             if (Record.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)

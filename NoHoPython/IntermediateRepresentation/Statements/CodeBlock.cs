@@ -32,7 +32,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return DeclaredVariables;
             else if(base.parentContainer is CodeBlock parentBlock)
             {
-                List<Variable> combined = new List<Variable>();
+                List<Variable> combined = new();
                 combined.AddRange(parentBlock.GetCurrentLocals());
                 combined.AddRange(DeclaredVariables);
                 return combined;

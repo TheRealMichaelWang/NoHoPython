@@ -24,6 +24,7 @@
         Elif,
         Default,
         Return,
+        Pass,
         Include,
         CInclude,
         Assert,

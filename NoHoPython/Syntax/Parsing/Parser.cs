@@ -54,7 +54,7 @@ namespace NoHoPython.Syntax.Parsing
             return idBuilder.ToString();
         }
 
-        IAstStatement ParseStatement()
+        IAstStatement? ParseStatement()
         {
             SourceLocation location = scanner.CurrentLocation;
             switch (scanner.LastToken.Type)
@@ -83,6 +83,9 @@ namespace NoHoPython.Syntax.Parsing
                     return ParseForeignCProcedure();
                 case TokenType.Match:
                     return ParseMatchStatement();
+                case TokenType.Pass:
+                    scanner.ScanToken();
+                    return null;
                 default:
                     throw new UnexpectedTokenException(scanner.LastToken, location);
             }

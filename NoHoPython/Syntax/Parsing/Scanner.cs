@@ -307,6 +307,7 @@
                     "elif" => TokenType.Elif,
                     "else" => TokenType.Else,
                     "return" => TokenType.Return,
+                    "pass" => TokenType.Pass,
                     "default" => TokenType.Default,
                     "assert" => TokenType.Assert,
                     "in" => TokenType.In,

@@ -236,7 +236,7 @@ namespace NoHoPython.Syntax.Values
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType)
         {
             IType prototype = RecordType.ToIRType(irBuilder, this);
-            return prototype is Typing.RecordType record
+            return prototype is RecordType record
                 ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), this)
                 : throw new UnexpectedTypeException(prototype, this);
         }

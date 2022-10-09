@@ -69,6 +69,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             this.options = options;
             if (options.Count < 2)
                 throw new InsufficientEnumOptions(ErrorReportedElement);
+            Stack<IType> stack = new Stack<IType>(this.options);
+            while(stack.Count > 0)
+            {
+                IType option = stack.Pop();
+                if (stack.Contains(option, new ITypeComparer()))
+                    throw new UnexpectedTypeException(option, ErrorReportedElement);
+            }
         }
 
         public void DelayedLinkSetRequiredImplementedInterfaces(List<InterfaceType> requiredImplementedInterfaces)

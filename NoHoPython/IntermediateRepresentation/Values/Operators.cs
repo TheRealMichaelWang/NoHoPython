@@ -1,4 +1,4 @@
-﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Syntax;
@@ -160,11 +160,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             Record = record;
             Property = record.Type is IPropertyContainer propertyContainer
-                ? propertyContainer.FindProperty(propertyName)
+				? (propertyContainer.HasProperty(propertyName) ? propertyContainer.FindProperty(propertyName) : throw new UnexpectedTypeException(record.Type, errorReportedElement))
                 : record.Type is TypeParameterReference typeParameter
                 ? typeParameter.TypeParameter.RequiredImplementedInterface == null 
                 ? throw new UnexpectedTypeException(record.Type, errorReportedElement)
-                : typeParameter.TypeParameter.RequiredImplementedInterface.FindProperty(propertyName)
+                : (typeParameter.TypeParameter.RequiredImplementedInterface.HasProperty(propertyName) ?typeParameter.TypeParameter.RequiredImplementedInterface.FindProperty(propertyName) : throw new UnexpectedTypeException(record.Type, errorReportedElement))
                 : throw new UnexpectedTypeException(record.Type, errorReportedElement);
             ErrorReportedElement = errorReportedElement;
         }
@@ -188,6 +188,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (record.Type is RecordType propertyContainer)
             {
+				if(!propertyContainer.HasProperty(propertyName))
+                	throw new UnexpectedTypeException(record.Type, errorReportedElement);
+				
                 Property = (RecordDeclaration.RecordProperty)propertyContainer.FindProperty(propertyName);
                 Value = ArithmeticCast.CastTo(value, Property.Type);
             }

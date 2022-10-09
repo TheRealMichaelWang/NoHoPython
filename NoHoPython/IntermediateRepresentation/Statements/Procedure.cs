@@ -257,19 +257,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IType Type { get => new ProcedureType(Procedure.ReturnType, Procedure.ParameterTypes); }
 
         public ProcedureReference Procedure { get; private set; }
+        private bool inProcedure;
 
-        private AnonymizeProcedure(ProcedureReference procedure, IAstElement errorReportedElement)
+        private AnonymizeProcedure(ProcedureReference procedure, bool inProcedure, IAstElement errorReportedElement)
         {
             Procedure = procedure;
             ErrorReportedElement = errorReportedElement;
+            this.inProcedure = inProcedure;
         }
 
-        public AnonymizeProcedure(ProcedureDeclaration procedure, IAstElement errorReportedElement) : this(new ProcedureReference(procedure, true, errorReportedElement), errorReportedElement)
+        public AnonymizeProcedure(ProcedureDeclaration procedure, IAstElement errorReportedElement, bool inProcedure) : this(new ProcedureReference(procedure, true, errorReportedElement), inProcedure, errorReportedElement)
         {
             
         }
 
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs), false, ErrorReportedElement);
     }
 
     public sealed partial class ForeignFunctionCall : ProcedureCall
@@ -312,7 +314,7 @@ namespace NoHoPython.Syntax.Statements
         {
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRProcedureDeclaration = new(Name, typeParameters, AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this), irBuilder.CurrentMasterScope, irBuilder.ScopedProcedures.Count == 0 && irBuilder.ScopedRecordDeclaration == null, this);
+            IRProcedureDeclaration = new(Name, typeParameters, AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this), irBuilder.CurrentMasterScope, irBuilder.ScopedProcedures.Count == 0 && irBuilder.ScopedRecordDeclaration == null && irBuilder.SymbolMarshaller.CurrentModule.Name == string.Empty, this);
 
             SymbolContainer? oldMasterScope = irBuilder.CurrentMasterScope;
             irBuilder.SymbolMarshaller.DeclareSymbol(IRProcedureDeclaration, this);

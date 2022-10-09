@@ -72,6 +72,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (this.requiredImplementedProperties != null)
                 throw new InvalidOperationException();
             this.requiredImplementedProperties = requiredImplementedProperties;
+            IPropertyContainer.SanitizePropertyNames(requiredImplementedProperties.ConvertAll((prop) => (Property)prop), ErrorReportedElement);
         }
     }
 }

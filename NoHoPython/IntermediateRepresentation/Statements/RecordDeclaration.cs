@@ -21,6 +21,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     public interface IPropertyContainer
     {
+        public static void SanitizePropertyNames(List<Property> properties, Syntax.IAstElement errorReportedElement)
+        {
+            Stack<string> checkedProperties = new(properties.ConvertAll((prop) => prop.Name));
+            while (checkedProperties.Count > 0)
+            {
+                string property = checkedProperties.Pop();
+                if (checkedProperties.Contains(property))
+                    throw new PropertyAlreadyDefinedError(property, errorReportedElement);
+            }
+        }
+
         public bool HasProperty(string identifier);
         public Property FindProperty(string identifier);
 
@@ -48,26 +59,30 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public sealed partial class RecordProperty : Property, IComparable
         {
             public override bool IsReadOnly => isReadOnly;
-            public IRValue? DefaultValue { get; private set; }
 
+            public IRValue? DefaultValue => defaultValue != null ? defaultValue : parentProperty != null ? parentProperty.DefaultValue : null; 
+
+            private RecordProperty? parentProperty;
+            private IRValue? defaultValue = null;
             private bool isReadOnly;
 
-            private RecordProperty(string name, IType type, bool isReadOnly, IRValue? defaultValue) : base(name, type)
+            private RecordProperty(string name, IType type, bool isReadOnly, RecordProperty? parentProperty, IRValue? defaultValue) : base(name, type)
             {
                 this.isReadOnly = isReadOnly;
+                this.parentProperty = parentProperty;
                 if(defaultValue != null)
-                    DefaultValue = ArithmeticCast.CastTo(defaultValue, Type);
+                    this.defaultValue = ArithmeticCast.CastTo(defaultValue, Type);
             }
 
-            public RecordProperty(string name, IType type, bool isReadOnly) : this(name, type, isReadOnly, null) { }
+            public RecordProperty(string name, IType type, bool isReadOnly, RecordProperty? parentProperty = null) : this(name, type, isReadOnly, parentProperty, null) { }
 
-            public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), isReadOnly, DefaultValue == null ? null : DefaultValue.SubstituteWithTypearg(typeargs));
+            public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), isReadOnly, parentProperty == null ? this : parentProperty, defaultValue == null ? null : defaultValue.SubstituteWithTypearg(typeargs));
 
             public void DelayedLinkSetDefaultValue(IRValue defaultValue)
             {
-                if (DefaultValue != null)
+                if (this.defaultValue != null)
                     throw new InvalidOperationException();
-                DefaultValue = ArithmeticCast.CastTo(defaultValue, Type);
+                this.defaultValue = ArithmeticCast.CastTo(defaultValue, Type);
             }
 
             public int CompareTo(object? obj)
@@ -124,6 +139,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (this.properties != null)
                 throw new InvalidOperationException();
             this.properties = properties;
+            IPropertyContainer.SanitizePropertyNames(properties.ConvertAll((prop) => (Property)prop), ErrorReportedElement);
         }
 
         public void DelayedLinkSetMessageRecievers(List<ProcedureDeclaration> messageRecievers)
@@ -271,7 +287,7 @@ namespace NoHoPython.Syntax.Statements
             IntermediateRepresentation.Statements.ProcedureDeclaration? Destructor = null;
             IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => {
                 var irProcedure = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
-                messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, this));
+                messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, this, false));
 
                 if (reciever.Name == "__init__")
                     Constructor = irProcedure;

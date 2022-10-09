@@ -59,15 +59,25 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
-    public sealed class PropertyNotImplementedException : IRGenerationError
+    public sealed class PropertyNotImplementedError : IRGenerationError
     {
         public InterfaceDeclaration.InterfaceProperty RequiredProperty { get; private set; }
         public RecordDeclaration Record { get; private set; }
 
-        public PropertyNotImplementedException(InterfaceDeclaration.InterfaceProperty requiredProperty, RecordDeclaration record, IAstElement astElement) : base(astElement, $"{record.Name} doesn't implement required property {requiredProperty}.")
+        public PropertyNotImplementedError(InterfaceDeclaration.InterfaceProperty requiredProperty, RecordDeclaration record, IAstElement astElement) : base(astElement, $"{record.Name} doesn't implement required property {requiredProperty}.")
         {
             RequiredProperty = requiredProperty;
             Record = record;
+        }
+    }
+
+    public sealed class PropertyAlreadyDefinedError : IRGenerationError
+    {
+        public string Property;
+
+        public PropertyAlreadyDefinedError(string property, IAstElement astElement) : base(astElement, $"Property {property} already defined.")
+        {
+            Property = property;
         }
     }
 

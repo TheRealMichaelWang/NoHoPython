@@ -19,12 +19,12 @@ mod std:
 		cdef cos(dec) dec
 		cdef tan(dec) dec
 		cdef exit(int) None
-		cdef atan2(dec) dec
+		cdef atan2(dec, dec) dec
 		cdef atof(handle) dec
 		cdef atol(handle) int
 		cdef fabs(dec) dec
 		cdef abs(int) int
-	mot __utils__:
+	mod __utils__:
 		def numToDec(numerical num) dec:
 			match num:
 				dec d:
@@ -57,5 +57,5 @@ mod std:
 		return cinterop::acos(__utils__::numToDec(num))
 	def atan(numerical num) numerical:
 		return cinterop::atan(__utils__::numToDec(num))
-	def atan2(numerical n, numerical d):
+	def atan2(numerical n, numerical d) numerical:
 		return cinterop::atan2(__utils__::numToDec(n), __utils__::numToDec(d))

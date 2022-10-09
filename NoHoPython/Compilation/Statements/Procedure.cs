@@ -83,7 +83,7 @@ namespace NoHoPython.IntermediateRepresentation
                 for (int i = 0; i < procedureInfo.Item1.ParameterTypes.Count; i++)
                 {
                     emitter.Append(", ");
-                    emitter.Append(procedureInfo.Item1.ParameterTypes[i].GetCName(irProgram));
+                    emitType(irProgram, emitter, procedureInfo.Item1.ParameterTypes[i]);
                     emitter.Append($" param{i}");
                 }
                 emitter.AppendLine(");");
@@ -678,7 +678,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({string.Join(", ", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => (capturedVar.IsRecordSelf) ? "_nhp_self" :capturedVar.GetStandardIdentifier(irProgram)))})");
+            emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({string.Join(", ", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => (capturedVar.IsRecordSelf && !inProcedure) ? "_nhp_self" : capturedVar.GetStandardIdentifier(irProgram)))})");
         }
     }
 

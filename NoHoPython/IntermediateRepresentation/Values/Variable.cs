@@ -115,7 +115,7 @@ namespace NoHoPython.Syntax.Values
             return valueSymbol is Variable variable
                 ? new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), this)
                 : valueSymbol is IntermediateRepresentation.Statements.ProcedureDeclaration procedureDeclaration
-                ? (IRValue)new AnonymizeProcedure(procedureDeclaration, this)
+                ? (IRValue)new AnonymizeProcedure(procedureDeclaration, this, true)
                 : throw new NotAVariableException(valueSymbol, this);
         }
     }

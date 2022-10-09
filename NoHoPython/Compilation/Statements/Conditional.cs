@@ -225,6 +225,31 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
     }
 
+    partial class LoopStatement
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
+
+        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            foreach (Variable variable in activeLoopVariables)
+                if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+                {
+                    CodeBlock.CIndent(emitter, indent);
+                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, variable.GetStandardIdentifier(irProgram));
+                }
+
+            CodeBlock.CIndent(emitter, indent);
+            if (Action.Type == Syntax.Parsing.TokenType.Break)
+                emitter.AppendLine("break;");
+            else
+                emitter.AppendLine("continue;");
+        }
+    }
+
     partial class AssertStatement
     {
         public static void EmitAsserter(StringBuilder emitter)

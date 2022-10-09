@@ -57,7 +57,8 @@ namespace NoHoPython.Syntax.Parsing
         IAstStatement? ParseStatement()
         {
             SourceLocation location = scanner.CurrentLocation;
-            switch (scanner.LastToken.Type)
+            Token actionTok = scanner.LastToken;
+            switch (actionTok.Type)
             {
                 case TokenType.If:
                     return ParseIfElseBlock();
@@ -86,6 +87,10 @@ namespace NoHoPython.Syntax.Parsing
                 case TokenType.Pass:
                     scanner.ScanToken();
                     return null;
+                case TokenType.Break:
+                case TokenType.Continue:
+                    scanner.ScanToken();
+                    return new LoopStatement(actionTok, location);
                 default:
                     throw new UnexpectedTokenException(scanner.LastToken, location);
             }

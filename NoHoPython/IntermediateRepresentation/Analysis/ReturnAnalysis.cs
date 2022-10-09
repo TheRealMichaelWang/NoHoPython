@@ -46,6 +46,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public bool AllCodePathsReturn() => false;
     }
 
+    partial class LoopStatement
+    {
+        public bool AllCodePathsReturn() => false;
+    }
+
     partial class AssertStatement
     {
         public bool AllCodePathsReturn() => false;

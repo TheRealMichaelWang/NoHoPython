@@ -47,6 +47,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
     }
 
+    partial class LoopStatement
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
+    }
+
     partial class AssertStatement
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Condition.AnalyzePropertyInitialization(initializedProperties);

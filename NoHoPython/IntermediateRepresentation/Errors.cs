@@ -211,6 +211,14 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
+    public sealed class UnexpectedLoopStatementException : IRGenerationError
+    {
+        public UnexpectedLoopStatementException(IAstElement errorReportedElement) : base(errorReportedElement, $"Continues and breaks may only be used inside of loops.")
+        {
+
+        }
+    }
+
     public sealed class CannotEmitDestructorError : CCodegenError
     {
         public IRValue Value { get; private set; }

@@ -24,6 +24,8 @@
         Elif,
         Default,
         Return,
+        Break,
+        Continue,
         Pass,
         Include,
         CInclude,

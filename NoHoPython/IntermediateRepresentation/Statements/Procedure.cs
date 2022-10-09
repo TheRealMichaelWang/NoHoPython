@@ -24,7 +24,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public IType ReturnType { get; private set; }
 
-        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType returnType, SymbolContainer? parentContainer, bool isTopLevelStatement, IAstElement errorReportedElement) : base(parentContainer)
+        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType returnType, SymbolContainer? parentContainer, bool isTopLevelStatement, IAstElement errorReportedElement) : base(parentContainer, false)
         {
             Name = name;
             TypeParameters = typeParameters;

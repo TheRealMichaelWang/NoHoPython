@@ -1,4 +1,5 @@
-﻿using NoHoPython.Syntax.Statements;
+﻿using NoHoPython.Syntax.Parsing;
+using NoHoPython.Syntax.Statements;
 
 namespace NoHoPython.Syntax.Statements
 {
@@ -117,6 +118,22 @@ namespace NoHoPython.Syntax.Statements
         }
 
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}match {MatchedValue}:{string.Join("",MatchHandlers.ConvertAll((statement) => $"\n{statement.ToString(indent + 1)}"))}";
+    }
+
+    public sealed partial class LoopStatement : IAstStatement
+    {
+        public SourceLocation SourceLocation { get; private set; }
+        public Token Action { get; private set; }
+
+        public LoopStatement(Token action, SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+            Action = action;
+            if (action.Type != TokenType.Break && action.Type != TokenType.Continue)
+                throw new UnexpectedTokenException(action, sourceLocation);
+        }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{(Action.Type == TokenType.Break ? "break" : "continue")}";
     }
 
     public sealed partial class AssertStatement : IAstStatement

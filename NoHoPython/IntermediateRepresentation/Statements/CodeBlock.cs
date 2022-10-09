@@ -1,4 +1,5 @@
 ﻿using NoHoPython.Scoping;
+using NoHoPython.Syntax;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
@@ -6,17 +7,20 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public List<IRStatement>? Statements { get; private set; }
         public List<Variable> DeclaredVariables { get; private set; }
+        public bool IsLoop { get; private set; }
 
-        public CodeBlock(List<IRStatement> statements, SymbolContainer? parent) : base(parent)
+        public CodeBlock(List<IRStatement> statements, bool isLoop, SymbolContainer? parent) : base(parent)
         {
             Statements = statements;
             DeclaredVariables = new List<Variable>();
+            IsLoop = isLoop;
         }
 
-        public CodeBlock(SymbolContainer? parent) : base(parent)
+        public CodeBlock(SymbolContainer? parent, bool isLoop) : base(parent)
         {
             Statements = null;
             DeclaredVariables = new List<Variable>();
+            IsLoop = isLoop;
         }
 
         public virtual void DelayedLinkSetStatements(List<IRStatement> statements)
@@ -28,17 +32,30 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public List<Variable> GetCurrentLocals()
         {
-            if (base.parentContainer == null)
+            if (parentContainer == null || parentContainer is not CodeBlock)
                 return DeclaredVariables;
-            else if(base.parentContainer is CodeBlock parentBlock)
+            else
             {
                 List<Variable> combined = new();
-                combined.AddRange(parentBlock.GetCurrentLocals());
+                combined.AddRange(((CodeBlock)parentContainer).GetCurrentLocals());
                 combined.AddRange(DeclaredVariables);
                 return combined;
             }
-            else
+        }
+
+        public List<Variable> GetLoopLocals(IAstElement errorReportedElement)
+        {
+            if (this.IsLoop)
                 return DeclaredVariables;
+            if (parentContainer == null || parentContainer is not CodeBlock)
+                throw new UnexpectedLoopStatementException(errorReportedElement);
+            else
+            {
+                List<Variable> combined = new();
+                combined.AddRange(((CodeBlock)parentContainer).GetLoopLocals(errorReportedElement));
+                combined.AddRange(DeclaredVariables);
+                return combined;
+            }
         }
     }
 }

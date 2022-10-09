@@ -3,6 +3,7 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Syntax;
+using NoHoPython.Syntax.Parsing;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
@@ -95,6 +96,21 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
     }
 
+    public sealed partial class LoopStatement : IRStatement
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public Token Action { get; private set; }
+
+        private List<Variable> activeLoopVariables;
+
+        public LoopStatement(Token action, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            Action = action;
+            activeLoopVariables = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetCurrentLocals();
+        }
+    }
+
     public sealed partial class AssertStatement : IRStatement
     {
         public IAstElement ErrorReportedElement { get; private set; }
@@ -160,13 +176,13 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
+            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(false);
             IAstStatement.ForwardDeclareBlock(irBuilder, IfTrueBlock);
             irBuilder.SymbolMarshaller.GoBack();
 
             if (NextIf != null)
             {
-                scopedNextIf = irBuilder.SymbolMarshaller.NewCodeBlock();
+                scopedNextIf = irBuilder.SymbolMarshaller.NewCodeBlock(false);
                 NextIf.ForwardDeclare(irBuilder);
                 irBuilder.SymbolMarshaller.GoBack();
             }
@@ -205,7 +221,7 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            scopedToExecute = irBuilder.SymbolMarshaller.NewCodeBlock();
+            scopedToExecute = irBuilder.SymbolMarshaller.NewCodeBlock(false);
             IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
             irBuilder.SymbolMarshaller.GoBack();
         }
@@ -229,7 +245,7 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
+            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(true);
             IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
             irBuilder.SymbolMarshaller.GoBack();
         }
@@ -257,13 +273,13 @@ namespace NoHoPython.Syntax.Statements
         {
             handlerCodeBlocks = new Dictionary<MatchHandler, CodeBlock>();
             MatchHandlers.ForEach((handler) => {
-                handlerCodeBlocks.Add(handler, irBuilder.SymbolMarshaller.NewCodeBlock());
+                handlerCodeBlocks.Add(handler, irBuilder.SymbolMarshaller.NewCodeBlock(false));
                 IAstStatement.ForwardDeclareBlock(irBuilder, handler.Statements);
                 irBuilder.SymbolMarshaller.GoBack();
             });
             if(DefaultHandler != null)
             {
-                defaultHandlerCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock();
+                defaultHandlerCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(false);
                 IAstStatement.ForwardDeclareBlock(irBuilder, DefaultHandler);
                 irBuilder.SymbolMarshaller.GoBack();
             }
@@ -300,6 +316,15 @@ namespace NoHoPython.Syntax.Statements
             }
             throw new UnexpectedTypeException(matchValue.Type, this);
         }
+    }
+
+    partial class LoopStatement
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.LoopStatement(Action, irBuilder, this);
     }
 
     partial class AssertStatement

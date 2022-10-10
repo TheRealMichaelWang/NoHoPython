@@ -69,7 +69,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             this.options = options;
             if (options.Count < 2)
                 throw new InsufficientEnumOptions(ErrorReportedElement);
-            Stack<IType> stack = new Stack<IType>(this.options);
+            Stack<IType> stack = new(this.options);
             while(stack.Count > 0)
             {
                 IType option = stack.Pop();
@@ -142,7 +142,7 @@ namespace NoHoPython.Typing
     public sealed partial class EnumType : IType, IPropertyContainer
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
-        private static Dictionary<EnumType, Dictionary<string, Property>> globalSupportedProperties = new(new ITypeComparer());
+        private static Dictionary<EnumType, Lazy<Dictionary<string, Property>>> globalSupportedProperties = new(new ITypeComparer());
 
         public bool IsNativeCType => false;
         public string TypeName { get => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}"; }
@@ -168,45 +168,50 @@ namespace NoHoPython.Typing
 
             if (globalSupportedProperties.ContainsKey(this))
                 return;
-            globalSupportedProperties[this] = new();
-            if (!options.Value.TrueForAll((option) => option is IPropertyContainer))
-                return;
-            IPropertyContainer firstType = (IPropertyContainer)options.Value[0];
 
-            List<Property> firstTypeProperties = firstType.GetProperties();
-            foreach (Property property in firstTypeProperties)
+            globalSupportedProperties[this] = new(() =>
             {
-                bool foundFlag = true;
-                for (int i = 1; i < options.Value.Count; i++)
+                if (!options.Value.TrueForAll((option) => option is IPropertyContainer))
+                    return new();
+                IPropertyContainer firstType = (IPropertyContainer)options.Value[0];
+
+                List<Property> firstTypeProperties = firstType.GetProperties();
+                Dictionary<string, Property> propertyIdMap = new(firstTypeProperties.Count);
+                foreach (Property property in firstTypeProperties)
                 {
-                    IPropertyContainer optionContainer = (IPropertyContainer)options.Value[i];
-                    if (!optionContainer.HasProperty(property.Name))
+                    bool foundFlag = true;
+                    for (int i = 1; i < options.Value.Count; i++)
                     {
-                        foundFlag = false;
-                        break;
+                        IPropertyContainer optionContainer = (IPropertyContainer)options.Value[i];
+                        if (!optionContainer.HasProperty(property.Name))
+                        {
+                            foundFlag = false;
+                            break;
+                        }
+                        Property optionFoundProperty = optionContainer.FindProperty(property.Name);
+                        if (!property.Type.IsCompatibleWith(optionFoundProperty.Type))
+                        {
+                            foundFlag = false;
+                            break;
+                        }
                     }
-                    Property optionFoundProperty = optionContainer.FindProperty(property.Name);
-                    if (!property.Type.IsCompatibleWith(optionFoundProperty.Type))
-                    {
-                        foundFlag = false;
-                        break;
-                    }
-                }
-                if (foundFlag)
-                    globalSupportedProperties[this].Add(property.Name, property);
-            };
-            foreach (InterfaceType requiredImplementedInterface in EnumDeclaration.GetRequiredImplementedInterfaces(this))
-                if (!requiredImplementedInterface.SupportsProperties(GetProperties()))
-                    throw new UnexpectedTypeException(this, EnumDeclaration.ErrorReportedElement);
+                    if (foundFlag)
+                        propertyIdMap.Add(property.Name, property);
+                };
+                foreach (InterfaceType requiredImplementedInterface in EnumDeclaration.GetRequiredImplementedInterfaces(this))
+                    if (!requiredImplementedInterface.SupportsProperties(propertyIdMap.Values.ToList()))
+                        throw new UnexpectedTypeException(this, EnumDeclaration.ErrorReportedElement);
+                return propertyIdMap;
+            });
         }
 
         public List<IType> GetOptions() => options.Value;
 
-        public List<Property> GetProperties() => globalSupportedProperties[this].Values.ToList();
+        public List<Property> GetProperties() => globalSupportedProperties[this].Value.Values.ToList();
 
-        public Property FindProperty(string identifier) => globalSupportedProperties[this][identifier];
+        public Property FindProperty(string identifier) => globalSupportedProperties[this].Value[identifier];
 
-        public bool HasProperty(string identifier) => globalSupportedProperties[this].ContainsKey(identifier);
+        public bool HasProperty(string identifier) => globalSupportedProperties[this].Value.ContainsKey(identifier);
 
         public bool SupportsType(IType type)
         {

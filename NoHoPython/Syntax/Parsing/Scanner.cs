@@ -125,7 +125,7 @@
                 return;
 
             visitorStack.Push(visitor);
-            visitedFiles.Add(fileName);
+            visitedFiles.Add(visitor.FileName);
             ScanChar();
         }
 

@@ -195,7 +195,7 @@ namespace NoHoPython.Typing
 
         public void EmitPropertyGetHeaders(IRProgram irProgram, StringBuilder emitter)
         {
-            foreach (Property property in globalSupportedProperties[this].Values)
+            foreach (Property property in globalSupportedProperties[this].Value.Values)
                 emitter.AppendLine($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum);");
         }
 
@@ -222,7 +222,7 @@ namespace NoHoPython.Typing
 
         public void EmitPropertyGetters(IRProgram irProgram, StringBuilder emitter)
         {
-            foreach (Property property in globalSupportedProperties[this].Values)
+            foreach (Property property in globalSupportedProperties[this].Value.Values)
             {
                 emitter.AppendLine($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum) {{");
                 emitter.AppendLine("\tswitch(_nhp_enum.option) {");

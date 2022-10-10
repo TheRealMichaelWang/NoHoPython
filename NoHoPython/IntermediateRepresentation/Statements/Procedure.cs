@@ -84,10 +84,19 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (arguments.Count != procedureDeclaration.Parameters.Count)
                 throw new UnexpectedArgumentsException(arguments.ConvertAll((arg) => arg.Type), procedureDeclaration.Parameters, errorReportedElement);
 
-            for (int i = 0; i < procedureDeclaration.Parameters.Count; i++)
-                arguments[i] = procedureDeclaration.Parameters[i].Type.MatchTypeArgumentWithValue(typeArguments, arguments[i]);
-            if (returnType != null)
-                procedureDeclaration.ReturnType.MatchTypeArgumentWithType(typeArguments, returnType, errorReportedElement);
+            if (procedureDeclaration.TypeParameters.Count > 0)
+            {
+                for (int i = 0; i < procedureDeclaration.Parameters.Count; i++)
+                    arguments[i] = procedureDeclaration.Parameters[i].Type.MatchTypeArgumentWithValue(typeArguments, arguments[i]);
+
+                if (returnType != null)
+                    procedureDeclaration.ReturnType.MatchTypeArgumentWithType(typeArguments, returnType, errorReportedElement);
+            }
+            else
+            {
+                for (int i = 0; i < procedureDeclaration.Parameters.Count; i++)
+                    arguments[i] = ArithmeticCast.CastTo(arguments[i], procedureDeclaration.Parameters[i].Type);
+            }
 
             return typeArguments;
         }

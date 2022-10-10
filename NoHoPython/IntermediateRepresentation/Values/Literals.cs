@@ -106,7 +106,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 try
                 {
                     for (int i = 0; i < elements.Count; i++)
-                        Elements[i] = ArithmeticCast.CastTo(elements[i], type);
+                        Elements.Add(ArithmeticCast.CastTo(elements[i], type));
                     return true;
                 }
                 catch (UnexpectedTypeException)

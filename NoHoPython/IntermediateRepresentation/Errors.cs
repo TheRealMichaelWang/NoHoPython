@@ -123,13 +123,13 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
-    public sealed class CannotMutateCapturedVaraible : IRGenerationError
+    public sealed class CannotMutateVaraible : IRGenerationError
     {
-        public Variable CapturedVariable { get; private set; }
+        public Variable Variable { get; private set; }
 
-        public CannotMutateCapturedVaraible(Variable capturedVariable, IAstElement astElement) : base(astElement, $"Cannot mutate captured variable {capturedVariable.Name}.")
+        public CannotMutateVaraible(Variable capturedVariable, IAstElement astElement) : base(astElement, $"Cannot mutate captured variable or parameter {capturedVariable.Name}.")
         {
-            CapturedVariable = capturedVariable;
+            Variable = capturedVariable;
         }
     }
 

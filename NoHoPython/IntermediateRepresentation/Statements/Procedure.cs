@@ -52,12 +52,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public Variable SanitizeVariable(Variable variable, bool willStet, IAstElement errorReportedElement)
         {
             if (variable.ParentProcedure == this)
-                return variable;
-            if (!CapturedVariables.Contains(variable))
+            {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                if (Parameters.Contains(variable) && willStet)
+                    throw new CannotMutateVaraible(variable, errorReportedElement);
+#pragma warning restore CS8602
+            }
+            else if (!CapturedVariables.Contains(variable))
             {
                 CapturedVariables.Add(variable);
                 if (willStet)
-                    throw new CannotMutateCapturedVaraible(variable, errorReportedElement);
+                    throw new CannotMutateVaraible(variable, errorReportedElement);
             }
             return variable;
         }

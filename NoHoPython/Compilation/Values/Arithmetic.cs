@@ -1,4 +1,4 @@
-﻿using NoHoPython.Typing;
+using NoHoPython.Typing;
 using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Values
@@ -79,6 +79,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     emitter.Append(')');
                 }
             }
+			else if(Operation == ArithmeticOperation.Modulo && Type is DecimalType)
+			{
+				emitter.Append("fmod(");
+                IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
+				emitter.Append(", ");
+                IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
+                emitter.Append(')');
+			}
             else
             {
                 emitter.Append('(');
@@ -97,6 +105,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     case ArithmeticOperation.Divide:
                         emitter.Append(" / ");
                         break;
+					case ArithmeticOperation.Modulo:
+						emitter.Append(" % ");
+						break;
                 }
                 IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
                 emitter.Append(')');

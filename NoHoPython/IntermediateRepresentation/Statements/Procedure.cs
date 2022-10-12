@@ -331,7 +331,9 @@ namespace NoHoPython.Syntax.Statements
             IRProcedureDeclaration = new(Name, typeParameters, AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this), irBuilder.CurrentMasterScope, irBuilder.ScopedProcedures.Count == 0 && irBuilder.ScopedRecordDeclaration == null && irBuilder.SymbolMarshaller.CurrentModule.Name == string.Empty, this);
 
             SymbolContainer? oldMasterScope = irBuilder.CurrentMasterScope;
+
             irBuilder.SymbolMarshaller.DeclareSymbol(IRProcedureDeclaration, this);
+
             irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
             irBuilder.ScopedProcedures.Push(IRProcedureDeclaration);
 

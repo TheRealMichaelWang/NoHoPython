@@ -17,7 +17,7 @@ namespace NoHoPython.Syntax
         public RecordDeclaration? ScopedRecordDeclaration { get; private set; }
         public SymbolMarshaller SymbolMarshaller { get; private set; }
         
-        public SymbolContainer? CurrentMasterScope => ScopedProcedures.Count > 0 ? ScopedProcedures.Peek() : (ScopedRecordDeclaration != null) ? ScopedRecordDeclaration : SymbolMarshaller.CurrentModule;
+        public SymbolContainer CurrentMasterScope => ScopedProcedures.Count > 0 ? ScopedProcedures.Peek() : (ScopedRecordDeclaration != null) ? ScopedRecordDeclaration : SymbolMarshaller.CurrentModule;
 
         private Dictionary<IType, HashSet<IType>> typeDependencyTree;
 
@@ -36,6 +36,7 @@ namespace NoHoPython.Syntax
             statements.ForEach((IAstStatement statement) => statement.ForwardTypeDeclare(this));
             statements.ForEach((IAstStatement statement) => statement.ForwardDeclare(this));
             statements.ForEach((IAstStatement statement) => statement.GenerateIntermediateRepresentationForStatement(this));
+            LinkCapturedVariables();
         }
 
         public void ScopeToRecord(RecordDeclaration recordDeclaration)

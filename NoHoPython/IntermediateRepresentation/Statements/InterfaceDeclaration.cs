@@ -33,7 +33,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
 
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
-        public SymbolContainer? ParentContainer { get; private set; }
+        public SymbolContainer ParentContainer { get; private set; }
 
         public bool IsGloballyNavigable => true;
 
@@ -42,7 +42,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public readonly List<TypeParameter> TypeParameters;
         private List<InterfaceProperty>? requiredImplementedProperties;
 
-        public InterfaceDeclaration(string name, List<TypeParameter> typeParameters, SymbolContainer? parentContainer, Syntax.IAstElement errorReportedElement) : base()
+        public InterfaceDeclaration(string name, List<TypeParameter> typeParameters, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement) : base()
         {
             Name = name;
             TypeParameters = typeParameters;

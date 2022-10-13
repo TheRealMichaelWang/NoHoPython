@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "\"D:\\robocode\\src\\robot.nhp\"\r\nout.c"
+      "commandLineArgs": "\"E:\\robocode\\src\\robot.nhp\"\r\nout.c"
     }
   }
 }

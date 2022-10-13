@@ -30,9 +30,9 @@ namespace NoHoPython.Typing
         public string Name { get; private set; }
         public InterfaceType? RequiredImplementedInterface { get; private set; }
 
-        public SymbolContainer? ParentContainer { get; private set; }
+        public SymbolContainer ParentContainer { get; private set; }
 
-        public TypeParameter(string name, InterfaceType? requiredImplementedInterface, SymbolContainer? parentContainer)
+        public TypeParameter(string name, InterfaceType? requiredImplementedInterface, SymbolContainer parentContainer)
         {
             Name = name;
             RequiredImplementedInterface = requiredImplementedInterface;

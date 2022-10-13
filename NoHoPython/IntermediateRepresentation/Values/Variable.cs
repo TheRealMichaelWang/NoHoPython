@@ -90,9 +90,9 @@ namespace NoHoPython.Scoping
 
     public class VariableContainer : SymbolContainer
     {
-        protected SymbolContainer? parentContainer;
+        protected SymbolContainer parentContainer;
 
-        public VariableContainer(SymbolContainer? parentContainer) : base()
+        public VariableContainer(SymbolContainer parentContainer) : base()
         {
             this.parentContainer = parentContainer;
         }
@@ -114,8 +114,8 @@ namespace NoHoPython.Syntax.Values
             IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
             return valueSymbol is Variable variable
                 ? new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), this)
-                : valueSymbol is IntermediateRepresentation.Statements.ProcedureDeclaration procedureDeclaration
-                ? (IRValue)new AnonymizeProcedure(procedureDeclaration, this, true)
+                : valueSymbol is ProcedureDeclaration procedureDeclaration
+                ? (IRValue)new AnonymizeProcedure(procedureDeclaration, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek())
                 : throw new NotAVariableException(valueSymbol, this);
         }
     }

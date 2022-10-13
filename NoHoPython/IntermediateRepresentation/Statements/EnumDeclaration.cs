@@ -8,7 +8,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     public sealed partial class EnumDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
-        public SymbolContainer? ParentContainer { get; private set; }
+        public SymbolContainer ParentContainer { get; private set; }
 
         public bool IsGloballyNavigable => true;
 
@@ -19,7 +19,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         private List<InterfaceType>? requiredImplementedInterfaces;
         private List<IType>? options;
 
-        public EnumDeclaration(string name, List<TypeParameter> typeParameters, SymbolContainer? parentContainer, Syntax.IAstElement errorReportedElement) : base()
+        public EnumDeclaration(string name, List<TypeParameter> typeParameters, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement) : base()
         {
             Name = name;
             TypeParameters = typeParameters;

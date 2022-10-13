@@ -3,7 +3,6 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Text;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace NoHoPython.Syntax
 {
@@ -678,7 +677,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({string.Join(", ", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => (capturedVar.IsRecordSelf && !inProcedure) ? "_nhp_self" : capturedVar.GetStandardIdentifier(irProgram)))})");
+            emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({string.Join(", ", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => (capturedVar.IsRecordSelf && parentProcedure == null) ? "_nhp_self" : capturedVar.GetStandardIdentifier(irProgram)))})");
         }
     }
 

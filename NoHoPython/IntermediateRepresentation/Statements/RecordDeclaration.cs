@@ -94,7 +94,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
 
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
-        public SymbolContainer? ParentContainer { get; private set; }
+        public SymbolContainer ParentContainer { get; private set; }
 
         public bool IsGloballyNavigable => false;
 
@@ -106,7 +106,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         private List<RecordProperty>? properties;
         private List<ProcedureDeclaration>? messageRecievers;
 
-        public RecordDeclaration(string name, List<TypeParameter> typeParameters, SymbolContainer? parentContainer, Syntax.IAstElement errorReportedElement) : base()
+        public RecordDeclaration(string name, List<TypeParameter> typeParameters, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement) : base()
         {
             Name = name;
             TypeParameters = typeParameters;
@@ -287,7 +287,7 @@ namespace NoHoPython.Syntax.Statements
             IntermediateRepresentation.Statements.ProcedureDeclaration? Destructor = null;
             IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => {
                 var irProcedure = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
-                messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, this, false));
+                messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, this, null));
 
                 if (reciever.Name == "__init__")
                     Constructor = irProcedure;

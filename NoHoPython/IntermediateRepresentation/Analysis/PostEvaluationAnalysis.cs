@@ -18,7 +18,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class AnonymizeProcedure
     {
-        public IRValue GetPostEvalPure() => new AnonymizeProcedure(Procedure, inProcedure, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new AnonymizeProcedure(Procedure, parentProcedure, ErrorReportedElement);
     }
 
     partial class ProcedureCall

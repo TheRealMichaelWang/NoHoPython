@@ -10,11 +10,13 @@ namespace NoHoPython.Scoping
 {
     public abstract class SymbolContainer
     {
+        public bool IsHeadContainer { get; private set; }
         private Dictionary<string, IScopeSymbol> symbols;
 
-        public SymbolContainer()
+        public SymbolContainer(bool isHeadContainer = false)
         {
-            this.symbols = new Dictionary<string, IScopeSymbol>();
+            symbols = new Dictionary<string, IScopeSymbol>();
+            IsHeadContainer = isHeadContainer;
         }
 
         public virtual IScopeSymbol? FindSymbol(string identifier, IAstElement errorReportedElement)
@@ -39,14 +41,14 @@ namespace NoHoPython.Scoping
         public sealed class Module : SymbolContainer, IScopeSymbol, IRStatement
         {
             public IAstElement ErrorReportedElement { get; private set; }
-            public SymbolContainer? ParentContainer { get; private set; }
+            public SymbolContainer ParentContainer { get; private set; }
 
             public bool IsGloballyNavigable => true;
             public string Name { get; private set; }
 
             private List<IRStatement>? statements;
 
-            public Module(string name, SymbolContainer? parentContainer, IAstElement errorReportedElement) : base()
+            public Module(string name, SymbolContainer parentContainer, IAstElement errorReportedElement) : base(parentContainer == null)
             {
                 Name = name;
                 ErrorReportedElement = errorReportedElement;

@@ -5,26 +5,59 @@ using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
 
+namespace NoHoPython.Syntax
+{
+    partial class AstIRProgramBuilder
+    {
+        private void LinkCapturedVariables()
+        {
+            Dictionary<ProcedureDeclaration, HashSet<ProcedureDeclaration>> dependentProcedures = new(ProcedureDeclarations.Count);
+            HashSet<ProcedureDeclaration> unprocessedProcedures = new(ProcedureDeclarations);
+            foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
+                dependentProcedures.Add(procedureDeclaration, new());
+            foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
+                foreach (ProcedureDeclaration callSite in procedureDeclaration.CallSiteProcedures)
+                    dependentProcedures[callSite].Add(procedureDeclaration);
+
+            while (unprocessedProcedures.Count > 0)
+            {
+                foreach(ProcedureDeclaration procedureDeclaration in unprocessedProcedures)
+                    if (dependentProcedures[procedureDeclaration].Count == 0)
+                    {
+                        foreach (ProcedureDeclaration callSite in procedureDeclaration.CallSiteProcedures)
+                        {
+                            foreach (Variable capturedVariable in procedureDeclaration.CapturedVariables)
+                                if (!callSite.HasVariable(capturedVariable))
+                                    callSite.CapturedVariables.Add(capturedVariable);
+                            dependentProcedures[callSite].Remove(procedureDeclaration);
+                        }
+                        unprocessedProcedures.Remove(procedureDeclaration);
+                    }
+            }
+        }
+    }
+}
+
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public sealed partial class ProcedureDeclaration : CodeBlock, IScopeSymbol, IRStatement
     {
         public IAstElement ErrorReportedElement { get; private set; }
-        public SymbolContainer? ParentContainer { get; private set; }
+        public SymbolContainer ParentContainer { get; private set; }
 
         public bool IsGloballyNavigable => true;
         public string Name { get; private set; }
 
-        public bool IsCompileHead => TypeParameters.Count == 0 && CapturedVariables.Count == 0 && isTopLevelStatement;
-        private bool isTopLevelStatement;
+        public bool IsCompileHead => TypeParameters.Count == 0 && CapturedVariables.Count == 0 && parentContainer.IsHeadContainer;
 
         public readonly List<Typing.TypeParameter> TypeParameters;
         public List<Variable>? Parameters { get; private set; }
         public List<Variable> CapturedVariables { get; private set; }
+        public List<ProcedureDeclaration> CallSiteProcedures { get; private set; }
 
         public IType ReturnType { get; private set; }
 
-        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType returnType, SymbolContainer? parentContainer, bool isTopLevelStatement, IAstElement errorReportedElement) : base(parentContainer, false)
+        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType returnType, SymbolContainer parentContainer, IAstElement errorReportedElement) : base(parentContainer, false)
         {
             Name = name;
             TypeParameters = typeParameters;
@@ -32,7 +65,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ParentContainer = parentContainer;
             ErrorReportedElement = errorReportedElement;
             CapturedVariables = new List<Variable>();
-            this.isTopLevelStatement = isTopLevelStatement;
+            CallSiteProcedures = new List<ProcedureDeclaration>();
+        }
+
+        public bool HasVariable(Variable variable)
+        {
+            if (variable.ParentProcedure == this)
+                return true;
+            foreach (Variable capturedVariable in CapturedVariables)
+                if (variable.Name == capturedVariable.Name && variable.Type.IsCompatibleWith(capturedVariable.Type))
+                    return true;
+            return false;
         }
 
         public void DelayedLinkSetParameters(List<Variable> parameters)
@@ -181,7 +224,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     public sealed partial class ForeignCProcedureDeclaration : IRStatement, IScopeSymbol
     {
-        public SymbolContainer? ParentContainer { get; private set; }
+        public SymbolContainer ParentContainer { get; private set; }
         public IAstElement ErrorReportedElement { get; private set; }
         public bool IsGloballyNavigable => true;
 
@@ -190,7 +233,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public readonly List<IType> ParameterTypes;
         public IType ReturnType { get; private set; }
 
-        public ForeignCProcedureDeclaration(string name, List<IType> parameterTypes, IType returnType, IAstElement errorReportedElement, SymbolContainer? parentContainer)
+        public ForeignCProcedureDeclaration(string name, List<IType> parameterTypes, IType returnType, IAstElement errorReportedElement, SymbolContainer parentContainer)
         {
             Name = name;
             ErrorReportedElement = errorReportedElement;
@@ -235,18 +278,23 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public override IType Type => Procedure.ReturnType;
 
         public ProcedureReference Procedure { get; private set; }
+        private ProcedureDeclaration? parentProcedure;
 
-        public LinkedProcedureCall(ProcedureDeclaration procedure, List<IRValue> arguments, IType? returnType, IAstElement errorReportedElement) : this(new ProcedureReference(procedure, arguments, returnType, false, errorReportedElement), arguments, errorReportedElement)
+        public LinkedProcedureCall(ProcedureDeclaration procedure, List<IRValue> arguments, ProcedureDeclaration? parentProcedure, IType? returnType, IAstElement errorReportedElement) : this(new ProcedureReference(procedure, arguments, returnType, false, errorReportedElement), arguments, parentProcedure, errorReportedElement)
         {
 
         }
 
-        private LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments, IAstElement errorReportedElement) : base(procedure.ParameterTypes, arguments, errorReportedElement)
+        private LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments, ProcedureDeclaration? parentProcedure, IAstElement errorReportedElement) : base(procedure.ParameterTypes, arguments, errorReportedElement)
         {
             Procedure = procedure;
+            this.parentProcedure = parentProcedure;
+
+            if (parentProcedure != null)
+                procedure.ProcedureDeclaration.CallSiteProcedures.Add(parentProcedure);
         }
 
-        public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new LinkedProcedureCall(Procedure.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
+        public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new LinkedProcedureCall(Procedure.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), parentProcedure, ErrorReportedElement);
     }
 
     public sealed partial class AnonymousProcedureCall : ProcedureCall
@@ -271,21 +319,24 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IType Type { get => new ProcedureType(Procedure.ReturnType, Procedure.ParameterTypes); }
 
         public ProcedureReference Procedure { get; private set; }
-        private bool inProcedure;
+        private ProcedureDeclaration? parentProcedure;
 
-        private AnonymizeProcedure(ProcedureReference procedure, bool inProcedure, IAstElement errorReportedElement)
+        private AnonymizeProcedure(ProcedureReference procedure, ProcedureDeclaration? parentProcedure, IAstElement errorReportedElement)
         {
             Procedure = procedure;
             ErrorReportedElement = errorReportedElement;
-            this.inProcedure = inProcedure;
+            this.parentProcedure = parentProcedure;
+
+            if(parentProcedure != null)
+                procedure.ProcedureDeclaration.CallSiteProcedures.Add(parentProcedure);
         }
 
-        public AnonymizeProcedure(ProcedureDeclaration procedure, IAstElement errorReportedElement, bool inProcedure) : this(new ProcedureReference(procedure, true, errorReportedElement), inProcedure, errorReportedElement)
+        public AnonymizeProcedure(ProcedureDeclaration procedure, IAstElement errorReportedElement, ProcedureDeclaration? parentDeclaration) : this(new ProcedureReference(procedure, true, errorReportedElement), parentDeclaration, errorReportedElement)
         {
             
         }
 
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs), false, ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs), parentProcedure, ErrorReportedElement);
     }
 
     public sealed partial class ForeignFunctionCall : ProcedureCall
@@ -328,7 +379,7 @@ namespace NoHoPython.Syntax.Statements
         {
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRProcedureDeclaration = new(Name, typeParameters, AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this), irBuilder.CurrentMasterScope, irBuilder.ScopedProcedures.Count == 0 && irBuilder.ScopedRecordDeclaration == null && irBuilder.SymbolMarshaller.CurrentModule.Name == string.Empty, this);
+            IRProcedureDeclaration = new(Name, typeParameters, AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this), irBuilder.CurrentMasterScope, this);
 
             SymbolContainer? oldMasterScope = irBuilder.CurrentMasterScope;
 
@@ -408,7 +459,7 @@ namespace NoHoPython.Syntax.Values
         {
             IScopeSymbol procedureSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
             return procedureSymbol is ProcedureDeclaration procedureDeclaration
-                ? (IRValue)new LinkedProcedureCall(procedureDeclaration, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), expectedType, this)
+                ? (IRValue)new LinkedProcedureCall(procedureDeclaration, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedType, this)
                 : procedureSymbol is Variable variable
                 ? new AnonymousProcedureCall(new IntermediateRepresentation.Values.VariableReference(variable, this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), this)
                 : procedureSymbol is ForeignCProcedureDeclaration foreignFunction

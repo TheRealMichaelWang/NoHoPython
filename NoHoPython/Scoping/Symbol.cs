@@ -5,7 +5,7 @@
         public bool IsGloballyNavigable { get; }
         public string Name { get; }
 
-        public SymbolContainer? ParentContainer { get; }
+        public SymbolContainer ParentContainer { get; }
 
         public static string GetAbsolouteName(IScopeSymbol scopeSymbol)
         {

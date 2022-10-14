@@ -1,5 +1,5 @@
 # The North-Hollywood Python Compiler
-A strongly-typed, memory-safe, compiled dialect of Python. 
+A strongly-typed, memory-safe, compiled dialect of Python, that transpiles to human-readable C.
 - Guarentees memory saftey by enforcing RAII, and executing limited reference counting for closure-captured classes
 - Guarentees type saftey via a strong yet flexible static type-checker
   - No null. Enums/Variants are used instead. 

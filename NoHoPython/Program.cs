@@ -24,14 +24,20 @@ public static class Program
             List<IAstStatement> statements = parser.ParseAll();
 
             AstIRProgramBuilder astIRProgramBuilder = new(statements);
-            IRProgram program = astIRProgramBuilder.ToIRProgram();
+            IRProgram program = astIRProgramBuilder.ToIRProgram(args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"));
             parser.IncludeCFiles(program);
 
             StringBuilder output = new();
             program.Emit(output);
-            File.WriteAllText(args[1], output.ToString());
 
-            Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {args[1]}.");
+            string outputFile;
+            if (args.Length >= 2)
+                outputFile = args[1];
+            else
+                outputFile = "out.c";
+
+            File.WriteAllText(outputFile, output.ToString());
+            Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {outputFile}.");
         }
         catch (SyntaxError syntaxError)
         {

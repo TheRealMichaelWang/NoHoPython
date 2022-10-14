@@ -683,6 +683,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ForeignFunctionCall
     {
+        public override void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            base.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
         public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments)
         {
             emitter.Append($"{ForeignCProcedure.Name}(");

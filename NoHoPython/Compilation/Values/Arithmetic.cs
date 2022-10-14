@@ -142,7 +142,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if(ArrayValue.RequiresDisposal(typeargs))
             {
-                if (!irProgram.EmitExpressionStatements)
+                if (!irProgram.EmitExpressionStatements || Operation == ArrayOperation.GetArrayHandle)
                     throw new CannotEmitDestructorError(ArrayValue);
 
                 emitter.Append($"({{{ArrayValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_buffer = ");

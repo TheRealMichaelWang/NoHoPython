@@ -108,6 +108,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
+            Condition.ScopeForUsedTypes(typeargs, irBuilder);
             IfTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
             IfFalseBlock.ScopeForUsedTypes(typeargs, irBuilder);
         }
@@ -140,7 +141,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class IfBlock
     {
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => IfTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            Condition.ScopeForUsedTypes(typeargs, irBuilder);
+            IfTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+        }
 
         public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => IfTrueBlock.ForwardDeclareType(irProgram, emitter);
 
@@ -158,7 +163,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class WhileBlock
     {
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => WhileTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            Condition.ScopeForUsedTypes(typeargs, irBuilder);
+            WhileTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+        }
 
         public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => WhileTrueBlock.ForwardDeclareType(irProgram, emitter);
 

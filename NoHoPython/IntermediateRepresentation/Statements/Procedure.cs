@@ -256,6 +256,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public abstract IType Type { get; }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public readonly List<IRValue> Arguments;
 
@@ -317,6 +319,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type { get => new ProcedureType(Procedure.ReturnType, Procedure.ParameterTypes); }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public ProcedureReference Procedure { get; private set; }
         private ProcedureDeclaration? parentProcedure;

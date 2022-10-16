@@ -11,6 +11,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type { get => Variable.Type; }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public Variable Variable { get; private set; }
 
@@ -28,6 +30,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type { get => InitialValue.Type; }
+        public bool IsTruey => InitialValue.IsTruey;
+        public bool IsFalsey => InitialValue.IsFalsey;
 
         public Variable Variable { get; private set; }
         public IRValue InitialValue { get; private set; }
@@ -48,6 +52,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type => SetValue.Type;
+        public bool IsTruey => SetValue.IsTruey;
+        public bool IsFalsey => SetValue.IsFalsey;
 
         public Variable Variable { get; private set; }
         public IRValue SetValue { get; private set; }

@@ -95,6 +95,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type => outputTypes[Operation];
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public ArithmeticCastOperation Operation { get; private set; }
         public IRValue Input { get; private set; }
@@ -148,6 +150,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public ArithmeticOperation Operation { get; private set; }
         public IType Type { get; private set; }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public IRValue Left { get; private set; }
         public IRValue Right { get; private set; }
@@ -196,6 +200,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public ArrayOperation Operation { get; private set; }
         public IType Type => Operation == ArrayOperation.GetArrayLength ? new IntegerType() : new HandleType();
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public IRValue ArrayValue { get; private set; }
 

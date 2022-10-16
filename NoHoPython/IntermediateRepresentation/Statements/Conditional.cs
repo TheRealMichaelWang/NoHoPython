@@ -132,6 +132,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type { get; private set; }
 
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
         public IRValue Condition { get; private set; }
         public IRValue IfTrueValue { get; private set; }
         public IRValue IfFalseValue { get; private set; }

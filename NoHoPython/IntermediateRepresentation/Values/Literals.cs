@@ -9,6 +9,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type { get => new IntegerType(); }
+        public bool IsTruey => Number != 0;
+        public bool IsFalsey => Number == 0;
 
         public long Number { get; private set; }
 
@@ -24,6 +26,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type { get => new DecimalType(); }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public decimal Number { get; private set; }
 
@@ -39,6 +43,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type { get => new CharacterType(); }
+        public bool IsTruey => Character == '\0';
+        public bool IsFalsey => Character == '\0';
 
         public char Character { get; private set; }
 
@@ -52,6 +58,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     public sealed partial class TrueLiteral : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
+        public bool IsTruey => true;
+        public bool IsFalsey => false;
 
         public TrueLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
 
@@ -61,6 +69,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     public sealed partial class FalseLiteral : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
+        public bool IsTruey => false;
+        public bool IsFalsey => true;
 
         public FalseLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
 
@@ -70,6 +80,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     public sealed partial class NothingLiteral : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public NothingLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
 
@@ -81,6 +93,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type { get => new ArrayType(ElementType); }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public IType ElementType { get; private set; }
 
@@ -130,6 +144,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type { get => new ArrayType(ElementType); }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public IType ElementType { get; private set; }
         public IRValue Length { get; private set; }
@@ -147,6 +163,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     public sealed partial class AllocRecord : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public IType Type { get => RecordPrototype; }
 

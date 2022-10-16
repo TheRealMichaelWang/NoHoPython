@@ -96,6 +96,8 @@ namespace NoHoPython.IntermediateRepresentation
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs);
 
         public IType Type { get; }
+        public bool IsTruey { get; }
+        public bool IsFalsey { get; }
 
         //equivalent value but with type parameter references replaced
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);

@@ -84,6 +84,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type => TargetType;
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public InterfaceType TargetType { get; private set; }
         public IRValue Value { get; private set; }

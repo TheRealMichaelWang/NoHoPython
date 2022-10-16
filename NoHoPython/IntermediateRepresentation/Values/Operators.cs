@@ -20,6 +20,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
 
         public IType Type => new BooleanType();
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public IAstElement ErrorReportedElement { get; private set; }
 
@@ -64,6 +66,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type => new BooleanType();
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public LogicalOperation Operation { get; private set; }
 
@@ -94,6 +98,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type { get; private set; }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public IRValue Array { get; private set; }
         public IRValue Index { get; private set; }
@@ -129,6 +135,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type => Value.Type;
+        public bool IsTruey => Value.IsTruey;
+        public bool IsFalsey => Value.IsFalsey;
 
         public IRValue Array { get; private set; }
         public IRValue Index { get; private set; }
@@ -152,6 +160,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type => Property.Type;
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
         public IRValue Record { get; private set; }
         public Property Property { get; private set; }
@@ -174,6 +184,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type => Property.Type;
+        public bool IsTruey => Value.IsTruey;
+        public bool IsFalsey => Value.IsFalsey;
 
         public IRValue Record { get; private set; }
         public RecordDeclaration.RecordProperty Property { get; private set; }

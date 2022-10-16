@@ -48,12 +48,16 @@ namespace NoHoPython.Scoping
 
             private List<IRStatement>? statements;
 
-            public Module(string name, SymbolContainer parentContainer, IAstElement errorReportedElement) : base(parentContainer == null)
+#pragma warning disable CS8618 // Only occurs for program head
+            public Module(string name, SymbolContainer? parentContainer, IAstElement errorReportedElement) : base(parentContainer == null)
+#pragma warning restore CS8618 
             {
                 Name = name;
                 ErrorReportedElement = errorReportedElement;
                 statements = null;
+#pragma warning disable CS8601 // Only occurs for program head
                 ParentContainer = parentContainer;
+#pragma warning restore CS8601
             }
 
             public void DelayedLinkSetStatements(List<IRStatement> statements)

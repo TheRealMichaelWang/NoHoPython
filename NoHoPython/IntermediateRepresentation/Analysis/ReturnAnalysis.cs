@@ -11,9 +11,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     partial class CodeBlock
     {
+        public bool CodeBlockAllCodePathsReturn()
+        {
 #pragma warning disable CS8602 //Statements initialized during ir generation
-        public bool CodeBlockAllCodePathsReturn() => Statements.TrueForAll((statement) => statement.AllCodePathsReturn());
+            foreach (IRStatement statement in Statements)
+                if (statement.AllCodePathsReturn())
+                    return true;
 #pragma warning restore CS8602
+            return false;
+        }
 
         public bool CodeBlockSomeCodePathsBreak()
         {
@@ -82,7 +88,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class MatchStatement
     {
-        public bool AllCodePathsReturn() => MatchHandlers.TrueForAll((handler) => handler.ToExecute.CodeBlockSomeCodePathsBreak());
+        public bool AllCodePathsReturn() => MatchHandlers.TrueForAll((handler) => handler.ToExecute.CodeBlockAllCodePathsReturn());
 
         public bool SomeCodePathsBreak()
         {

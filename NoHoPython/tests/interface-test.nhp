@@ -17,4 +17,4 @@ def ldInterface(person p, student s):
 
 def main():
 	michael = new student("Michael", 17, 11)
-	ldInterface(tofree = new student("tim", 18, 12) as person, michael)
+	ldInterface(new student("tim", 18, 12), michael)

@@ -32,7 +32,7 @@ namespace NoHoPython.Scoping
                 symbols.Add(symbol.Name, symbol);
                 return;
             }
-            throw new SymbolAlreadyExistsException(existingSymbol, this, errorReportElement);
+            throw new SymbolAlreadyExistsException(existingSymbol, errorReportElement);
         }
     }
 
@@ -46,7 +46,7 @@ namespace NoHoPython.Scoping
             public bool IsGloballyNavigable => true;
             public string Name { get; private set; }
 
-            private List<IRStatement>? statements;
+            private List<IRStatement> statements;
 
 #pragma warning disable CS8618 // Only occurs for program head
             public Module(string name, SymbolContainer? parentContainer, IAstElement errorReportedElement) : base(parentContainer == null)
@@ -54,18 +54,13 @@ namespace NoHoPython.Scoping
             {
                 Name = name;
                 ErrorReportedElement = errorReportedElement;
-                statements = null;
+                statements = new List<IRStatement>();
 #pragma warning disable CS8601 // Only occurs for program head
                 ParentContainer = parentContainer;
 #pragma warning restore CS8601
             }
 
-            public void DelayedLinkSetStatements(List<IRStatement> statements)
-            {
-                if (this.statements != null)
-                    throw new InvalidOperationException();
-                this.statements = statements;
-            }
+            public void DelayedLinkSetStatements(List<IRStatement> statements) => this.statements.AddRange(statements);
 
             public void ScopeForUsedTypes(Dictionary<Typing.TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => throw new InvalidOperationException();
             public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => throw new InvalidOperationException();
@@ -107,7 +102,7 @@ namespace NoHoPython.Scoping
                     IScopeSymbol? symbol = scopedContainer.FindSymbol(parts[i], errorReportedElement);
                     scopedContainer = symbol == null || (fromGlobalStack && !symbol.IsGloballyNavigable)
                         ? throw new SymbolNotFoundException(parts[i], scopedContainer, errorReportedElement)
-                        : symbol is SymbolContainer symbolContainer ? symbolContainer : throw new SymbolNotModuleException(symbol, scopedContainer, errorReportedElement);
+                        : symbol is SymbolContainer symbolContainer ? symbolContainer : throw new SymbolNotModuleException(symbol, errorReportedElement);
                 }
 
                 string finalIdentifier = parts.Last();
@@ -151,12 +146,31 @@ namespace NoHoPython.Scoping
             return codeBlock;
         }
 
-        public Module NewModule(string name, IAstElement errorReportedElement)
+        public Module NewModule(string name, bool allowPartial, IAstElement errorReportedElement)
         {
-            Module module = new(name, scopeStack.Peek(), errorReportedElement);
-            DeclareSymbol(module, errorReportedElement);
-            NavigateToScope(module);
-            return module;
+            try
+            {
+                IScopeSymbol existingSymbol = FindSymbol(name, errorReportedElement);
+                if (existingSymbol is Module module)
+                {
+                    if (allowPartial)
+                    {
+                        NavigateToScope(module);
+                        return module;
+                    }
+                    else
+                        throw new SymbolAlreadyExistsException(existingSymbol, errorReportedElement);
+                }
+                else
+                    throw new SymbolNotModuleException(existingSymbol, errorReportedElement);
+            }
+            catch(SymbolNotFoundException)
+            {
+                Module module = new(name, scopeStack.Peek(), errorReportedElement);
+                DeclareSymbol(module, errorReportedElement);
+                NavigateToScope(module);
+                return module;
+            }
         }
 
         public void GoBack()
@@ -179,7 +193,7 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder)
         {
-            IRModule = irBuilder.SymbolMarshaller.NewModule(Identifier, this);
+            IRModule = irBuilder.SymbolMarshaller.NewModule(Identifier, true, this);
             Statements.ForEach((IAstStatement statement) => statement.ForwardTypeDeclare(irBuilder));
             irBuilder.SymbolMarshaller.GoBack();
         }

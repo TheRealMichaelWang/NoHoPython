@@ -1,0 +1,6 @@
+﻿mod mem:
+	def memcpy<T>(array<T> dest, array<T> src, int destOffset, int srcOffset, int length):
+		i = 0
+		while i < length:
+			dest[i + destOffset] = src[i + srcOffset]
+			i = i + 1

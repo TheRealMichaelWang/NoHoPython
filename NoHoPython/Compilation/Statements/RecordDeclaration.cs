@@ -70,10 +70,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine(";");
 
                 emitter.AppendLine($"void free_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
-                emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
                 emitter.AppendLine($"{recordType.GetCName(irProgram)} borrow_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
-                if (!irProgram.EmitExpressionStatements)
-                    emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src);"); 
+
+                if (!recordType.HasDestructor)
+                {
+                    emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
+                    if (!irProgram.EmitExpressionStatements)
+                        emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src);");
+                }
             }
         }
 
@@ -99,6 +103,7 @@ namespace NoHoPython.Typing
     partial class RecordType
     {
         public bool RequiresDisposal => true;
+        public bool HasDestructor => HasProperty("__del__");
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
 
@@ -106,10 +111,19 @@ namespace NoHoPython.Typing
         public string GetCHeapSizer(IRProgram irProgram) => $"sizeof({GetStandardIdentifier(irProgram)}_t)";
 
         public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.AppendLine($"free_record{GetStandardIdentifier(irProgram)}({valueCSource});");
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append($"copy_record{GetStandardIdentifier(irProgram)}({valueCSource})");
-        
+
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource)
+        {
+            if (HasDestructor)
+                throw new CannotEmitCopyError(this);
+            emitter.Append($"copy_record{GetStandardIdentifier(irProgram)}({valueCSource})");
+        }
+
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
         {
+            if (HasDestructor)
+                throw new CannotEmitCopyError(this);
+
             if (irProgram.EmitExpressionStatements)
                 IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
             else
@@ -206,8 +220,8 @@ namespace NoHoPython.Typing
             emitter.AppendLine("\t}");
             emitter.AppendLine("\trecord->_nhp_freeing = 1;");
 
-            if (HasProperty("__del__"))
-                emitter.AppendLine("\trecord->__del__(record->__del__);");
+            if (HasDestructor)
+                emitter.AppendLine("\trecord->__del__->_nhp_this_anon(record->__del__);");
 
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
             {
@@ -223,6 +237,9 @@ namespace NoHoPython.Typing
 
         public void EmitCopier(IRProgram irProgram, StringBuilder emitter)
         {
+            if (HasDestructor)
+                return;
+
             emitter.AppendLine($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} copied_record = malloc({GetCHeapSizer(irProgram)});");
             emitter.AppendLine("\tcopied_record->_nhp_ref_count = 0;");

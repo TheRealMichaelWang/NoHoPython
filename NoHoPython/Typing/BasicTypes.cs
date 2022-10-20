@@ -14,7 +14,6 @@ namespace NoHoPython.Typing
         public static readonly NothingType Nothing = new(); //not a primitive but also commonly used
 
         public abstract string TypeName { get; }
-        public abstract int Size { get; }
 
         public abstract int Id { get; }
 
@@ -39,7 +38,6 @@ namespace NoHoPython.Typing
     public sealed partial class IntegerType : Primitive
     {
         public override string TypeName => "int";
-        public override int Size => 8;
         public override int Id => 0;
 
         public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new IntegerLiteral(0, errorReportedElement);
@@ -53,7 +51,6 @@ namespace NoHoPython.Typing
     public sealed partial class DecimalType : Primitive
     {
         public override string TypeName => "dec";
-        public override int Size => 8;
         public override int Id => 1;
 
         public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new DecimalLiteral(0, errorReportedElement);
@@ -67,7 +64,6 @@ namespace NoHoPython.Typing
     public sealed partial class CharacterType : Primitive
     {
         public override string TypeName { get => "char"; }
-        public override int Size => 1;
         public override int Id => 2;
 
         public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new CharacterLiteral('\0', errorReportedElement);
@@ -80,8 +76,7 @@ namespace NoHoPython.Typing
 
     public sealed partial class BooleanType : Primitive
     {
-        public override string TypeName { get => "bool"; }
-        public override int Size => 4;
+        public override string TypeName => "bool";
         public override int Id => 3;
 
         public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new FalseLiteral(errorReportedElement);
@@ -92,6 +87,18 @@ namespace NoHoPython.Typing
         }
     }
 
+    public sealed partial class HandleType : Primitive
+    {
+        public override string TypeName => "handle";
+        public override int Id => 4;
+
+        public override IRValue GetDefaultValue(IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+
+        public override bool IsCompatibleWith(IType type) => type is HandleType;
+
+        public override string ToString() => TypeName;
+    }
+
     public sealed partial class NothingType : IType
     {
         public string TypeName => "nothing";
@@ -100,19 +107,6 @@ namespace NoHoPython.Typing
         public bool IsCompatibleWith(IType type)
         {
             return type is NothingType;
-        }
-
-        public override string ToString() => TypeName;
-    }
-
-    public sealed partial class HandleType : IType
-    {
-        public string TypeName => "handle";
-        public IRValue GetDefaultValue(IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
-
-        public bool IsCompatibleWith(IType type)
-        {
-            return type is HandleType;
         }
 
         public override string ToString() => TypeName;

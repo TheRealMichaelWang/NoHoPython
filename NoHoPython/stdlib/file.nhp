@@ -1,0 +1,33 @@
+﻿include "std.nhp"
+
+mod io:
+	mod cinterop:
+		#ensures that string ends with a C-style NULL terminator
+		def sanitizeCStr(array<char> str) array<char>:
+			if str[str as int - 1] == '\0':
+				return str
+			else:
+				buf = new char[str as int + 1]
+				mem::memcpy(buf, str, 0, 0, str as int)
+				buf[str as int] = '\0'
+	
+	def openFile(array<char> path, array<char> mode) nullable<file>:
+		cdef fopen(handle path, handle str)
+		fileHandle = fopen(sanitizeCStr(path), sanitizeCStr(mode))
+		if fileHandle == 0: #failed to open
+			return None
+		else:
+			return new file(fileHandle)
+	
+	class file:
+		handle fileHandle
+		
+		def __init__(handle fileHandle):
+			self.fileHandle = fileHandle
+		def __del__():
+			cdef fclose(handle fileHandle) None
+			fclose(self.fileHandle)
+		
+		def readAllText() array<char>:
+			cdef fsize(handle) int
+			cdef fread()

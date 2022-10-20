@@ -229,6 +229,15 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
+    public sealed class CannotEmitCopyError : CCodegenError
+    {
+        public RecordType RecordType { get; private set; }
+
+        public CannotEmitCopyError(RecordType recordType) : base(null, $"Couldn't safley copy or move value of type {recordType.TypeName} because it implements a destructor.")
+        {
+            RecordType = recordType;
+        }
+    }
 
     public sealed class CannotCompileNothingError : CCodegenError
     {
@@ -272,24 +281,20 @@ namespace NoHoPython.Scoping
     public sealed class SymbolAlreadyExistsException : IRGenerationError
     {
         public IScopeSymbol ExistingSymbol;
-        public SymbolContainer ParentContainer;
 
-        public SymbolAlreadyExistsException(IScopeSymbol existingSymbol, SymbolContainer parentContainer, IAstElement astElement) : base(astElement, $"Symbol {existingSymbol.Name} already exists.")
+        public SymbolAlreadyExistsException(IScopeSymbol existingSymbol, IAstElement astElement) : base(astElement, $"Symbol {existingSymbol.Name} already exists.")
         {
             ExistingSymbol = existingSymbol;
-            ParentContainer = parentContainer;
         }
     }
 
     public sealed class SymbolNotModuleException : IRGenerationError
     {
         public IScopeSymbol Symbol;
-        public SymbolContainer ParentContainer;
 
-        public SymbolNotModuleException(IScopeSymbol symbol, SymbolContainer parentContainer, IAstElement astElement) : base(astElement, $"Symbol {symbol.Name} isn't a module.")
+        public SymbolNotModuleException(IScopeSymbol symbol, IAstElement astElement) : base(astElement, $"Symbol {symbol.Name} isn't a module.")
         {
             Symbol = symbol;
-            ParentContainer = parentContainer;
         }
     }
 }

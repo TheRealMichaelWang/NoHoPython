@@ -11,9 +11,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
             DecimalToInt,
             CharToInt,
             BooleanToInt,
+            HandleToInt,
             IntToDecimal,
             IntToChar,
-            IntToBoolean
+            IntToBoolean,
+            IntToHandle
         }
 
         private static Dictionary<ArithmeticCastOperation, IType> outputTypes = new()
@@ -21,9 +23,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {ArithmeticCastOperation.DecimalToInt, new IntegerType() },
             {ArithmeticCastOperation.CharToInt, new IntegerType() },
             {ArithmeticCastOperation.BooleanToInt, new IntegerType() },
+            {ArithmeticCastOperation.HandleToInt, new IntegerType() },
             {ArithmeticCastOperation.IntToDecimal, new DecimalType() },
             {ArithmeticCastOperation.IntToChar, new CharacterType() },
-            {ArithmeticCastOperation.IntToBoolean, new CharacterType() }
+            {ArithmeticCastOperation.IntToBoolean, new CharacterType() },
+            {ArithmeticCastOperation.IntToHandle, new HandleType() }
         };
 
         private static Dictionary<ArithmeticCastOperation, IType> inputTypes = new()
@@ -31,23 +35,27 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {ArithmeticCastOperation.IntToDecimal, new IntegerType() },
             {ArithmeticCastOperation.IntToChar, new IntegerType() },
             {ArithmeticCastOperation.IntToBoolean, new IntegerType() },
+            {ArithmeticCastOperation.IntToHandle, new IntegerType() },
             {ArithmeticCastOperation.DecimalToInt, new DecimalType() },
             {ArithmeticCastOperation.CharToInt, new CharacterType() },
-            {ArithmeticCastOperation.BooleanToInt, new BooleanType() }
+            {ArithmeticCastOperation.BooleanToInt, new BooleanType() },
+            {ArithmeticCastOperation.HandleToInt, new HandleType() }
         };
 
         private static ArithmeticCastOperation[] toIntOperation = new ArithmeticCastOperation[]
         {
             ArithmeticCastOperation.DecimalToInt,
             ArithmeticCastOperation.CharToInt,
-            ArithmeticCastOperation.BooleanToInt
+            ArithmeticCastOperation.BooleanToInt,
+            ArithmeticCastOperation.HandleToInt,
         };
 
         private static ArithmeticCastOperation[] intToOperation = new ArithmeticCastOperation[]
         {
             ArithmeticCastOperation.IntToDecimal,
             ArithmeticCastOperation.IntToChar,
-            ArithmeticCastOperation.IntToBoolean
+            ArithmeticCastOperation.IntToBoolean,
+            ArithmeticCastOperation.IntToHandle
         };
 
         public static IRValue CastTo(IRValue value, IType typeTarget)
@@ -127,8 +135,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         private static Dictionary<ArithmeticOperation, string> operatorOverloadIdentifiers = new()
         {
             {ArithmeticOperation.Add, "add"},
-            { ArithmeticOperation.Subtract,"subtract" },
-            { ArithmeticOperation.Divide,"divide" },
+            {ArithmeticOperation.Subtract,"subtract" },
+            {ArithmeticOperation.Divide,"divide" },
             {ArithmeticOperation.Multiply ,"multiply"},
             {ArithmeticOperation.Modulo ,"modulo"},
             {ArithmeticOperation.Exponentiate, "exponentiate"}

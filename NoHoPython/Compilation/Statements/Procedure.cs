@@ -1,5 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Text;
@@ -470,11 +471,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
+            Variable? localToReturn = null;
             if (ToReturn.Type is not NothingType)
             {
                 CodeBlock.CIndent(emitter, indent);
                 emitter.Append("_nhp_toret = ");
 
+                if (ToReturn is VariableReference variableReference && variableReference.Variable.ParentProcedure == parentProcedure)
+                {
+                    localToReturn = variableReference.Variable;
+                    emitter.Append(localToReturn.GetStandardIdentifier(irProgram));
+                }
                 if (ToReturn.RequiresDisposal(typeargs))
                     ToReturn.Emit(irProgram, emitter, typeargs);
                 else
@@ -488,7 +495,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
 
             foreach (Variable variable in activeVariables)
-                if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+                if (localToReturn != variable && variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
                 {
                     CodeBlock.CIndent(emitter, indent);
                     variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, variable.GetStandardIdentifier(irProgram));

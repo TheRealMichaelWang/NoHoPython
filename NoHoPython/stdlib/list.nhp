@@ -1,9 +1,4 @@
-﻿mod memutils:
-	def memcpy<T>(array<T> src, array<T> dest, int srcOffset, int destOffset, int length):
-		i = 0
-		while i < length:
-			src[i + srcOffset] = dest[i + destOffset]
-			i = i + 1
+﻿include "mem.nhp"
 
 mod data:
 	class list<T>:
@@ -18,10 +13,17 @@ mod data:
 		def pushBack(T elem):
 			if self.count == (self.buffer as int):
 				newBuffer = new T[self.count + 10](self.defaultValue)
-				memutils::memcpy(newBuffer, self.buffer, 0, 0, self.count)
+				mem::memcpy(newBuffer, self.buffer, 0, 0, self.count)
 				self.buffer = newBuffer
 			self.buffer[self.count] = elem
 			self.count = self.count + 1
+		def addRange(list<T> range):
+			if self.count + range.count >= self.buffer as int:
+				newBuffer = new T[self.count + range.count](self.defaultValue)
+				mem::memcpy(newBuffer, self.buffer, 0, 0, self.count)
+				self.buffer = newBuffer
+			mem::memcpy(self.buffer, range.buffer, self.count, 0, range.count)
+			self.count = self.count + range.count
 		
 		def toArray() array<T>:
 			buffer = new T[self.count](self.defaultValue)

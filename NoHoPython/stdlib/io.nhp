@@ -43,6 +43,11 @@ mod io:
 		cinterop::putchar('\n')
 	def scanLine() array<char>:
 		list = new data::list<char>(10, '\0')
-		while (c = cinterop::getchar()) != '\n':
+		while (c = cinterop::getchar()) != '\n' and c != '\0':
+			list.pushBack(c)
+		return list.toArray()
+	def scanTok() array<char>:
+		list = new data::list<char>(10, '\0')
+		while (c = cinterop::getchar()) != ' ' and c != '\t' and c != '\n' and c != '\0':
 			list.pushBack(c)
 		return list.toArray()

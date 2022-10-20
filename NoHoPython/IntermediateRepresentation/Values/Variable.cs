@@ -81,7 +81,7 @@ namespace NoHoPython.Scoping
         public string Name { get; private set; }
 
         public ProcedureDeclaration ParentProcedure;
-        public SymbolContainer? ParentContainer => ParentProcedure;
+        public SymbolContainer ParentContainer => ParentProcedure;
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_var_{Name}";
 

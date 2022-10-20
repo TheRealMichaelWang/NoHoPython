@@ -13,6 +13,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="stdlib\io.nhp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="stdlib\io.nhp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
   </ItemGroup>
 
@@ -32,9 +42,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="stdlib\io.nhp">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="stdlib\list.nhp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

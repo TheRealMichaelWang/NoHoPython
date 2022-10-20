@@ -57,6 +57,6 @@
 
     partial class HandleType
     {
-        public IType Clone() => new HandleType();
+        public override IType Clone() => new HandleType();
     }
 }

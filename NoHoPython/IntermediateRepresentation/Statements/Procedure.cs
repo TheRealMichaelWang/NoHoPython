@@ -213,11 +213,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public IRValue ToReturn { get; private set; }
 
         private List<Variable> activeVariables;
+        private ProcedureDeclaration parentProcedure;
 
         public ReturnStatement(IRValue toReturn, AstIRProgramBuilder irBuilder, IAstStatement errorReportedStatement)
         {
             ToReturn = ArithmeticCast.CastTo(toReturn, irBuilder.ScopedProcedures.Peek().ReturnType);
             activeVariables = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetCurrentLocals();
+            parentProcedure = irBuilder.ScopedProcedures.Peek();
             ErrorReportedElement = errorReportedStatement;
         }
     }

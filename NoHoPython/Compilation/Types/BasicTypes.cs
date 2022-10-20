@@ -54,21 +54,7 @@ namespace NoHoPython.Typing
 
     partial class HandleType
     {
-        public bool IsNativeCType => true;
-        public bool RequiresDisposal => false;
-
-        public string GetCName(IRProgram irProgram) => "void*";
-        public string GetStandardIdentifier(IRProgram irProgram) => TypeName;
-
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) { }
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append(valueCSource);
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"({destC} = {valueCSource})");
-        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
-        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
-
-        public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }
+        public override string GetCName(IRProgram irProgram) => "void*";
     }
 
     partial class NothingType

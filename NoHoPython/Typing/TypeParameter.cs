@@ -149,14 +149,7 @@ namespace NoHoPython.Typing
 
     partial class HandleType
     {
-        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleType();
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
-
-        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
-        {
-            if (!IsCompatibleWith(argument))
-                throw new UnexpectedTypeException(this, errorReportedElement);
-        }
+        public override IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleType();
     }
 
     partial class NothingType

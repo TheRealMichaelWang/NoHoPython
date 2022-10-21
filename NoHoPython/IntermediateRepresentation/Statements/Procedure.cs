@@ -17,7 +17,8 @@ namespace NoHoPython.Syntax
                 dependentProcedures.Add(procedureDeclaration, new());
             foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
                 foreach (ProcedureDeclaration callSite in procedureDeclaration.CallSiteProcedures)
-                    dependentProcedures[callSite].Add(procedureDeclaration);
+                    if(procedureDeclaration != callSite)
+                        dependentProcedures[callSite].Add(procedureDeclaration);
 
             while (unprocessedProcedures.Count > 0)
             {

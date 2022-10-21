@@ -27,7 +27,3 @@ mod io:
 		def __del__():
 			cdef fclose(handle fileHandle) None
 			fclose(self.fileHandle)
-		
-		def readAllText() array<char>:
-			cdef fsize(handle) int
-			cdef fread()

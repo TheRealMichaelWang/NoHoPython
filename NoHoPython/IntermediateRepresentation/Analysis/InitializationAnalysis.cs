@@ -40,6 +40,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
     }
 
+    partial class CSymbolDeclaration
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
+    }
+
     partial class CodeBlock
     {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
@@ -288,6 +293,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     }
 
     partial class VariableReference
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
+    }
+
+    partial class CSymbolReference
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
     }

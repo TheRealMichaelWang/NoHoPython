@@ -1,4 +1,5 @@
 ﻿include "std.nhp"
+include "stream.nhp"
 
 mod io:
 	mod cinterop:
@@ -27,3 +28,10 @@ mod io:
 		def __del__():
 			cdef fclose(handle fileHandle) None
 			fclose(self.fileHandle)
+		
+		def read() char:
+			cdef getc(handle) None
+			return getc(self.fileHandle)
+		def write(char c):
+			cdef putc(char, handle) None
+			fputc(c)

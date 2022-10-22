@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NoHoPython.IntermediateRepresentation.Values
+﻿namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class AllocArray
     {
@@ -94,6 +88,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class VariableReference
     {
         public IRValue GetPostEvalPure() => new VariableReference(Variable, ErrorReportedElement);
+    }
+
+    partial class CSymbolReference
+    {
+        public IRValue GetPostEvalPure() => new CSymbolReference(CSymbol, ErrorReportedElement);
     }
 
     partial class SetVariable

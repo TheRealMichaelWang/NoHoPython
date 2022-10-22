@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "\"tests/fib.txt\"\r\nout.c"
+      "commandLineArgs": "\"E:\\robogod\\src\\robot.nhp\"\r\nout.c"
     }
   }
 }

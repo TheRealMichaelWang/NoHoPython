@@ -62,6 +62,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public bool SomeCodePathsBreak() => false;
     }
 
+    partial class CSymbolDeclaration
+    {
+        public bool AllCodePathsReturn() => false;
+        public bool SomeCodePathsBreak() => false;
+    }
+
     partial class LoopStatement
     {
         public bool AllCodePathsReturn() => false;

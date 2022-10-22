@@ -81,7 +81,7 @@ namespace NoHoPython.Syntax.Parsing
                 case TokenType.Define:
                     return ParseProcedureDeclaration();
                 case TokenType.CDefine:
-                    return ParseForeignCProcedure();
+                    return ParseCDefine();
                 case TokenType.Match:
                     return ParseMatchStatement();
                 case TokenType.Pass:
@@ -320,7 +320,7 @@ namespace NoHoPython.Syntax.Parsing
                 case TokenType.Define:
                     return ParseProcedureDeclaration();
                 case TokenType.CDefine:
-                    return ParseForeignCProcedure();
+                    return ParseCDefine();
                 case TokenType.Enum:
                     return ParseEnumDeclaration();
                 case TokenType.Interface:

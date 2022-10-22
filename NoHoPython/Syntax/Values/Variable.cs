@@ -30,4 +30,20 @@
         public override string ToString() => $"{Name} = {SetValue}";
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{this}";
     }
+
+    public sealed partial class CSymbolDeclaration : IAstStatement
+    {
+        public SourceLocation SourceLocation { get; private set; }
+        public readonly string Name;
+        public AstType? Type { get; private set; }
+
+        public CSymbolDeclaration(string name, AstType? type, SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+            Name = name;
+            Type = type;
+        }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}cdef {Name}{(Type == null ? string.Empty : $" {Type}")}";
+    }
 }

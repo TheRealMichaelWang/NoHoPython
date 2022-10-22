@@ -1,4 +1,5 @@
 ﻿using NoHoPython.Syntax.Statements;
+using NoHoPython.Syntax.Values;
 
 namespace NoHoPython.Syntax.Statements
 {
@@ -164,7 +165,7 @@ namespace NoHoPython.Syntax.Parsing
             return new ProcedureDeclaration(identifer, typeParameters, parameters, ParseCodeBlock(), returnType, location);
         }
 
-        private ForeignCProcedureDeclaration ParseForeignCProcedure()
+        private IAstStatement ParseCDefine()
         {
             SourceLocation location = scanner.CurrentLocation;
 
@@ -173,17 +174,26 @@ namespace NoHoPython.Syntax.Parsing
             string identifier = scanner.LastToken.Identifier;
             scanner.ScanToken();
 
-            MatchAndScanToken(TokenType.OpenParen);
-            List<AstType> parameters = new();
-            while (scanner.LastToken.Type != TokenType.CloseParen)
+            if (scanner.LastToken.Type == TokenType.OpenParen)
             {
-                parameters.Add(ParseType());
-                if (scanner.LastToken.Type != TokenType.CloseParen)
-                    MatchAndScanToken(TokenType.Comma);
+                MatchAndScanToken(TokenType.OpenParen);
+                List<AstType> parameters = new();
+                while (scanner.LastToken.Type != TokenType.CloseParen)
+                {
+                    parameters.Add(ParseType());
+                    if (scanner.LastToken.Type != TokenType.CloseParen)
+                        MatchAndScanToken(TokenType.Comma);
+                }
+                scanner.ScanToken();
+                return new ForeignCProcedureDeclaration(identifier, parameters, ParseType(), location);
             }
-            scanner.ScanToken();
-
-            return new ForeignCProcedureDeclaration(identifier, parameters, ParseType(), location);
+            else
+            {
+                if (scanner.LastToken.Type == TokenType.Newline)
+                    return new CSymbolDeclaration(identifier, null, location);
+                else
+                    return new CSymbolDeclaration(identifier, ParseType(), location);
+            }
         }
     }
 }

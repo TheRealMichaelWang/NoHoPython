@@ -24,6 +24,7 @@
         Elif,
         Default,
         Return,
+        Abort,
         Break,
         Continue,
         Pass,

@@ -1,6 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
-using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
@@ -20,34 +19,6 @@ namespace NoHoPython.IntermediateRepresentation
         {
             Console.WriteLine($"IR Generation Error: {Message}");
 
-            Console.WriteLine($"\nIn {AstElement.SourceLocation}:\n");
-
-            if (AstElement is IAstValue astValue)
-            {
-                Console.WriteLine($"\t{astValue}");
-            }
-            else if (AstElement is IAstStatement astStatement)
-                Console.WriteLine(astStatement.ToString(0));
-        }
-    }
-
-    public abstract class CCodegenError : Exception
-    {
-        public IRElement? IRElement { get; private set; }
-
-        public CCodegenError(IRElement? iRElement, string message) : base(message)
-        {
-            IRElement = iRElement;
-        }
-
-        public void Print()
-        {
-            Console.WriteLine($"Codegen(to C) Error: {Message}");
-
-            if (IRElement == null)
-                return;
-
-            IAstElement AstElement = IRElement.ErrorReportedElement;
             Console.WriteLine($"\nIn {AstElement.SourceLocation}:\n");
 
             if (AstElement is IAstValue astValue)
@@ -181,6 +152,16 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
+    public sealed class RecordMustDefineCopierError : IRGenerationError
+    {
+        public RecordDeclaration RecordDeclaration { get; private set; }
+
+        public RecordMustDefineCopierError(RecordDeclaration recordDeclaration) : base(recordDeclaration.ErrorReportedElement, $"Because {recordDeclaration.Name} implements a destructor, it must also implement a copier (do so using __copy__).")
+        {
+            RecordDeclaration = recordDeclaration;
+        }
+    }
+
     public sealed class InsufficientEnumOptions : IRGenerationError
     {
         public InsufficientEnumOptions(IAstElement astElement) : base(astElement, "Enum/Variant must have at least two type options.")
@@ -214,50 +195,6 @@ namespace NoHoPython.IntermediateRepresentation
     public sealed class UnexpectedLoopStatementException : IRGenerationError
     {
         public UnexpectedLoopStatementException(IAstElement errorReportedElement) : base(errorReportedElement, $"Continues and breaks may only be used inside of loops.")
-        {
-
-        }
-    }
-
-    public sealed class CannotEmitDestructorError : CCodegenError
-    {
-        public IRValue Value { get; private set; }
-
-        public CannotEmitDestructorError(IRValue value) : base(value, "Cannot emit destructor for value. Please move to a variable.")
-        {
-            Value = value;
-        }
-    }
-
-    public sealed class CannotEmitCopyError : CCodegenError
-    {
-        public RecordType RecordType { get; private set; }
-
-        public CannotEmitCopyError(RecordType recordType) : base(null, $"Couldn't safley copy or move value of type {recordType.TypeName} because it implements a destructor.")
-        {
-            RecordType = recordType;
-        }
-    }
-
-    public sealed class CannotCompileNothingError : CCodegenError
-    {
-        public CannotCompileNothingError(IRElement? errorReportedElement) : base(errorReportedElement, "(Internal Error)Cannot actually compile/emit a nothing literal nor scope a nothing type.")
-        {
-
-        }
-    }
-
-    public sealed class UnexpectedTypeParameterError : CCodegenError
-    {
-        public UnexpectedTypeParameterError(Typing.TypeParameter typeParameter, IRElement? errorReportedElement) : base(errorReportedElement, $"(Internal Error)Could not scope or compile/emit the type parameter {typeParameter.Name}.")
-        {
-
-        }
-    }
-
-    public sealed class CircularDependentTypesError : CCodegenError
-    {
-        public CircularDependentTypesError(List<IType> dependecyChain, IType circularDependentType) : base(null, $"Type {dependecyChain[0].TypeName} is circularly dependent; {string.Join(" -> ", dependecyChain.ConvertAll((type) => type.TypeName))}, and depends on {circularDependentType.TypeName} again. Please note that the size of {dependecyChain[0].TypeName} has to be known during compilation)")
         {
 
         }

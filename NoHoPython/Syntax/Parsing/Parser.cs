@@ -75,6 +75,9 @@ namespace NoHoPython.Syntax.Parsing
                         return new ReturnStatement(new NothingLiteral(location), location);
                     else
                         return new ReturnStatement(ParseExpression(), location);
+                case TokenType.Abort:
+                    scanner.ScanToken();
+                    return new AbortStatement(scanner.LastToken.Type == TokenType.Newline ? null : ParseExpression(), location);
                 case TokenType.Assert:
                     scanner.ScanToken();
                     return new AssertStatement(ParseExpression(), location);

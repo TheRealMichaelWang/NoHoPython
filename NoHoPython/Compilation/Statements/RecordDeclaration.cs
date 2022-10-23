@@ -72,12 +72,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine($"void free_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
                 emitter.AppendLine($"{recordType.GetCName(irProgram)} borrow_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
 
-                if (!recordType.HasDestructor)
-                {
+                if (recordType.HasCopier)
                     emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record);");
-                    if (!irProgram.EmitExpressionStatements)
-                        emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src);");
-                }
+                if (!irProgram.EmitExpressionStatements)
+                    emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src);");
             }
         }
 
@@ -104,6 +102,7 @@ namespace NoHoPython.Typing
     {
         public bool RequiresDisposal => true;
         public bool HasDestructor => HasProperty("__del__");
+        public bool HasCopier => HasProperty("__copy__");
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
 
@@ -114,16 +113,14 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource)
         {
-            if (HasDestructor)
-                throw new CannotEmitCopyError(this);
-            emitter.Append($"copy_record{GetStandardIdentifier(irProgram)}({valueCSource})");
+            if (HasCopier)
+                emitter.Append($"{valueCSource}->__copy__->_nhp_this_anon({valueCSource}->__copy__)");
+            else
+                emitter.Append($"copy_record{GetStandardIdentifier(irProgram)}({valueCSource})");
         }
 
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
         {
-            if (HasDestructor)
-                throw new CannotEmitCopyError(this);
-
             if (irProgram.EmitExpressionStatements)
                 IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
             else
@@ -237,7 +234,7 @@ namespace NoHoPython.Typing
 
         public void EmitCopier(IRProgram irProgram, StringBuilder emitter)
         {
-            if (HasDestructor)
+            if (HasCopier)
                 return;
 
             emitter.AppendLine($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record) {{");

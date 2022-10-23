@@ -123,6 +123,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => ToReturn.AnalyzePropertyInitialization(initializedProperties);
     }
+
+    partial class AbortStatement
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => AbortMessage?.AnalyzePropertyInitialization(initializedProperties);
+    }
 }
 
 namespace NoHoPython.IntermediateRepresentation.Values

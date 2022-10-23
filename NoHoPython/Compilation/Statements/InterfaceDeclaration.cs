@@ -214,12 +214,34 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             InterfaceType realPrototype = (InterfaceType)TargetType.SubstituteWithTypearg(typeargs);
 
+            if (Value.RequiresDisposal(typeargs))
+            {
+                if (!irProgram.EmitExpressionStatements)
+                    throw new CannotEmitDestructorError(Value);
+                emitter.Append($"({{{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_marshal_buf = ");
+                Value.Emit(irProgram, emitter, typeargs);
+                emitter.Append(';');
+            }
+
             List<Property> properties = realPrototype.GetProperties();
             List<string> emittedValues = new List<string>(properties.Count);
+
+            bool firstEmit = true;
             foreach(Property property in properties)
             {
                 StringBuilder valueEmitter = new StringBuilder();
-                Value.Emit(irProgram, valueEmitter, typeargs);
+                if (Value.RequiresDisposal(typeargs))
+                    valueEmitter.Append("_nhp_marshal_buf");
+                else
+                {
+                    if (firstEmit)
+                        IRValue.EmitMemorySafe(Value, irProgram, emitter, typeargs);
+                    else
+                    {
+                        IRValue.EmitMemorySafe(Value.GetPostEvalPure(), irProgram, emitter, typeargs);
+                        firstEmit = false;
+                    }
+                }
 
                 StringBuilder getPropertyEmitter = new StringBuilder();
                 if (Value.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
@@ -230,7 +252,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emittedValues.Add(getPropertyEmitter.ToString());
             }
 
-            emitter.Append($"marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join(", ", emittedValues)})");
+            if(Value.RequiresDisposal(typeargs))
+            {
+                emitter.Append($"{realPrototype.GetCName(irProgram)} _nhp_int_res = marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join(", ", emittedValues)}); ");
+                Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_marshal_buf");
+                emitter.Append("_nhp_int_res;});");
+            }
+            else
+                emitter.Append($"marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join(", ", emittedValues)})");
         }
     }
 }

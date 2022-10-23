@@ -1,8 +1,10 @@
-﻿using NoHoPython.IntermediateRepresentation;
+﻿using NoHoPython.Compilation;
+using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 using System.Text;
 
 namespace NoHoPython.Syntax
@@ -509,6 +511,56 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
     }
 
+    partial class AbortStatement
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            if (AbortMessage != null)
+            {
+                AbortMessage.Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+                AbortMessage.ScopeForUsedTypes(typeargs, irBuilder);
+            }
+        }
+
+        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
+
+        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            CodeBlock.CIndent(emitter, indent);
+            emitter.AppendLine("{");
+
+            if (irProgram.DoCallStack)
+            {
+                CallStackReporting.EmitErrorLoc(emitter, ErrorReportedElement, indent + 1);
+                CallStackReporting.EmitPrintStackTrace(emitter, indent + 1);
+            }
+
+            CodeBlock.CIndent(emitter, indent + 1);
+            if (AbortMessage != null)
+            {
+                emitter.Append($"{AbortMessage.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_abort_msg = ");
+                AbortMessage.Emit(irProgram, emitter, typeargs);
+                emitter.AppendLine(";");
+
+                CodeBlock.CIndent(emitter, indent + 1);
+                emitter.AppendLine("printf(\"AbortError: %s\\n\", _nhp_abort_msg.buffer);");
+
+                CodeBlock.CIndent(emitter, indent + 1);
+                AbortMessage.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_abort_msg");
+            }
+            else
+                emitter.Append("puts(\"AbortError: No message given.\");");
+
+            CodeBlock.CIndent(emitter, indent + 1);
+            emitter.AppendLine("abort();");
+
+            CodeBlock.CIndent(emitter, indent);
+            emitter.AppendLine("}");
+        }
+    }
+
     partial class ForeignCProcedureDeclaration
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
@@ -537,10 +589,22 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
-        public abstract void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments);
+        public abstract void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall);
 
+        public static int nestedCalls = 1;
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
         {
+            int currentNestedCalls = nestedCalls;
+            nestedCalls++;
+            if (irProgram.DoCallStack)
+            {
+                if (!irProgram.EmitExpressionStatements)
+                    throw new CannotPerformCallStackReporting(this);
+                emitter.Append("({");
+                CallStackReporting.EmitReportCall(emitter, ErrorReportedElement, -1);
+                emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_callrep_res{currentNestedCalls} = ");
+            }
+
             if (irProgram.EmitExpressionStatements && !Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)))
             {
                 emitter.Append("({");
@@ -548,22 +612,31 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 for (int i = 0; i < Arguments.Count; i++)
                     if (Arguments[i].RequiresDisposal(typeargs))
                     {
-                        emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_freebuf_{i};");
+                        emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_freebuf_{i}{currentNestedCalls};");
                         releasedArguments.Add(i);
                     }
-                emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_res = ");
-                EmitCall(irProgram, emitter, typeargs, releasedArguments);
+                emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_res{currentNestedCalls} = ");
+                EmitCall(irProgram, emitter, typeargs, releasedArguments, currentNestedCalls);
                 emitter.Append(";");
 
                 foreach (int i in releasedArguments)
-                    Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_freebuf_{i}");
-                emitter.Append("})");
+                    Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_freebuf_{i}{currentNestedCalls}");
+                emitter.Append($"_nhp_res{currentNestedCalls};}})");
             }
             else
-                EmitCall(irProgram, emitter, typeargs, new SortedSet<int>());
+                EmitCall(irProgram, emitter, typeargs, new SortedSet<int>(), currentNestedCalls);
+            nestedCalls--;
+            Debug.Assert(currentNestedCalls == nestedCalls);
+
+            if (irProgram.DoCallStack)
+            {
+                emitter.Append(';');
+                CallStackReporting.EmitReportReturn(emitter, -1);
+                emitter.Append($"_nhp_callrep_res{currentNestedCalls};}})");
+            }
         }
 
-        protected void EmitArguments(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments)
+        protected void EmitArguments(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall)
         {
             for (int i = 0; i < Arguments.Count; i++)
             {
@@ -572,7 +645,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (Arguments[i].RequiresDisposal(typeargs))
                 {
                     if (releasedArguments.Contains(i))
-                        emitter.Append($"_nhp_freebuf_{i}");
+                        emitter.Append($"_nhp_freebuf_{i}{currentNestedCall}");
                     else
                         throw new CannotEmitDestructorError(Arguments[i]);
                 }
@@ -588,18 +661,20 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (RequiresDisposal(typeargs))
                 {
                     StringBuilder valueEmitter = new();
-                    EmitCall(irProgram, valueEmitter, typeargs, releasedArguments);
+                    EmitCall(irProgram, valueEmitter, typeargs, releasedArguments, 0);
                     Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valueEmitter.ToString());
                 }
                 else
                 {
-                    EmitCall(irProgram, emitter, typeargs, releasedArguments);
+                    EmitCall(irProgram, emitter, typeargs, releasedArguments, 0);
                     emitter.AppendLine(";");
                 }
             }
 
-            CodeBlock.CIndent(emitter, indent);
+            if(irProgram.DoCallStack)
+                CallStackReporting.EmitReportCall(emitter, ErrorReportedElement, indent);
 
+            CodeBlock.CIndent(emitter, indent);
             if (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)))
             {
                 SortedSet<int> releasedArguments = new();
@@ -627,6 +702,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             else
                 emitAndDestroyCall(new SortedSet<int>());
+
+            if(irProgram.DoCallStack)
+                CallStackReporting.EmitReportReturn(emitter, indent);
         }
     }
 
@@ -638,10 +716,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
             base.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public override void EmitCall (IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments)
+        public override void EmitCall (IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall)
         {
             emitter.Append($"{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
-            EmitArguments(irProgram, emitter, typeargs, releasedArguments);
+            EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);
             for(int i = 0; i < Procedure.ProcedureDeclaration.CapturedVariables.Count; i++)
             {
                 if (i > 0 || Arguments.Count > 0)
@@ -661,14 +739,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
             base.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments)
+        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall)
         {
             IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
             emitter.Append("->_nhp_this_anon(");
             IRValue.EmitMemorySafe(ProcedureValue.GetPostEvalPure(), irProgram, emitter, typeargs);
             if(Arguments.Count > 0)
                 emitter.Append(", ");
-            EmitArguments(irProgram, emitter, typeargs, releasedArguments);
+            EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);
             emitter.Append(')');
         }
     }
@@ -695,10 +773,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
             base.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments)
+        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall)
         {
             emitter.Append($"{ForeignCProcedure.Name}(");
-            EmitArguments(irProgram, emitter, typeargs, releasedArguments);
+            EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);
             emitter.Append(')');
         }
     }

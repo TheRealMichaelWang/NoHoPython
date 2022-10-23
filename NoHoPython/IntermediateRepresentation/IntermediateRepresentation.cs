@@ -1,5 +1,7 @@
+using NoHoPython.Compilation;
 using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Text;
@@ -58,7 +60,7 @@ namespace NoHoPython.Syntax
         public void AddEnumDeclaration(EnumDeclaration enumDeclaration) => EnumDeclarations.Add(enumDeclaration);
         public void AddProcDeclaration(ProcedureDeclaration procedureDeclaration) => ProcedureDeclarations.Add(procedureDeclaration);
 
-        public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements)
+        public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack)
         {
             List<ProcedureDeclaration> compileHeads = new();
             foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
@@ -68,7 +70,7 @@ namespace NoHoPython.Syntax
                 procedureDeclaration.ScopeAsCompileHead(this);
             ScopeForAllSecondaryProcedures();
 
-            return new(doBoundsChecking, eliminateAsserts, emitExpressionStatements,
+            return new(doBoundsChecking, eliminateAsserts, emitExpressionStatements, doCallStack,
                 RecordDeclarations, InterfaceDeclarations, EnumDeclarations, ProcedureDeclarations, new List<string>()
                 {
                     "<stdio.h>",
@@ -133,15 +135,17 @@ namespace NoHoPython.IntermediateRepresentation
         public bool DoBoundsChecking { get; private set; }
         public bool EliminateAsserts { get; private set; }
         public bool EmitExpressionStatements { get; private set; }
+        public bool DoCallStack { get; private set; }
 
         private Dictionary<IType, HashSet<IType>> typeDependencyTree;
         private HashSet<IType> compiledTypes;
 
-        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, List<EnumType> usedEnumTypes, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, List<InterfaceType> usedInterfaceTypes, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, List<RecordType> usedRecordTypes, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree)
+        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, List<EnumType> usedEnumTypes, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, List<InterfaceType> usedInterfaceTypes, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, List<RecordType> usedRecordTypes, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree)
         {
             DoBoundsChecking = doBoundsChecking;
             EliminateAsserts = eliminateAsserts;
             EmitExpressionStatements = emitExpressionStatements;
+            DoCallStack = doCallStack;
 
             RecordDeclarations = recordDeclarations;
             InterfaceDeclarations = interfaceDeclarations;
@@ -202,6 +206,8 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void Emit(StringBuilder emitter)
         {
+            ProcedureCall.nestedCalls = 0;
+
             foreach (string includedCFile in IncludedCFiles)
                 if (includedCFile.StartsWith('<'))
                     emitter.AppendLine($"#include {includedCFile}");
@@ -233,9 +239,14 @@ namespace NoHoPython.IntermediateRepresentation
             ProcedureDeclarations.ForEach((procedure) => procedure.ForwardDeclareActual(this, emitter));
             EmitAnonProcedureCapturedContecies(emitter);
 
+            //emit utility functions
+            if(DoCallStack)
+                CallStackReporting.EmitReporter(emitter);
+            if(!EliminateAsserts)
+                AssertStatement.EmitAsserter(emitter, DoCallStack);
+
             //emit function behavior
-            EmitArrayTypeMarshallers(emitter);
-            AssertStatement.EmitAsserter(emitter);
+            EmitArrayTypeMarshallers(emitter, DoCallStack);
             EmitAnonProcedureMovers(this, emitter);
             EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new Dictionary<TypeParameter, IType>(), 0));
             InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(this, emitter, new Dictionary<TypeParameter, IType>(), 0));

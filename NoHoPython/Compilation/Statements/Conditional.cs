@@ -1,4 +1,5 @@
-﻿using NoHoPython.IntermediateRepresentation.Values;
+﻿using NoHoPython.Compilation;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Text;
@@ -261,12 +262,23 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class AssertStatement
     {
-        public static void EmitAsserter(StringBuilder emitter)
+        public static void EmitAsserter(StringBuilder emitter, bool doCallStack)
         {
             emitter.AppendLine("void _nhp_assert(int flag, const char* src_loc, const char* assertion_src) {");
             emitter.AppendLine("\tif(!flag) {");
-            emitter.AppendLine("\t\tprintf(\"Assertion Failed, %s.\\n\\t\", src_loc);");
-            emitter.AppendLine("\t\tputs(assertion_src);");
+
+            if (doCallStack)
+            {
+                CallStackReporting.EmitErrorLoc(emitter, "src_loc", "assertion_src", 2);
+                CallStackReporting.EmitPrintStackTrace(emitter, 2);
+                emitter.AppendLine("\t\tprintf(\"AssertionError: %s failed.\\n\", assertion_src);");
+            }
+            else
+            {
+                emitter.AppendLine("\t\tprintf(\"Assertion Failed, %s.\\n\\t\", src_loc);");
+                emitter.AppendLine("\t\tputs(assertion_src);");
+            }
+
             emitter.AppendLine("\t\tabort();");
             emitter.AppendLine("\t}");
             emitter.AppendLine("}");

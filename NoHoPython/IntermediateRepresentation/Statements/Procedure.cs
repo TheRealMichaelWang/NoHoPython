@@ -225,6 +225,18 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
     }
 
+    public sealed partial class AbortStatement : IRStatement
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public IRValue? AbortMessage { get; private set; }
+
+        public AbortStatement(IRValue? abortMessage, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            AbortMessage = abortMessage == null ? null : ArithmeticCast.CastTo(abortMessage, new ArrayType(Primitive.Character));
+        }
+    }
+
     public sealed partial class ForeignCProcedureDeclaration : IRStatement, IScopeSymbol
     {
         public SymbolContainer ParentContainer { get; private set; }
@@ -374,6 +386,14 @@ namespace NoHoPython.Syntax.Statements
                 ? throw new UnexpectedReturnStatement(this)
                 : (IRStatement)new IntermediateRepresentation.Statements.ReturnStatement(ReturnValue.GenerateIntermediateRepresentationForValue(irBuilder, irBuilder.ScopedProcedures.Peek().ReturnType), irBuilder, this);
         }
+    }
+
+    partial class AbortStatement
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.AbortStatement(AbortMessage == null ? null : AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, new ArrayType(Primitive.Character)), this);
     }
 
     partial class ProcedureDeclaration

@@ -285,6 +285,7 @@ namespace NoHoPython.Syntax.Statements
 
             IntermediateRepresentation.Statements.ProcedureDeclaration? Constructor = null;
             IntermediateRepresentation.Statements.ProcedureDeclaration? Destructor = null;
+            IntermediateRepresentation.Statements.ProcedureDeclaration? Copier = null;
             IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => {
                 var irProcedure = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
                 messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, this, null));
@@ -293,6 +294,8 @@ namespace NoHoPython.Syntax.Statements
                     Constructor = irProcedure;
                 else if (reciever.Name == "__del__")
                     Destructor = irProcedure;
+                else if (reciever.Name == "__copy__")
+                    Copier = irProcedure;
 
                 return irProcedure;
             }));
@@ -309,7 +312,19 @@ namespace NoHoPython.Syntax.Statements
                 else if (Destructor.Parameters.Count != 0)
                     throw new UnexpectedTypeArgumentsException(0, Destructor.Parameters.Count, Destructor.ErrorReportedElement);
 #pragma warning restore CS8602
+                else if (Copier == null)
+                    throw new RecordMustDefineCopierError(IRRecordDeclaration);
             }
+            if(Copier != null)
+            {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                if (!Copier.ReturnType.IsCompatibleWith(IRRecordDeclaration.SelfType))
+                    throw new UnexpectedTypeException(Copier.ReturnType, IRRecordDeclaration.SelfType, Copier.ErrorReportedElement);
+                else if(Copier.Parameters.Count != 0)
+                    throw new UnexpectedTypeArgumentsException(0, Copier.Parameters.Count, Copier.ErrorReportedElement);
+#pragma warning restore CS8602
+            }
+
             IRRecordDeclaration.AnalyzePropertyInitialization(Constructor);
 
             irBuilder.SymbolMarshaller.GoBack();

@@ -11,7 +11,6 @@ enum numerical:
 
 mod std:
 	mod cinterop:
-		cdef abort() None
 		cdef acos(dec) dec
 		cdef asin(dec) dec
 		cdef atan(dec) dec
@@ -31,9 +30,6 @@ mod std:
 					return d
 				int i:
 					return i as dec
-	
-	def abort():
-		cinterop::abort()
 	
 	def exit(int status):
 		cinterop::exit(status)

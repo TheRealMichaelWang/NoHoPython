@@ -24,7 +24,7 @@ public static class Program
             List<IAstStatement> statements = parser.ParseAll();
 
             AstIRProgramBuilder astIRProgramBuilder = new(statements);
-            IRProgram program = astIRProgramBuilder.ToIRProgram(args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"));
+            IRProgram program = astIRProgramBuilder.ToIRProgram(args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"));
             parser.IncludeCFiles(program);
 
             StringBuilder output = new();

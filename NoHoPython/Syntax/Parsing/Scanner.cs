@@ -307,6 +307,7 @@
                     "elif" => TokenType.Elif,
                     "else" => TokenType.Else,
                     "return" => TokenType.Return,
+                    "abort" => TokenType.Abort,
                     "break" => TokenType.Break,
                     "continue" => TokenType.Continue,
                     "pass" => TokenType.Pass,

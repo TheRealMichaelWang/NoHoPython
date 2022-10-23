@@ -1,4 +1,5 @@
-﻿using NoHoPython.IntermediateRepresentation;
+﻿using NoHoPython.Compilation;
+using NoHoPython.IntermediateRepresentation;
 using NoHoPython.Typing;
 using System.Text;
 
@@ -57,14 +58,25 @@ namespace NoHoPython.IntermediateRepresentation
             }
         }
 
-        public void EmitArrayTypeMarshallers(StringBuilder emitter)
+        public void EmitArrayTypeMarshallers(StringBuilder emitter, bool doCallStack)
         {
             if (DoBoundsChecking)
             {
-                emitter.AppendLine("int _nhp_bounds_check(int index, int max_length, const char* src_loc, const char* assertion_src) {");
+                emitter.AppendLine("int _nhp_bounds_check(int index, int max_length, const char* src_loc, const char* access_src) {");
                 emitter.AppendLine("\tif(index < 0 || index >= max_length) {");
-                emitter.AppendLine("\t\tprintf(\"Index out of bounds, %s. Index was %i, alloced length was %i.\\n\\t\", src_loc, index, max_length);");
-                emitter.AppendLine("\t\tputs(assertion_src);");
+
+                if (doCallStack)
+                {
+                    CallStackReporting.EmitErrorLoc(emitter, "src_loc", "access_src", 2);
+                    CallStackReporting.EmitPrintStackTrace(emitter, 2);
+                    emitter.AppendLine("\t\tprintf(\"IndexError: Index was %i, length was %i.\\n\", index, max_length);");
+                }
+                else
+                {
+                    emitter.AppendLine("\t\tprintf(\"Index out of bounds, %s. Index was %i, alloced length was %i.\\n\\t\", src_loc, index, max_length);");
+                    emitter.AppendLine("\t\tputs(access_src);");
+                }
+
                 emitter.AppendLine("\t\tabort();");
                 emitter.AppendLine("\t}");
                 emitter.AppendLine("\treturn index;");

@@ -58,6 +58,21 @@ namespace NoHoPython.Syntax.Statements
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}return {ReturnValue}";
     }
 
+    public sealed partial class AbortStatement : IAstStatement
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public IAstValue? AbortMessage { get; private set; }
+
+        public AbortStatement(IAstValue? abortMessage, SourceLocation sourceLocation)
+        {
+            AbortMessage = abortMessage;
+            SourceLocation = sourceLocation;
+        }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}abort{(AbortMessage == null ? string.Empty : $" {AbortMessage}")}";
+    }
+
     public sealed partial class ForeignCProcedureDeclaration : IAstStatement
     {
         public SourceLocation SourceLocation { get; private set; }

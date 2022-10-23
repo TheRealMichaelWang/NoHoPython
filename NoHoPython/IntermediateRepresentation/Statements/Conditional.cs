@@ -195,7 +195,7 @@ namespace NoHoPython.Syntax.Statements
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
-            IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean);
+            IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, false);
 
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
             scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, IfTrueBlock));
@@ -255,7 +255,7 @@ namespace NoHoPython.Syntax.Statements
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
-            IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean);
+            IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, true);
 
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
             scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
@@ -290,7 +290,7 @@ namespace NoHoPython.Syntax.Statements
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
-            IRValue matchValue = MatchedValue.GenerateIntermediateRepresentationForValue(irBuilder, null);
+            IRValue matchValue = MatchedValue.GenerateIntermediateRepresentationForValue(irBuilder, null, false);
             if(matchValue.Type is EnumType enumType)
             {
                 HashSet<IType> handledTypes = new(enumType.GetOptions(), new ITypeComparer());
@@ -336,7 +336,7 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.AssertStatement(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean), this);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.AssertStatement(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, false), this);
     }
 }
 
@@ -344,6 +344,6 @@ namespace NoHoPython.Syntax.Values
 {
     partial class IfElseValue
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irProgramBuilder, Primitive.Boolean), IfTrueValue.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), IfFalseValue.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), IfTrueValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), IfFalseValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this);
     }
 }

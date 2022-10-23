@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "\"E:\\robogod\\src\\robot.nhp\" \r\nout.c\r\n-callstack"
+      "commandLineArgs": "\"tests/fib.txt\"\r\nout.c\r\n-callstack"
     }
   }
 }

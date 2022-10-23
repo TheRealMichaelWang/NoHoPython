@@ -67,24 +67,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             if (Statements == null)
                 throw new InvalidOperationException();
-            foreach(Variable variable in DeclaredVariables)
-            {
-                CIndent(emitter, indent + 1);
-                emitter.AppendLine($"{variable.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} {variable.GetStandardIdentifier(irProgram)};");
-            }
+            foreach (VariableDeclaration declaration in DeclaredVariables)
+                declaration.EmitCDecl(irProgram, emitter, typeargs, indent);
 
             Statements.ForEach((statement) => statement.Emit(irProgram, emitter, typeargs, indent + 1));
 
             if (!CodeBlockAllCodePathsReturn())
             {
-                foreach (Variable variable in DeclaredVariables)
-                {
-                    if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
-                    {
-                        CIndent(emitter, indent + 1);
-                        variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, variable.GetStandardIdentifier(irProgram));
-                    }
-                }
+                foreach (VariableDeclaration declaration in DeclaredVariables)
+                    declaration.EmitCFree(irProgram, emitter, typeargs, indent);
                 if (insertFinalBreak)
                 {
                     CIndent(emitter, indent + 1);

@@ -9,7 +9,7 @@ namespace NoHoPython.Syntax
     {
         string ToString();
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate);
     }
 
     public interface IAstStatement : IAstElement

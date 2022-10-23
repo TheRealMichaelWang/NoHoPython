@@ -1,7 +1,12 @@
 include "io.nhp"
 
-def fib(int n) int:
-	return 1 if n <= 1 else fib(n - 1) + fib(n - 2)
+mod recursion:
+	def fib(int n) int:
+		return 1 if n <= 1 else fib(n - 1) + fib(n - 2)
+	
+	def fact(int n) int:
+		return 1 if n == 0 else n * fact(n - 1)
 
 def main():
-	io::print(fib(35))
+	#io::print(recursion::fib(35))
+	io::print(recursion::fact(0-1))

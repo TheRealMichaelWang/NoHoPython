@@ -93,11 +93,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public Variable Variable { get; private set; }
         public IRValue InitialValue { get; private set; }
+        public bool WillRevaluate { get; private set; }
 
-        public VariableDeclaration(string name, IRValue setValue, AstIRProgramBuilder irBuilder, IAstElement errorReportedELement)
+        public VariableDeclaration(string name, IRValue setValue, bool willRevaluate, AstIRProgramBuilder irBuilder, IAstElement errorReportedELement)
         {
             irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false), errorReportedELement);
-            irBuilder.SymbolMarshaller.CurrentCodeBlock.DeclaredVariables.Add(Variable);
+            irBuilder.SymbolMarshaller.CurrentCodeBlock.DeclaredVariables.Add(this);
             InitialValue = setValue;
             ErrorReportedElement = errorReportedELement;
         }
@@ -166,7 +167,7 @@ namespace NoHoPython.Syntax.Values
 {
     partial class VariableReference
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
             IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
             return valueSymbol is Variable variable
@@ -184,20 +185,20 @@ namespace NoHoPython.Syntax.Values
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null, false);
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
             try
             {
                 IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
                 return valueSymbol is Variable variable
-                    ? (IRValue)new IntermediateRepresentation.Values.SetVariable(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, true, this), SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type), this)
+                    ? (IRValue)new IntermediateRepresentation.Values.SetVariable(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, true, this), SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type, willRevaluate), this)
                     : throw new NotAVariableException(valueSymbol, this);
             }
             catch (SymbolNotFoundException)
             {
-                return new VariableDeclaration(Name, SetValue.GenerateIntermediateRepresentationForValue(irBuilder, expectedType), irBuilder, this);
+                return new VariableDeclaration(Name, SetValue.GenerateIntermediateRepresentationForValue(irBuilder, expectedType, willRevaluate), willRevaluate, irBuilder, this);
             }
         }
     }

@@ -27,8 +27,39 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
-        private void EmitStandard(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void EmitCDecl(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
+            CodeBlock.CIndent(emitter, indent + 1);
+            emitter.AppendLine($"{Variable.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} {Variable.GetStandardIdentifier(irProgram)};");
+            if (WillRevaluate && Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+            {
+                CodeBlock.CIndent(emitter, indent + 1);
+                emitter.AppendLine($"int init_{Variable.GetStandardIdentifier(irProgram)} = 0;");
+            }
+        }
+
+        public void EmitCFree(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            if (Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+            {
+                CodeBlock.CIndent(emitter, indent + 1);
+                Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, Variable.GetStandardIdentifier(irProgram));
+            }
+        }
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        {
+            bool closeExpressionStatement = false;
+            if (WillRevaluate && Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+            {
+                if (!irProgram.EmitExpressionStatements)
+                    throw new CannotEmitDestructorError(this);
+                emitter.Append($"({{if(init_{Variable.GetStandardIdentifier(irProgram)}) {{");
+                Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, Variable.GetStandardIdentifier(irProgram));
+                emitter.Append($"}} else {{init_{Variable.GetStandardIdentifier(irProgram)} = 1;}}");
+                closeExpressionStatement = true;
+            }
+
             emitter.Append($"({Variable.GetStandardIdentifier(irProgram)} = ");
             if (InitialValue.RequiresDisposal(typeargs))
                 InitialValue.Emit(irProgram, emitter, typeargs);
@@ -39,19 +70,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString());
             }
             emitter.Append(')');
-        }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
-        {
-            if (Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
-                throw new CannotEmitDestructorError(this);
-            EmitStandard(irProgram, emitter, typeargs);
+            if (closeExpressionStatement)
+                emitter.Append(";})");
         }
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
-            EmitStandard(irProgram, emitter, typeargs);
+            Emit(irProgram, emitter, typeargs);
             emitter.AppendLine(";");
         }
     }

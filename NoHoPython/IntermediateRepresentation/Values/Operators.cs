@@ -242,21 +242,21 @@ namespace NoHoPython.Syntax.Values
             {TokenType.Or, LogicalOperator.LogicalOperation.Or }
         };
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
             return ArithmeticTokens.ContainsKey(Operator)
-                ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), this)
+                ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Right.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this)
                 : ComparativeTokens.ContainsKey(Operator)
-                ? new ComparativeOperator(ComparativeTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), this)
+                ? new ComparativeOperator(ComparativeTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Right.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this)
                 : LogicalTokens.ContainsKey(Operator)
-                ? (IRValue)new LogicalOperator(LogicalTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), Right.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), this)
+                ? (IRValue)new LogicalOperator(LogicalTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Right.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this)
                 : throw new InvalidOperationException();
         }
     }
 
     partial class GetValueAtIndex
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder, expectedType == null ? null : new ArrayType(expectedType)), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder, Primitive.Integer), this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irBuilder, expectedType == null ? null : new ArrayType(expectedType), willRevaluate), Index.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), this);
     }
 
     partial class SetValueAtIndex
@@ -264,14 +264,14 @@ namespace NoHoPython.Syntax.Values
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null, false);
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType) => IntermediateRepresentation.Values.SetValueAtIndex.ComposeSetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irProgramBuilder, expectedType == null ? null : new ArrayType(expectedType)), Index.GenerateIntermediateRepresentationForValue(irProgramBuilder, Primitive.Integer), Value.GenerateIntermediateRepresentationForValue(irProgramBuilder, expectedType), this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => IntermediateRepresentation.Values.SetValueAtIndex.ComposeSetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irBuilder, expectedType == null ? null : new ArrayType(expectedType), willRevaluate), Index.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), Value.GenerateIntermediateRepresentationForValue(irBuilder, expectedType, willRevaluate), this);
     }
 
     partial class GetPropertyValue
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType) => new IntermediateRepresentation.Values.GetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), Property, this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.GetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Property, this);
     }
 
     partial class SetPropertyValue
@@ -279,8 +279,8 @@ namespace NoHoPython.Syntax.Values
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null, false);
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irProgramBuilder, IType? expectedType) => new IntermediateRepresentation.Values.SetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), Property, Value.GenerateIntermediateRepresentationForValue(irProgramBuilder, null), this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.SetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Property, Value.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this);
     }
 }

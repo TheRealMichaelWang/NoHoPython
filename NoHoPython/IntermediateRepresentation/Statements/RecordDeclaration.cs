@@ -280,7 +280,7 @@ namespace NoHoPython.Syntax.Statements
             {
                 var propertyValue = Properties[i].DefaultValue;
                 if (propertyValue != null)
-                    IRProperties[i].DelayedLinkSetDefaultValue(propertyValue.GenerateIntermediateRepresentationForValue(irBuilder, IRProperties[i].Type));
+                    IRProperties[i].DelayedLinkSetDefaultValue(propertyValue.GenerateIntermediateRepresentationForValue(irBuilder, IRProperties[i].Type, false));
             }
 
             IntermediateRepresentation.Statements.ProcedureDeclaration? Constructor = null;

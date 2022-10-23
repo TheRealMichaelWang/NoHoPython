@@ -683,7 +683,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (Arguments[i].RequiresDisposal(typeargs))
                     {
                         CodeBlock.CIndent(emitter, indent + 1);
-                        emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_freebuf_{i} = ");
+                        emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_freebuf_{i}0 = ");
                         Arguments[i].Emit(irProgram, emitter, typeargs);
                         emitter.AppendLine(";");
                         releasedArguments.Add(i);
@@ -695,7 +695,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 foreach (int i in releasedArguments)
                 {
                     CodeBlock.CIndent(emitter, indent + 1);
-                    Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_freebuf_{i}");
+                    Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_freebuf_{i}0");
                 }
                 CodeBlock.CIndent(emitter, indent);
                 emitter.AppendLine("}");

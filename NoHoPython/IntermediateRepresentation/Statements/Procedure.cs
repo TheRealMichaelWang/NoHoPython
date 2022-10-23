@@ -384,7 +384,7 @@ namespace NoHoPython.Syntax.Statements
         {
             return irBuilder.ScopedProcedures.Count == 0
                 ? throw new UnexpectedReturnStatement(this)
-                : (IRStatement)new IntermediateRepresentation.Statements.ReturnStatement(ReturnValue.GenerateIntermediateRepresentationForValue(irBuilder, irBuilder.ScopedProcedures.Peek().ReturnType), irBuilder, this);
+                : (IRStatement)new IntermediateRepresentation.Statements.ReturnStatement(ReturnValue.GenerateIntermediateRepresentationForValue(irBuilder, irBuilder.ScopedProcedures.Peek().ReturnType, false), irBuilder, this);
         }
     }
 
@@ -393,7 +393,7 @@ namespace NoHoPython.Syntax.Statements
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.AbortStatement(AbortMessage == null ? null : AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, new ArrayType(Primitive.Character)), this);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.AbortStatement(AbortMessage == null ? null : AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, new ArrayType(Primitive.Character), false), this);
     }
 
     partial class ProcedureDeclaration
@@ -480,17 +480,17 @@ namespace NoHoPython.Syntax.Values
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null, false);
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
             IScopeSymbol procedureSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
             return procedureSymbol is ProcedureDeclaration procedureDeclaration
-                ? (IRValue)new LinkedProcedureCall(procedureDeclaration, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedType, this)
+                ? (IRValue)new LinkedProcedureCall(procedureDeclaration, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedType, this)
                 : procedureSymbol is Variable variable
-                ? new AnonymousProcedureCall(new IntermediateRepresentation.Values.VariableReference(variable, this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), this)
+                ? new AnonymousProcedureCall(new IntermediateRepresentation.Values.VariableReference(variable, this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
                 : procedureSymbol is ForeignCProcedureDeclaration foreignFunction
-                ? new ForeignFunctionCall(foreignFunction, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), this)
+                ? new ForeignFunctionCall(foreignFunction, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
                 : throw new NotAProcedureException(procedureSymbol, this);
         }
     }
@@ -501,11 +501,11 @@ namespace NoHoPython.Syntax.Values
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)
-            GenerateIntermediateRepresentationForValue(irBuilder, null);
+            GenerateIntermediateRepresentationForValue(irBuilder, null, false);
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType)
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
-            return new AnonymousProcedureCall(ProcedureValue.GenerateIntermediateRepresentationForValue(irBuilder, null), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null)), this);
+            return new AnonymousProcedureCall(ProcedureValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this);
         }
     }
 }

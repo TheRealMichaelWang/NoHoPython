@@ -18,7 +18,7 @@ namespace NoHoPython.Compilation
 
             emitter.AppendLine("static void _nhp_print_stack_trace() {");
             emitter.AppendLine("\tputs(\"Traceback (most recent call last):\");");
-            emitter.AppendLine("\tfor(int i = _nhp_stack_size - 1; i >= 0; --i) {");
+            emitter.AppendLine("\tfor(int i = 0; i < _nhp_stack_size; i++) {");
             emitter.AppendLine("\t\tputchar('\\t');");
             emitter.AppendLine("\t\tputs(_nhp_call_stack_src_locs[i]);");
             emitter.AppendLine("\t\tputchar('\\t');");

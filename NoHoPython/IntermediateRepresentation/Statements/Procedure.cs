@@ -275,11 +275,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsFalsey => false;
 
         public readonly List<IRValue> Arguments;
+        private bool assignResponsibleDestroyer;
 
-        public ProcedureCall(List<IType> expectedParameters, List<IRValue> arguments, IAstElement errorReportedElement)
+        public ProcedureCall(List<IType> expectedParameters, List<IRValue> arguments, bool assignResponsibleDestroyer, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
             Arguments = arguments;
+            this.assignResponsibleDestroyer = assignResponsibleDestroyer;
 
             if (expectedParameters.Count != arguments.Count)
                 throw new UnexpectedTypeArgumentsException(expectedParameters.Count, arguments.Count, errorReportedElement);
@@ -302,7 +304,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         }
 
-        private LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments, ProcedureDeclaration? parentProcedure, IAstElement errorReportedElement) : base(procedure.ParameterTypes, arguments, errorReportedElement)
+        private LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments, ProcedureDeclaration? parentProcedure, IAstElement errorReportedElement) : base(procedure.ParameterTypes, arguments, true, errorReportedElement)
         {
             Procedure = procedure;
             this.parentProcedure = parentProcedure;
@@ -321,7 +323,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue ProcedureValue { get; private set; }
         public ProcedureType ProcedureType { get; private set; }
 
-        public AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments, IAstElement errorReportedElement) : base((procedureValue.Type is ProcedureType procedureType ? procedureType : throw new UnexpectedTypeException(procedureValue.Type, errorReportedElement)).ParameterTypes, arguments, errorReportedElement)
+        public AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments, IAstElement errorReportedElement) : base((procedureValue.Type is ProcedureType procedureType ? procedureType : throw new UnexpectedTypeException(procedureValue.Type, errorReportedElement)).ParameterTypes, arguments, true, errorReportedElement)
         {
             ProcedureValue = procedureValue;
             ProcedureType = procedureType;
@@ -364,7 +366,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public ForeignCProcedureDeclaration ForeignCProcedure { get; private set; }
 
-        public ForeignFunctionCall(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, IAstElement errorReportedElement) : base(foreignCProcedure.ParameterTypes, arguments, errorReportedElement)
+        public ForeignFunctionCall(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, IAstElement errorReportedElement) : base(foreignCProcedure.ParameterTypes, arguments, true, errorReportedElement)
         {
             ForeignCProcedure = foreignCProcedure;
         }

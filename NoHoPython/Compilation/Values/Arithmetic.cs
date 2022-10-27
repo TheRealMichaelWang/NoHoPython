@@ -13,12 +13,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Input.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             void EmitCCast(string castTo)
             {
                 emitter.Append($"(({castTo})");
-                IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
+                IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs, "NULL");
                 emitter.Append(')');
             }
 
@@ -26,7 +26,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 case ArithmeticCastOperation.BooleanToInt:
                 case ArithmeticCastOperation.CharToInt:
-                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs, "NULL");
                     break;
                 case ArithmeticCastOperation.DecimalToInt:
                     EmitCCast("long");
@@ -39,7 +39,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     break;
                 case ArithmeticCastOperation.IntToBoolean:
                     emitter.Append('(');
-                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs, "NULL");
                     emitter.Append(" ? 1 : 0");
                     emitter.Append(')');
                     break;
@@ -58,39 +58,39 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Right.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             if (Operation == ArithmeticOperation.Exponentiate)
             {
                 if(Type is DecimalType)
                 {
                     emitter.Append("pow(");
-                    IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs, "NULL");
                     emitter.Append(", ");
-                    IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs, "NULL");
                     emitter.Append(')');
                 }
                 else
                 {
                     emitter.Append("(int)pow((double)");
-                    IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs, "NULL");
                     emitter.Append(", (double)");
-                    IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
+                    IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs, "NULL");
                     emitter.Append(')');
                 }
             }
 			else if(Operation == ArithmeticOperation.Modulo && Type is DecimalType)
 			{
 				emitter.Append("fmod(");
-                IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
+                IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs, "NULL");
 				emitter.Append(", ");
-                IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
+                IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs, "NULL");
                 emitter.Append(')');
 			}
             else
             {
                 emitter.Append('(');
-                IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
+                IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs, "NULL");
                 switch (Operation)
                 {
                     case ArithmeticOperation.Add:
@@ -109,7 +109,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 						emitter.Append(" % ");
 						break;
                 }
-                IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
+                IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs, "NULL");
                 emitter.Append(')');
             }
         }
@@ -125,7 +125,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ArrayValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             void EmitOp()
             {
@@ -146,7 +146,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     throw new CannotEmitDestructorError(ArrayValue);
 
                 emitter.Append($"({{{ArrayValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_buffer = ");
-                ArrayValue.Emit(irProgram, emitter, typeargs);
+                ArrayValue.Emit(irProgram, emitter, typeargs, "NULL");
                 emitter.Append($"; {Type.GetCName(irProgram)} _nhp_res = _nhp_buffer");
                 EmitOp();
                 emitter.Append("; ");
@@ -155,7 +155,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             else
             {
-                ArrayValue.Emit(irProgram, emitter, typeargs);
+                ArrayValue.Emit(irProgram, emitter, typeargs, "NULL");
                 EmitOp();
             }
         }

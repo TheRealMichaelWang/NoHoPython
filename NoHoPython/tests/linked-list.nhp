@@ -1,4 +1,6 @@
-﻿enum nullable<T>:
+﻿include "mem.nhp"
+
+enum nullable<T>:
 	T
 	None
 
@@ -49,15 +51,21 @@ class list<T>:
 				return None
 
 def main():
-	cdef printf(handle, int) None
-	myList = new list<int>()
-	i = 0
-	while i < 20:
-		myList.pushBack(i)
-		i = i + 1
-	while True:
-		match res=myList.popFront():
-			int j:
-				printf(fmt="%i\n\0", j)
-			None:
-				return None
+	def test():
+		cdef printf(handle, int) None
+		mem::report()
+		myList = new list<int>()
+		i = 0
+		while i < 20:
+			myList.pushBack(i)
+			i = i + 1
+		mem::report()
+		stop = myList.isEmpty
+		while stop() == False:
+			match res=myList.popFront():
+				int j:
+					printf(fmt="%i\n\0", j)
+				None:
+					pass
+	test()
+	mem::report()

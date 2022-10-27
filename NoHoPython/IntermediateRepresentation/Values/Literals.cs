@@ -160,29 +160,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public sealed partial class AllocRecord : IRValue
+    public sealed partial class AllocRecord : ProcedureCall
     {
-        public IAstElement ErrorReportedElement { get; private set; }
-        public bool IsTruey => false;
-        public bool IsFalsey => false;
-
-        public IType Type { get => RecordPrototype; }
+        public override IType Type { get => RecordPrototype; }
 
         public RecordType RecordPrototype { get; private set; }
-        public readonly List<IRValue> ConstructorArguments;
 
-        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, IAstElement errorReportedElement)
+        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, IAstElement errorReportedElement) : base(((ProcedureType)recordPrototype.FindProperty("__init__").Type).ParameterTypes, constructorArguments, false, errorReportedElement)
         {
             RecordPrototype = recordPrototype;
-            ConstructorArguments = constructorArguments;
-            ErrorReportedElement = errorReportedElement;
-
-            ProcedureType constructorType = (ProcedureType)RecordPrototype.FindProperty("__init__").Type;
-            if (ConstructorArguments.Count != constructorType.ParameterTypes.Count)
-                throw new UnexpectedTypeArgumentsException(constructorType.ParameterTypes.Count, ConstructorArguments.Count, errorReportedElement);
-
-            for (int i = 0; i < ConstructorArguments.Count; i++)
-                ConstructorArguments[i] = ArithmeticCast.CastTo(ConstructorArguments[i], constructorType.ParameterTypes[i]);
         }
     }
 }

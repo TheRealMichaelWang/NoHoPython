@@ -22,12 +22,14 @@ namespace NoHoPython.Typing
         public string GetStandardIdentifier(IRProgram irProgram) => TypeName;
 
         public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) { }
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append(valueCSource);
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => emitter.Append(valueCSource);
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"({destC} = {valueCSource})");
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) { }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
-        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, $"{recordCSource}->_nhp_responsible_destroyer");
+
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(valueCSource);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }
     }
@@ -66,10 +68,11 @@ namespace NoHoPython.Typing
         public string GetStandardIdentifier(IRProgram irProgram) => "nothing";
 
         public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => throw new CannotCompileNothingError(null);
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => throw new CannotCompileNothingError(null);
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileNothingError(null);
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => throw new CannotCompileNothingError(null);
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => throw new CannotCompileNothingError(null);
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileNothingError(null);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => throw new CannotCompileNothingError(null);
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => throw new CannotCompileNothingError(null);
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) { }
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }

@@ -4,3 +4,8 @@
 		while i < length:
 			dest[i + destOffset] = src[i + srcOffset]
 			i = i + 1
+	
+	#analysis mode must not be none
+	def report():
+		cdef memoryReport() None
+		memoryReport()

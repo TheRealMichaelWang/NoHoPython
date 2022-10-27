@@ -24,7 +24,9 @@ namespace NoHoPython.Syntax
             string name = $"_nhp_anonProcTypeNo{uniqueProcedureTypes.Count}";
             uniqueProcedureTypes.Add(new(procedureType, name));
 
-            typeDependencyTree.Add(procedureType, new HashSet<IType>(new ITypeComparer()));
+            List<IType> dependencies = new List<IType>(procedureType.ParameterTypes);
+            dependencies.Add(procedureType.ReturnType);
+            typeDependencyTree.Add(procedureType, new HashSet<IType>(dependencies.Where((type) => type is not RecordType && type is not ProcedureType), new ITypeComparer()));
         }
 
         public bool DeclareUsedProcedureReference(ProcedureReference procedureReference)
@@ -66,10 +68,6 @@ namespace NoHoPython.IntermediateRepresentation
                     if (type is RecordType ||
                        type is ProcedureType)
                         emitter.Append("void*");
-                    else if (type is EnumType enumType)
-                        emitter.Append(enumType.GetCName(irProgram));
-                    else if (type is InterfaceType interfaceType)
-                        emitter.Append(interfaceType.GetCName(irProgram));
                     else if (type is TypeParameterReference)
                         throw new InvalidOperationException();
                     else
@@ -93,7 +91,7 @@ namespace NoHoPython.IntermediateRepresentation
                 emitter.AppendLine($"typedef struct {procedureInfo.Item2}_info {procedureInfo.Item2}_info_t;");
 
                 emitter.AppendLine($"typedef void (*{procedureInfo.Item2}_destructor_t)({procedureInfo.Item1.GetCName(irProgram)} to_free);");
-                emitter.AppendLine($"typedef {procedureInfo.Item1.GetCName(irProgram)} (*{procedureInfo.Item2}_copier_t)({procedureInfo.Item1.GetCName(irProgram)} to_copy);");
+                emitter.AppendLine($"typedef {procedureInfo.Item1.GetCName(irProgram)} (*{procedureInfo.Item2}_copier_t)({procedureInfo.Item1.GetCName(irProgram)} to_copy, void* responsible_destroyer);");
                 emitter.AppendLine($"typedef {procedureInfo.Item1.GetCName(irProgram)} (*{procedureInfo.Item2}_record_copier_t)({procedureInfo.Item1.GetCName(irProgram)} to_copy, void* record);");
 
                 emitter.AppendLine($"struct {procedureInfo.Item2}_info {{");
@@ -101,6 +99,7 @@ namespace NoHoPython.IntermediateRepresentation
                 emitter.AppendLine($"\t{procedureInfo.Item2}_destructor_t _nhp_destructor;");
                 emitter.AppendLine($"\t{procedureInfo.Item2}_copier_t _nhp_copier;");
                 emitter.AppendLine($"\t{procedureInfo.Item2}_record_copier_t _nhp_record_copier;");
+                emitter.AppendLine($"\t{procedureInfo.Item2}_record_copier_t _nhp_resp_mutator;");
                 emitter.AppendLine("};");
             }
 
@@ -154,6 +153,7 @@ namespace NoHoPython.IntermediateRepresentation
                 procedureReference.EmitAnonDestructor(this, emitter);
                 procedureReference.EmitAnonCopier(this, emitter);
                 procedureReference.EmitAnonRecordCopier(this, emitter);
+                procedureReference.EmitResponsibleDestroyerMutator(this, emitter);
                 procedureReference.EmitAnonymizer(this, emitter);
             }
         }
@@ -164,11 +164,11 @@ namespace NoHoPython.IntermediateRepresentation
 {
     partial interface IRValue
     {
-        public static void EmitMemorySafe(IRValue value, IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeArgs)
+        public static void EmitMemorySafe(IRValue value, IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeArgs, string responsibleDestroyer)
         {
             if (value.RequiresDisposal(typeArgs))
                 throw new CannotEmitDestructorError(value);
-            value.Emit(irProgram, emitter, typeArgs);
+            value.Emit(irProgram, emitter, typeArgs, responsibleDestroyer);
         }
     }
 }
@@ -184,7 +184,7 @@ namespace NoHoPython.Typing
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_info_t*";
 
         public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.AppendLine($"({valueCSource})->_nhp_destructor({valueCSource});"); 
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.Append($"({valueCSource})->_nhp_copier({valueCSource})");
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => emitter.Append($"({valueCSource})->_nhp_copier({valueCSource}, {responsibleDestroyer})");
         
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
         {
@@ -194,8 +194,10 @@ namespace NoHoPython.Typing
                 emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => emitter.Append($"({valueCSource})->_nhp_record_copier({valueCSource}, {recordCSource})");
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append($"({valueCSource})->_nhp_resp_mutator({valueCSource}, {newResponsibleDestroyer})");
+
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) { }
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
@@ -316,8 +318,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void EmitCaptureCFunctionHeader(IRProgram irProgram, StringBuilder emitter)
         {
             emitter.Append($"{anonProcedureType.GetCName(irProgram)} capture_{GetStandardIdentifier(irProgram)}(");
-            emitter.Append(string.Join(", ", ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => $"{capturedVar.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {capturedVar.GetStandardIdentifier(irProgram)}")));
-            emitter.Append(')');
+            foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
+                emitter.Append($"{capturedVariable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {capturedVariable.GetStandardIdentifier(irProgram)}, ");
+            emitter.Append("void* responsible_destroyer)");
         }
 
         public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter)
@@ -357,6 +360,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_destructor_t _nhp_destructor;");
             emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_copier_t _nhp_copier;");
             emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t _nhp_record_copier;");
+            emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t _nhp_resp_mutator;"); 
             foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
                 emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier(irProgram)};");
             emitter.AppendLine("\tint _nhp_freeing;");
@@ -371,17 +375,18 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             EmitCaptureCFunctionHeader(irProgram, emitter);
             emitter.AppendLine(" {");
 
-            emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* closure = malloc(sizeof({GetStandardIdentifier(irProgram)}_captured_t));");
+            emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* closure = {irProgram.MemoryAnalyzer.Allocater}(sizeof({GetStandardIdentifier(irProgram)}_captured_t));");
             emitter.AppendLine($"\tclosure->_nhp_this_anon = ({anonProcedureType.GetStandardIdentifier(irProgram)}_t)(&{GetStandardIdentifier(irProgram)});");
             emitter.AppendLine($"\tclosure->_nhp_destructor = ({anonProcedureType.GetStandardIdentifier(irProgram)}_destructor_t)(&free{GetStandardIdentifier(irProgram)});");
             emitter.AppendLine($"\tclosure->_nhp_copier = ({anonProcedureType.GetStandardIdentifier(irProgram)}_copier_t)(&copy{GetStandardIdentifier(irProgram)});");
             emitter.AppendLine($"\tclosure->_nhp_record_copier = ({anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t)(&record_copy{GetStandardIdentifier(irProgram)});");
+            emitter.AppendLine($"\tclosure->_nhp_resp_mutator = ({anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t)(&change_resp_owner{GetStandardIdentifier(irProgram)});");
             emitter.AppendLine("\tclosure->_nhp_freeing = 0;");
 
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
                 emitter.Append($"\tclosure->{capturedVariable.GetStandardIdentifier(irProgram)} = ");
-                capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitClosureBorrowValue(irProgram, emitter, capturedVariable.GetStandardIdentifier(irProgram));
+                capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitClosureBorrowValue(irProgram, emitter, capturedVariable.GetStandardIdentifier(irProgram), "responsible_destroyer");
                 emitter.AppendLine(";");
             }
             emitter.AppendLine($"\treturn ({anonProcedureType.GetCName(irProgram)})closure;");
@@ -406,7 +411,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitFreeValue(irProgram, emitter, $"to_free->{capturedVariable.GetStandardIdentifier(irProgram)}");
             }
             
-            emitter.AppendLine("\tfree(to_free);");
+            emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Disposer}(to_free);");
             emitter.AppendLine("}");
         }
 
@@ -415,22 +420,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (!IsAnonymous)
                 return;
 
-            emitter.AppendLine($"{anonProcedureType.GetCName(irProgram)} copy{GetStandardIdentifier(irProgram)}({anonProcedureType.GetCName(irProgram)} to_copy_anon) {{");
+            emitter.AppendLine($"{anonProcedureType.GetCName(irProgram)} copy{GetStandardIdentifier(irProgram)}({anonProcedureType.GetCName(irProgram)} to_copy_anon, void* responsible_destroyer) {{");
             emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* to_copy = ({GetClosureCaptureCType(irProgram)}*)to_copy_anon;");
-            emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* closure = malloc(sizeof({GetStandardIdentifier(irProgram)}_captured_t));");
-            emitter.AppendLine("\tclosure->_nhp_this_anon = to_copy->_nhp_this_anon;");
-            emitter.AppendLine("\tclosure->_nhp_destructor = to_copy->_nhp_destructor;");
-            emitter.AppendLine("\tclosure->_nhp_copier = to_copy->_nhp_copier;");
-            emitter.AppendLine("\tclosure->_nhp_record_copier = to_copy->_nhp_record_copier;");
-            emitter.AppendLine("\tclosure->_nhp_freeing = 0;");
-
+            emitter.Append($"\treturn capture_{GetStandardIdentifier(irProgram)}(");
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
-            {
-                emitter.Append($"\tclosure->{capturedVariable.GetStandardIdentifier(irProgram)} = ");
-                capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitClosureBorrowValue(irProgram, emitter, $"to_copy->{capturedVariable.GetStandardIdentifier(irProgram)}");
-                emitter.AppendLine(";");
-            }
-            emitter.AppendLine($"\treturn ({anonProcedureType.GetCName(irProgram)})closure;");
+                emitter.Append($"to_copy->{capturedVariable.GetStandardIdentifier(irProgram)}, ");
+            emitter.AppendLine("responsible_destroyer);");
             emitter.AppendLine("}");
         }
 
@@ -439,19 +434,29 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (!IsAnonymous)
                 return;
 
-            emitter.AppendLine($"{anonProcedureType.GetCName(irProgram)} record_copy{GetStandardIdentifier(irProgram)}({anonProcedureType.GetCName(irProgram)} to_copy_anon, void* record) {{");
+            emitter.AppendLine($"{anonProcedureType.GetCName(irProgram)} record_copy{GetStandardIdentifier(irProgram)}({anonProcedureType.GetCName(irProgram)} to_copy_anon, {RecordType.StandardRecordMask} record) {{");
             emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* to_copy = ({GetClosureCaptureCType(irProgram)}*)to_copy_anon;");
-            emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* closure = malloc(sizeof({GetStandardIdentifier(irProgram)}_captured_t));");
-            emitter.AppendLine("\tclosure->_nhp_this_anon = to_copy->_nhp_this_anon;");
-            emitter.AppendLine("\tclosure->_nhp_destructor = to_copy->_nhp_destructor;");
-            emitter.AppendLine("\tclosure->_nhp_copier = to_copy->_nhp_copier;");
-            emitter.AppendLine("\tclosure->_nhp_record_copier = to_copy->_nhp_record_copier;");
-            emitter.AppendLine("\tclosure->_nhp_freeing = 0;");
-
+            emitter.Append($"\treturn capture_{GetStandardIdentifier(irProgram)}(");
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
+                emitter.Append(capturedVariable.IsRecordSelf ? $"(({capturedVariable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)})record)" : $"to_copy->{capturedVariable.GetStandardIdentifier(irProgram)}");
+                emitter.Append(", ");
+            }
+            emitter.AppendLine("record->_nhp_responsible_destroyer);");
+            emitter.AppendLine("}");
+        }
+
+        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StringBuilder emitter)
+        {
+            if (!IsAnonymous)
+                return;
+
+            emitter.AppendLine($"{anonProcedureType.GetCName(irProgram)} change_resp_owner{GetStandardIdentifier(irProgram)}({anonProcedureType.GetCName(irProgram)} to_mutate, void* responsible_destroyer) {{");
+            emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* closure = ({GetClosureCaptureCType(irProgram)}*)to_mutate;");
+            foreach(Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
+            {
                 emitter.Append($"\tclosure->{capturedVariable.GetStandardIdentifier(irProgram)} = ");
-                capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitClosureBorrowValue(irProgram, emitter, capturedVariable.IsRecordSelf ? $"({capturedVariable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)})record" : $"to_copy->{capturedVariable.GetStandardIdentifier(irProgram)}");
+                capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitMutateResponsibleDestroyer(irProgram, emitter, $"closure->{capturedVariable.GetStandardIdentifier(irProgram)}", "responsible_destroyer");
                 emitter.AppendLine(";");
             }
             emitter.AppendLine($"\treturn ({anonProcedureType.GetCName(irProgram)})closure;");
@@ -485,12 +490,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     emitter.Append(localToReturn.GetStandardIdentifier(irProgram));
                 }
                 if (ToReturn.RequiresDisposal(typeargs))
-                    ToReturn.Emit(irProgram, emitter, typeargs);
+                    ToReturn.Emit(irProgram, emitter, typeargs, "None");
                 else
                 {
                     StringBuilder valueBuilder = new();
-                    ToReturn.Emit(irProgram, valueBuilder, typeargs);
-                    ToReturn.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString());
+                    ToReturn.Emit(irProgram, valueBuilder, typeargs, "None");
+                    ToReturn.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "None");
                 }
 
                 emitter.AppendLine(";");
@@ -541,7 +546,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (AbortMessage != null)
             {
                 emitter.Append($"{AbortMessage.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_abort_msg = ");
-                AbortMessage.Emit(irProgram, emitter, typeargs);
+                AbortMessage.Emit(irProgram, emitter, typeargs, "None");
                 emitter.AppendLine(";");
 
                 CodeBlock.CIndent(emitter, indent + 1);
@@ -589,10 +594,22 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
-        public abstract void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall);
+        public abstract void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer);
+
+        private void EmitCallWithResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer)
+        {
+            if (assignResponsibleDestroyer)
+            {
+                StringBuilder valueBuilder = new();
+                EmitCall(irProgram, valueBuilder, typeargs, releasedArguments, currentNestedCall, responsibleDestroyer);
+                Type.SubstituteWithTypearg(typeargs).EmitMutateResponsibleDestroyer(irProgram, emitter, valueBuilder.ToString(), responsibleDestroyer);
+            }
+            else
+                EmitCall(irProgram, emitter, typeargs, releasedArguments, currentNestedCall, responsibleDestroyer);
+        }
 
         public static int nestedCalls = 1;
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             int currentNestedCalls = nestedCalls;
             nestedCalls++;
@@ -612,11 +629,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 for (int i = 0; i < Arguments.Count; i++)
                     if (Arguments[i].RequiresDisposal(typeargs))
                     {
-                        emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_freebuf_{i}{currentNestedCalls};");
+                        emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_freebuf_{i}{currentNestedCalls} = ");
+                        Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
+                        emitter.AppendLine(";");
                         releasedArguments.Add(i);
                     }
                 emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_res{currentNestedCalls} = ");
-                EmitCall(irProgram, emitter, typeargs, releasedArguments, currentNestedCalls);
+                EmitCallWithResponsibleDestroyer(irProgram, emitter, typeargs, releasedArguments, currentNestedCalls, responsibleDestroyer);
                 emitter.Append(";");
 
                 foreach (int i in releasedArguments)
@@ -624,7 +643,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"_nhp_res{currentNestedCalls};}})");
             }
             else
-                EmitCall(irProgram, emitter, typeargs, new SortedSet<int>(), currentNestedCalls);
+                EmitCallWithResponsibleDestroyer(irProgram, emitter, typeargs, new SortedSet<int>(), currentNestedCalls, responsibleDestroyer);
+
             nestedCalls--;
             Debug.Assert(currentNestedCalls == nestedCalls);
 
@@ -650,7 +670,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         throw new CannotEmitDestructorError(Arguments[i]);
                 }
                 else
-                    Arguments[i].Emit(irProgram, emitter, typeargs);
+                    Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
             }
         }
 
@@ -661,12 +681,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (RequiresDisposal(typeargs))
                 {
                     StringBuilder valueEmitter = new();
-                    EmitCall(irProgram, valueEmitter, typeargs, releasedArguments, 0);
+                    EmitCall(irProgram, valueEmitter, typeargs, releasedArguments, 0, "NULL");
                     Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valueEmitter.ToString());
                 }
                 else
                 {
-                    EmitCall(irProgram, emitter, typeargs, releasedArguments, 0);
+                    EmitCall(irProgram, emitter, typeargs, releasedArguments, 0, "NULL");
                     emitter.AppendLine(";");
                 }
             }
@@ -684,7 +704,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     {
                         CodeBlock.CIndent(emitter, indent + 1);
                         emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_freebuf_{i}0 = ");
-                        Arguments[i].Emit(irProgram, emitter, typeargs);
+                        Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
                         emitter.AppendLine(";");
                         releasedArguments.Add(i);
                     }
@@ -716,7 +736,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             base.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public override void EmitCall (IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall)
+        public override void EmitCall (IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer)
         {
             emitter.Append($"{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
             EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);
@@ -725,7 +745,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (i > 0 || Arguments.Count > 0)
                     emitter.Append(", ");
                 VariableReference variableReference = new(Procedure.ProcedureDeclaration.CapturedVariables[i], ErrorReportedElement);
-                variableReference.Emit(irProgram, emitter, typeargs);
+                variableReference.Emit(irProgram, emitter, typeargs, "NULL");
             }
             emitter.Append(')');
         }
@@ -739,11 +759,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
             base.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall)
+        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer)
         {
-            IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
+            IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs, "None");
             emitter.Append("->_nhp_this_anon(");
-            IRValue.EmitMemorySafe(ProcedureValue.GetPostEvalPure(), irProgram, emitter, typeargs);
+            IRValue.EmitMemorySafe(ProcedureValue.GetPostEvalPure(), irProgram, emitter, typeargs, "None");
             if(Arguments.Count > 0)
                 emitter.Append(", ");
             EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);
@@ -760,9 +780,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Procedure.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({string.Join(", ", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => (capturedVar.IsRecordSelf && parentProcedure == null) ? "_nhp_self" : capturedVar.GetStandardIdentifier(irProgram)))})");
+            emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({string.Join("", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => $"{((capturedVar.IsRecordSelf && parentProcedure == null) ? "_nhp_self" : capturedVar.GetStandardIdentifier(irProgram))}, "))}{responsibleDestroyer})");
         }
     }
 
@@ -773,7 +793,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             base.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall)
+        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer)
         {
             emitter.Append($"{ForeignCProcedure.Name}(");
             EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);

@@ -15,10 +15,11 @@ namespace NoHoPython.Typing
         public string GetStandardIdentifier(IRProgram irProgram);
 
         public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource);
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource);
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer);
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource);
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource);
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer);
 
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter);
 

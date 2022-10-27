@@ -5,11 +5,6 @@
         public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
     }
 
-    partial class AllocRecord
-    {
-        public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
-    }
-
     partial class AnonymizeProcedure
     {
         public IRValue GetPostEvalPure() => new AnonymizeProcedure(Procedure, parentProcedure, ErrorReportedElement);

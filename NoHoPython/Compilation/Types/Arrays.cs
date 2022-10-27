@@ -44,16 +44,17 @@ namespace NoHoPython.IntermediateRepresentation
         {
             foreach (ArrayType arrayType in usedArrayTypes)
             {
-                emitter.AppendLine($"{arrayType.GetCName(this)} marshal{arrayType.GetStandardIdentifier(this)}(const {arrayType.ElementType.GetCName(this)}* buffer, int length);");
-                emitter.AppendLine($"{arrayType.GetCName(this)} marshal_proto{arrayType.GetStandardIdentifier(this)}(int length, {arrayType.ElementType.GetCName(this)} proto);");
+                emitter.AppendLine($"{arrayType.GetCName(this)} marshal{arrayType.GetStandardIdentifier(this)}(const {arrayType.ElementType.GetCName(this)}* buffer, int length, void* responsible_destroyer);");
+                emitter.AppendLine($"{arrayType.GetCName(this)} marshal_proto{arrayType.GetStandardIdentifier(this)}(int length, {arrayType.ElementType.GetCName(this)} proto, void* responsible_destroyer);");
+                emitter.AppendLine($"{arrayType.GetCName(irProgram)} change_resp_owner{arrayType.GetStandardIdentifier(irProgram)}({arrayType.GetCName(irProgram)} array, void* responsible_destroyer);");
 
-                if(!irProgram.EmitExpressionStatements)
+                if (!irProgram.EmitExpressionStatements)
                     emitter.AppendLine($"{arrayType.GetCName(this)} move{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)}* src, {arrayType.GetCName(this)} dest);");
 
                 if (arrayType.ElementType.RequiresDisposal)
                 {
                     emitter.AppendLine($"void free{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_free);");
-                    emitter.AppendLine($"{arrayType.GetCName(this)} copy{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_copy);");
+                    emitter.AppendLine($"{arrayType.GetCName(this)} copy{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_copy, void* responsible_destroyer);");
                 }
             }
         }
@@ -89,6 +90,7 @@ namespace NoHoPython.IntermediateRepresentation
                 arrayType.EmitDestructor(this, emitter);
                 arrayType.EmitMover(this, emitter);
                 arrayType.EmitCopier(this, emitter);
+                arrayType.EmitResponsibleDestroyerMutator(this, emitter);
             }
         }
     }
@@ -106,15 +108,15 @@ namespace NoHoPython.Typing
             if (ElementType.RequiresDisposal)
                 emitter.AppendLine($"free{GetStandardIdentifier(irProgram)}({valueCSource});");
             else
-                emitter.AppendLine($"free({valueCSource}.buffer);");
+                emitter.AppendLine($"{irProgram.MemoryAnalyzer.Disposer}({valueCSource}.buffer);");
         }
 
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource)
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer)
         {
             if (ElementType.RequiresDisposal)
-                emitter.Append($"copy{GetStandardIdentifier(irProgram)}({valueCSource})");
+                emitter.Append($"copy{GetStandardIdentifier(irProgram)}({valueCSource}, {responsibleDestroyer})");
             else
-                emitter.Append($"marshal{GetStandardIdentifier(irProgram)}({valueCSource}.buffer, {valueCSource}.length)");
+                emitter.Append($"marshal{GetStandardIdentifier(irProgram)}({valueCSource}.buffer, {valueCSource}.length, {responsibleDestroyer})");
         }
 
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
@@ -125,9 +127,10 @@ namespace NoHoPython.Typing
                 emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
-        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, $"{recordCSource}->_nhp_responsible_destroyer");
 
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append($"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})");
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) => irBuilder.ScopeForUsedArrayType(this);
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
@@ -142,26 +145,28 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"struct {GetStandardIdentifier(irProgram)} {{");
             emitter.AppendLine($"\t{ElementType.GetCName(irProgram)}* buffer;");
             emitter.AppendLine("\tint length;");
+            emitter.AppendLine("\tvoid* responsible_destroyer;");
             emitter.AppendLine("};");
         }
 
         public void EmitMarshaller(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}(const {ElementType.GetCName(irProgram)}* buffer, int length) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}(const {ElementType.GetCName(irProgram)}* buffer, int length, void* responsible_destroyer) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
-            emitter.AppendLine($"\tto_alloc.buffer = malloc(length * sizeof({ElementType.GetCName(irProgram)}));");
+            emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocater}(length * sizeof({ElementType.GetCName(irProgram)}));");
             emitter.AppendLine($"\tmemcpy(to_alloc.buffer, buffer, length * sizeof({ElementType.GetCName(irProgram)}));");
             emitter.AppendLine("\tto_alloc.length = length;");
+            emitter.AppendLine("\tto_alloc.responsible_destroyer = responsible_destroyer;");
             emitter.AppendLine("\treturn to_alloc;");
             emitter.AppendLine("}");
 
-            emitter.AppendLine($"{GetCName(irProgram)} marshal_proto{GetStandardIdentifier(irProgram)}(int length, {ElementType.GetCName(irProgram)} proto) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} marshal_proto{GetStandardIdentifier(irProgram)}(int length, {ElementType.GetCName(irProgram)} proto, void* responsible_destroyer) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
-            emitter.AppendLine($"\tto_alloc.buffer = malloc(length * sizeof({ElementType.GetCName(irProgram)}));");
+            emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocater}(length * sizeof({ElementType.GetCName(irProgram)}));");
 
             emitter.AppendLine($"\tfor(int i = 0; i < length; i++)");
             emitter.Append("\t\tto_alloc.buffer[i] = ");
-            ElementType.EmitCopyValue(irProgram, emitter, "proto");
+            ElementType.EmitCopyValue(irProgram, emitter, "proto", "responsible_destroyer");
             emitter.AppendLine(";");
 
             if (ElementType.RequiresDisposal)
@@ -170,6 +175,7 @@ namespace NoHoPython.Typing
                 ElementType.EmitFreeValue(irProgram, emitter, "proto");
             }
 
+            emitter.AppendLine("\tto_alloc.responsible_destroyer = responsible_destroyer;");
             emitter.AppendLine("\tto_alloc.length = length;");
             emitter.AppendLine("\treturn to_alloc;");
             emitter.AppendLine("}");
@@ -181,11 +187,11 @@ namespace NoHoPython.Typing
                 return;
 
             emitter.AppendLine($"void free{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_free) {{");
-            emitter.AppendLine("\tfor(int i = 0; i < to_free.length; i++) {{");
+            emitter.AppendLine("\tfor(int i = 0; i < to_free.length; i++) {");
             emitter.Append("\t\t");
             ElementType.EmitFreeValue(irProgram, emitter, "to_free.buffer[i]");
             emitter.AppendLine("\t}");
-            emitter.AppendLine("\tfree(to_free.buffer);");
+            emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Disposer}(to_free.buffer);");
             emitter.AppendLine("}");
         }
 
@@ -194,15 +200,17 @@ namespace NoHoPython.Typing
             if (!ElementType.RequiresDisposal)
                 return;
 
-            emitter.AppendLine($"{GetCName(irProgram)} copy{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_copy) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} copy{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_copy, void* responsible_destroyer) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} copied;");
             emitter.AppendLine("\tcopied.length = to_copy.length;");
-            emitter.AppendLine($"\tcopied.buffer = malloc(to_copy.length * sizeof({ElementType.GetCName(irProgram)}));");
+            emitter.AppendLine("\tcopied.responsible_destroyer = responsible_destroyer;");
+            emitter.AppendLine($"\tcopied.buffer = {irProgram.MemoryAnalyzer.Allocater}(to_copy.length * sizeof({ElementType.GetCName(irProgram)}));");
 
-            emitter.AppendLine("\tfor(int i = 0; i < to_copy.length; i++)");
+            emitter.AppendLine("\tfor(int i = 0; i < to_copy.length; i++) {");
             emitter.Append("\t\tcopied.buffer[i] = ");
-            ElementType.EmitCopyValue(irProgram, emitter, "to_copy.buffer[i]");
+            ElementType.EmitCopyValue(irProgram, emitter, "to_copy.buffer[i]", "responsible_destroyer");
             emitter.AppendLine(";");
+            emitter.AppendLine("\t}");
 
             emitter.AppendLine("\treturn copied;");
             emitter.AppendLine("}");
@@ -218,6 +226,19 @@ namespace NoHoPython.Typing
             EmitFreeValue(irProgram, emitter, "(*dest)");
             emitter.AppendLine("\t*dest = src;");
             emitter.AppendLine("\treturn src;");
+            emitter.AppendLine("}");
+        }
+
+        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StringBuilder emitter)
+        {
+            emitter.AppendLine($"{GetCName(irProgram)} change_resp_owner{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} array, void* responsible_destroyer) {{");
+            emitter.AppendLine("\tarray.responsible_destroyer = responsible_destroyer;");
+            emitter.AppendLine("\tfor(int i = 0; i < array.length; i++) {");
+            emitter.Append("\t\tarray.buffer[i] = ");
+            ElementType.EmitMutateResponsibleDestroyer(irProgram, emitter, "array.buffer[i]", "responsible_destroyer");
+            emitter.AppendLine(";");
+            emitter.AppendLine("\t}");
+            emitter.AppendLine("\treturn array;");
             emitter.AppendLine("}");
         }
     }

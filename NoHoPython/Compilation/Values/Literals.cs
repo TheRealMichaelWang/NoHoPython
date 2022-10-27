@@ -9,7 +9,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs) => emitter.Append(Number);
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append(Number);
     }
 
     partial class DecimalLiteral
@@ -18,7 +18,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs) => emitter.Append(Number);
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append(Number);
     }
 
     partial class CharacterLiteral
@@ -77,7 +77,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             emitter.Append('\'');
             EmitCChar(emitter, Character);
@@ -90,7 +90,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs) => emitter.Append('1');
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append('1');
     }
 
     partial class FalseLiteral
@@ -98,7 +98,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs) => emitter.Append('0');
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append('0');
     }
 
     partial class NothingLiteral
@@ -106,7 +106,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs) { }
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) { }
     }
 
     partial class ArrayLiteral
@@ -119,7 +119,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             StringBuilder arrayBuilder = new StringBuilder();
             if (Elements.Count == 0)
@@ -139,12 +139,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 {
                     if (i > 0)
                         arrayBuilder.Append(", ");
-                    Elements[i].Emit(irProgram, arrayBuilder, typeargs);
+                    Elements[i].Emit(irProgram, arrayBuilder, typeargs, responsibleDestroyer);
                 }
                 arrayBuilder.Append('}');
             }
 
-            emitter.Append($"marshal{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({arrayBuilder.ToString()}, {Elements.Count})");
+            emitter.Append($"marshal{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({arrayBuilder.ToString()}, {Elements.Count}, {responsibleDestroyer})");
         }
     }
 
@@ -159,44 +159,39 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             emitter.Append($"marshal_proto{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
-            Length.Emit(irProgram, emitter, typeargs);
+            Length.Emit(irProgram, emitter, typeargs, "NULL");
             emitter.Append(", ");
 
             if (ProtoValue.RequiresDisposal(typeargs))
-                ProtoValue.Emit(irProgram, emitter, typeargs);
+                ProtoValue.Emit(irProgram, emitter, typeargs, "NULL");
             else
             {
                 StringBuilder valueBuilder = new StringBuilder();
-                ProtoValue.Emit(irProgram, valueBuilder, typeargs);
-                ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString());
+                ProtoValue.Emit(irProgram, valueBuilder, typeargs, "NULL");
+                ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "NULL");
             }
-            emitter.Append(')');
+            emitter.Append($", {responsibleDestroyer})");
         }
     }
 
     partial class AllocRecord
     {
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        public override void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
             RecordPrototype.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
-            ConstructorArguments.ForEach((element) => element.ScopeForUsedTypes(typeargs, irBuilder));
+            base.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
-
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer)
         {
             emitter.Append($"construct_{RecordPrototype.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
-            for(int i = 0; i < ConstructorArguments.Count; i++)
-            {
-                if (i > 0)
-                    emitter.Append(", ");
-                ConstructorArguments[i].Emit(irProgram, emitter, typeargs);
-            }
-            emitter.Append(')');
+            EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);
+            if (Arguments.Count > 0)
+                emitter.Append(", ");
+            emitter.Append($"{responsibleDestroyer})");
         }
     }
 }

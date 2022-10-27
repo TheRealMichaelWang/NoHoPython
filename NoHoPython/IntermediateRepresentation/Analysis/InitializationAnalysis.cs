@@ -141,11 +141,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    partial class AllocRecord
-    {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => ConstructorArguments.ForEach((arg) => arg.AnalyzePropertyInitialization(initializedProperties));
-    }
-
     partial class ArrayLiteral
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Elements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties));

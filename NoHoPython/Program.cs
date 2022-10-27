@@ -1,4 +1,5 @@
-﻿using NoHoPython.IntermediateRepresentation;
+﻿using NoHoPython.Compilation;
+using NoHoPython.IntermediateRepresentation;
 using NoHoPython.Syntax;
 using NoHoPython.Syntax.Parsing;
 using System.Text;
@@ -23,8 +24,10 @@ public static class Program
 
             List<IAstStatement> statements = parser.ParseAll();
 
+            MemoryAnalyzer memoryAnalyzer = new MemoryAnalyzer(args.Contains("-memleak") ? MemoryAnalyzer.AnalysisMode.LeakSanityCheck : MemoryAnalyzer.AnalysisMode.None, args.Contains("-memfail"));
+
             AstIRProgramBuilder astIRProgramBuilder = new(statements);
-            IRProgram program = astIRProgramBuilder.ToIRProgram(args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"));
+            IRProgram program = astIRProgramBuilder.ToIRProgram(args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), memoryAnalyzer);
             parser.IncludeCFiles(program);
 
             StringBuilder output = new();

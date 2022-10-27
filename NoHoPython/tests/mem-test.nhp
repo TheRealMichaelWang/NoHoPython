@@ -1,0 +1,21 @@
+﻿include "mem.nhp"
+
+class cell:
+	fn<None> myFn
+	array<cell> cells
+	def __init__():
+		self.cells = [<cell>]
+		self.myFn = self.stuff
+	def stuff():
+		self.cells = new cell[10](new cell())
+		self.cells[3].myFn = self.mychild
+	def mychild():
+		pass
+
+def main():
+	def test():
+		mem::report()
+		testobj = new cell()
+		testobj.stuff()
+	test()
+	mem::report()

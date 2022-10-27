@@ -10,7 +10,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs) => emitter.Append(Variable.GetStandardIdentifier(irProgram));
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append(Variable.GetStandardIdentifier(irProgram));
     }
 
     partial class VariableDeclaration
@@ -47,7 +47,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             bool closeExpressionStatement = false;
             if (WillRevaluate && Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
@@ -62,12 +62,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             emitter.Append($"({Variable.GetStandardIdentifier(irProgram)} = ");
             if (InitialValue.RequiresDisposal(typeargs))
-                InitialValue.Emit(irProgram, emitter, typeargs);
+                InitialValue.Emit(irProgram, emitter, typeargs, "NULL");
             else
             {
                 StringBuilder valueBuilder = new StringBuilder();
-                InitialValue.Emit(irProgram, valueBuilder, typeargs);
-                Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString());
+                InitialValue.Emit(irProgram, valueBuilder, typeargs, "NULL");
+                Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "NULL");
             }
             emitter.Append(')');
 
@@ -78,7 +78,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
-            Emit(irProgram, emitter, typeargs);
+            Emit(irProgram, emitter, typeargs, "NULL");
             emitter.AppendLine(";");
         }
     }
@@ -97,17 +97,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             StringBuilder valueBuilder = new StringBuilder();
-            SetValue.Emit(irProgram, valueBuilder, typeargs);
+            SetValue.Emit(irProgram, valueBuilder, typeargs, "NULL");
 
             if (SetValue.RequiresDisposal(typeargs))
                 Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(irProgram), valueBuilder.ToString());
             else
             {
                 StringBuilder copyBuilder = new StringBuilder();
-                Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, copyBuilder, valueBuilder.ToString());
+                Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, copyBuilder, valueBuilder.ToString(), "NULL");
                 Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(irProgram), copyBuilder.ToString());
             }
         }
@@ -115,7 +115,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
-            Emit(irProgram, emitter, typeargs);
+            Emit(irProgram, emitter, typeargs, "NULL");
             emitter.AppendLine(";");
         }
     }
@@ -126,7 +126,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs)
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             emitter.Append(CSymbol.Name);
         }

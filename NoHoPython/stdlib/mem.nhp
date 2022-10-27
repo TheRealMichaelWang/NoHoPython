@@ -5,6 +5,16 @@
 			dest[i + destOffset] = src[i + srcOffset]
 			i = i + 1
 	
+	#memory analysis variables
+	
+	#must enable LeakSanityCheck
+	cdef active_allocs int
+	cdef peak_allocs int
+	
+	#must enable UsageMagnitudeCheck
+	cdef active_memory_usage int
+	cdef peak_memory_usage int
+	
 	#analysis mode must not be none
 	def report():
 		cdef memoryReport() None

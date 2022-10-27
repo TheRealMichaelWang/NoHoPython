@@ -1,6 +1,8 @@
 ﻿cinclude "<stdio.h>"
 include "stdlib/list.nhp"
 
+cdef EOF
+
 interface printableObj:
 	fn<array<char>> toString
 
@@ -10,6 +12,8 @@ enum printable:
 	char
 	int
 	dec
+	bool
+	None
 
 mod io:
 	mod cinterop:
@@ -38,6 +42,13 @@ mod io:
 			dec d:
 				cdef printf(handle, dec) None
 				printf(fmt="%f\0", d)
+			bool b:
+				if b:
+					printStr("True")
+				else:
+					printStr("False")
+			None:
+				printStr("None")
 	def println(printableObj obj):
 		print(obj)
 		cinterop::putchar('\n')

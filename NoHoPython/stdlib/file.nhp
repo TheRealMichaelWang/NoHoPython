@@ -1,5 +1,5 @@
-﻿include "std.nhp"
-include "stream.nhp"
+﻿include "mem.nhp"
+include "io.nhp"
 
 mod io:
 	mod cinterop:
@@ -12,26 +12,37 @@ mod io:
 				mem::memcpy(buf, str, 0, 0, str as int)
 				buf[str as int] = '\0'
 	
-	def openFile(array<char> path, array<char> mode) nullable<file>:
-		cdef fopen(handle path, handle str)
-		fileHandle = fopen(sanitizeCStr(path), sanitizeCStr(mode))
-		if fileHandle == 0: #failed to open
-			return None
-		else:
-			return new file(fileHandle)
-	
 	class file:
-		handle fileHandle
+		handle ptr
 		
-		def __init__(handle fileHandle):
-			self.fileHandle = fileHandle
+		def __init__(array<char> path, array<char> mode):
+			cdef fopen(handle path, handle str) handle
+			cdef NULL
+			
+			self.ptr = fopen(sanitizeCStr(path), sanitizeCStr(mode))
+			if self.ptr == NULL:
+				abort "Failed to open file"
+		def __copy__() file:
+			abort "Cannot safley copy file"
 		def __del__():
-			cdef fclose(handle fileHandle) None
-			fclose(self.fileHandle)
+			cdef fclose(handle ptr) None
+			fclose(self.ptr)
+	
+	class writer:
+		handle ptr
 		
-		def read() char:
-			cdef getc(handle) None
-			return getc(self.fileHandle)
-		def write(char c):
-			cdef putc(char, handle) None
-			fputc(c)
+		def __init__(handle ptr):
+			self.ptr = ptr
+		def write(printable towrite):
+			cdef fwrite(handle, int, int, handle) None
+			cdef fputc(char, handle) None
+			match towrite:
+				printableObj obj:
+					fwrite(str = obj.toString(), 1, str, self.ptr)
+				array<char> msg:
+					fwrite(msg, 1, msg, self.ptr)
+				char c:
+					fputc(c)
+				int i:
+					fprint()
+					

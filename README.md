@@ -1,6 +1,7 @@
 # The North-Hollywood Python Compiler
 A strongly-typed, memory-safe, compiled dialect of Python, that transpiles to human-readable C.
 - Guarentees memory saftey by enforcing RAII, and executing limited reference counting for closure-captured classes
+  - Unlike rust, NoHoPython reference counting - which is only used for capturing classes for closures - guarentees no memory leaks. 
 - Guarentees type saftey via a strong yet flexible static type-checker
   - No null. Enums/Variants are used instead. 
   - Enum/Variant match statements must be exhaustive.

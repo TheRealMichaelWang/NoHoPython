@@ -18,3 +18,4 @@ A strongly-typed, memory-safe, compiled dialect of Python, that transpiles to hu
 - Information-Rich Error-Reporting
   - Clean, precise error messages during compile time
   - Runtime errors, such as assertion faliures or index-out-of-bounds errors, are reported with their locations in the source code.
+  - Reports informative, pythonic stack traces (not only for user-defined, NHP functions but also for calls to foreign C functions)

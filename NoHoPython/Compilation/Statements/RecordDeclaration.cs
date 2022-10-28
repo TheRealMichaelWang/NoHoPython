@@ -52,7 +52,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             emitter.AppendLine("typedef struct _nhp_std_record_mask {");
             emitter.AppendLine("\tint _nhp_ref_count;");
-            emitter.AppendLine("\tint _nhp_freeing;");
+            emitter.AppendLine("\tint _nhp_lock;");
             emitter.AppendLine("\tvoid* _nhp_responsible_destroyer;");
             emitter.AppendLine("} _nhp_std_record_mask_t;");
         }
@@ -169,7 +169,7 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
             emitter.AppendLine("\tint _nhp_ref_count;");
-            emitter.AppendLine("\tint _nhp_freeing;");
+            emitter.AppendLine("\tint _nhp_lock;");
             emitter.AppendLine("\tvoid* _nhp_responsible_destroyer;");
             foreach (var property in properties.Value)
                 emitter.AppendLine($"\t{property.Type.GetCName(irProgram)} {property.Name};");
@@ -193,7 +193,7 @@ namespace NoHoPython.Typing
             
             emitter.AppendLine($"\t{GetCName(irProgram)} _nhp_self = {irProgram.MemoryAnalyzer.Allocater}({GetCHeapSizer(irProgram)});");
             emitter.AppendLine("\t_nhp_self->_nhp_ref_count = 0;");
-            emitter.AppendLine("\t_nhp_self->_nhp_freeing = 0;");
+            emitter.AppendLine("\t_nhp_self->_nhp_lock = 0;");
             emitter.AppendLine("\t_nhp_self->_nhp_responsible_destroyer = (responsible_destroyer ? responsible_destroyer : _nhp_self);");
             
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
@@ -224,14 +224,14 @@ namespace NoHoPython.Typing
         {
             emitter.AppendLine($"void free_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record) {{");
 
-            emitter.AppendLine("\tif(record->_nhp_freeing)");
+            emitter.AppendLine("\tif(record->_nhp_lock)");
             emitter.AppendLine("\t\treturn;");
+            emitter.AppendLine("\trecord->_nhp_lock = 1;");
 
             emitter.AppendLine("\tif(record->_nhp_ref_count) {");
             emitter.AppendLine("\t\trecord->_nhp_ref_count--;");
             emitter.AppendLine("\t\treturn;");
             emitter.AppendLine("\t}");
-            emitter.AppendLine("\trecord->_nhp_freeing = 1;");
 
             if (HasDestructor)
                 emitter.AppendLine("\trecord->__del__->_nhp_this_anon(record->__del__);");
@@ -256,7 +256,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, void* responsible_destroyer) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} copied_record = {irProgram.MemoryAnalyzer.Allocater}({GetCHeapSizer(irProgram)});");
             emitter.AppendLine("\tcopied_record->_nhp_ref_count = 0;");
-            emitter.AppendLine("\tcopied_record->_nhp_freeing = 0;");
+            emitter.AppendLine("\tcopied_record->_nhp_lock = 0;");
             emitter.AppendLine("\tcopied_record->_nhp_responsible_destroyer = (responsible_destroyer ? responsible_destroyer : copied_record);");
 
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
@@ -296,6 +296,11 @@ namespace NoHoPython.Typing
         public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StringBuilder emitter)
         {
             emitter.AppendLine($"{GetCName(irProgram)} change_resp_owner{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, void* responsible_destroyer) {{");
+
+            emitter.AppendLine("\tif(record->_nhp_lock)");
+            emitter.AppendLine("\t\treturn record;");
+            emitter.AppendLine("\trecord->_nhp_lock = 1;");
+            
             emitter.AppendLine("\trecord->_nhp_responsible_destroyer = (responsible_destroyer ? responsible_destroyer : record);");
             foreach (RecordDeclaration.RecordProperty property in properties.Value)
             {
@@ -303,6 +308,8 @@ namespace NoHoPython.Typing
                 property.Type.EmitMutateResponsibleDestroyer(irProgram, emitter, $"record->{property.Name}", "record->_nhp_responsible_destroyer");
                 emitter.AppendLine(";");
             }
+
+            emitter.AppendLine("\trecord->_nhp_lock = 0;");
             emitter.AppendLine("\treturn record;");
             emitter.AppendLine("}");
         }

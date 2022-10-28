@@ -1,48 +1,19 @@
-﻿include "mem.nhp"
+include "mem.nhp"
 include "io.nhp"
 
 mod io:
-	mod cinterop:
-		#ensures that string ends with a C-style NULL terminator
-		def sanitizeCStr(array<char> str) array<char>:
-			if str[str as int - 1] == '\0':
-				return str
-			else:
-				buf = new char[str as int + 1]
-				mem::memcpy(buf, str, 0, 0, str as int)
-				buf[str as int] = '\0'
-	
 	class file:
 		handle ptr
 		
 		def __init__(array<char> path, array<char> mode):
-			cdef fopen(handle path, handle str) handle
+			cdef fopen(handle, handle) handle
 			cdef NULL
 			
-			self.ptr = fopen(sanitizeCStr(path), sanitizeCStr(mode))
+			self.ptr = fopen(cinterop::sanitizeCStr(path), cinterop::sanitizeCStr(mode))
 			if self.ptr == NULL:
 				abort "Failed to open file"
 		def __copy__() file:
 			abort "Cannot safley copy file"
 		def __del__():
-			cdef fclose(handle ptr) None
+			cdef fclose(handle) None
 			fclose(self.ptr)
-	
-	class writer:
-		handle ptr
-		
-		def __init__(handle ptr):
-			self.ptr = ptr
-		def write(printable towrite):
-			cdef fwrite(handle, int, int, handle) None
-			cdef fputc(char, handle) None
-			match towrite:
-				printableObj obj:
-					fwrite(str = obj.toString(), 1, str, self.ptr)
-				array<char> msg:
-					fwrite(msg, 1, msg, self.ptr)
-				char c:
-					fputc(c)
-				int i:
-					fprint()
-					

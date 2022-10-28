@@ -363,7 +363,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t _nhp_resp_mutator;"); 
             foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
                 emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier(irProgram)};");
-            emitter.AppendLine("\tint _nhp_freeing;");
+            emitter.AppendLine("\tint _nhp_lock;");
             emitter.AppendLine("};");
         }
 
@@ -381,7 +381,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine($"\tclosure->_nhp_copier = ({anonProcedureType.GetStandardIdentifier(irProgram)}_copier_t)(&copy{GetStandardIdentifier(irProgram)});");
             emitter.AppendLine($"\tclosure->_nhp_record_copier = ({anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t)(&record_copy{GetStandardIdentifier(irProgram)});");
             emitter.AppendLine($"\tclosure->_nhp_resp_mutator = ({anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t)(&change_resp_owner{GetStandardIdentifier(irProgram)});");
-            emitter.AppendLine("\tclosure->_nhp_freeing = 0;");
+            emitter.AppendLine("\tclosure->_nhp_lock = 0;");
 
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
@@ -401,16 +401,16 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine($"void free{GetStandardIdentifier(irProgram)}({anonProcedureType.GetCName(irProgram)} to_free_anon) {{");
             emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* to_free = ({GetClosureCaptureCType(irProgram)}*)to_free_anon;");
 
-            emitter.AppendLine("\tif(to_free->_nhp_freeing)");
+            emitter.AppendLine("\tif(to_free->_nhp_lock)");
             emitter.AppendLine("\t\treturn;");
-            emitter.AppendLine("\tto_free->_nhp_freeing = 1;");
+            emitter.AppendLine("\tto_free->_nhp_lock = 1;");
 
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables) 
             {
                 emitter.Append('\t');
                 capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitFreeValue(irProgram, emitter, $"to_free->{capturedVariable.GetStandardIdentifier(irProgram)}");
             }
-            
+
             emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Disposer}(to_free);");
             emitter.AppendLine("}");
         }
@@ -452,13 +452,20 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return;
 
             emitter.AppendLine($"{anonProcedureType.GetCName(irProgram)} change_resp_owner{GetStandardIdentifier(irProgram)}({anonProcedureType.GetCName(irProgram)} to_mutate, void* responsible_destroyer) {{");
+
             emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* closure = ({GetClosureCaptureCType(irProgram)}*)to_mutate;");
+
+            emitter.AppendLine("\tif(closure->_nhp_lock)");
+            emitter.AppendLine($"\t\treturn ({anonProcedureType.GetCName(irProgram)})closure;");
+            emitter.AppendLine("\tclosure->_nhp_lock = 1;");
+
             foreach(Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
                 emitter.Append($"\tclosure->{capturedVariable.GetStandardIdentifier(irProgram)} = ");
                 capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitMutateResponsibleDestroyer(irProgram, emitter, $"closure->{capturedVariable.GetStandardIdentifier(irProgram)}", "responsible_destroyer");
                 emitter.AppendLine(";");
             }
+            emitter.AppendLine("\tclosure->_nhp_lock = 0;");
             emitter.AppendLine($"\treturn ({anonProcedureType.GetCName(irProgram)})closure;");
             emitter.AppendLine("}");
         }
@@ -490,12 +497,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     emitter.Append(localToReturn.GetStandardIdentifier(irProgram));
                 }
                 if (ToReturn.RequiresDisposal(typeargs))
-                    ToReturn.Emit(irProgram, emitter, typeargs, "None");
+                    ToReturn.Emit(irProgram, emitter, typeargs, "NULL");
                 else
                 {
                     StringBuilder valueBuilder = new();
-                    ToReturn.Emit(irProgram, valueBuilder, typeargs, "None");
-                    ToReturn.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "None");
+                    ToReturn.Emit(irProgram, valueBuilder, typeargs, "NULL");
+                    ToReturn.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "NULL");
                 }
 
                 emitter.AppendLine(";");
@@ -546,7 +553,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (AbortMessage != null)
             {
                 emitter.Append($"{AbortMessage.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_abort_msg = ");
-                AbortMessage.Emit(irProgram, emitter, typeargs, "None");
+                AbortMessage.Emit(irProgram, emitter, typeargs, "NULL");
                 emitter.AppendLine(";");
 
                 CodeBlock.CIndent(emitter, indent + 1);
@@ -761,9 +768,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer)
         {
-            IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs, "None");
+            IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs, "NULL");
             emitter.Append("->_nhp_this_anon(");
-            IRValue.EmitMemorySafe(ProcedureValue.GetPostEvalPure(), irProgram, emitter, typeargs, "None");
+            IRValue.EmitMemorySafe(ProcedureValue.GetPostEvalPure(), irProgram, emitter, typeargs, "NULL");
             if(Arguments.Count > 0)
                 emitter.Append(", ");
             EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);

@@ -24,7 +24,14 @@ mod data:
 				self.buffer = newBuffer
 			mem::memcpy(self.buffer, range.buffer, self.count, 0, range.count)
 			self.count = self.count + range.count
-		def remove(
+		def remove(fn<bool, T> toRemove) bool:
+			i = 0
+			while i < self.count:
+				if toRemove(self.buffer[i]):
+					mem::memcpy(self.buffer, self.buffer, i, i + 1, self.count - (1 + i))
+					return True
+				i = i + 1
+			return False
 		
 		def toArray() array<T>:
 			buffer = new T[self.count](self.defaultValue)

@@ -1,0 +1,10 @@
+include "mem.nhp"
+include "io.nhp"
+
+def main():
+	mem::report()
+	def torun():
+		output = io::output()
+		output.writeLine("hello world")
+	torun()
+	mem::report()

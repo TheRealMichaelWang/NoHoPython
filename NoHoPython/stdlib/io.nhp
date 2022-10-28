@@ -1,13 +1,12 @@
-﻿cinclude "<stdio.h>"
-include "stdlib/list.nhp"
+cinclude "<stdio.h>"
+include "list.nhp"
+include "chars.nhp"
 
-cdef EOF
-
-interface printableObj:
+interface writableObj:
 	fn<array<char>> toString
 
-enum printable:
-	printableObj
+enum writable:
+	writableObj
 	array<char>
 	char
 	int
@@ -17,48 +16,90 @@ enum printable:
 
 mod io:
 	mod cinterop:
-		cdef putchar(char) None
-		cdef puts(handle) None
-		cdef getchar() char
+		#ensures that string ends with a C-style NULL terminator
+		def sanitizeCStr(array<char> str) array<char>:
+			if str[str as int - 1] == '\0':
+				return str
+			else:
+				buf = new char[str as int + 1]
+				mem::memcpy(buf, str, 0, 0, str as int)
+				buf[str as int] = '\0'
+				return buf
 	
-	def printObj(printableObj obj):
-		print(obj.toString())
-	def printStr(array<char> buffer):
-		i = 0
-		while i < buffer as int:
-			cinterop::putchar(buffer[i])
-			i = i + 1
-	def print(printable obj):
-		match obj:
-			printableObj a:
-				printStr(a.toString())
-			array<char> msg:
-				printStr(msg)
-			char c:
-				cinterop::putchar(c)
-			int i:
-				cdef printf(handle, int) None
-				printf(fmt="%i\0", i)
-			dec d:
-				cdef printf(handle, dec) None
-				printf(fmt="%f\0", d)
-			bool b:
-				if b:
-					printStr("True")
-				else:
-					printStr("False")
-			None:
-				printStr("None")
-	def println(printableObj obj):
-		print(obj)
-		cinterop::putchar('\n')
-	def scanLine() array<char>:
-		list = new data::list<char>(10, '\0')
-		while (c = cinterop::getchar()) != '\n' and c != '\0':
-			list.pushBack(c)
-		return list.toArray()
-	def scanTok() array<char>:
-		list = new data::list<char>(10, '\0')
-		while (c = cinterop::getchar()) != ' ' and c != '\t' and c != '\n' and c != '\0':
-			list.pushBack(c)
-		return list.toArray()
+	cdef EOF
+	
+	class writer:
+		handle ptr
+		
+		def __init__(handle ptr):
+			self.ptr = ptr
+		
+		def write(writable towrite):
+			cdef fwrite(handle, int, int, handle) None
+			cdef fputc(char, handle) None
+			match towrite:
+				writableObj obj:
+					fwrite(msg=obj.toString(), 1, msg, self.ptr)
+				array<char> msg:
+					fwrite(msg, 1, msg, self.ptr)
+				char c:
+					fputc(c, self.ptr)
+				int i:
+					cdef fprintf(handle, handle, int) None
+					fprintf(self.ptr, fmt="%li\0", i)
+				dec d:
+					cdef fprintf(handle, handle, dec) None
+					fprintf(self.ptr, fmt="%d\0", d)
+				bool b:
+					if b:
+						fwrite(msg="True", 1, 4, self.ptr)
+					else:
+						fwrite(msg="False", 1, 5, self.ptr)
+				None:
+					fwrite(msg="None", 1, 4, self.ptr)
+		def writeLine(writable towrite):
+			cdef fputc(char, handle) None
+			write(towrite)
+			fputc('\n', self.ptr)
+	class reader:
+		handle ptr
+		
+		def __init__(handle ptr):
+			self.ptr = ptr
+		
+		def readTok(fn<bool, char> stopChar) array<char>:
+			cdef fgetc(handle) char
+			buffer = new data::list<char>(10, ' ')
+			while ((c = fgetc(self.ptr)) != EOF) and (stopChar(c) == False):
+				buffer.pushBack(c)
+			return buffer.toArray()
+		def readInt() int:
+			cdef atol(handle) int
+			return atol(buf = cinterop::sanitizeCStr(readTok(characters::isDigit)))
+		def readDec() dec:
+			cdef atod(handle) dec
+			def isAllowable(char c) bool:
+				cdef isdigit(char) bool
+				return isdigit(c) or c == '.'
+			return atod(buf = cinterop::sanitizeCStr(readTok(isAllowable)))
+		
+		def readLine() array<char>:
+			cdef fgetc(handle) char
+			buffer = new data::list<char>(10, ' ')
+			while ((c = fgetc(self.ptr)) != EOF) and (c != '\n'):
+				buffer.pushBack(c)
+			return buffer.toArray()
+		
+		def readAll() array<char>:
+			cdef fgetc(handle) char
+			buffer = new data::list<char>(10, ' ')
+			while (c = fgetc(self.ptr)) != EOF:
+				buffer.pushBack(c)
+			return buffer.toArray()
+	
+	def output() writer:
+		cdef stdout handle
+		return new writer(stdout)
+	def input() reader:
+		cdef stdin handle
+		return new reader(stdin)

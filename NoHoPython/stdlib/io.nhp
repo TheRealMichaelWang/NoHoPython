@@ -80,8 +80,8 @@ mod io:
 			cdef atol(handle) int
 			return atol(buf = cinterop::sanitizeCStr(readWhile(characters::isDigit)))
 		def readDec() dec:
-			cdef atod(handle) dec
-			return atod(buf = cinterop::sanitizeCStr(readWhile(lambda char c: characters::isDigit(c) or c == '.')))
+			cdef atof(handle) dec
+			return atof(buf = cinterop::sanitizeCStr(readWhile(lambda char c: characters::isDigit(c) or c == '.')))
 		def readChar() char:
 			cdef fgetc(handle) char
 			return fgetc(self.ptr)

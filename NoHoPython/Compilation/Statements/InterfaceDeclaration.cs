@@ -262,17 +262,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 else
                     throw new InvalidOperationException();
 
-                emittedValues.Add(getPropertyEmitter.ToString());
+                emittedValues.Add(getPropertyEmitter.ToString() + ", ");
             }
 
             if (Value.RequiresDisposal(typeargs))
             {
-                emitter.Append($"{realPrototype.GetCName(irProgram)} _nhp_int_res = marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join(", ", emittedValues)}); ");
+                emitter.Append($"{realPrototype.GetCName(irProgram)} _nhp_int_res = marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join("", emittedValues)}{responsibleDestroyer}); ");
                 Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_marshal_buf");
-                emitter.Append("_nhp_int_res;});");
+                emitter.Append("_nhp_int_res;})");
             }
             else
-                emitter.Append($"marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join(", ", emittedValues)})");
+                emitter.Append($"marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join("", emittedValues)}{responsibleDestroyer})");
         }
     }
 }

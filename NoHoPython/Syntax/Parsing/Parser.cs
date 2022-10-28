@@ -180,6 +180,8 @@ namespace NoHoPython.Syntax.Parsing
                     SourceLocation location = scanner.CurrentLocation;
                     switch (scanner.LastToken.Type)
                     {
+                        case TokenType.Lambda:
+                            return ParseLambdaDeclaration(location);
                         case TokenType.OpenParen:
                             {
                                 scanner.ScanToken();
@@ -247,6 +249,13 @@ namespace NoHoPython.Syntax.Parsing
                         case TokenType.Nothing:
                             scanner.ScanToken();
                             return new NothingLiteral(location);
+                        case TokenType.Subtract: //interpret as negate operator
+                            {
+                                Token sub = scanner.LastToken;
+                                scanner.ScanToken();
+                                IAstValue toNegate = ParseValue();
+                                return new BinaryOperator(sub, new IntegerLiteral(0, location), toNegate, location, toNegate.SourceLocation);
+                            }
                         default:
                             throw new UnexpectedTokenException(scanner.LastToken, location);
                     }

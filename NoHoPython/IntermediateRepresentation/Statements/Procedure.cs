@@ -9,6 +9,8 @@ namespace NoHoPython.Syntax
 {
     partial class AstIRProgramBuilder
     {
+        private Dictionary<SymbolContainer, int> lambdaCounts = new Dictionary<SymbolContainer, int>();
+
         private void LinkCapturedVariables()
         {
             Dictionary<ProcedureDeclaration, HashSet<ProcedureDeclaration>> dependentProcedures = new(ProcedureDeclarations.Count);
@@ -36,6 +38,14 @@ namespace NoHoPython.Syntax
                     }
             }
         }
+
+        public int GetLambdaId()
+        {
+            if (lambdaCounts.ContainsKey(CurrentMasterScope))
+                return ++lambdaCounts[CurrentMasterScope];
+            lambdaCounts.Add(CurrentMasterScope, 0);
+            return 0;
+        }
     }
 }
 
@@ -56,9 +66,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public List<Variable> CapturedVariables { get; private set; }
         public List<ProcedureDeclaration> CallSiteProcedures { get; private set; }
 
-        public IType ReturnType { get; private set; }
+        public IType? ReturnType { get; private set; }
 
-        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType returnType, SymbolContainer parentContainer, IAstElement errorReportedElement) : base(parentContainer, false)
+        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType? returnType, SymbolContainer parentContainer, IAstElement errorReportedElement) : base(parentContainer, false)
         {
             Name = name;
             TypeParameters = typeParameters;
@@ -79,6 +89,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             return false;
         }
 
+        public bool IsLocalVariable(Variable variable)
+        {
+            if (variable.ParentProcedure == this)
+#pragma warning disable CS8602 // Parameters linked after initialization
+                return !Parameters.Contains(variable);
+#pragma warning restore CS8602
+            return false;
+        }
+
         public void DelayedLinkSetParameters(List<Variable> parameters)
         {
             if (Parameters != null)
@@ -86,8 +105,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Parameters = parameters;
         }
 
+        public void DelayedLinkSetReturnType(IType returnType)
+        {
+            if (ReturnType != null)
+                throw new InvalidOperationException();
+            ReturnType = returnType;
+        }
+
         public override void DelayedLinkSetStatements(List<IRStatement> statements)
         {
+            if (ReturnType == null)
+                throw new InvalidOperationException();
             base.DelayedLinkSetStatements(statements);
             if (ReturnType is not NothingType && !CodeBlockAllCodePathsReturn())
                 throw new NotAllCodePathsReturnError(ErrorReportedElement);
@@ -97,7 +125,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             if (variable.ParentProcedure == this)
             {
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8602 // Parameters linked after initialization
                 if (Parameters.Contains(variable) && willStet)
                     throw new CannotMutateVaraible(variable, errorReportedElement);
 #pragma warning restore CS8602
@@ -139,7 +167,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     arguments[i] = procedureDeclaration.Parameters[i].Type.MatchTypeArgumentWithValue(typeArguments, arguments[i]);
 
                 if (returnType != null)
+#pragma warning disable CS8602 // Return types may be linked in after initialization
                     procedureDeclaration.ReturnType.MatchTypeArgumentWithType(typeArguments, returnType, errorReportedElement);
+#pragma warning restore CS8602
             }
             else
             {
@@ -169,9 +199,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
 #pragma warning disable CS8604 // Panic should happen at runtime. Parameters might (but shouldn't unless bug) be null b/c of linking.
             ParameterTypes = procedureDeclaration.Parameters.Select((Variable param) => param.Type.SubstituteWithTypearg(typeArguments)).ToList();
-#pragma warning restore CS8604 
-            
+#pragma warning restore CS8604
+
+#pragma warning disable CS8602 // Return types may be linked in after initialization
             ReturnType = procedureDeclaration.ReturnType.SubstituteWithTypearg(typeArguments);
+#pragma warning restore CS8602 
             anonProcedureType = new ProcedureType(ReturnType, ParameterTypes);
         }
 
@@ -216,10 +248,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         private List<Variable> activeVariables;
         private ProcedureDeclaration parentProcedure;
 
-        public ReturnStatement(IRValue toReturn, AstIRProgramBuilder irBuilder, IAstStatement errorReportedStatement)
+        public ReturnStatement(IRValue toReturn, AstIRProgramBuilder irBuilder, IAstElement errorReportedStatement)
         {
+#pragma warning disable CS8604 // Return types may be linked in after initialization
             ToReturn = ArithmeticCast.CastTo(toReturn, irBuilder.ScopedProcedures.Peek().ReturnType);
-            activeVariables = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetCurrentLocals();
+#pragma warning restore CS8604 
+            activeVariables = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetCurrentLocals(irBuilder.ScopedProcedures.Peek());
             parentProcedure = irBuilder.ScopedProcedures.Peek();
             ErrorReportedElement = errorReportedStatement;
         }
@@ -439,7 +473,9 @@ namespace NoHoPython.Syntax.Statements
         }
 
 #pragma warning disable CS8602 // Only called after ForwardDeclare, when parameter is initialized
+#pragma warning disable CS8604 // Return type linked after initialization
         public IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty GenerateProperty() => new(Name, new ProcedureType(IRProcedureDeclaration.ReturnType, IRProcedureDeclaration.Parameters.ConvertAll((param) => param.Type)), true);
+#pragma warning restore CS8604
 #pragma warning restore CS8602
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
@@ -508,6 +544,36 @@ namespace NoHoPython.Syntax.Values
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
             return new AnonymousProcedureCall(ProcedureValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this);
+        }
+    }
+
+    partial class LambdaDeclaration
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
+        {
+            ProcedureDeclaration lamdaDeclaration = new($"lambdaNo{irBuilder.GetLambdaId()}", new(), null, irBuilder.CurrentMasterScope, this);
+            List<Variable> parameters = Parameters.ConvertAll((parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, lamdaDeclaration, false));
+            lamdaDeclaration.DelayedLinkSetParameters(parameters);
+            
+            irBuilder.SymbolMarshaller.NavigateToScope(lamdaDeclaration);
+            irBuilder.ScopedProcedures.Push(lamdaDeclaration);
+            foreach (Variable parameter in parameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
+
+            IRValue returnExpression = ReturnExpression.GenerateIntermediateRepresentationForValue(irBuilder, null, false);
+            lamdaDeclaration.DelayedLinkSetReturnType(returnExpression.Type);
+
+            List<IRStatement> statements = new List<IRStatement>(1);
+            if (ReturnExpression is IAstStatement statement && returnExpression.Type is NothingType)
+                statements.Add(statement.GenerateIntermediateRepresentationForStatement(irBuilder));
+            else
+                statements.Add(new ReturnStatement(returnExpression, irBuilder, this));
+            lamdaDeclaration.DelayedLinkSetStatements(statements);
+
+            irBuilder.SymbolMarshaller.GoBack();
+            irBuilder.ScopedProcedures.Pop();
+            irBuilder.AddProcDeclaration(lamdaDeclaration);
+            return new AnonymizeProcedure(lamdaDeclaration, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek());
         }
     }
 }

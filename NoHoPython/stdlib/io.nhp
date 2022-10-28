@@ -67,21 +67,24 @@ mod io:
 		def __init__(handle ptr):
 			self.ptr = ptr
 		
-		def readTok(fn<bool, char> stopChar) array<char>:
+		def readWhile(fn<bool, char> stopChar) array<char>:
 			cdef fgetc(handle) char
 			buffer = new data::list<char>(10, ' ')
 			while ((c = fgetc(self.ptr)) != EOF) and (stopChar(c) == False):
 				buffer.pushBack(c)
 			return buffer.toArray()
+		def readWhitespace():
+			cdef isspace(char) bool
+			readWhile(lambda char c: isspace(c) or c == '\t')
 		def readInt() int:
 			cdef atol(handle) int
-			return atol(buf = cinterop::sanitizeCStr(readTok(characters::isDigit)))
+			return atol(buf = cinterop::sanitizeCStr(readWhile(characters::isDigit)))
 		def readDec() dec:
 			cdef atod(handle) dec
-			def isAllowable(char c) bool:
-				cdef isdigit(char) bool
-				return isdigit(c) or c == '.'
-			return atod(buf = cinterop::sanitizeCStr(readTok(isAllowable)))
+			return atod(buf = cinterop::sanitizeCStr(readWhile(lambda char c: characters::isDigit(c) or c == '.')))
+		def readChar() char:
+			cdef fgetc(handle) char
+			return fgetc(self.ptr)
 		
 		def readLine() array<char>:
 			cdef fgetc(handle) char

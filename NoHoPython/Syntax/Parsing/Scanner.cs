@@ -297,6 +297,7 @@
                     "enum" => TokenType.Enum,
                     "class" => TokenType.Record,
                     "record" => TokenType.Record,
+                    "lambda" => TokenType.Lambda,
                     "readonly" => TokenType.Readonly,
                     "def" => TokenType.Define,
                     "cdef" => TokenType.CDefine,

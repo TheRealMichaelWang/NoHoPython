@@ -1,5 +1,6 @@
 ﻿using NoHoPython.Syntax.Statements;
 using NoHoPython.Syntax.Values;
+using static NoHoPython.Syntax.Statements.ProcedureDeclaration;
 
 namespace NoHoPython.Syntax.Statements
 {
@@ -135,6 +136,26 @@ namespace NoHoPython.Syntax.Values
     }
 }
 
+namespace NoHoPython.Syntax.Values
+{
+    public sealed partial class LambdaDeclaration : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public readonly List<ProcedureParameter> Parameters;
+        public IAstValue ReturnExpression { get; private set; }
+
+        public LambdaDeclaration(List<ProcedureParameter> parameters, IAstValue returnExpression, SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+            Parameters = parameters;
+            ReturnExpression = returnExpression;
+        }
+
+        public override string ToString() => $"lambda{(Parameters.Count > 0 ? " " + string.Join(", ", Parameters) : "")}:";
+    }
+}
+
 namespace NoHoPython.Syntax.Parsing
 {
     partial class AstParser
@@ -153,12 +174,12 @@ namespace NoHoPython.Syntax.Parsing
 
             MatchAndScanToken(TokenType.OpenParen);
 
-            List<ProcedureDeclaration.ProcedureParameter> parameters = new();
+            List<ProcedureParameter> parameters = new();
             while (scanner.LastToken.Type != TokenType.CloseParen)
             {
                 AstType paramType = ParseType();
                 MatchToken(TokenType.Identifier);
-                parameters.Add(new ProcedureDeclaration.ProcedureParameter(scanner.LastToken.Identifier, paramType));
+                parameters.Add(new(scanner.LastToken.Identifier, paramType));
                 scanner.ScanToken();
 
                 if (scanner.LastToken.Type != TokenType.CloseParen)
@@ -209,6 +230,26 @@ namespace NoHoPython.Syntax.Parsing
                 else
                     return new CSymbolDeclaration(identifier, ParseType(), location);
             }
+        }
+
+        private LambdaDeclaration ParseLambdaDeclaration(SourceLocation location)
+        {
+            MatchAndScanToken(TokenType.Lambda);
+            
+            List<ProcedureParameter> parameters = new();
+            while(scanner.LastToken.Type != TokenType.Colon)
+            {
+                AstType paramType = ParseType();
+                MatchToken(TokenType.Identifier);
+                parameters.Add(new(scanner.LastToken.Identifier, paramType));
+                scanner.ScanToken();
+
+                if (scanner.LastToken.Type != TokenType.Colon)
+                    MatchAndScanToken(TokenType.Comma);
+            }
+            scanner.ScanToken();
+
+            return new LambdaDeclaration(parameters, ParseExpression(), location);
         }
     }
 }

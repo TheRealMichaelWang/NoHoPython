@@ -9,7 +9,7 @@ mod io:
 			cdef fopen(handle, handle) handle
 			cdef NULL
 			
-			self.ptr = fopen(cinterop::sanitizeCStr(path), cinterop::sanitizeCStr(mode))
+			self.ptr = fopen(cpath=cinterop::sanitizeCStr(path), cmode=cinterop::sanitizeCStr(mode))
 			if self.ptr == NULL:
 				abort "Failed to open file"
 		def __copy__() file:

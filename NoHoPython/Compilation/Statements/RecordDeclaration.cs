@@ -226,12 +226,12 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine("\tif(record->_nhp_lock)");
             emitter.AppendLine("\t\treturn;");
-            emitter.AppendLine("\trecord->_nhp_lock = 1;");
 
             emitter.AppendLine("\tif(record->_nhp_ref_count) {");
             emitter.AppendLine("\t\trecord->_nhp_ref_count--;");
             emitter.AppendLine("\t\treturn;");
             emitter.AppendLine("\t}");
+            emitter.AppendLine("\trecord->_nhp_lock = 1;");
 
             if (HasDestructor)
                 emitter.AppendLine("\trecord->__del__->_nhp_this_anon(record->__del__);");

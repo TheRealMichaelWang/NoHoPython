@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "\"C:\\Users\\Micha\\source\\repos\\NoHoPython\\NoHoPython\\tests\\io-test.nhp\"\r\nout.c\r\n-memleak"
+      "commandLineArgs": "\"tests/io-test.nhp\"\r\nout.c\r\n-memleak"
     }
   }
 }

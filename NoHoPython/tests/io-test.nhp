@@ -1,10 +1,18 @@
 include "mem.nhp"
 include "io.nhp"
+include "std.nhp"
+include "file.nhp"
 
 def main():
 	mem::report()
 	def torun():
 		output = io::output()
 		output.writeLine("hello world")
+		std::repeat(12, lambda int i: output.writeLine(i))
+		output.writeLine("goodbye world")
+		
+		infile = new io::file("myfile.txt", "w+")
+		output = new io::writer(infile.ptr)
+		std::repeat(10, lambda int i: output.writeLine(-i))
 	torun()
 	mem::report()

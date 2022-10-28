@@ -107,7 +107,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             ErrorReportedElement = errorReportedElement;
             Action = action;
-            activeLoopVariables = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetCurrentLocals();
+            activeLoopVariables = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetCurrentLocals(irBuilder.ScopedProcedures.Peek());
         }
     }
 

@@ -31,14 +31,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements = statements;
         }
 
-        public List<Variable> GetCurrentLocals()
+        public List<Variable> GetCurrentLocals(ProcedureDeclaration currentProcedure)
         {
-            if (parentContainer == null || parentContainer is not CodeBlock)
+            if (parentContainer == null || parentContainer is not CodeBlock || this == currentProcedure)
                 return DeclaredVariables.ConvertAll((declaration) => declaration.Variable);
             else
             {
                 List<Variable> combined = new();
-                combined.AddRange(((CodeBlock)parentContainer).GetCurrentLocals());
+                combined.AddRange(((CodeBlock)parentContainer).GetCurrentLocals(currentProcedure));
                 combined.AddRange(DeclaredVariables.ConvertAll((declaration) => declaration.Variable));
                 return combined;
             }

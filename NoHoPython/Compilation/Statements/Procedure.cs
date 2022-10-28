@@ -491,12 +491,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 CodeBlock.CIndent(emitter, indent);
                 emitter.Append("_nhp_toret = ");
 
-                if (ToReturn is VariableReference variableReference && variableReference.Variable.ParentProcedure == parentProcedure)
+                if (ToReturn is VariableReference variableReference && parentProcedure.IsLocalVariable(variableReference.Variable))
                 {
                     localToReturn = variableReference.Variable;
                     emitter.Append(localToReturn.GetStandardIdentifier(irProgram));
                 }
-                if (ToReturn.RequiresDisposal(typeargs))
+                else if (ToReturn.RequiresDisposal(typeargs))
                     ToReturn.Emit(irProgram, emitter, typeargs, "NULL");
                 else
                 {
@@ -782,10 +782,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
 
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
-        {
-            Procedure.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
-        }
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => Procedure.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {

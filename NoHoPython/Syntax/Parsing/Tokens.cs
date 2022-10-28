@@ -14,6 +14,7 @@
         Record,
         Interface,
         Enum,
+        Lambda,
         Define,
         CDefine,
         Match,

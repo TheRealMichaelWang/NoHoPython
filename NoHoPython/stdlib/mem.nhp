@@ -9,3 +9,9 @@
 	def report():
 		cdef memoryReport() None
 		memoryReport()
+	def leaksan(fn<None> todo):
+		cdef active_allocs int
+		current = active_allocs
+		todo()
+		if active_allocs > current:
+			abort "Memory leak detected!"

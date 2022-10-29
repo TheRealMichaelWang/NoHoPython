@@ -45,7 +45,7 @@ namespace NoHoPython.Syntax
             File = file;
         }
 
-        public override string ToString() => $"file \"{File}\", row {Row}, col {Column}";
+        public override string ToString() => $"File \"{File}\", row {Row}, col {Column}";
     }
 
     public interface ISourceLocatable

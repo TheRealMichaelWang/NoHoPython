@@ -52,3 +52,15 @@ mod data:
 			while i < self.count:
 				todo(self.buffer[i])
 				i = i + 1
+		def sort(fn<int, T, T> compare):
+			sorted = False
+			while sorted == False:
+				sorted = True
+				i = 1
+				while i < self.count:
+					if compare(self.buffer[i - 1], self.buffer[i]) > 0:
+						temp = self.buffer[i]
+						self.buffer[i] = self.buffer[i - 1]
+						self.buffer[i - 1] = temp
+						sorted = False
+					i = i + 1

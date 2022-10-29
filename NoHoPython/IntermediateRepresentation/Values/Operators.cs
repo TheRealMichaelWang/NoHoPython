@@ -74,7 +74,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Right { get; private set; }
         public IRValue Left { get; private set; }
 
-        public LogicalOperator(LogicalOperation operation, IRValue right, IRValue left, IAstElement errorReportedElement)
+        public LogicalOperator(LogicalOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement)
         {
             Operation = operation;
             ErrorReportedElement = errorReportedElement;

@@ -18,7 +18,7 @@ namespace NoHoPython.Compilation
 
             emitter.AppendLine("static void _nhp_print_stack_trace() {");
             emitter.AppendLine("\tputs(\"Traceback (most recent call last):\");");
-            emitter.AppendLine("\tfor(int i = 0; i < _nhp_stack_size; i++) {");
+            emitter.AppendLine("\tfor(int i = 0; i <= _nhp_stack_size; i++) {");
             emitter.AppendLine("\t\tputchar('\\t');");
             emitter.AppendLine("\t\tputs(_nhp_call_stack_src_locs[i]);");
             emitter.AppendLine("\t\tputchar('\\t');");
@@ -49,7 +49,7 @@ namespace NoHoPython.Compilation
                 CodeBlock.CIndent(emitter, indent);
             
             emitter.Append("_nhp_santize_call(");
-            CharacterLiteral.EmitCString(emitter, $"File {errorReportedElement.SourceLocation.File}, row {errorReportedElement.SourceLocation.Row}, col {errorReportedElement.SourceLocation.Row}");
+            CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString());
             emitter.Append(", ");
 #pragma warning disable CS8604 // Possible null reference argument.
             CharacterLiteral.EmitCString(emitter, errorReportedElement.ToString());
@@ -75,11 +75,12 @@ namespace NoHoPython.Compilation
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("_nhp_set_errloc(");
-            CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.File);
+            CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString());
             emitter.Append(", ");
-#pragma warning disable CS8604 // Possible null reference argument.
-            CharacterLiteral.EmitCString(emitter, errorReportedElement.ToString());
-#pragma warning restore CS8604
+            if (errorReportedElement is IAstStatement statement)
+                CharacterLiteral.EmitCString(emitter, statement.ToString(0));
+            else if (errorReportedElement is IAstValue value)
+                CharacterLiteral.EmitCString(emitter, value.ToString());
             emitter.AppendLine(");");
         }
 

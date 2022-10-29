@@ -605,7 +605,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         private void EmitCallWithResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer)
         {
-            if (assignResponsibleDestroyer)
+            if (assignResponsibleDestroyer && responsibleDestroyer != "NULL")
             {
                 StringBuilder valueBuilder = new();
                 EmitCall(irProgram, valueBuilder, typeargs, releasedArguments, currentNestedCall, responsibleDestroyer);

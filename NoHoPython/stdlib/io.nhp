@@ -75,7 +75,7 @@ mod io:
 			return buffer.toArray()
 		def readWhitespace():
 			cdef isspace(char) bool
-			readWhile(lambda char c: isspace(c) or c == '\t')
+			readWhile(lambda char c: isspace(c) or c == '\n')
 		def readInt() int:
 			cdef atol(handle) int
 			return atol(buf = cinterop::sanitizeCStr(readWhile(characters::isDigit)))

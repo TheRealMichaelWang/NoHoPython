@@ -5,6 +5,13 @@ enum nullable<T>:
 	T
 	None
 
+class pair<A, B>:
+	A first
+	B second
+	def __init__(A first, B second):
+		self.first = first
+		self.second = second
+
 enum numerical:
 	dec
 	int
@@ -55,6 +62,11 @@ mod std:
 		return cinterop::atan(__utils__::numToDec(num))
 	def atan2(numerical n, numerical d) dec:
 		return cinterop::atan2(__utils__::numToDec(n), __utils__::numToDec(d))
+	
+	def fmax(dec a, dec b) dec:
+		return a if a > b else b
+	def fmin(dec a, dec b) dec:
+		return a if a < b else b
 	
 	def forall<T>(array<T> buf, fn<None, T> todo):
 		i = 0

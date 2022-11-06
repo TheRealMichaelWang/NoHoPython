@@ -526,7 +526,7 @@ namespace NoHoPython.Syntax.Values
             return procedureSymbol is ProcedureDeclaration procedureDeclaration
                 ? (IRValue)new LinkedProcedureCall(procedureDeclaration, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedType, this)
                 : procedureSymbol is Variable variable
-                ? new AnonymousProcedureCall(new IntermediateRepresentation.Values.VariableReference(variable, this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
+                ? new AnonymousProcedureCall(new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
                 : procedureSymbol is ForeignCProcedureDeclaration foreignFunction
                 ? new ForeignFunctionCall(foreignFunction, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
                 : throw new NotAProcedureException(procedureSymbol, this);

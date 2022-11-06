@@ -67,24 +67,43 @@ mod io:
 		def __init__(handle ptr):
 			self.ptr = ptr
 		
-		def readWhile(fn<bool, char> stopChar) array<char>:
+		def readWhile(fn<bool, char> continueCond) array<char>:
 			cdef fgetc(handle) char
+			cdef ungetc(char, handle) None
 			buffer = new data::list<char>(10, ' ')
-			while ((c = fgetc(self.ptr)) != EOF) and (stopChar(c) == False):
+			while ((c = fgetc(self.ptr)) != EOF) and continueCond(c):
 				buffer.pushBack(c)
+			ungetc(c, self.ptr)
 			return buffer.toArray()
-		def readWhitespace():
-			cdef isspace(char) bool
-			readWhile(lambda char c: isspace(c) or c == '\n')
+		def readTill(fn<bool, char> stopCond) array<char>:
+			return readWhile(lambda char c: stopCond(c) == False)
 		def readInt() int:
 			cdef atol(handle) int
-			return atol(buf = cinterop::sanitizeCStr(readWhile(characters::isDigit)))
+			return atol(buf = cinterop::sanitizeCStr(readWhile(lambda char c: characters::isDigit(c) or c == '-')))
 		def readDec() dec:
 			cdef atof(handle) dec
-			return atof(buf = cinterop::sanitizeCStr(readWhile(lambda char c: characters::isDigit(c) or c == '.')))
+			return atof(buf = cinterop::sanitizeCStr(readWhile(lambda char c: characters::isDigit(c) or c == '.' or c == '-')))
 		def readChar() char:
 			cdef fgetc(handle) char
 			return fgetc(self.ptr)
+		def consumeWhitespace():
+			cdef isspace(char) bool
+			readWhile(lambda char c: isspace(c) or c == '\n')
+		def consumeTillPhrase(array<char> phrase) bool:
+			cdef fgetc(handle) char
+			if phrase as int == 0:
+				return True
+			matchedChar = 0
+			while (c = fgetc(self.ptr)) != EOF:
+				#cdef putchar(char) None
+				#putchar(c)
+				if c == phrase[matchedChar]:
+					matchedChar = matchedChar + 1
+					if matchedChar == phrase as int:
+						return True
+				else:
+					matchedChar = 0
+			return False
 		
 		def readLine() array<char>:
 			cdef fgetc(handle) char

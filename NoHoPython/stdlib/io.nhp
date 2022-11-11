@@ -67,6 +67,13 @@ mod io:
 		def __init__(handle ptr):
 			self.ptr = ptr
 		
+		def peek() char:
+			cdef fgetc(handle) char
+			cdef ungetc(char, handle) None
+			c = fgetc(self.ptr)
+			ungetc(c, self.ptr)
+			return c
+		
 		def readWhile(fn<bool, char> continueCond) array<char>:
 			cdef fgetc(handle) char
 			cdef ungetc(char, handle) None

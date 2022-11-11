@@ -98,7 +98,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public bool IsGloballyNavigable => false;
 
-        public RecordType SelfType => new(this, TypeParameters.ConvertAll((TypeParameter parameter) => (IType)new TypeParameterReference(parameter)), ErrorReportedElement);
+        public RecordType GetSelfType(Syntax.AstIRProgramBuilder irBuilder) => new(this, TypeParameters.ConvertAll((TypeParameter parameter) => (IType)new TypeParameterReference(irBuilder.ScopedProcedures.Count > 0 ? irBuilder.ScopedProcedures.Peek().SanitizeTypeParameter(parameter) : parameter)), ErrorReportedElement);
 
         public string Name { get; private set; }
         public readonly List<TypeParameter> TypeParameters;
@@ -315,11 +315,13 @@ namespace NoHoPython.Syntax.Statements
                 else if (Copier == null)
                     throw new RecordMustDefineCopierError(IRRecordDeclaration);
             }
+
+            IType selfType = IRRecordDeclaration.GetSelfType(irBuilder);
             if(Copier != null)
             {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                if (!Copier.ReturnType.IsCompatibleWith(IRRecordDeclaration.SelfType))
-                    throw new UnexpectedTypeException(Copier.ReturnType, IRRecordDeclaration.SelfType, Copier.ErrorReportedElement);
+                if (!Copier.ReturnType.IsCompatibleWith(selfType))
+                    throw new UnexpectedTypeException(Copier.ReturnType, selfType, Copier.ErrorReportedElement);
                 else if(Copier.Parameters.Count != 0)
                     throw new UnexpectedTypeArgumentsException(0, Copier.Parameters.Count, Copier.ErrorReportedElement);
 #pragma warning restore CS8602

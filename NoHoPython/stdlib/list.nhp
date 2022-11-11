@@ -42,9 +42,17 @@ mod data:
 			return buffer
 		
 		def getAtIndex(int index) T:
+			if index > self.count:
+				abort "Index Over Range"
+			elif index < 0:
+				abort "Index Under Range"
 			return self.buffer[index]
 		
 		def setAtIndex(int index, T elem) T:
+			if index > self.count:
+				abort "Index Over Range"
+			elif index < 0:
+				abort "Index Under Range"
 			return self.buffer[index] = elem
 		
 		def forall(fn<nothing, T> todo):
@@ -64,3 +72,26 @@ mod data:
 						self.buffer[i - 1] = temp
 						sorted = False
 					i = i + 1
+		
+		def map(fn<T, T> transform) list<T>:
+			mapped = new list<T>(self.count, self.defaultValue)
+			i = 0
+			while i < self.count:
+				mapped.pushBack(transform(self.buffer[i]))
+				i = i + 1
+			return mapped
+		def filter(fn<bool, T> keepCond) list<T>:
+			filtered = new list<T>(self.count, self.defaultValue)
+			i = 0
+			while i < self.count:
+				if keepCond(self.buffer[i]):
+					filtered.pushBack(self.buffer[i])
+				i = i + 1
+			return filtered
+		def reduce(fn<T, T, T> add) T:
+			accum = getAtIndex(0)
+			i = 1
+			while i < self.count:
+				accum = add(accum, self.buffer[i])
+				i = i + 1
+			return accum

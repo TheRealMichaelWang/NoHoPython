@@ -267,7 +267,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class ProcedureReference
     {
-        public string GetStandardIdentifier(IRProgram irProgram) => $"{IScopeSymbol.GetAbsolouteName(ProcedureDeclaration)}{string.Join(string.Empty, typeArguments.Values.ToList().ConvertAll((typearg) => $"_{typearg.GetStandardIdentifier(irProgram)}"))}" + (IsAnonymous ? "_anon_capture" : string.Empty);
+        public string GetStandardIdentifier(IRProgram irProgram) => $"{IScopeSymbol.GetAbsolouteName(ProcedureDeclaration)}{string.Join(string.Empty, ProcedureDeclaration.UsedTypeParameters.ToList().ConvertAll((typeParam) => $"_{typeArguments[typeParam].GetStandardIdentifier(irProgram)}_as_{typeParam.Name}"))}" + (IsAnonymous ? "_anon_capture" : string.Empty);
 
         public string GetClosureCaptureCType(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_captured_t";
 

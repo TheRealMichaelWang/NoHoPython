@@ -65,6 +65,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public List<Variable>? Parameters { get; private set; }
         public List<Variable> CapturedVariables { get; private set; }
         public List<ProcedureDeclaration> CallSiteProcedures { get; private set; }
+        public List<Typing.TypeParameter> UsedTypeParameters { get; private set; }
 
         public IType? ReturnType { get; private set; }
 
@@ -77,6 +78,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ErrorReportedElement = errorReportedElement;
             CapturedVariables = new List<Variable>();
             CallSiteProcedures = new List<ProcedureDeclaration>();
+            UsedTypeParameters = new List<Typing.TypeParameter>();
         }
 
         public bool HasVariable(Variable variable)
@@ -137,6 +139,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     throw new CannotMutateVaraible(variable, errorReportedElement);
             }
             return variable;
+        }
+
+        public Typing.TypeParameter SanitizeTypeParameter(Typing.TypeParameter typeParameter)
+        {
+            if (!UsedTypeParameters.Contains(typeParameter))
+                UsedTypeParameters.Add(typeParameter);
+            return typeParameter;
         }
     }
 
@@ -224,19 +233,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return false;
             if (IsAnonymous != procedureReference.IsAnonymous)
                 return false;
-            if (procedureReference.typeArguments.Count != typeArguments.Count)
-                return false;
 
-            foreach (KeyValuePair<Typing.TypeParameter, IType> typearg in typeArguments)
-                if (procedureReference.typeArguments.ContainsKey(typearg.Key))
-                {
-                    if (!typearg.Value.IsCompatibleWith(procedureReference.typeArguments[typearg.Key]))
-                        return false;
-                }
-                else
-                    return false;
-
-            return true;
+            return ProcedureDeclaration.UsedTypeParameters.TrueForAll((typeParameter) => typeArguments[typeParameter].IsCompatibleWith(procedureReference.typeArguments[typeParameter]));
         }
     }
 
@@ -442,7 +440,7 @@ namespace NoHoPython.Syntax.Statements
         {
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRProcedureDeclaration = new(Name, typeParameters, AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this), irBuilder.CurrentMasterScope, this);
+            IRProcedureDeclaration = new(Name, typeParameters, null, irBuilder.CurrentMasterScope, this);
 
             SymbolContainer? oldMasterScope = irBuilder.CurrentMasterScope;
 
@@ -453,13 +451,14 @@ namespace NoHoPython.Syntax.Statements
 
             foreach (Typing.TypeParameter parameter in typeParameters)
                 irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
+            IRProcedureDeclaration.DelayedLinkSetReturnType(AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this));
 
             List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, IRProcedureDeclaration, false));
             IRProcedureDeclaration.DelayedLinkSetParameters(parameters);
 
             if (oldMasterScope is IntermediateRepresentation.Statements.RecordDeclaration parentRecord)
             {
-                Variable selfVariable = new(parentRecord.SelfType, "self", IRProcedureDeclaration, true);
+                Variable selfVariable = new(parentRecord.GetSelfType(irBuilder), "self", IRProcedureDeclaration, true);
                 irBuilder.SymbolMarshaller.DeclareSymbol(selfVariable, this);
                 IRProcedureDeclaration.CapturedVariables.Add(selfVariable);
             }
@@ -560,14 +559,20 @@ namespace NoHoPython.Syntax.Values
             foreach (Variable parameter in parameters)
                 irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
 
+            IType? expectedReturnType = (expectedType is ProcedureType expectedProcedureType) ? expectedProcedureType.ReturnType : null;
             IRValue returnExpression = ReturnExpression.GenerateIntermediateRepresentationForValue(irBuilder, null, false);
-            lamdaDeclaration.DelayedLinkSetReturnType(returnExpression.Type);
 
             List<IRStatement> statements = new List<IRStatement>(1);
-            if (ReturnExpression is IAstStatement statement && returnExpression.Type is NothingType)
+            if (ReturnExpression is IAstStatement statement && (returnExpression.Type is NothingType || expectedReturnType == null))
+            {
+                lamdaDeclaration.DelayedLinkSetReturnType(Primitive.Nothing);
                 statements.Add(statement.GenerateIntermediateRepresentationForStatement(irBuilder));
+            }
             else
+            {
+                lamdaDeclaration.DelayedLinkSetReturnType(returnExpression.Type);
                 statements.Add(new ReturnStatement(returnExpression, irBuilder, this));
+            }
             lamdaDeclaration.DelayedLinkSetStatements(statements);
 
             irBuilder.SymbolMarshaller.GoBack();

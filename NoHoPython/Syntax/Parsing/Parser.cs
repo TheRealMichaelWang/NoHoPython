@@ -139,6 +139,7 @@ namespace NoHoPython.Syntax.Parsing
                         skipIndentCounting = true;
                         return statements;
                     }
+
                     if (!skipIndentCounting)
                         MatchAndScanToken(TokenType.Newline);
                 }

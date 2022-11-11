@@ -78,3 +78,16 @@ mod std:
 		while i < n:
 			todo(i)
 			i = i + 1
+	def repeatStepped(int start, int stop, int step, fn<None, int> todo):
+		i = start
+		while i != stop:
+			todo(i)
+			i = i + step
+	
+	def reduce<T>(array<T> a, fn<T, T, T> add) T:
+		accum = a[0]
+		i = 1
+		while i < a as int:
+			accum = add(accum, a[i])
+			i = i + 1
+		return accum

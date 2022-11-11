@@ -514,6 +514,16 @@ namespace NoHoPython.Syntax.Values
 {
     partial class NamedFunctionCall
     {
+        public static List<IRValue> GenerateArguments(AstIRProgramBuilder irBuilder, List<IAstValue> arguments, List<IType> parameterTypes, bool willRevaluate)
+        {
+            if (arguments.Count != parameterTypes.Count)
+                return arguments.ConvertAll((arg) => arg.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate));
+            List<IRValue> newArguments = new(arguments.Count);
+            for (int i = 0; i < arguments.Count; i++)
+                newArguments.Add(arguments[i].GenerateIntermediateRepresentationForValue(irBuilder, parameterTypes[i], willRevaluate));
+            return newArguments;
+        }
+
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
@@ -522,13 +532,15 @@ namespace NoHoPython.Syntax.Values
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
             IScopeSymbol procedureSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
+#pragma warning disable CS8602 // Many items aren't linked immediatley
             return procedureSymbol is ProcedureDeclaration procedureDeclaration
-                ? (IRValue)new LinkedProcedureCall(procedureDeclaration, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedType, this)
+                ? (IRValue)new LinkedProcedureCall(procedureDeclaration, GenerateArguments(irBuilder, Arguments, procedureDeclaration.Parameters.ConvertAll((parameter) => parameter.Type), false), irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedType, this)
                 : procedureSymbol is Variable variable
                 ? new AnonymousProcedureCall(new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
                 : procedureSymbol is ForeignCProcedureDeclaration foreignFunction
-                ? new ForeignFunctionCall(foreignFunction, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
+                ? new ForeignFunctionCall(foreignFunction, GenerateArguments(irBuilder, Arguments, foreignFunction.ParameterTypes, willRevaluate), this)
                 : throw new NotAProcedureException(procedureSymbol, this);
+#pragma warning restore CS8602 
         }
     }
 
@@ -563,7 +575,7 @@ namespace NoHoPython.Syntax.Values
             IRValue returnExpression = ReturnExpression.GenerateIntermediateRepresentationForValue(irBuilder, null, false);
 
             List<IRStatement> statements = new List<IRStatement>(1);
-            if (ReturnExpression is IAstStatement statement && (returnExpression.Type is NothingType || expectedReturnType == null))
+            if (ReturnExpression is IAstStatement statement && (returnExpression.Type is NothingType || expectedReturnType is NothingType))
             {
                 lamdaDeclaration.DelayedLinkSetReturnType(Primitive.Nothing);
                 statements.Add(statement.GenerateIntermediateRepresentationForStatement(irBuilder));

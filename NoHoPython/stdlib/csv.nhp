@@ -32,13 +32,13 @@ mod csv:
 			matchChar('\"')
 			countedCols = countedCols + 1
 			
-			if (foundEof = reader.peek()) == io::EOF or consumeNewline():
+			if (foundEof = (reader.peek() == io::EOF)) or consumeNewline():
 				rows = rows + 1
 				if columns == -1:
 					columns = countedCols
 				else:
 					assert columns == countedCols
-					countedCols = 0
+				countedCols = 0
 				if foundEof:
 					break
 			else:

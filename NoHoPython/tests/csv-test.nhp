@@ -4,7 +4,11 @@ include "mem.nhp"
 
 def main():
 	def testfun():
+		out = io::output()
 		myTable = new ndarray<int>([12, 12], 0)
 		std::repeat(12, lambda int i: std::repeat(12, lambda int j: myTable.set([i, j], i * j)))
 		csv::save("timesTable.csv", myTable, lambda io::writer writer, int i: writer.write(i))
+		
+		loaded = csv::load("timesTable.csv", lambda io::reader reader: reader.readInt(), 0)
+		std::forall(loaded.buffer, lambda int i: out.writeLine(i))
 	mem::leaksan(testfun)

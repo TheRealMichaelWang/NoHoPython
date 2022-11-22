@@ -687,15 +687,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 if (RequiresDisposal(typeargs))
                 {
+                    emitter.AppendLine("{");
+                    CodeBlock.CIndent(emitter, indent + 1);
                     emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_callrep_res0 = ");
                     EmitCall(irProgram, emitter, typeargs, releasedArguments, 0, "NULL");
                     emitter.AppendLine(";");
-                    CodeBlock.CIndent(emitter, indent);
+                    CodeBlock.CIndent(emitter, indent + 1);
                     Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_callrep_res0");
+                    CodeBlock.CIndent(emitter, indent);
+                    emitter.AppendLine("}");
                 }
                 else
+                {
                     EmitCall(irProgram, emitter, typeargs, releasedArguments, 0, "NULL");
-                emitter.AppendLine(";");
+                    emitter.AppendLine(";");
+                }
             }
 
             if(irProgram.DoCallStack)

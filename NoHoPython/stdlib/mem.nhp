@@ -10,8 +10,13 @@
 		cdef memoryReport() None
 		memoryReport()
 	def leaksan(fn<None> todo):
+		cdef printf(handle, int, int) None
 		cdef active_allocs int
-		current = active_allocs
+		cdef active_memory_usage int
+		preMem = active_memory_usage
+		preAllocs = active_allocs
 		todo()
-		if active_allocs > current:
+		if (currentAllocs = active_allocs) > preAllocs:
+			currentMem = active_memory_usage
+			printf(fmt="%i bytes leaked, %i allocations leaked.\n\0", currentMem - preMem, currentAllocs - preAllocs)
 			abort "Memory leak detected!"

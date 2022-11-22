@@ -191,7 +191,7 @@ namespace NoHoPython.Typing
             EmitConstructorCHeader(irProgram, emitter);
             emitter.AppendLine(" {"); 
             
-            emitter.AppendLine($"\t{GetCName(irProgram)} _nhp_self = {irProgram.MemoryAnalyzer.Allocater}({GetCHeapSizer(irProgram)});");
+            emitter.AppendLine($"\t{GetCName(irProgram)} _nhp_self = {irProgram.MemoryAnalyzer.Allocate(GetCHeapSizer(irProgram))};");
             emitter.AppendLine("\t_nhp_self->_nhp_ref_count = 0;");
             emitter.AppendLine("\t_nhp_self->_nhp_lock = 0;");
             emitter.AppendLine("\t_nhp_self->_nhp_responsible_destroyer = (responsible_destroyer ? responsible_destroyer : _nhp_self);");
@@ -244,7 +244,7 @@ namespace NoHoPython.Typing
                     recordProperty.Type.EmitFreeValue(irProgram, emitter, $"record->{recordProperty.Name}");
                 }
             }
-            emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Disposer}(record);");
+            emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Dealloc("record", GetCHeapSizer(irProgram))};");
             emitter.AppendLine("}");
         }
 
@@ -254,7 +254,7 @@ namespace NoHoPython.Typing
                 return;
 
             emitter.AppendLine($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, void* responsible_destroyer) {{");
-            emitter.AppendLine($"\t{GetCName(irProgram)} copied_record = {irProgram.MemoryAnalyzer.Allocater}({GetCHeapSizer(irProgram)});");
+            emitter.AppendLine($"\t{GetCName(irProgram)} copied_record = {irProgram.MemoryAnalyzer.Allocate(GetCHeapSizer(irProgram))};");
             emitter.AppendLine("\tcopied_record->_nhp_ref_count = 0;");
             emitter.AppendLine("\tcopied_record->_nhp_lock = 0;");
             emitter.AppendLine("\tcopied_record->_nhp_responsible_destroyer = (responsible_destroyer ? responsible_destroyer : copied_record);");

@@ -207,50 +207,58 @@ namespace NoHoPython.IntermediateRepresentation
                     dependency.EmitCStruct(this, emitter);
         }
 
-        public void Emit(StringBuilder emitter)
+        public void Emit(StringBuilder emitter, StringBuilder headerEmitter)
         {
             ProcedureCall.nestedCalls = 0;
 
+            if (headerEmitter != emitter)
+            {
+                headerEmitter.AppendLine("#ifndef _NHP_HEADER_GUARD_");
+                headerEmitter.AppendLine("#define _NHP_HEADER_GUARD_");
+            }
             foreach (string includedCFile in IncludedCFiles)
                 if (includedCFile.StartsWith('<'))
                     emitter.AppendLine($"#include {includedCFile}");
                 else
                     emitter.AppendLine($"#include \"{includedCFile}\"");
-
             emitter.AppendLine();
 
-            this.compiledTypes.Clear();
             //emit typedefs
-            EmitArrayTypeTypedefs(emitter);
-            ForwardDeclareEnumTypes(emitter);
-            ForwardDeclareInterfaceTypes(emitter);
-            EmitAnonProcedureTypedefs(emitter);
-            ForwardDeclareRecordTypes(emitter);
+            this.compiledTypes.Clear();
+            EmitArrayTypeTypedefs(headerEmitter);
+            ForwardDeclareEnumTypes(headerEmitter);
+            ForwardDeclareInterfaceTypes(headerEmitter);
+            EmitAnonProcedureTypedefs(headerEmitter);
+            ForwardDeclareRecordTypes(headerEmitter);
 
             //emit c structs
-            RecordDeclaration.EmitRecordMaskProto(this, emitter);
-            MemoryAnalyzer.EmitAnalyzers(emitter);
-            EmitArrayTypeCStructs(emitter);
-            EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclareType(this, emitter));
-            InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclareType(this, emitter));
-            RecordDeclarations.ForEach((record) => record.ForwardDeclareType(this, emitter));
-            ForwardDeclareAnonProcedureTypes(this, emitter);
+            RecordDeclaration.EmitRecordMaskProto(this, headerEmitter);
+            EmitArrayTypeCStructs(headerEmitter);
+            EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclareType(this, headerEmitter));
+            InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclareType(this, headerEmitter));
+            RecordDeclarations.ForEach((record) => record.ForwardDeclareType(this, headerEmitter));
+            ForwardDeclareAnonProcedureTypes(this, headerEmitter);
 
             //emit function headers
-            ForwardDeclareArrayTypes(this, emitter);
-            EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclare(this, emitter));
-            InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, emitter));
-            RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, emitter));
-            ProcedureDeclarations.ForEach((procedure) => procedure.ForwardDeclareActual(this, emitter));
-            EmitAnonProcedureCapturedContecies(emitter);
+            ForwardDeclareArrayTypes(this, headerEmitter);
+            EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclare(this, headerEmitter));
+            InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, headerEmitter));
+            RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, headerEmitter));
+            ProcedureDeclarations.ForEach((procedure) => procedure.ForwardDeclareActual(this, headerEmitter));
+            usedProcedureReferences.ForEach((procedure) => procedure.EmitCaptureContextCStruct(this, headerEmitter));
+
+            if (headerEmitter != emitter)
+                headerEmitter.AppendLine("#endif");
 
             //emit utility functions
+            MemoryAnalyzer.EmitAnalyzers(emitter);
             if(DoCallStack)
                 CallStackReporting.EmitReporter(emitter);
             if(!EliminateAsserts)
                 AssertStatement.EmitAsserter(emitter, DoCallStack);
 
             //emit function behavior
+            EmitAnonProcedureCapturedContecies(emitter);
             EmitArrayTypeMarshallers(emitter, DoCallStack);
             EmitAnonProcedureMovers(this, emitter);
             EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new Dictionary<TypeParameter, IType>(), 0));

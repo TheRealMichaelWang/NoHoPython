@@ -108,7 +108,7 @@ namespace NoHoPython.Typing
             if (ElementType.RequiresDisposal)
                 emitter.AppendLine($"free{GetStandardIdentifier(irProgram)}({valueCSource});");
             else
-                emitter.AppendLine($"{irProgram.MemoryAnalyzer.Disposer}({valueCSource}.buffer);");
+                emitter.AppendLine($"{irProgram.MemoryAnalyzer.Dealloc($"{valueCSource}.buffer", $"{valueCSource}.length * sizeof({ElementType.GetCName(irProgram)})")};");
         }
 
         public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer)
@@ -153,7 +153,7 @@ namespace NoHoPython.Typing
         {
             emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}(const {ElementType.GetCName(irProgram)}* buffer, int length, void* responsible_destroyer) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
-            emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocater}(length * sizeof({ElementType.GetCName(irProgram)}));");
+            emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocate($"length * sizeof({ElementType.GetCName(irProgram)})")};");
             emitter.AppendLine($"\tmemcpy(to_alloc.buffer, buffer, length * sizeof({ElementType.GetCName(irProgram)}));");
             emitter.AppendLine("\tto_alloc.length = length;");
             emitter.AppendLine("\tto_alloc.responsible_destroyer = responsible_destroyer;");
@@ -162,7 +162,7 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine($"{GetCName(irProgram)} marshal_proto{GetStandardIdentifier(irProgram)}(int length, {ElementType.GetCName(irProgram)} proto, void* responsible_destroyer) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
-            emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocater}(length * sizeof({ElementType.GetCName(irProgram)}));");
+            emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocate($"length * sizeof({ElementType.GetCName(irProgram)})")};");
 
             emitter.AppendLine($"\tfor(int i = 0; i < length; i++)");
             emitter.Append("\t\tto_alloc.buffer[i] = ");
@@ -191,7 +191,7 @@ namespace NoHoPython.Typing
             emitter.Append("\t\t");
             ElementType.EmitFreeValue(irProgram, emitter, "to_free.buffer[i]");
             emitter.AppendLine("\t}");
-            emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Disposer}(to_free.buffer);");
+            emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Dealloc("to_free.buffer", $"to_free.length * sizeof({ElementType.GetCName(irProgram)})")};");
             emitter.AppendLine("}");
         }
 
@@ -204,7 +204,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"\t{GetCName(irProgram)} copied;");
             emitter.AppendLine("\tcopied.length = to_copy.length;");
             emitter.AppendLine("\tcopied.responsible_destroyer = responsible_destroyer;");
-            emitter.AppendLine($"\tcopied.buffer = {irProgram.MemoryAnalyzer.Allocater}(to_copy.length * sizeof({ElementType.GetCName(irProgram)}));");
+            emitter.AppendLine($"\tcopied.buffer = {irProgram.MemoryAnalyzer.Allocate($"to_copy.length * sizeof({ElementType.GetCName(irProgram)})")};");
 
             emitter.AppendLine("\tfor(int i = 0; i < to_copy.length; i++) {");
             emitter.Append("\t\tcopied.buffer[i] = ");

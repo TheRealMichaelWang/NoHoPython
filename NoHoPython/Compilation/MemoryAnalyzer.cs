@@ -14,8 +14,8 @@ namespace NoHoPython.Compilation
         public AnalysisMode Mode { get; private set; }
         public bool ProtectAllocFailure { get; private set; }
 
-        public string Allocater => (Mode == AnalysisMode.None && !ProtectAllocFailure) ? "malloc" : "_nhp_malloc";
-        public string Disposer => Mode == AnalysisMode.None ? "free" : "_nhp_free";
+        public string Allocate(string size) => $"{((Mode == AnalysisMode.None && !ProtectAllocFailure) ? "malloc" : "_nhp_malloc")}({size})";
+        public string Dealloc(string ptr, string size) => $"{(Mode == AnalysisMode.None ? "free" : "_nhp_free")}({ptr}{(Mode >= AnalysisMode.UsageMagnitudeCheck ? ", " + size : string.Empty)})";
 
         public MemoryAnalyzer(AnalysisMode analysisMode, bool protectAllocFailure)
         {
@@ -40,7 +40,7 @@ namespace NoHoPython.Compilation
             }
 
             #region emitReporter
-            if (Mode != AnalysisMode.None)
+            if (Mode > AnalysisMode.None)
             {
                 emitter.AppendLine("static void memoryReport() {");
                 emitter.AppendLine("\tputs(\"NHP Memory Analysis Report\");");
@@ -84,13 +84,18 @@ namespace NoHoPython.Compilation
             #endregion
 
             #region emit_destructor
-            if (Mode != AnalysisMode.None)
+            if (Mode > AnalysisMode.None)
             {
-                emitter.AppendLine("static void _nhp_free(void* buf) {");
+                if(Mode >= AnalysisMode.UsageMagnitudeCheck)
+                    emitter.AppendLine("static void _nhp_free(void* buf, int size) {");
+                else
+                    emitter.AppendLine("static void _nhp_free(void* buf) {");
+                
                 if (Mode >= AnalysisMode.LeakSanityCheck)
                     emitter.AppendLine("\tactive_allocs--;");
                 if (Mode >= AnalysisMode.UsageMagnitudeCheck)
-                    throw new NotImplementedException();
+                    emitter.AppendLine("\tactive_memory_usage -= size;");
+                
                 emitter.AppendLine("\tfree(buf);");
                 emitter.AppendLine("}");
             }

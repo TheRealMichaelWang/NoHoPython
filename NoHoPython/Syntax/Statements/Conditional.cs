@@ -82,6 +82,29 @@ namespace NoHoPython.Syntax.Statements
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}while {Condition}:\n{IAstStatement.BlockToString(indent, ToExecute)}";
     }
 
+    public sealed partial class IterationForLoop : IAstStatement
+    {
+        public SourceLocation SourceLocation { get; private set; }
+    
+        public readonly string IteratorIdentifier;
+        public IAstValue LowerBound { get; private set; }
+        public IAstValue UpperBound { get; private set; }
+        public readonly List<IAstStatement> ToExecute;
+
+#pragma warning disable CS8618 // null feilds initialized during IR generation
+        public IterationForLoop(string iteratorIdentifier, IAstValue lowerBound, IAstValue upperBound, List<IAstStatement> toExecute, SourceLocation sourceLocation)
+#pragma warning restore CS8618 //
+        {
+            IteratorIdentifier = iteratorIdentifier;
+            LowerBound = lowerBound;
+            UpperBound = upperBound;
+            ToExecute = toExecute;
+            SourceLocation = sourceLocation;
+        }
+
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}for {IteratorIdentifier} from {LowerBound} to {UpperBound}:\n{IAstStatement.BlockToString(indent + 1, ToExecute)}";
+    }
+
     public sealed partial class MatchStatement : IAstStatement
     {
         public sealed partial class MatchHandler
@@ -251,6 +274,29 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Newline);
 
             return new WhileBlock(condition, ParseCodeBlock(), location);
+        }
+
+        private IAstStatement ParseForLoop()
+        {
+            SourceLocation location = scanner.CurrentLocation;
+            MatchAndScanToken(TokenType.For);
+            MatchToken(TokenType.Identifier);
+            string iteratorIdentifier = scanner.LastToken.Identifier;
+            SourceLocation forOperationTokLocation = scanner.CurrentLocation; 
+            scanner.ScanToken();
+            if (scanner.LastToken.Type == TokenType.From)
+            {
+                scanner.ScanToken();
+                IAstValue lowerBound = ParseExpression();
+                MatchAndScanToken(TokenType.To);
+                IAstValue upperBound = ParseExpression();
+
+                MatchAndScanToken(TokenType.Colon);
+                MatchAndScanToken(TokenType.Newline);
+                return new IterationForLoop(iteratorIdentifier, lowerBound, upperBound, ParseCodeBlock(), location);
+            }
+            else
+                throw new UnexpectedTokenException(scanner.LastToken, forOperationTokLocation);
         }
 
         private MatchStatement ParseMatchStatement()

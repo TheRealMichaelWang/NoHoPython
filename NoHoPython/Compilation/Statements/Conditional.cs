@@ -63,12 +63,19 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements.ForEach((statement) => statement.ForwardDeclare(irProgram, emitter));
         }
 
+        public void EmitInitialize(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            if (Statements == null)
+                throw new InvalidOperationException();
+
+            foreach (VariableDeclaration declaration in DeclaredVariables)
+                declaration.EmitCDecl(irProgram, emitter, typeargs, indent);
+        }
+
         public void EmitNoOpen(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent, bool insertFinalBreak)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
-            foreach (VariableDeclaration declaration in DeclaredVariables)
-                declaration.EmitCDecl(irProgram, emitter, typeargs, indent);
 
             Statements.ForEach((statement) => statement.Emit(irProgram, emitter, typeargs, indent + 1));
 
@@ -92,6 +99,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 throw new InvalidOperationException();
 
             emitter.AppendLine(" {");
+            EmitInitialize(irProgram, emitter, typeargs, indent);
             EmitNoOpen(irProgram, emitter, typeargs, indent, false);
         }
     }
@@ -175,6 +183,39 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
     }
 
+    partial class IterationForLoop
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            IteratorVariableDeclaration.ScopeForUsedTypes(typeargs, irBuilder);
+            UpperBound.ScopeForUsedTypes(typeargs, irBuilder);
+            IterationBlock.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => IterationBlock.ForwardDeclare(irProgram, emitter);
+
+        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) => IterationBlock.ForwardDeclare(irProgram, emitter);
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            CodeBlock.CIndent(emitter, indent);
+            emitter.AppendLine("{");
+            IterationBlock.EmitInitialize(irProgram, emitter, typeargs, indent);
+            IteratorVariableDeclaration.Emit(irProgram, emitter, typeargs, indent + 1);
+
+            CodeBlock.CIndent(emitter, indent + 1);
+            emitter.Append($"long _nhp_upper_{IteratorVariableDeclaration.Variable.Name} = ");
+            UpperBound.Emit(irProgram, emitter, typeargs, "NULL");
+            emitter.AppendLine(";");
+            
+            CodeBlock.CIndent(emitter, indent + 1);
+            emitter.AppendLine($"while((++{IteratorVariableDeclaration.Variable.GetStandardIdentifier(irProgram)}) <= _nhp_upper_{IteratorVariableDeclaration.Variable.Name}) {{");
+            IterationBlock.EmitNoOpen(irProgram, emitter, typeargs, indent + 1, false);
+            CodeBlock.CIndent(emitter, indent);
+            emitter.AppendLine("}");
+        }
+    }
+
     partial class MatchStatement
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
@@ -212,12 +253,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     emitter.AppendLine($".data.{currentOption.GetStandardIdentifier(irProgram)}_set;");
                 }
 
+                handler.ToExecute.EmitInitialize(irProgram, emitter, typeargs, indent);
                 handler.ToExecute.EmitNoOpen(irProgram, emitter, typeargs, indent, true);
             }
             if(DefaultHandler != null)
             {
                 CodeBlock.CIndent(emitter, indent);
                 emitter.AppendLine("default: {");
+                DefaultHandler.EmitInitialize(irProgram, emitter, typeargs, indent);
                 DefaultHandler.EmitNoOpen(irProgram, emitter, typeargs, indent, false);
             }
 

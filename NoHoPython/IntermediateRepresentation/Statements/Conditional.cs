@@ -55,6 +55,24 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
     }
 
+    public sealed partial class IterationForLoop : IRStatement
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public VariableDeclaration IteratorVariableDeclaration { get; private set; }
+        public IRValue UpperBound { get; private set; }
+
+        public CodeBlock IterationBlock { get; private set; }
+
+        public IterationForLoop(VariableDeclaration iteratorVariableDeclaration, IRValue upperBound, CodeBlock iterationBlock, IAstElement errorReportedElement)
+        {
+            IteratorVariableDeclaration = iteratorVariableDeclaration;
+            UpperBound = upperBound;
+            IterationBlock = iterationBlock;
+            ErrorReportedElement = errorReportedElement;
+        }
+    }
+
     public sealed partial class MatchStatement : IRStatement
     {
         public sealed partial class MatchHandler
@@ -262,6 +280,33 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.GoBack();
 
             return new IntermediateRepresentation.Statements.WhileBlock(condition, scopedCodeBlock, this);
+        }
+    }
+
+    partial class IterationForLoop
+    {
+        private CodeBlock scopedCodeBlock;
+
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
+        {
+            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(true);
+            IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
+            irBuilder.SymbolMarshaller.GoBack();
+        }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        {
+            IRValue lowerBound = ArithmeticOperator.ComposeArithmeticOperation(ArithmeticOperator.ArithmeticOperation.Subtract, LowerBound.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, false), new IntegerLiteral(1, this), this);
+            IRValue upperBound = UpperBound.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, false);
+
+            irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
+            VariableDeclaration iteratorDeclaration = new(IteratorIdentifier, lowerBound, false, irBuilder, this);
+            scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
+            irBuilder.SymbolMarshaller.GoBack();
+
+            return new IntermediateRepresentation.Statements.IterationForLoop(iteratorDeclaration, upperBound, scopedCodeBlock, this);
         }
     }
 

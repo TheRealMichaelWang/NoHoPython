@@ -1,0 +1,6 @@
+﻿include "io.nhp"
+
+def main():
+	out = io::output()
+	for i from 1 to 10:
+		out.writeLine(i)

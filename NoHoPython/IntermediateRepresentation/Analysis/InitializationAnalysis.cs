@@ -86,7 +86,16 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class WhileBlock
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Condition.AnalyzePropertyInitialization(initializedProperties);
+    }
+
+    partial class IterationForLoop
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
+        {
+            IteratorVariableDeclaration.AnalyzePropertyInitialization(initializedProperties);
+            UpperBound.AnalyzePropertyInitialization(initializedProperties);
+        }
     }
 
     partial class MatchStatement

@@ -144,14 +144,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public static bool IsCommunicative(ArithmeticOperation operation) => ((int)operation % 2) == 0;
 
-        public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right, Syntax.Values.BinaryOperator binaryOperator)
+        public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement)
         {
             return left.Type is IPropertyContainer container && container.HasProperty(operatorOverloadIdentifiers[operation])
-                ? new AnonymousProcedureCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation], binaryOperator), new List<IRValue>()
+                ? new AnonymousProcedureCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation], errorReportedElement), new List<IRValue>()
                 {
                     right
-                }, binaryOperator)
-                : (IRValue)new ArithmeticOperator(operation, left, right, binaryOperator);
+                }, errorReportedElement)
+                : (IRValue)new ArithmeticOperator(operation, left, right, errorReportedElement);
         }
 
         public IAstElement ErrorReportedElement { get; private set; }

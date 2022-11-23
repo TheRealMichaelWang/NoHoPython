@@ -258,9 +258,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             if (!irProgram.ProcedureOverloads.ContainsKey(this))
                 return;
-            
+
             foreach (ProcedureReference procedureReference in irProgram.ProcedureOverloads[this])
-                base.EmitNoOpen(irProgram, emitter, procedureReference.Emit(irProgram, emitter), indent, false);
+            {
+                Dictionary<TypeParameter, IType> typeargs = procedureReference.Emit(irProgram, emitter);
+                EmitInitialize(irProgram, emitter, typeargs, indent);
+                EmitNoOpen(irProgram, emitter, typeargs, indent, false);
+            }
         }
     }
 

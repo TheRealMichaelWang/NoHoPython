@@ -315,6 +315,8 @@
                     "default" => TokenType.Default,
                     "assert" => TokenType.Assert,
                     "in" => TokenType.In,
+                    "from" => TokenType.From,
+                    "to" => TokenType.To,
                     "and" => TokenType.And,
                     "or" => TokenType.Or,
                     "new" => TokenType.New,

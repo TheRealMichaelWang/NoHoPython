@@ -111,6 +111,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public bool SomeCodePathsBreak() => false;
     }
 
+    partial class IterationForLoop
+    {
+        public bool AllCodePathsReturn() => false;
+        public bool SomeCodePathsBreak() => false;
+    }
+
     partial class ReturnStatement
     {
         public bool AllCodePathsReturn() => true;

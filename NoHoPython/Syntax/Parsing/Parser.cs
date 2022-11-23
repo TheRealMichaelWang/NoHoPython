@@ -64,6 +64,8 @@ namespace NoHoPython.Syntax.Parsing
                     return ParseIfElseBlock();
                 case TokenType.While:
                     return ParseWhileBlock();
+                case TokenType.For:
+                    return ParseForLoop();
                 case TokenType.Identifier:
                     {
                         IAstValue value = ParseExpression();

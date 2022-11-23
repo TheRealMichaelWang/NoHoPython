@@ -317,6 +317,7 @@
                     "in" => TokenType.In,
                     "from" => TokenType.From,
                     "to" => TokenType.To,
+                    "within" => TokenType.Within,
                     "and" => TokenType.And,
                     "or" => TokenType.Or,
                     "new" => TokenType.New,

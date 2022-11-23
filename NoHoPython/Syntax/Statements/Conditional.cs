@@ -286,10 +286,18 @@ namespace NoHoPython.Syntax.Parsing
             scanner.ScanToken();
             if (scanner.LastToken.Type == TokenType.From)
             {
+                SourceLocation innerTokenLocation = scanner.CurrentLocation;
                 scanner.ScanToken();
                 IAstValue lowerBound = ParseExpression();
-                MatchAndScanToken(TokenType.To);
-                IAstValue upperBound = ParseExpression();
+                IAstValue upperBound;
+                Token innerToken = scanner.LastToken;
+                scanner.ScanToken();
+                if (innerToken.Type == TokenType.To)
+                    upperBound = ParseExpression();
+                else if (innerToken.Type == TokenType.Within)
+                    upperBound = new Values.BinaryOperator(new Token(TokenType.Subtract, string.Empty), ParseExpression(), new Values.IntegerLiteral(1, forOperationTokLocation), innerTokenLocation, innerTokenLocation);
+                else
+                    throw new UnexpectedTokenException(scanner.LastToken, innerTokenLocation);
 
                 MatchAndScanToken(TokenType.Colon);
                 MatchAndScanToken(TokenType.Newline);

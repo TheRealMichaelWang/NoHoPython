@@ -335,6 +335,11 @@
                     numStr += lastChar;
                     ScanChar();
                 } while (char.IsDigit(lastChar) || lastChar == '.');
+                if(lastChar == 'd' || lastChar == 'f')
+                {
+                    ScanChar();
+                    return LastToken = new Token(TokenType.DecimalLiteral, numStr);
+                }
                 return LastToken = new Token(numStr.Contains('.') ? TokenType.DecimalLiteral : TokenType.IntegerLiteral, numStr);
             }
             else if (lastChar == '\'')

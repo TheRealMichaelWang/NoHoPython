@@ -1,0 +1,10 @@
+include "matrix.nhp"
+include "io.nhp"
+
+def main():
+	out = io::output()
+	mat = matrixtools::fromArray([23, 1, 43, 1, 6, 2, 222, 90, 5], 3, 3)
+	out.writeLine(mat)
+	out.writeLine(mat.det())
+	inv = mat.inverse()
+	out.writeLine(inv)

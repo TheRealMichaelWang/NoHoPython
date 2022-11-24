@@ -1,4 +1,19 @@
 include "ndarray.nhp"
+include "io.nhp"
+
+mod matrixtools:
+	def identity(int n) matrix:
+		buffer = new ndarray<dec>([n, n], 0)
+		for i from 0 within n:
+			buffer.set([i, i], 1)
+		return new matrix(buffer)
+	def fromArray(array<dec> buf, int r, int c) matrix:
+		assert buf as int == r*c
+		mat = new matrix(new ndarray<dec>([r, c], 0))
+		mat.buffer.buffer = buf
+		return mat
+	def fromDim(int r, int c) matrix:
+		return new matrix(new ndarray<dec>([r, c], 0))
 
 class matrix:
 	ndarray<dec> buffer
@@ -8,57 +23,90 @@ class matrix:
 	def __init__(ndarray<dec> buffer):
 		assert buffer.dims as int == 2
 		self.buffer = buffer
-		rows = buffer.dims[0]
-		cols = buffer.dims[1]
+		self.rows = buffer.dims[0]
+		self.cols = buffer.dims[1]
+	
+	def multiply(matrix mat) matrix:
+		assert self.cols == mat.rows
+		product = matrixtools::fromDim(self.rows, mat.cols)
+		
+		def dotprod(int selfr, int matc):
+			accum = 0d
+			for c from 1 to self.cols:
+				accum = accum + get(selfr, c) * mat.get(c, matc)
+			product.set(selfr, matc, accum)
+		
+		for r from 1 to self.rows:
+			for c from 1 to mat.cols:
+				dotprod(r, c)
+		return product
+	
+	def writeBack(io::writer out):
+		for r from 1 to self.rows:
+			for c from 1 to self.cols:
+				out.write(get(r, c))
+				out.write('\t')
+			if r < self.rows:
+				out.write('\n')
 	
 	def get(int r, int c) dec:
 		return self.buffer.get([r - 1, c - 1])
 	def set(int r, int c, dec elem) dec:
 		return self.buffer.set([r - 1, c - 1], elem)
 	
-	def transpose():
-		buffer = new ndarray<dec>([cols, rows], 0)
-		i = 0
-		while i < self.rows:
-			j = 0
-			while j < self.cols:
+	#gets the transpose matrix
+	def transpose() matrix:
+		buffer = new ndarray<dec>([self.cols, self.rows], 0)
+		
+		for i from 0 within self.rows:
+			for j from 0 within self.cols:
 				buffer.set([j, i], self.buffer.get([i, j]))
-				j = j + 1
-			i = i + 1
+		
 		return new matrix(buffer)
+	
+	#computes a minor matrix
 	def minor(int r, int c) matrix:
-		buffer = new ndarray<dec>([rows - 1, cols - 1], 0)
-		i = 0
+		buffer = new ndarray<dec>([self.rows - 1, self.cols - 1], 0)
+		
 		k = 0
-		while i < self.rows:
+		for i from 0 within self.rows:
 			if i != r - 1:
-				j = 0
 				l = 0
-				while j < self.cols:
+				for j from 0 within self.cols:
 					if j != c - 1:
 						buffer.set([k, l], self.buffer.get([i, j]))
 						l = l + 1
-					j = j + 1
 				k = k + 1
-			i = i + 1
 		return new matrix(buffer)
-	def det():
+	
+	#computes a determinant
+	def det() dec:
 		assert self.rows == self.cols
 		if self.rows == 2: #2x2 base case
 			return (self.buffer.get([0, 0]) * self.buffer.get([1, 1])) - (self.buffer.get([0, 1]) * self.buffer.get([1, 0]))
-		accum = 0
-		i = 0
-		cminordet = minor(0, c).det()
-		while i < self.cols:
+		
+		accum = 0d
+		for i from 0 within self.cols:
+			cminor = minor(1, i + 1)
+			cminordet = cminor.det()
 			accum = accum + ((-1)^i) * self.buffer.get([0, i]) * cminordet
-			i = i + 1
 		return accum
+	
+	#gets the cofactor matrix
 	def cofactors() matrix:
-		buffer = new ndarray<dec>([self.rows, self.rows])
-		i = 0
+		assert self.rows == self.cols
+		buffer = new ndarray<dec>([self.rows, self.rows], 0)
+		for r from 0 within self.rows:
+			for c from 0 within self.cols:
+				cminor = minor(r + 1, c + 1)
+				buffer.set([r, c], ((-1)^(r + c)) * cminor.det())
+		toret = new matrix(buffer)
+		return toret.transpose()
+	
 	def inverse() matrix:
 		assert self.rows == self.cols
 		d = det()
+		assert d != 0 #singular matricies do not have inverses
 		if self.rows == 2: #2x2 base case
 			invbuffer = new ndarray<dec>([2, 2], 0)
 			invbuffer.set([0, 0], self.buffer.get([1, 1]) / d)
@@ -66,4 +114,8 @@ class matrix:
 			invbuffer.set([0, 1], -self.buffer.get([0, 1]) / d)
 			invbuffer.set([1, 0], -self.buffer.get([1, 0]) / d)
 			return new matrix(invbuffer)
-		
+		invcof = cofactors()
+		for r from 1 to invcof.rows:
+			for c from 1 to invcof.cols:
+				invcof.set(r, c, invcof.get(r, c) / d)
+		return invcof

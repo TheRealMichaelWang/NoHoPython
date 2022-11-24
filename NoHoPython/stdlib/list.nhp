@@ -17,6 +17,14 @@ mod data:
 				self.buffer = newBuffer
 			self.buffer[self.count] = elem
 			self.count = self.count + 1
+		
+		def addBuffer(array<T> buffer):
+			if self.count + buffer as int >= self.buffer as int:
+				newBuffer = new T[self.count + buffer as int](self.defaultValue)
+				mem::memcpy(newBuffer, self.buffer, 0, 0, self.count)
+				self.buffer = newBuffer
+			mem::memcpy(self.buffer, buffer, self.count, 0, buffer as int)
+			self.count = self.count + buffer as int
 		def addRange(list<T> range):
 			if self.count + range.count >= self.buffer as int:
 				newBuffer = new T[self.count + range.count](self.defaultValue)
@@ -24,6 +32,7 @@ mod data:
 				self.buffer = newBuffer
 			mem::memcpy(self.buffer, range.buffer, self.count, 0, range.count)
 			self.count = self.count + range.count
+		
 		def remove(fn<bool, T> toRemove) bool:
 			i = 0
 			while i < self.count:

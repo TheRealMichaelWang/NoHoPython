@@ -1,0 +1,38 @@
+include "matrix.nhp"
+include "io.nhp"
+include "list.nhp"
+
+def coefficientTable(array<dec> xCoords) matrix:
+	buffer = new ndarray<dec>([xCoords as int, xCoords as int], 0)
+	for xi from 0 within xCoords:
+		for t from 0 within xCoords:
+			buffer.set([xi, t], xCoords[xi]^t)
+	return new matrix(buffer)
+
+#returns a polynomial from inputted x-coordinates and y-coordinates
+def regress(array<dec> xCoords, array<dec> yCoords) array<dec>:
+	assert xCoords as int == yCoords as int
+	ymat = matrixtools::fromArray(yCoords, 1, yCoords)
+	coefTable = coefficientTable(xCoords)
+	coefInverse = coefTable.inverse()
+	polymat = ymat * coefInverse
+	return polymat.getRow(1)
+
+#returns a polynomial from a dynamic function
+def regressFn(fn<dec, dec> fun, dec start, dec stop, dec step) array<dec>:
+	xCoords = new data::list<dec>((stop - start) / step, 0)
+	yCoords = new data::list<dec>((stop - start) / step, 0)
+	
+	x = start
+	while x <= stop:
+		xCoords.pushBack(x)
+		yCoords.pushBack(fun(x))
+		x = x + step
+	return regress(xCoords.toArray(), yCoords.toArray())
+
+def main():
+	cdef sin(dec) dec
+	out = io::output()
+	poly = regressFn(lambda dec x: sin(x), -5, 5, 1)
+	for i from 0 within poly:
+		out.writeLine(i)

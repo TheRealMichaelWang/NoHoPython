@@ -53,6 +53,16 @@ class matrix:
 		return self.buffer.get([r - 1, c - 1])
 	def set(int r, int c, dec elem) dec:
 		return self.buffer.set([r - 1, c - 1], elem)
+	def getRow(int r) array<dec>:
+		row = new dec[self.cols]
+		for c from 1 to self.cols:
+			row[c - 1] = get(r, c)
+		return row
+	def getCol(int c) array<dec>:
+		col = new dec[self.rows]
+		for r from 1 to self.rows:
+			col[r - 1] = get(r, c)
+		return col
 	
 	#gets the transpose matrix
 	def transpose() matrix:
@@ -119,3 +129,15 @@ class matrix:
 			for c from 1 to invcof.cols:
 				invcof.set(r, c, invcof.get(r, c) / d)
 		return invcof
+	def guassian() matrix:
+		assert self.rows == self.cols + 1
+		def eliminate(array<dec> r1, array<dec> r2, int col, dec target):
+			assert r1 as int == r2 as int
+			fac = (r2[col] - target) / r1[col]
+			for i from 0 within r2:
+				r2[i] = r2[i] - (fac * r1[col])
+		for r from 1 to self.rows:
+			if get(r, r) == 0:
+				for c from 1 to self.cols:
+					if get(r, c) != 0:
+						

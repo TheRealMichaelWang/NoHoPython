@@ -10,5 +10,10 @@ def main():
 		csv::save("timesTable.csv", myTable, lambda io::writer writer, int i: writer.write(i))
 		
 		loaded = csv::load("timesTable.csv", lambda io::reader reader: reader.readInt(), 0)
-		std::forall(loaded.buffer, lambda int i: out.writeLine(i))
+		#std::forall(loaded.buffer, lambda int i: out.writeLine(i))
+		for r from 0 within loaded.dims[0]:
+			for c from 0 within loaded.dims[1]:
+				out.write(loaded.get([r, c]))
+				out.write('\t')
+			out.write('\n')
 	mem::leaksan(testfun)

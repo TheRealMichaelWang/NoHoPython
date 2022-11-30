@@ -7,6 +7,25 @@ using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
+    public sealed partial class SizeofOperator : IRValue
+    {
+        public IType Type => new IntegerType();
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public IType TypeToMeasure { get; private set; }
+
+        public SizeofOperator(IType typeToMeasure, IAstElement errorReportedElement)
+        {
+            TypeToMeasure = typeToMeasure;
+            ErrorReportedElement = errorReportedElement;
+            if (TypeToMeasure is NothingType)
+                throw new UnexpectedTypeException(TypeToMeasure, errorReportedElement);
+        }
+    }
+
     public sealed partial class ComparativeOperator : IRValue
     {
         public enum CompareOperation
@@ -214,6 +233,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
 namespace NoHoPython.Syntax.Values
 {
+    partial class SizeofOperator
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.SizeofOperator(TypeToMeasure.ToIRType(irBuilder, this), this);
+    }
+
     partial class BinaryOperator
     {
         private static Dictionary<TokenType, ArithmeticOperator.ArithmeticOperation> ArithmeticTokens = new()

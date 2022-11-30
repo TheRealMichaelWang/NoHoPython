@@ -60,6 +60,11 @@
         public IRValue GetPostEvalPure() => new NothingLiteral(ErrorReportedElement);
     }
 
+    partial class SizeofOperator
+    {
+        public IRValue GetPostEvalPure() => new SizeofOperator(TypeToMeasure, ErrorReportedElement);
+    }
+
     partial class ComparativeOperator
     {
         public IRValue GetPostEvalPure() => new ComparativeOperator(Operation, Left.GetPostEvalPure(), Right.GetPostEvalPure(), ErrorReportedElement);

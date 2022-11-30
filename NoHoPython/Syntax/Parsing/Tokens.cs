@@ -24,6 +24,7 @@
         Else,
         Elif,
         Default,
+        Sizeof,
         Return,
         Abort,
         Break,

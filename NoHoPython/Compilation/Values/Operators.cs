@@ -4,6 +4,15 @@ using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
+    partial class SizeofOperator
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => TypeToMeasure.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append($"sizeof({TypeToMeasure.SubstituteWithTypearg(typeargs).GetCName(irProgram)})");
+    }
+
     partial class ComparativeOperator
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)

@@ -332,6 +332,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArrayOperator(Operation, ArrayValue.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
+    
+    partial class SizeofOperator
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new SizeofOperator(TypeToMeasure.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
 
     partial class ComparativeOperator
     {

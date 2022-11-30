@@ -313,6 +313,7 @@
                     "continue" => TokenType.Continue,
                     "pass" => TokenType.Pass,
                     "default" => TokenType.Default,
+                    "sizeof" => TokenType.Sizeof,
                     "assert" => TokenType.Assert,
                     "in" => TokenType.In,
                     "from" => TokenType.From,

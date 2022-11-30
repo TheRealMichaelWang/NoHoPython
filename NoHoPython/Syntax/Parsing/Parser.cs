@@ -252,6 +252,14 @@ namespace NoHoPython.Syntax.Parsing
                         case TokenType.Nothing:
                             scanner.ScanToken();
                             return new NothingLiteral(location);
+                        case TokenType.Sizeof:
+                            {
+                                scanner.ScanToken();
+                                MatchAndScanToken(TokenType.OpenParen);
+                                AstType measureType = ParseType();
+                                MatchAndScanToken(TokenType.CloseParen);
+                                return new SizeofOperator(measureType, location);
+                            }
                         case TokenType.Subtract: //interpret as negate operator
                             {
                                 Token sub = scanner.LastToken;

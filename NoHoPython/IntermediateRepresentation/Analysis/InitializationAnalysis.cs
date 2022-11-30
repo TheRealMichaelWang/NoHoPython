@@ -193,6 +193,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => ArrayValue.AnalyzePropertyInitialization(initializedProperties);
     }
 
+    partial class SizeofOperator
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
+    }
+
     partial class ComparativeOperator
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)

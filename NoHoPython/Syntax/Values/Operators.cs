@@ -2,6 +2,21 @@
 
 namespace NoHoPython.Syntax.Values
 {
+    public sealed partial class SizeofOperator : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public AstType TypeToMeasure { get; private set; }
+
+        public SizeofOperator(AstType typeToMeasure, SourceLocation sourceLocation)
+        {
+            TypeToMeasure = typeToMeasure;
+            SourceLocation = sourceLocation;
+        }
+
+        public override string ToString() => $"sizeof({TypeToMeasure})";
+    }
+
     public sealed partial class BinaryOperator : IAstValue
     {
         public static readonly Dictionary<TokenType, int> OperatorPrecedence = new()

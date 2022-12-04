@@ -68,6 +68,11 @@ mod std:
 	def fmin(dec a, dec b) dec:
 		return a if a < b else b
 	
+	def random() dec:
+		cdef RAND_MAX int
+		cdef rand() int
+		return rand() as dec / RAND_MAX as dec
+	
 	def forall<T>(array<T> buf, fn<None, T> todo):
 		i = 0
 		while i < buf as int:

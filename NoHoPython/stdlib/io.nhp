@@ -24,8 +24,9 @@ mod io:
 			if str[str as int - 1] == '\0':
 				return str
 			else:
+				cdef memcpy(handle, handle, int) handle
 				buf = new char[str as int + 1]
-				mem::memcpy(buf, str, 0, 0, str as int)
+				memcpy(buf, str, str as int)
 				buf[str as int] = '\0'
 				return buf
 	
@@ -68,11 +69,9 @@ mod io:
 			write(towrite)
 			fputc('\n', self.ptr)
 		
-		def writeByte(char b):
+		def writeChar(char b):
 			cdef fputc(char, handle) None
 			fputc(b, self.ptr)
-		def writeInt(int i):
-			cdef 
 	class reader:
 		handle ptr
 		
@@ -89,19 +88,22 @@ mod io:
 		def readWhile(fn<bool, char> continueCond) array<char>:
 			cdef fgetc(handle) char
 			cdef ungetc(char, handle) None
-			buffer = new data::list<char>(10, ' ')
+			buffer = new data::list<char>(10)
 			while ((c = fgetc(self.ptr)) != EOF) and continueCond(c):
 				buffer.pushBack(c)
 			ungetc(c, self.ptr)
-			return buffer.toArray()
+			return buffer.toArray(0)
 		def readTill(fn<bool, char> stopCond) array<char>:
 			return readWhile(lambda char c: stopCond(c) == False)
+		def readWhileConsumeFront(fn<bool, char> continueCond) array<char>:
+			readTill(continueCond)
+			return readWhile(continueCond)
 		def readInt() int:
 			cdef atol(handle) int
-			return atol(buf = cinterop::sanitizeCStr(readWhile(lambda char c: characters::isDigit(c) or c == '-')))
+			return atol(buf = cinterop::sanitizeCStr(readWhileConsumeFront(lambda char c: characters::isDigit(c) or c == '-')))
 		def readDec() dec:
 			cdef atof(handle) dec
-			return atof(buf = cinterop::sanitizeCStr(readWhile(lambda char c: characters::isDigit(c) or c == '.' or c == '-')))
+			return atof(buf = cinterop::sanitizeCStr(readWhileConsumeFront(lambda char c: characters::isDigit(c) or c == '.' or c == '-')))
 		def readChar() char:
 			cdef fgetc(handle) char
 			return fgetc(self.ptr)
@@ -126,17 +128,17 @@ mod io:
 		
 		def readLine() array<char>:
 			cdef fgetc(handle) char
-			buffer = new data::list<char>(10, ' ')
+			buffer = new data::list<char>(10)
 			while ((c = fgetc(self.ptr)) != EOF) and (c != '\n'):
 				buffer.pushBack(c)
-			return buffer.toArray()
+			return buffer.toArray(0)
 		
 		def readAll() array<char>:
 			cdef fgetc(handle) char
-			buffer = new data::list<char>(10, ' ')
+			buffer = new data::list<char>(10)
 			while (c = fgetc(self.ptr)) != EOF:
 				buffer.pushBack(c)
-			return buffer.toArray()
+			return buffer.toArray(0)
 	
 	def output() writer:
 		cdef stdout handle

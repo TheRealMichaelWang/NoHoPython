@@ -91,9 +91,7 @@ namespace NoHoPython.Syntax.Statements
         public IAstValue UpperBound { get; private set; }
         public readonly List<IAstStatement> ToExecute;
 
-#pragma warning disable CS8618 // null feilds initialized during IR generation
         public IterationForLoop(string iteratorIdentifier, IAstValue lowerBound, IAstValue upperBound, List<IAstStatement> toExecute, SourceLocation sourceLocation)
-#pragma warning restore CS8618 //
         {
             IteratorIdentifier = iteratorIdentifier;
             LowerBound = lowerBound;

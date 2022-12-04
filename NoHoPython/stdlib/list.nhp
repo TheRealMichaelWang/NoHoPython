@@ -56,131 +56,56 @@ mod data:
 				self.buffer{self}[self.count + i] = range.buffer[i] as T
 			self.count = self.count + range.count
 		
-		#def remove(fn<bool, T> compare) bool:
-		#	for i from 0 within self.count:
-		#		if compare(self.buffer[i] as T):
-		#			cdef memcpy(handle, handle, int) handle
-		#			memcpy(self.buffer + (i * sizeof(T)), self.buffer + ((i + 1) * sizeof(T)), (self.count - (i + 1)) * sizeof(T))
-		#			return True
-		#	return False
+		def remove(fn<bool, T> compare) bool:
+			for i from 0 within self.count:
+				if compare(self.buffer[i] as T):
+					cdef memcpy(handle, handle, int) handle
+					memcpy(self.buffer + (i * sizeof(T)), self.buffer + ((i + 1) * sizeof(T)), (self.count - (i + 1)) * sizeof(T))
+					self.count = self.count - 1
+					return True
+			return False
 		
-		#def toArray() array<T>:
-		#	buffer = new T[self.count]
-		#	for i from 0 within self.count:
-		#		buffer[i] = self.buffer[i]
-		#	return buffer
+		def toArray(T defaultValue) array<T>:
+			buffer = new T[self.count](defaultValue)
+			for i from 0 within self.count:
+				buffer[i] = self.buffer[i] as T
+			return buffer
 		
 		def forall(fn<None, T> todo):
 			for i from 0 within self.count:
 				todo(self.buffer[i] as T)
 		def sort(fn<int, T, T> compare):
+			cdef malloc(int) handle
+			cdef free(handle) None
+			cdef memcpy(handle, handle, int) handle
 			sorted = False
+			tempBuf = malloc(sizeof(T))
 			while sorted == False:
 				sorted = True
 				for i from 1 within self.count:
-					if compare(self.buffer[i] as T, self.buffer[i - 1] as T) > 0:
-						
-		
-	class arrayList<T>:
-		readonly T defaultValue
-		array<T> buffer
-		int count
-		
-		def __init__(int capacity, T defaultValue):
-			self.buffer = new T[capacity](self.defaultValue = defaultValue)
-			self.count = 0
-		
-		def pushBack(T elem):
-			if self.count == (self.buffer as int):
-				newBuffer = new T[self.count + 10](self.defaultValue)
-				mem::memcpy(newBuffer, self.buffer, 0, 0, self.count)
-				self.buffer = newBuffer
-			self.buffer[self.count] = elem
-			self.count = self.count + 1
-		
-		def addBuffer(array<T> buffer):
-			if self.count + buffer as int >= self.buffer as int:
-				newBuffer = new T[self.count + buffer as int](self.defaultValue)
-				mem::memcpy(newBuffer, self.buffer, 0, 0, self.count)
-				self.buffer = newBuffer
-			mem::memcpy(self.buffer, buffer, self.count, 0, buffer as int)
-			self.count = self.count + buffer as int
-		def addRange(arrayList<T> range):
-			if self.count + range.count >= self.buffer as int:
-				newBuffer = new T[self.count + range.count](self.defaultValue)
-				mem::memcpy(newBuffer, self.buffer, 0, 0, self.count)
-				self.buffer = newBuffer
-			mem::memcpy(self.buffer, range.buffer, self.count, 0, range.count)
-			self.count = self.count + range.count
-		
-		def remove(fn<bool, T> toRemove) bool:
-			i = 0
-			while i < self.count:
-				if toRemove(self.buffer[i]):
-					mem::memcpy(self.buffer, self.buffer, i, i + 1, self.count - (1 + i))
-					return True
-				i = i + 1
-			return False
-		
-		def toArray() array<T>:
-			buffer = new T[self.count](self.defaultValue)
-			i = 0
-			while i < self.count:
-				buffer[i] = self.buffer[i]
-				i = i + 1
-			return buffer
-		
-		def getAtIndex(int index) T:
-			if index > self.count:
-				abort "Index Over Range"
-			elif index < 0:
-				abort "Index Under Range"
-			return self.buffer[index]
-		
-		def setAtIndex(int index, T elem) T:
-			if index > self.count:
-				abort "Index Over Range"
-			elif index < 0:
-				abort "Index Under Range"
-			return self.buffer[index] = elem
-		
-		def forall(fn<nothing, T> todo):
-			i = 0
-			while i < self.count:
-				todo(self.buffer[i])
-				i = i + 1
-		def sort(fn<int, T, T> compare):
-			sorted = False
-			while sorted == False:
-				sorted = True
-				i = 1
-				while i < self.count:
-					if compare(self.buffer[i - 1], self.buffer[i]) > 0:
-						temp = self.buffer[i]
-						self.buffer[i] = self.buffer[i - 1]
-						self.buffer[i - 1] = temp
+					if compare(self.buffer[i] as T, self.buffer[i - 1] as T) < 0:
+						larger = self.buffer + ((i - 1) * sizeof(T))
+						smaller = self.buffer + (i * sizeof(T))
+						memcpy(tempBuf, larger, sizeof(T))
+						memcpy(larger, smaller, sizeof(T))
+						memcpy(smaller, tempBuf, sizeof(T))
 						sorted = False
-					i = i + 1
+			free(tempBuf)
 		
-		def map(fn<T, T> transform) arrayList<T>:
-			mapped = new arrayList<T>(self.count, self.defaultValue)
-			i = 0
-			while i < self.count:
-				mapped.pushBack(transform(self.buffer[i]))
-				i = i + 1
+		def map(fn<T, T> transform) list<T>:
+			mapped = new list<T>(self.count)
+			mapped.count = self.count
+			for i from 0 within self.count:
+				mapped.buffer[i] = transform(self.buffer[i] as T)
 			return mapped
-		def filter(fn<bool, T> keepCond) arrayList<T>:
-			filtered = new arrayList<T>(self.count, self.defaultValue)
-			i = 0
-			while i < self.count:
-				if keepCond(self.buffer[i]):
-					filtered.pushBack(self.buffer[i])
-				i = i + 1
-			return filtered
+		def filter(fn<bool, T> keep) list<T>:
+			kept = new list<T>(self.count)
+			for i from 0 within self.count:
+				if keep(self.buffer[i] as T):
+					kept.pushBack(self.buffer[i] as T)
+			return kept
 		def reduce(fn<T, T, T> add) T:
 			accum = getAtIndex(0)
-			i = 1
-			while i < self.count:
-				accum = add(accum, self.buffer[i])
-				i = i + 1
+			for i from 1 within self.count:
+				accum = add(accum, self.buffer[i] as T)
 			return accum

@@ -28,6 +28,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 case ArithmeticCastOperation.CharToInt:
                     IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
                     break;
+                case ArithmeticCastOperation.HandleToInt:
                 case ArithmeticCastOperation.DecimalToInt:
                     EmitCCast("long");
                     break;
@@ -42,6 +43,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
                     emitter.Append(" ? 1 : 0");
                     emitter.Append(')');
+                    break;
+                case ArithmeticCastOperation.IntToHandle:
+                    EmitCCast("void*");
                     break;
             }
         }

@@ -64,9 +64,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return value;
             else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to{typeTarget.TypeName}"))
                 return new AnonymousProcedureCall(new GetPropertyValue(value, $"to{typeTarget.TypeName}", value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
-            else if(typeTarget is HandleType)
-                return value.Type is ArrayType 
+            else if (typeTarget is HandleType handleType)
+                return value.Type is ArrayType
                     ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement)
+                    : value.Type is Primitive
+                    ? PrimitiveCast(value, handleType)
                     : throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
             else return typeTarget is EnumType enumType
                 ? new MarshalIntoEnum(enumType, value, value.ErrorReportedElement)

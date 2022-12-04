@@ -1,8 +1,8 @@
-﻿include "stdlib/list.nhp"
+﻿include "list.nhp"
 cinclude "<stdio.h>"
 
 def main():
-	list = new data::list<int>(5, 0)
+	list = new data::list<int>(5)
 	i = 0
 	while i < 20:
 		list.pushBack(i)

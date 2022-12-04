@@ -274,16 +274,26 @@ namespace NoHoPython.Syntax.Parsing
                 IAstValue value = ParseFirst();
                 while (true)
                 {
-                    if (scanner.LastToken.Type == TokenType.OpenBracket)
+                    if (scanner.LastToken.Type == TokenType.OpenBracket || scanner.LastToken.Type == TokenType.OpenBrace)
                     {
-                        scanner.ScanToken();
+                        IAstValue? responsibleDestroyer = null;
+                        if(scanner.LastToken.Type == TokenType.OpenBrace)
+                        {
+                            scanner.ScanToken();
+                            responsibleDestroyer = ParseExpression();
+                            MatchAndScanToken(TokenType.CloseBrace);
+                        }
+                        MatchAndScanToken(TokenType.OpenBracket);
                         IAstValue index = ParseExpression();
                         MatchAndScanToken(TokenType.CloseBracket);
 
                         if (scanner.LastToken.Type == TokenType.Set)
                         {
                             scanner.ScanToken();
-                            value = new SetValueAtIndex(value, index, ParseExpression(), value.SourceLocation);
+                            if (responsibleDestroyer != null)
+                                value = new MemorySet(value, index, ParseExpression(), responsibleDestroyer, value.SourceLocation);
+                            else
+                                value = new SetValueAtIndex(value, index, ParseExpression(), value.SourceLocation);
                         }
                         else
                             value = new GetValueAtIndex(value, index, value.SourceLocation);

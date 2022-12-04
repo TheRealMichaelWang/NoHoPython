@@ -11,6 +11,7 @@ namespace NoHoPython.Typing
         public static readonly CharacterType Character = new();
         public static readonly BooleanType Boolean = new();
 
+        public static readonly HandleType Handle = new();
         public static readonly NothingType Nothing = new(); //not a primitive but also commonly used
 
         public abstract string TypeName { get; }

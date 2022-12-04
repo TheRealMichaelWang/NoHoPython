@@ -187,9 +187,9 @@
                 case ')':
                     return TokenType.CloseParen;
                 case '{':
-                    return TokenType.OpenBracket;
+                    return TokenType.OpenBrace;
                 case '}':
-                    return TokenType.CloseBracket;
+                    return TokenType.CloseBrace;
                 case ',':
                     return TokenType.Comma;
                 case ';':

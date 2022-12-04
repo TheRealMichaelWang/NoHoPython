@@ -65,6 +65,16 @@
         public IRValue GetPostEvalPure() => new SizeofOperator(TypeToMeasure, ErrorReportedElement);
     }
 
+    partial class MemoryGet
+    {
+        public IRValue GetPostEvalPure() => new MemoryGet(Type, Address.GetPostEvalPure(), Index.GetPostEvalPure(), ErrorReportedElement);
+    }
+
+    partial class MemorySet
+    {
+        public IRValue GetPostEvalPure() => new MemoryGet(Type, Address.GetPostEvalPure(), Index.GetPostEvalPure(), ErrorReportedElement);
+    }
+
     partial class ComparativeOperator
     {
         public IRValue GetPostEvalPure() => new ComparativeOperator(Operation, Left.GetPostEvalPure(), Right.GetPostEvalPure(), ErrorReportedElement);
@@ -112,17 +122,7 @@
 
     partial class SetValueAtIndex
     {
-        public IRValue GetPostEvalPure()
-        {
-            try
-            {
-                return Value.GetPostEvalPure();
-            }
-            catch(NoPostEvalPureValue)
-            {
-                return new GetValueAtIndex(Array.GetPostEvalPure(), Index.GetPostEvalPure(), ErrorReportedElement);
-            }
-        }
+        public IRValue GetPostEvalPure() => GetValueAtIndex.ComposeGetValueAtIndex(Array.GetPostEvalPure(), Index.GetPostEvalPure(), Type, ErrorReportedElement);
     }
 
     partial class GetPropertyValue
@@ -132,17 +132,7 @@
 
     partial class SetPropertyValue
     {
-        public IRValue GetPostEvalPure()
-        {
-            try
-            {
-                return Value.GetPostEvalPure();
-            }
-            catch (NoPostEvalPureValue)
-            {
-                return new GetPropertyValue(Record.GetPostEvalPure(), Property.Name, ErrorReportedElement);
-            }
-        }
+        public IRValue GetPostEvalPure() => new GetPropertyValue(Record.GetPostEvalPure(), Property.Name, ErrorReportedElement);
     }
 
     partial class MarshalIntoEnum

@@ -7,25 +7,6 @@ using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
-    public sealed partial class SizeofOperator : IRValue
-    {
-        public IType Type => new IntegerType();
-        public bool IsTruey => false;
-        public bool IsFalsey => false;
-
-        public IAstElement ErrorReportedElement { get; private set; }
-
-        public IType TypeToMeasure { get; private set; }
-
-        public SizeofOperator(IType typeToMeasure, IAstElement errorReportedElement)
-        {
-            TypeToMeasure = typeToMeasure;
-            ErrorReportedElement = errorReportedElement;
-            if (TypeToMeasure is NothingType)
-                throw new UnexpectedTypeException(TypeToMeasure, errorReportedElement);
-        }
-    }
-
     public sealed partial class ComparativeOperator : IRValue
     {
         public enum CompareOperation
@@ -104,14 +85,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class GetValueAtIndex : IRValue
     {
-        public static IRValue ComposeGetValueAtIndex(IRValue array, IRValue index, Syntax.Values.GetValueAtIndex getValueAtIndex)
+        public static IRValue ComposeGetValueAtIndex(IRValue array, IRValue index, IType? expectedType, IAstElement errorReportedElement)
         {
             return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("getAtIndex")
-                ? new AnonymousProcedureCall(new GetPropertyValue(array, "getAtIndex", getValueAtIndex), new List<IRValue>()
+                ? new AnonymousProcedureCall(new GetPropertyValue(array, "getAtIndex", errorReportedElement), new List<IRValue>()
                 {
                     index
                 }, array.ErrorReportedElement)
-                : (IRValue)new GetValueAtIndex(array, index, getValueAtIndex);
+                : array.Type is HandleType
+                ? new MemoryGet(expectedType == null ? throw new UnexpectedTypeException(Primitive.Nothing, errorReportedElement) : expectedType, array, index, errorReportedElement)
+                : (IRValue)new GetValueAtIndex(array, index, errorReportedElement);
         }
 
         public IAstElement ErrorReportedElement { get; private set; }
@@ -123,7 +106,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Array { get; private set; }
         public IRValue Index { get; private set; }
 
-        public GetValueAtIndex(IRValue array, IRValue index, IAstElement errorReportedElement)
+        private GetValueAtIndex(IRValue array, IRValue index, IAstElement errorReportedElement)
         {
             Array = array;
             Index = index;
@@ -131,7 +114,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (Array.Type is not ArrayType)
                 throw new UnexpectedTypeException(Array.Type, Array.ErrorReportedElement);
-
             if (Index.Type is not IntegerType)
                 throw new UnexpectedTypeException(Array.Type, Array.ErrorReportedElement);
             Type = ((ArrayType)Array.Type).ElementType;
@@ -140,15 +122,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
     
     public sealed partial class SetValueAtIndex : IRValue, IRStatement
     {
-        public static IRValue ComposeSetValueAtIndex(IRValue array, IRValue index, IRValue value, Syntax.Values.SetValueAtIndex setValueAtIndex)
+        public static IRValue ComposeSetValueAtIndex(IRValue array, IRValue index, IRValue value, IAstElement errorReportedElement)
         {
             return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("setAtIndex")
-                ? new AnonymousProcedureCall(new GetPropertyValue(array, "setAtIndex", setValueAtIndex), new List<IRValue>()
+                ? new AnonymousProcedureCall(new GetPropertyValue(array, "setAtIndex", errorReportedElement), new List<IRValue>()
                 {
                     index,
                     value
                 }, array.ErrorReportedElement)
-                : (IRValue)new SetValueAtIndex(array, index, value, setValueAtIndex);
+                : array.Type is HandleType
+                ? new MemorySet(value.Type, array, index, value, null, errorReportedElement)
+                : (IRValue)new SetValueAtIndex(array, index, value, errorReportedElement);
         }
 
         public IAstElement ErrorReportedElement { get; private set; }
@@ -280,7 +264,7 @@ namespace NoHoPython.Syntax.Values
 
     partial class GetValueAtIndex
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irBuilder, expectedType == null ? null : new ArrayType(expectedType), willRevaluate), Index.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irBuilder, expectedType == null ? null : new ArrayType(expectedType), willRevaluate), Index.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), expectedType, this);
     }
 
     partial class SetValueAtIndex

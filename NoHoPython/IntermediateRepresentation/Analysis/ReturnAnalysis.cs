@@ -138,6 +138,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool SomeCodePathsBreak() => false;
     }
 
+    partial class MemorySet
+    {
+        public bool AllCodePathsReturn() => false;
+        public bool SomeCodePathsBreak() => false;
+    }
+
     partial class SetValueAtIndex
     {
         public bool AllCodePathsReturn() => false;

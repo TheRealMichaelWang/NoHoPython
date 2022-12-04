@@ -22,11 +22,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             emitter.Append('(');
             emitter.Append('(');
-            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
             emitter.Append(") ? (");
-            IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs, responsibleDestroyer);
+            IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs);
             emitter.Append(") : (");
-            IRValue.EmitMemorySafe(IfFalseValue, irProgram, emitter, typeargs, responsibleDestroyer);
+            IRValue.EmitMemorySafe(IfFalseValue, irProgram, emitter, typeargs);
             emitter.Append(')');
             emitter.Append(')');
         }
@@ -129,7 +129,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("if(");
-            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
             emitter.Append(')');
             IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
 
@@ -155,7 +155,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("if(");
-            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
             emitter.Append(')');
             IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
         }
@@ -177,7 +177,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("while(");
-            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
             emitter.Append(')');
             WhileTrueBlock.Emit(irProgram, emitter, typeargs, indent);
         }
@@ -234,7 +234,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("switch(");
-            IRValue.EmitMemorySafe(MatchValue, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(MatchValue, irProgram, emitter, typeargs);
             emitter.AppendLine(".option) {");
 
             EnumType enumType = (EnumType)MatchValue.Type.SubstituteWithTypearg(typeargs);
@@ -249,7 +249,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 {
                     CodeBlock.CIndent(emitter, indent + 1);
                     emitter.Append($"{currentOption.GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier(irProgram)} = ");
-                    IRValue.EmitMemorySafe(MatchValue.GetPostEvalPure(), irProgram, emitter, typeargs, "NULL");
+                    IRValue.EmitMemorySafe(MatchValue.GetPostEvalPure(), irProgram, emitter, typeargs);
                     emitter.AppendLine($".data.{currentOption.GetStandardIdentifier(irProgram)}_set;");
                 }
 
@@ -331,7 +331,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("_nhp_assert(");
-            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
             emitter.Append(", ");
             CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString());
             emitter.Append(", ");

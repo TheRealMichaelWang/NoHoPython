@@ -112,6 +112,28 @@ namespace NoHoPython.Syntax.Values
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{this}";
     }
 
+    public sealed partial class MemorySet : IAstValue, IAstStatement
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public IAstValue Address { get; private set; }
+        public IAstValue Index { get; private set; }
+        public IAstValue Value { get; private set; }
+        public IAstValue ResponsibleDestroyer { get; private set; }
+
+        public MemorySet(IAstValue array, IAstValue index, IAstValue value, IAstValue responsibleDestroyer, SourceLocation sourceLocation)
+        {
+            Address = array;
+            Index = index;
+            Value = value;
+            ResponsibleDestroyer = responsibleDestroyer;
+            SourceLocation = sourceLocation;
+        }
+
+        public override string ToString() => $"{Address}{{{ResponsibleDestroyer}}}[{Index}] = {Value}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{this}";
+    }
+
     public sealed partial class GetPropertyValue : IAstValue
     {
         public SourceLocation SourceLocation { get; private set; }

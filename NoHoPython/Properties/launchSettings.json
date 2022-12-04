@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "\"E:\\calcgod2\\src\\main.nhp\"\r\nout.c"
+      "commandLineArgs": "tests/list-test.nhp\r\nout.c"
     }
   }
 }

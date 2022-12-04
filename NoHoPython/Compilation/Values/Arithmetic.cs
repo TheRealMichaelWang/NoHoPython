@@ -18,7 +18,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             void EmitCCast(string castTo)
             {
                 emitter.Append($"(({castTo})");
-                IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs, "NULL");
+                IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
                 emitter.Append(')');
             }
 
@@ -26,7 +26,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 case ArithmeticCastOperation.BooleanToInt:
                 case ArithmeticCastOperation.CharToInt:
-                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs, "NULL");
+                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
                     break;
                 case ArithmeticCastOperation.DecimalToInt:
                     EmitCCast("long");
@@ -39,7 +39,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     break;
                 case ArithmeticCastOperation.IntToBoolean:
                     emitter.Append('(');
-                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs, "NULL");
+                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
                     emitter.Append(" ? 1 : 0");
                     emitter.Append(')');
                     break;
@@ -65,32 +65,32 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if(Type is DecimalType)
                 {
                     emitter.Append("pow(");
-                    IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs, "NULL");
+                    IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
                     emitter.Append(", ");
-                    IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs, "NULL");
+                    IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
                     emitter.Append(')');
                 }
                 else
                 {
                     emitter.Append("(int)pow((double)");
-                    IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs, "NULL");
+                    IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
                     emitter.Append(", (double)");
-                    IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs, "NULL");
+                    IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
                     emitter.Append(')');
                 }
             }
 			else if(Operation == ArithmeticOperation.Modulo && Type is DecimalType)
 			{
 				emitter.Append("fmod(");
-                IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs, "NULL");
+                IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
 				emitter.Append(", ");
-                IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs, "NULL");
+                IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
                 emitter.Append(')');
 			}
             else
             {
                 emitter.Append('(');
-                IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs, "NULL");
+                IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
                 switch (Operation)
                 {
                     case ArithmeticOperation.Add:
@@ -109,7 +109,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 						emitter.Append(" % ");
 						break;
                 }
-                IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs, "NULL");
+                IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
                 emitter.Append(')');
             }
         }

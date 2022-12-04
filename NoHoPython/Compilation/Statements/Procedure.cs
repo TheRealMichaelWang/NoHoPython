@@ -24,7 +24,7 @@ namespace NoHoPython.Syntax
             string name = $"_nhp_anonProcTypeNo{uniqueProcedureTypes.Count}";
             uniqueProcedureTypes.Add(new(procedureType, name));
 
-            List<IType> dependencies = new List<IType>(procedureType.ParameterTypes);
+            List<IType> dependencies = new(procedureType.ParameterTypes);
             dependencies.Add(procedureType.ReturnType);
             typeDependencyTree.Add(procedureType, new HashSet<IType>(dependencies.Where((type) => type is not RecordType && type is not ProcedureType), new ITypeComparer()));
         }
@@ -163,11 +163,11 @@ namespace NoHoPython.IntermediateRepresentation
 {
     partial interface IRValue
     {
-        public static void EmitMemorySafe(IRValue value, IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeArgs, string responsibleDestroyer)
+        public static void EmitMemorySafe(IRValue value, IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeArgs)
         {
             if (value.RequiresDisposal(typeArgs))
                 throw new CannotEmitDestructorError(value);
-            value.Emit(irProgram, emitter, typeArgs, responsibleDestroyer);
+            value.Emit(irProgram, emitter, typeArgs, "NULL");
         }
     }
 }
@@ -778,9 +778,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer)
         {
-            IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
             emitter.Append("->_nhp_this_anon(");
-            IRValue.EmitMemorySafe(ProcedureValue.GetPostEvalPure(), irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(ProcedureValue.GetPostEvalPure(), irProgram, emitter, typeargs);
             if(Arguments.Count > 0)
                 emitter.Append(", ");
             EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);

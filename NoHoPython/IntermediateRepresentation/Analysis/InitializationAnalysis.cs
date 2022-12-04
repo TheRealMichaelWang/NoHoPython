@@ -198,6 +198,27 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
     }
 
+    partial class MemoryGet
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
+        {
+            Address.AnalyzePropertyInitialization(initializedProperties);
+            Index.AnalyzePropertyInitialization(initializedProperties);
+        }
+    }
+
+    partial class MemorySet
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
+        {
+            Address.AnalyzePropertyInitialization(initializedProperties);
+            Index.AnalyzePropertyInitialization(initializedProperties);
+            Value.AnalyzePropertyInitialization(initializedProperties);
+            if (ResponsibleDestroyer != null)
+                ResponsibleDestroyer.AnalyzePropertyInitialization(initializedProperties);
+        }
+    }
+
     partial class ComparativeOperator
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)

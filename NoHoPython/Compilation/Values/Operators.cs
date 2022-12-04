@@ -4,15 +4,6 @@ using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
-    partial class SizeofOperator
-    {
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => TypeToMeasure.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
-
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
-
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append($"sizeof({TypeToMeasure.SubstituteWithTypearg(typeargs).GetCName(irProgram)})");
-    }
-
     partial class ComparativeOperator
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
@@ -26,7 +17,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             emitter.Append('(');
-            IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
 
             switch (Operation)
             {
@@ -50,7 +41,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     break;
             }
 
-            IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
             emitter.Append(')');
         }
     }
@@ -68,7 +59,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             emitter.Append('(');
-            IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Left, irProgram, emitter, typeargs);
 
             switch (Operation)
             {
@@ -80,7 +71,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     break;
             }
 
-            IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Right, irProgram, emitter, typeargs);
             emitter.Append(')');
         }
     }
@@ -98,13 +89,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            IRValue.EmitMemorySafe(Array, irProgram, emitter, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Array, irProgram, emitter, typeargs);
             if (irProgram.DoBoundsChecking)
             {
                 emitter.Append(".buffer[_nhp_bounds_check(");
-                IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs, "NULL");
+                IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
                 emitter.Append(", ");
-                IRValue.EmitMemorySafe(Array.GetPostEvalPure(), irProgram, emitter, typeargs, "NULL");
+                IRValue.EmitMemorySafe(Array.GetPostEvalPure(), irProgram, emitter, typeargs);
                 emitter.Append(".length, ");
                 CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString());
                 emitter.Append(", ");
@@ -117,7 +108,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             else
             {
                 emitter.Append(".buffer[");
-                IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs, "NULL");
+                IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
                 emitter.Append(']');
             }
         }
@@ -138,13 +129,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             StringBuilder destBuilder = new();
-            IRValue.EmitMemorySafe(Array, irProgram, destBuilder, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Array, irProgram, destBuilder, typeargs);
             if (irProgram.DoBoundsChecking)
             {
                 destBuilder.Append(".buffer[_nhp_bounds_check(");
-                IRValue.EmitMemorySafe(Index, irProgram, destBuilder, typeargs, "NULL");
+                IRValue.EmitMemorySafe(Index, irProgram, destBuilder, typeargs);
                 destBuilder.Append(", ");
-                IRValue.EmitMemorySafe(Array.GetPostEvalPure(), irProgram, destBuilder, typeargs, "NULL");
+                IRValue.EmitMemorySafe(Array.GetPostEvalPure(), irProgram, destBuilder, typeargs);
                 destBuilder.Append(".length, ");
                 CharacterLiteral.EmitCString(destBuilder, ErrorReportedElement.SourceLocation.ToString());
                 destBuilder.Append(", ");
@@ -157,12 +148,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
             else
             {
                 destBuilder.Append(".buffer[");
-                IRValue.EmitMemorySafe(Index, irProgram, destBuilder, typeargs, "NULL");
+                IRValue.EmitMemorySafe(Index, irProgram, destBuilder, typeargs);
                 destBuilder.Append(']');
             }
 
             StringBuilder arrayResponsibleDestructor = new();
-            IRValue.EmitMemorySafe(Array.GetPostEvalPure(), irProgram, arrayResponsibleDestructor, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Array.GetPostEvalPure(), irProgram, arrayResponsibleDestructor, typeargs);
             arrayResponsibleDestructor.Append(".responsible_destroyer");
 
             StringBuilder valueBuilder = new();
@@ -203,7 +194,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             StringBuilder valueBuilder = new();
-            IRValue.EmitMemorySafe(Record, irProgram, valueBuilder, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Record, irProgram, valueBuilder, typeargs);
 
             if (Record.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
                 propertyContainer.EmitGetProperty(irProgram, emitter, valueBuilder.ToString(), Property);
@@ -226,10 +217,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             StringBuilder recordBuilder = new();
-            IRValue.EmitMemorySafe(Record, irProgram, recordBuilder, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Record, irProgram, recordBuilder, typeargs);
 
             StringBuilder recordResponsibleDestroyer = new();
-            IRValue.EmitMemorySafe(Record.GetPostEvalPure(), irProgram, recordResponsibleDestroyer, typeargs, "NULL");
+            IRValue.EmitMemorySafe(Record.GetPostEvalPure(), irProgram, recordResponsibleDestroyer, typeargs);
             recordResponsibleDestroyer.Append("->_nhp_responsible_destroyer");
 
             if (IsInitializingProperty)

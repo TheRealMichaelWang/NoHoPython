@@ -338,6 +338,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new SizeofOperator(TypeToMeasure.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
+    partial class MemoryGet
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MemoryGet(Type.SubstituteWithTypearg(typeargs), Address.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
+    partial class MemorySet
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MemorySet(Type.SubstituteWithTypearg(typeargs), Address.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ResponsibleDestroyer == null ? null : ResponsibleDestroyer.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
     partial class ComparativeOperator
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ComparativeOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);

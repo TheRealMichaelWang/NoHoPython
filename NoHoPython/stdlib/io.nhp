@@ -62,10 +62,17 @@ mod io:
 						fwrite(msg="False", 1, 5, self.ptr)
 				None:
 					fwrite(msg="None", 1, 4, self.ptr)
+		
 		def writeLine(writable towrite):
 			cdef fputc(char, handle) None
 			write(towrite)
 			fputc('\n', self.ptr)
+		
+		def writeByte(char b):
+			cdef fputc(char, handle) None
+			fputc(b, self.ptr)
+		def writeInt(int i):
+			cdef 
 	class reader:
 		handle ptr
 		

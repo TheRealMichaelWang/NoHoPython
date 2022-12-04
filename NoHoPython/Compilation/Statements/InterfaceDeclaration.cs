@@ -237,26 +237,26 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
 
             List<Property> properties = realPrototype.GetProperties();
-            List<string> emittedValues = new List<string>(properties.Count);
+            List<string> emittedValues = new(properties.Count);
 
             bool firstEmit = true;
             foreach (Property property in properties)
             {
-                StringBuilder valueEmitter = new StringBuilder();
+                StringBuilder valueEmitter = new();
                 if (Value.RequiresDisposal(typeargs))
                     valueEmitter.Append("_nhp_marshal_buf");
                 else
                 {
                     if (firstEmit)
-                        IRValue.EmitMemorySafe(Value, irProgram, valueEmitter, typeargs, "NULL");
+                        IRValue.EmitMemorySafe(Value, irProgram, valueEmitter, typeargs);
                     else
                     {
-                        IRValue.EmitMemorySafe(Value.GetPostEvalPure(), irProgram, valueEmitter, typeargs, "NULL");
+                        IRValue.EmitMemorySafe(Value.GetPostEvalPure(), irProgram, valueEmitter, typeargs);
                         firstEmit = false;
                     }
                 }
 
-                StringBuilder getPropertyEmitter = new StringBuilder();
+                StringBuilder getPropertyEmitter = new();
                 if (Value.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
                     propertyContainer.EmitGetProperty(irProgram, getPropertyEmitter, valueEmitter.ToString(), property);
                 else

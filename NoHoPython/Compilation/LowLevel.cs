@@ -42,7 +42,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Address.ScopeForUsedTypes(typeargs, irBuilder);
             Index.ScopeForUsedTypes(typeargs, irBuilder);
             Value.ScopeForUsedTypes(typeargs, irBuilder);
-
         }
 
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
@@ -87,6 +86,42 @@ namespace NoHoPython.IntermediateRepresentation.Values
             CodeBlock.CIndent(emitter, indent);
             Emit(irProgram, emitter, typeargs, "NULL");
             emitter.AppendLine(";");
+        }
+    }
+}
+
+namespace NoHoPython.IntermediateRepresentation.Statements
+{
+    partial class MemoryDestroy
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            Address.ScopeForUsedTypes(typeargs, irBuilder);
+            if (Index != null)
+                Index.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
+
+        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            if (Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+            {
+                CodeBlock.CIndent(emitter, indent);
+                StringBuilder valueBuilder = new();
+                valueBuilder.Append($"*(({Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}*)");
+                IRValue.EmitMemorySafe(Address, irProgram, valueBuilder, typeargs);
+                if (Index != null)
+                {
+                    valueBuilder.Append(" + ");
+                    IRValue.EmitMemorySafe(Index, irProgram, valueBuilder, typeargs);
+                }
+                valueBuilder.Append(')');
+                Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valueBuilder.ToString());
+            }
         }
     }
 }

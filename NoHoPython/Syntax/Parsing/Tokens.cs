@@ -33,6 +33,7 @@
         Include,
         CInclude,
         Assert,
+        Destroy,
         In,
         From,
         Within,

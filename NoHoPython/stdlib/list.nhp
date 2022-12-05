@@ -9,11 +9,15 @@ mod data:
 		
 		def __init__(int capacity):
 			cdef malloc(int) handle
+			cdef NULL
 			self.capacity = capacity
 			self.buffer = malloc(capacity * sizeof(T))
+			assert self.buffer != NULL
 		
 		def __del__():
 			cdef free(handle) None
+			for i from 0 within self.count:
+				destroy T[i]self.buffer
 			free(self.buffer)
 		
 		def __copy__() list<T>:
@@ -30,29 +34,34 @@ mod data:
 		def setAtIndex(int i, T elem) T:
 			if i < 0 or i >= self.count:
 				abort "Index out of range."
+			destroy T[i]self.buffer
 			return self.buffer{self}[i] = elem
 		
-		def pushBack(T elem):
-			if self.count == self.capacity:
+		def ensureCapacity(int capacity):
+			if self.capacity < capacity:
 				cdef realloc(handle, int) handle
-				self.capacity = self.capacity + 10
+				cdef NULL
+				self.capacity = capacity + 10
 				self.buffer = realloc(self.buffer, self.capacity * sizeof(T))
+				assert self.buffer != NULL
+		
+		def pushFront(T elem):
+			ensureCapacity(self.count + 1)
+			cdef memcpy(handle, handle, int) handle
+			memcpy(self.buffer + sizeof(T), self.buffer, self.count * sizeof(T))
+			self.buffer{self}[0] = elem
+		def pushBack(T elem):
+			ensureCapacity(self.count + 1)
 			self.buffer{self}[self.count] = elem
 			self.count = self.count + 1
 		
 		def addBuffer(array<T> buf):
-			if self.count + buf as int > self.capacity:
-				cdef realloc(handle, int) handle
-				self.capacity = self.count + buf as int
-				self.buffer = realloc(self.buffer, self.capacity * sizeof(T))
+			ensureCapacity(self.count + buf as int)
 			for i from 0 within buf:
 				self.buffer{self}[self.count + i] = buf[i]
 			self.count = self.count + buf as int
 		def addRange(list<T> range):
-			if self.count + range.count > self.capacity:
-				cdef realloc(handle, int) handle
-				self.capacity = self.count + range.count
-				self.buffer = realloc(self.buffer, self.capacity * sizeof(T))
+			ensureCapacity(self.count + range.count)
 			for i from 0 within range.count:
 				self.buffer{self}[self.count + i] = range.buffer[i] as T
 			self.count = self.count + range.count
@@ -61,10 +70,22 @@ mod data:
 			for i from 0 within self.count:
 				if compare(self.buffer[i] as T):
 					cdef memcpy(handle, handle, int) handle
+					destroy T[i]self.buffer
 					memcpy(self.buffer + (i * sizeof(T)), self.buffer + ((i + 1) * sizeof(T)), (self.count - (i + 1)) * sizeof(T))
 					self.count = self.count - 1
 					return True
 			return False
+		def popFront() T:
+			cdef memcpy(handle, handle, int) handle
+			popped = getAtIndex(0)
+			destroy T self.buffer
+			memcpy(self.buffer, self.buffer + sizeof(T), self.count = self.count - 1)
+			return popped
+		def popBack() T:
+			popped = getAtIndex(self.count - 1)
+			self.count = self.count - 1
+			destroy T[self.count]self.buffer
+			return popped
 		
 		def toArray(T defaultValue) array<T>:
 			buffer = new T[self.count](defaultValue)
@@ -97,7 +118,7 @@ mod data:
 			mapped = new list<T>(self.count)
 			mapped.count = self.count
 			for i from 0 within self.count:
-				mapped.buffer[i] = transform(self.buffer[i] as T)
+				mapped.buffer{mapped}[i] = transform(self.buffer[i] as T)
 			return mapped
 		def filter(fn<bool, T> keep) list<T>:
 			kept = new list<T>(self.count)

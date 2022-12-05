@@ -2,6 +2,19 @@
 include "list.nhp"
 include "std.nhp"
 
+class person:
+	array<char> name
+	int age
+	
+	def __init__(array<char> name, int age):
+		self.name = name
+		self.age = age
+	def writeBack(io::writer out):
+		out.write("Name: ")
+		out.write(self.name)
+		out.write("Age: ")
+		out.writeLine(self.age)
+
 def main():
 	input = io::input()
 	output = io::output()
@@ -12,7 +25,16 @@ def main():
 		nums.pushBack(std::random())
 	nums.forall(lambda dec d: output.writeLine(d))
 	
-	output.writeLine("gimme a number to remove.")
-	torem = input.readDec()
-	assert nums.remove(lambda dec d: d == torem)
-	nums.forall(lambda dec d: output.writeLine(d)) 
+	#output.writeLine("gimme a number to remove.")
+	#torem = input.readDec()
+	#assert nums.remove(lambda dec d: d == torem)
+	#nums.forall(lambda dec d: output.writeLine(d)) 
+	
+	people = new data::list<person>(10)
+	people.pushBack(new person("michael", 17))
+	people.pushBack(new person("tim", 18))
+	people.pushBack(new person("cindy", 16))
+	people.pushBack(new person("mitchell", 17))
+	assert people.remove(lambda person p: p.age == 18)
+	people.sort(lambda person a, person b: a.age - b.age)
+	people.forall(lambda person p: output.write(p))

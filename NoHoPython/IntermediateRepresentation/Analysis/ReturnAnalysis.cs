@@ -128,6 +128,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public bool AllCodePathsReturn() => true;
         public bool SomeCodePathsBreak() => false;
     }
+
+    partial class MemoryDestroy
+    {
+        public bool AllCodePathsReturn() => false;
+        public bool SomeCodePathsBreak() => false;
+    }
 }
 
 namespace NoHoPython.IntermediateRepresentation.Values

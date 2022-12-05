@@ -315,6 +315,8 @@
                     "default" => TokenType.Default,
                     "sizeof" => TokenType.Sizeof,
                     "assert" => TokenType.Assert,
+                    "del" => TokenType.Destroy,
+                    "destroy" => TokenType.Destroy,
                     "in" => TokenType.In,
                     "from" => TokenType.From,
                     "to" => TokenType.To,

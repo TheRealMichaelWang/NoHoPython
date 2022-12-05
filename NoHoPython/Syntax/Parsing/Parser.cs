@@ -96,6 +96,21 @@ namespace NoHoPython.Syntax.Parsing
                 case TokenType.Continue:
                     scanner.ScanToken();
                     return new LoopStatement(actionTok, location);
+                case TokenType.Destroy:
+                    {
+                        scanner.ScanToken();
+                        AstType type = ParseType();
+                        IAstValue? index;
+                        if (scanner.LastToken.Type == TokenType.OpenBracket)
+                        {
+                            scanner.ScanToken();
+                            index = ParseExpression();
+                            MatchAndScanToken(TokenType.CloseBracket);
+                        }
+                        else
+                            index = null;
+                        return new DestroyStatement(type, ParseExpression(), index, location);
+                    }
                 default:
                     throw new UnexpectedTokenException(scanner.LastToken, location);
             }
@@ -195,9 +210,7 @@ namespace NoHoPython.Syntax.Parsing
                         case TokenType.Identifier:
                             {
                                 string identifier = ParseIdentifier();
-                                if (scanner.LastToken.Type == TokenType.OpenBrace)
-                                    return new NamedFunctionCall(identifier, ParseArguments(), location);
-                                else if (scanner.LastToken.Type == TokenType.OpenParen) //is function call
+                                if (scanner.LastToken.Type == TokenType.OpenParen) //is function call
                                     return new NamedFunctionCall(identifier, ParseArguments(), location);
                                 else if (scanner.LastToken.Type == TokenType.Set)
                                 {

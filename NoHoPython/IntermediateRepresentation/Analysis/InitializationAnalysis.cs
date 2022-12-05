@@ -137,6 +137,16 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => AbortMessage?.AnalyzePropertyInitialization(initializedProperties);
     }
+
+    partial class MemoryDestroy
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
+        {
+            Address.AnalyzePropertyInitialization(initializedProperties);
+            if(Index != null)
+                Index.AnalyzePropertyInitialization(initializedProperties);
+        }
+    }
 }
 
 namespace NoHoPython.IntermediateRepresentation.Values

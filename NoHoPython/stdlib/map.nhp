@@ -1,11 +1,20 @@
 cinclude "<string.h>"
 cinclude "<stdlib.h>"
+include "list.nhp"
 
 mod data:
 	interface map<K, V>:
 		fn<V, K> get
 		fn<bool, K, V> emplace
 		fn<bool, K> has
+	
+	class keyValuePair<K, V>:
+		K key
+		V value
+		
+		def __init__(K key, V value):
+			self.key = key
+			self.value = value
 	
 	class hashmap<K, V>:
 		handle keyBuckets
@@ -97,3 +106,63 @@ mod data:
 				free(oldBucketStates)
 				return internalEmplace(hash, value)
 			return internalEmplace(self.hasher(key), toadd)
+	
+	class treemap<K, V>:
+		fn<int, K, K> compare
+		list<keyValuePair<K, V>> buckets
+		
+		def __init__(fn<int, K, K> compare):
+			self.compare = compare
+			self.buckets = new list<keyValuePair<K, V>>(10)
+		
+		def has(K key) bool:
+			low = 0
+			high = self.buckets.count
+			while low < high:
+				mid = (high + low) / 2
+				
+				res = self.compare(key, self.buckets[mid].key)
+				if res == 0: #exact match
+					return True
+				elif res > 0: #key is greater than pivot
+					low = mid
+				else: #key is smaller than pivot
+					high = mid
+			
+			#key was never found
+			return False
+		
+		def get(K key) V:
+			low = 0
+			high = self.buckets.count
+			while low < high:
+				mid = (high + low) / 2
+				
+				res = self.compare(key, self.buckets[mid].key)
+				if res == 0: #exact match
+					return self.buckets[res].value
+				elif res > 0: #key is greater than pivot
+					low = mid
+				else: #key is smaller than pivot
+					high = mid
+			
+			abort "Key not found"
+		
+		def emplace(K key, V value) bool:
+			low = 0
+			high = self.buckets.count
+			while low < high:
+				mid = (high + low) / 2
+				
+				res = self.compare(key, self.buckets[mid].key)
+				if res == 0: #exact match, overwrite bucket value
+					self.buckets[mid].value = value
+					return False
+				elif res > 0: #key is greater than pivot
+					low = mid
+				else: #key is smaller than pivot
+					high = mid
+			
+			#key was never found, actually insert
+			self.buckets.insert(low, new keyValuePair<K, V>(key, value))
+			return True

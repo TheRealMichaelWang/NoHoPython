@@ -2,6 +2,12 @@ cinclude "<stdlib.h>"
 cinclude "<string.h>"
 
 mod data:
+	def convertList<T, X>(list<T> input, fn<X, T> convert) list<X>:
+		converted = new list<X>(input.count)
+		for i from 0 within input.count:
+			converted.pushBack(convert(input[i]))
+		return converted
+	
 	class list<T>:
 		handle buffer
 		int count = 0
@@ -50,11 +56,17 @@ mod data:
 			cdef memcpy(handle, handle, int) handle
 			memcpy(self.buffer + sizeof(T), self.buffer, self.count * sizeof(T))
 			self.buffer{self}[0] = elem
+			self.count = self.count + 1
 		def pushBack(T elem):
 			ensureCapacity(self.count + 1)
 			self.buffer{self}[self.count] = elem
 			self.count = self.count + 1
-		
+		def insert(int index, T elem):
+			ensureCapacity(self.count + 1)
+			cdef memcpy(handle, handle, int) handle
+			memcpy(self.buffer + ((index + 1) * sizeof(T)), self.buffer + (index * sizeof(T)), (self.count - index) * sizeof(T))
+			self.buffer{self}[index] = elem
+			self.count = self.count + 1
 		def addBuffer(array<T> buf):
 			ensureCapacity(self.count + buf as int)
 			for i from 0 within buf:

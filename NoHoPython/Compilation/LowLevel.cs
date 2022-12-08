@@ -112,14 +112,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 CodeBlock.CIndent(emitter, indent);
                 StringBuilder valueBuilder = new();
-                valueBuilder.Append($"*(({Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}*)");
+                valueBuilder.Append($"(*(({Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}*)");
                 IRValue.EmitMemorySafe(Address, irProgram, valueBuilder, typeargs);
                 if (Index != null)
                 {
                     valueBuilder.Append(" + ");
                     IRValue.EmitMemorySafe(Index, irProgram, valueBuilder, typeargs);
                 }
-                valueBuilder.Append(')');
+                valueBuilder.Append("))");
                 Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valueBuilder.ToString());
             }
         }

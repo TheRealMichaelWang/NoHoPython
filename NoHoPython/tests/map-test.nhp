@@ -1,0 +1,17 @@
+﻿include "map.nhp"
+include "io.nhp"
+
+def main():
+	def dj2b(array<char> str) int:
+		accum = 0
+		for i from 0 within str:
+			accum = (accum * 33) + str[i]
+		return accum
+	
+	input = io::input()
+	output = io::output()
+	map = new data::hashmap<array<char>, array<char>>(dj2b, 256)
+	while True:
+		name = input.readLine()
+		map.emplace(name, name)
+		output.writeLine(map.get(name))

@@ -35,7 +35,7 @@ public static class Program
         {
             DateTime compileStart = DateTime.Now;
 
-            AstParser parser = new(new Scanner(args[0], Environment.CurrentDirectory + "\\stdlib"));
+            AstParser parser = new(new Scanner(args[0], $"{Environment.CurrentDirectory}/stdlib"));
 
             List<IAstStatement> statements = parser.ParseAll();
 

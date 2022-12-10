@@ -50,17 +50,17 @@
             {
                 if (!File.Exists(fileName))
                 {
-                    if (File.Exists(scanner.standardLibraryDirectory + "\\" + fileName))
+                    if (File.Exists($"{scanner.standardLibraryDirectory}/{fileName}"))
                     {
-                        fileName = scanner.standardLibraryDirectory + "\\" + fileName;
+                        fileName = $"{scanner.standardLibraryDirectory}/{fileName}";
                         goto file_found;
                     }
                     else if (scanner.visitorStack.Count > 0)
                     {
                         FileVisitor parent = scanner.visitorStack.Peek();
-                        if (File.Exists(parent.WorkingDirectory + "\\" + fileName))
+                        if (File.Exists($"{parent.WorkingDirectory}/{fileName}"))
                         {
-                            fileName = parent.WorkingDirectory + "\\" + fileName;
+                            fileName = $"{parent.WorkingDirectory}/{fileName}";
                             goto file_found;
                         }
                     }
@@ -72,9 +72,9 @@
 
                 FileName = fileName;
                 source = File.ReadAllText(fileName);
-#pragma warning disable CS8601 // Possible null reference assignment.
-                WorkingDirectory = Path.GetDirectoryName(fileName);
-#pragma warning restore CS8601
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                WorkingDirectory = Path.GetDirectoryName(fileName).Replace('\\','/');
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
                 Row = 1;
                 Column = 1;
@@ -110,7 +110,7 @@
 
         public Scanner(string firstFileToVisit, string standardLibraryDirectory)
         {
-            this.standardLibraryDirectory = standardLibraryDirectory;
+            this.standardLibraryDirectory = standardLibraryDirectory.Replace('\\', '/');
             visitorStack = new Stack<FileVisitor>();
             visitedFiles = new SortedSet<string>();
 

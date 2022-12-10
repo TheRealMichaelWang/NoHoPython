@@ -33,6 +33,11 @@ mod data:
 				copied.buffer{copied}[i] = self.buffer[i] as T
 			return copied
 		
+		def clear():
+			for i from 0 within self.count:
+				destroy T[i]self.buffer
+			self.count = 0
+		
 		def getAtIndex(int i) T:
 			if i < 0 or i >= self.count:
 				abort "Index out of range."

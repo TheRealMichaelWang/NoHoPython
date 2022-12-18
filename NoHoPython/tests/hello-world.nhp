@@ -1,0 +1,11 @@
+﻿include "io.nhp"
+
+def main():
+	out = io::output()
+	out.writeLine("Hello world!")
+	
+	input = io::input()
+	name = input.readLine()
+	
+	out.write("Your name is: ")
+	out.writeLine(name)

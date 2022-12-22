@@ -125,37 +125,47 @@ namespace NoHoPython.Syntax.Parsing
                 int count;
                 for (count = 0; scanner.LastToken.Type == TokenType.Tab; count++)
                     scanner.ScanToken();
-                return lastCountedIndents = count;
+                return count;
             }
 
             currentExpectedIndents++;
             List<TLineType> statements = new();
             while (true)
             {
+                if (scanner.LastToken.Type == TokenType.EndOfFile)
+                    return statements;
+
                 if (skipIndentCounting)
                     skipIndentCounting = false;
                 else
-                    countIndent();
-
-                if (lastCountedIndents == currentExpectedIndents)
                 {
+                    int indents = countIndent();
                     if (scanner.LastToken.Type == TokenType.Newline)
                     {
                         scanner.ScanToken();
                         continue;
                     }
+                    else if (scanner.LastToken.Type == TokenType.EndOfFile)
+                        return statements;
+                    lastCountedIndents = indents;
+                }
+
+                if (lastCountedIndents == currentExpectedIndents)
+                {
+                    if (scanner.LastToken.Type == TokenType.Newline) //empty line
+                    {
+                        scanner.ScanToken();
+                        continue;
+                    }
+                    else if(scanner.LastToken.Type == TokenType.EndOfFile) //handle end of file
+                        return statements;
 
                     TLineType? result = lineParser();
                     if (result != null)
                         statements.Add(result);
 
                     if (scanner.LastToken.Type == TokenType.EndOfFile)
-                    {
-                        lastCountedIndents = 0;
-                        currentExpectedIndents = 0;
-                        skipIndentCounting = true;
                         return statements;
-                    }
 
                     if (!skipIndentCounting)
                         MatchAndScanToken(TokenType.Newline);
@@ -411,6 +421,8 @@ namespace NoHoPython.Syntax.Parsing
                             continue;
                         }
                     case TokenType.EndOfFile:
+                        lastCountedIndents = 0;
+                        currentExpectedIndents = 0;
                         scanner.ScanToken();
                         if (scanner.LastToken.Type == TokenType.EndOfFile)
                             return topLevelStatements;

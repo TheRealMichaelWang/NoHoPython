@@ -1,4 +1,4 @@
-﻿include "stdlib/io.nhp"
+﻿include "io.nhp"
 
 class student:
 	array<char> name
@@ -30,23 +30,25 @@ interface person:
 	
 	fn<array<char>> toString
 
-enum schoolperson: printableObj:
+enum schoolperson: io::stringableObj:
 	student
 	faculty
 	int
 	char
 
-def printSchoolPerson(schoolperson sp):
+def writeSchoolPerson(io::writer writer, schoolperson sp):
 	match sp:
 		student s:
-			io::print("student: ")
+			writer.write("student: ")
 		faculty f:
-			io::print("faculty: ")
+			writer.write("faculty: ")
 		default:
-			io::print("dontfuckingknow: ")
-	#io::println(sp)
+			writer.write("int or char")
+
+	writer.write(sp)
 
 def main():
-	printSchoolPerson(new student("michael", 17, 11))
-	printSchoolPerson(new faculty("maine", 40, 140))
-	printSchoolPerson(100)
+	out = io::output()
+	printSchoolPerson(out, new student("michael", 17, 11))
+	printSchoolPerson(out, new faculty("maine", 40, 140))
+	printSchoolPerson(out, 100)

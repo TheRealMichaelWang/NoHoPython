@@ -9,11 +9,11 @@ using System.Threading.Tasks;
 
 namespace NoHoPython.IntermediateRepresentation
 {
-    public abstract class CCodegenError : Exception
+    public abstract class CodegenError : Exception
     {
         public IRElement? IRElement { get; private set; }
 
-        public CCodegenError(IRElement? iRElement, string message) : base(message)
+        public CodegenError(IRElement? iRElement, string message) : base(message)
         {
             IRElement = iRElement;
         }
@@ -37,7 +37,7 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
-    public sealed class CannotEmitDestructorError : CCodegenError
+    public sealed class CannotEmitDestructorError : CodegenError
     {
         public IRValue Value { get; private set; }
 
@@ -47,7 +47,7 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
-    public sealed class CannotPerformCallStackReporting : CCodegenError
+    public sealed class CannotPerformCallStackReporting : CodegenError
     {
         public ProcedureCall ProcedureCall { get; private set; }
 
@@ -57,7 +57,7 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
-    public sealed class CannotCompileNothingError : CCodegenError
+    public sealed class CannotCompileNothingError : CodegenError
     {
         public CannotCompileNothingError(IRElement? errorReportedElement) : base(errorReportedElement, "(Internal Error)Cannot actually compile/emit a nothing literal nor scope a nothing type.")
         {
@@ -65,7 +65,7 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
-    public sealed class UnexpectedTypeParameterError : CCodegenError
+    public sealed class UnexpectedTypeParameterError : CodegenError
     {
         public UnexpectedTypeParameterError(Typing.TypeParameter typeParameter, IRElement? errorReportedElement) : base(errorReportedElement, $"(Internal Error)Could not scope or compile/emit the type parameter {typeParameter.Name}.")
         {
@@ -73,7 +73,7 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
-    public sealed class CircularDependentTypesError : CCodegenError
+    public sealed class CircularDependentTypesError : CodegenError
     {
         public CircularDependentTypesError(List<IType> dependecyChain, IType circularDependentType) : base(null, $"Type {dependecyChain[0].TypeName} is circularly dependent; {string.Join(" -> ", dependecyChain.ConvertAll((type) => type.TypeName))}, and depends on {circularDependentType.TypeName} again. Please note that the size of {dependecyChain[0].TypeName} has to be known during compilation)")
         {

@@ -21,7 +21,7 @@ mod csv:
 				return True
 			return False
 		
-		buffer = new data::list<T>(10, defaultElem)
+		buffer = new data::list<T>(10)
 		columns = -1
 		rows = 0
 		countedCols = 0

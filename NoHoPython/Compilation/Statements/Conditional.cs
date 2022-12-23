@@ -47,22 +47,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements.ForEach((statement) => statement.ScopeForUsedTypes(typeargs, irBuilder));
         }
 
-        public virtual void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter)
-        {
-            if (Statements == null)
-                throw new InvalidOperationException();
-
-            Statements.ForEach((statement) => statement.ForwardDeclareType(irProgram, emitter));
-        }
-
-        public virtual void ForwardDeclare(IRProgram irProgram, StringBuilder emitter)
-        {
-            if (Statements == null)
-                throw new InvalidOperationException();
-
-            Statements.ForEach((statement) => statement.ForwardDeclare(irProgram, emitter));
-        }
-
         public void EmitInitialize(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (Statements == null)
@@ -108,34 +92,36 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            Condition.ScopeForUsedTypes(typeargs, irBuilder);
-            IfTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
-            IfFalseBlock.ScopeForUsedTypes(typeargs, irBuilder);
-        }
-
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter)
-        {
-            IfTrueBlock.ForwardDeclareType(irProgram, emitter);
-            IfFalseBlock.ForwardDeclareType(irProgram, emitter);
-        }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter)
-        {
-            IfTrueBlock.ForwardDeclare(irProgram, emitter);
-            IfFalseBlock.ForwardDeclare(irProgram, emitter);
+            if (Condition.IsTruey)
+                IfTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+            else if (Condition.IsFalsey)
+                IfFalseBlock.ScopeForUsedTypes(typeargs, irBuilder);
+            else
+            {
+                Condition.ScopeForUsedTypes(typeargs, irBuilder);
+                IfTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+                IfFalseBlock.ScopeForUsedTypes(typeargs, irBuilder);
+            }
         }
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
-            CodeBlock.CIndent(emitter, indent);
-            emitter.Append("if(");
-            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
-            emitter.Append(')');
-            IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
+            if (Condition.IsTruey)
+                IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
+            else if (Condition.IsFalsey)
+                IfFalseBlock.Emit(irProgram, emitter, typeargs, indent);
+            else
+            {
+                CodeBlock.CIndent(emitter, indent);
+                emitter.Append("if(");
+                IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
+                emitter.Append(')');
+                IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
 
-            CodeBlock.CIndent(emitter, indent);
-            emitter.Append("else");
-            IfFalseBlock.Emit(irProgram, emitter, typeargs, indent);
+                CodeBlock.CIndent(emitter, indent);
+                emitter.Append("else");
+                IfFalseBlock.Emit(irProgram, emitter, typeargs, indent);
+            }
         }
     }
 
@@ -143,20 +129,29 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            Condition.ScopeForUsedTypes(typeargs, irBuilder);
+            if (Condition.IsFalsey)
+                return;
+
+            if(!Condition.IsTruey)
+                Condition.ScopeForUsedTypes(typeargs, irBuilder);
+            
             IfTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => IfTrueBlock.ForwardDeclareType(irProgram, emitter);
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) => IfTrueBlock.ForwardDeclare(irProgram, emitter);
-
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
-            CodeBlock.CIndent(emitter, indent);
-            emitter.Append("if(");
-            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
-            emitter.Append(')');
+
+            if (Condition.IsFalsey)
+                return;
+
+            if (!Condition.IsTruey)
+            {
+                CodeBlock.CIndent(emitter, indent);
+                emitter.Append("if(");
+                IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
+                emitter.Append(')');
+            }
+
             IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
         }
     }
@@ -165,20 +160,30 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            Condition.ScopeForUsedTypes(typeargs, irBuilder);
+            if (Condition.IsFalsey)
+                return;
+
+            if (!Condition.IsTruey)
+                Condition.ScopeForUsedTypes(typeargs, irBuilder);
+
             WhileTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => WhileTrueBlock.ForwardDeclareType(irProgram, emitter);
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) => WhileTrueBlock.ForwardDeclare(irProgram, emitter);
-
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
+            if (Condition.IsFalsey)
+                return;
+            
             CodeBlock.CIndent(emitter, indent);
-            emitter.Append("while(");
-            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
-            emitter.Append(')');
+            if (Condition.IsTruey)
+                emitter.Append("for(;;)");
+            else
+            {
+                emitter.Append("while(");
+                IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
+                emitter.Append(')');
+            }
+
             WhileTrueBlock.Emit(irProgram, emitter, typeargs, indent);
         }
     }
@@ -191,10 +196,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             UpperBound.ScopeForUsedTypes(typeargs, irBuilder);
             IterationBlock.ScopeForUsedTypes(typeargs, irBuilder);
         }
-
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => IterationBlock.ForwardDeclare(irProgram, emitter);
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) => IterationBlock.ForwardDeclare(irProgram, emitter);
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
@@ -225,10 +226,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (MatchHandler handler in MatchHandlers)
                 handler.ToExecute.ScopeForUsedTypes(typeargs, irBuilder);
         }
-
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => MatchHandlers.ForEach((handler) => handler.ToExecute.ForwardDeclareType(irProgram, emitter));
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) => MatchHandlers.ForEach((handler) => handler.ToExecute.ForwardDeclare(irProgram, emitter));
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
@@ -273,10 +270,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
-
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             foreach (Variable variable in activeLoopVariables)
@@ -319,10 +312,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => Condition.ScopeForUsedTypes(typeargs, irBuilder);
-
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {

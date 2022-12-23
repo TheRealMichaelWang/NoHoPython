@@ -23,10 +23,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             InitialValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
-
         public void EmitCDecl(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent + 1);
@@ -93,10 +89,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             SetValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
-
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             StringBuilder valueBuilder = new StringBuilder();
@@ -138,10 +130,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     partial class CSymbolDeclaration
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => CSymbol.Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
-
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent) { }
     }

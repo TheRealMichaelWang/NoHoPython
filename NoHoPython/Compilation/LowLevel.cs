@@ -76,10 +76,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             emitter.Append(')');
         }
-
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-        
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
         
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
@@ -127,10 +123,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (Index != null)
                 Index.ScopeForUsedTypes(typeargs, irBuilder);
         }
-
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {

@@ -140,6 +140,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    //public sealed partial class InterpolatedString : IRValue
+    //{
+    //    public IAstElement ErrorReportedElement { get; private set; }
+    //    public IType Type { get => new ArrayType(Primitive.Character); }
+    //    public bool IsTruey => false;
+    //    public bool IsFalsey => false;
+
+    //    public readonly List<IRValue> InterpolatedValues;
+    //    public 
+    //}
+
     public sealed partial class AllocArray : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }

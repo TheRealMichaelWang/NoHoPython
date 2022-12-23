@@ -63,8 +63,6 @@ namespace NoHoPython.Scoping
             public void DelayedLinkSetStatements(List<IRStatement> statements) => this.statements.AddRange(statements);
 
             public void ScopeForUsedTypes(Dictionary<Typing.TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => throw new InvalidOperationException();
-            public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) => throw new InvalidOperationException();
-            public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) => throw new InvalidOperationException();
             public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<Typing.TypeParameter, IType> typeargs, int indent) => throw new InvalidOperationException();
             public bool AllCodePathsReturn() => throw new InvalidOperationException();
 

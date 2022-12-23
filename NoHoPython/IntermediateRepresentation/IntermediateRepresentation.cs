@@ -113,12 +113,6 @@ namespace NoHoPython.IntermediateRepresentation
 
     public partial interface IRStatement : IRElement
     {
-        //forward declare type definitions
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter);
-
-        //forward declare functions
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter);
-
         //emit corresponding C code
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent);
     }

@@ -169,10 +169,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, destBuilder.ToString(), valueBuilder.ToString());
         }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
-
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
@@ -250,10 +246,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"{recordBuilder}->{Property.Name}", toCopyBuilder.ToString());
             }
         }
-
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {

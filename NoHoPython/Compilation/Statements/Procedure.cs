@@ -240,8 +240,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             scoping = false; 
         }
 
-        public override void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
-
         public void ForwardDeclareActual(IRProgram irProgram, StringBuilder emitter)
         {
             if (!irProgram.ProcedureOverloads.ContainsKey(this))
@@ -249,7 +247,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             foreach (ProcedureReference procedureReference in irProgram.ProcedureOverloads[this])
                 procedureReference.ForwardDeclare(irProgram, emitter);
-            base.ForwardDeclare(irProgram, emitter);
         }
 
         public override void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent) { }
@@ -483,10 +480,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ToReturn.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
-
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             Variable? localToReturn = null;
@@ -538,10 +531,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
-
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
@@ -581,10 +570,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
-
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent) { }
     }
 }
@@ -600,10 +585,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
             Arguments.ForEach((arg) => arg.ScopeForUsedTypes(typeargs, irBuilder));
         }
-
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter) { }
-
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter) { }
 
         public abstract void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer);
 

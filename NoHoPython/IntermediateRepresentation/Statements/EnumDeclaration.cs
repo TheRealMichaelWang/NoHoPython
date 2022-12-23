@@ -14,9 +14,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public string Name { get; private set; }
 
+        public EnumType GetSelfType(Syntax.AstIRProgramBuilder irBuilder) => new(this, TypeParameters.ConvertAll((TypeParameter parameter) => (IType)new TypeParameterReference(irBuilder.ScopedProcedures.Count > 0 ? irBuilder.ScopedProcedures.Peek().SanitizeTypeParameter(parameter) : parameter)), ErrorReportedElement);
+
         public readonly List<TypeParameter> TypeParameters;
 
-        private List<InterfaceType>? requiredImplementedInterfaces;
         private List<IType>? options;
 
         public EnumDeclaration(string name, List<TypeParameter> typeParameters, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement) : base()
@@ -45,23 +46,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             return typeOptions;
         }
 
-        public List<InterfaceType> GetRequiredImplementedInterfaces(EnumType enumType)
-        {
-            if (enumType.EnumDeclaration != this)
-                throw new InvalidOperationException();
-            if (requiredImplementedInterfaces == null)
-                throw new InvalidOperationException();
-
-            Dictionary<TypeParameter, IType> typeargs = new(TypeParameters.Count);
-            for (int i = 0; i < TypeParameters.Count; i++)
-                typeargs.Add(TypeParameters[i], enumType.TypeArguments[i]);
-
-            List<InterfaceType> interfaceTypes = new(requiredImplementedInterfaces.Count);
-            foreach (InterfaceType requiredImplement in requiredImplementedInterfaces)
-                interfaceTypes.Add(requiredImplement);
-            return interfaceTypes;
-        }
-
         public void DelayedLinkSetOptions(List<IType> options)
         {
             if (this.options != null)
@@ -76,13 +60,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (stack.Contains(option, new ITypeComparer()))
                     throw new UnexpectedTypeException(option, ErrorReportedElement);
             }
-        }
-
-        public void DelayedLinkSetRequiredImplementedInterfaces(List<InterfaceType> requiredImplementedInterfaces)
-        {
-            if (this.requiredImplementedInterfaces != null)
-                throw new InvalidOperationException();
-            this.requiredImplementedInterfaces = requiredImplementedInterfaces;
         }
     }
 }
@@ -200,9 +177,9 @@ namespace NoHoPython.Typing
                     if (foundFlag)
                         propertyIdMap.Add(property.Name, property);
                 };
-                foreach (InterfaceType requiredImplementedInterface in EnumDeclaration.GetRequiredImplementedInterfaces(this))
-                    if (!requiredImplementedInterface.SupportsProperties(propertyIdMap.Values.ToList()))
-                        throw new UnexpectedTypeException(this, EnumDeclaration.ErrorReportedElement);
+                //foreach (InterfaceType requiredImplementedInterface in EnumDeclaration.GetRequiredImplementedInterfaces(this))
+                //    if (!requiredImplementedInterface.SupportsProperties(propertyIdMap.Values.ToList()))
+                //        throw new UnexpectedTypeException(this, EnumDeclaration.ErrorReportedElement);
                 return propertyIdMap;
             });
         }
@@ -270,10 +247,24 @@ namespace NoHoPython.Syntax.Statements
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IREnumDeclaration);
             IREnumDeclaration.DelayedLinkSetOptions(Options.ConvertAll((AstType option) => option.ToIRType(irBuilder, this)));
-            IREnumDeclaration.DelayedLinkSetRequiredImplementedInterfaces(RequiredImplementedInterfaces.ConvertAll((type) => type.ToIRType(irBuilder, this) is InterfaceType interfaceType ? interfaceType : throw new UnexpectedTypeException(type.ToIRType(irBuilder, this), this)));
             irBuilder.SymbolMarshaller.GoBack();
         }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => IREnumDeclaration;
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        {
+            EnumType selfType = IREnumDeclaration.GetSelfType(irBuilder);
+            foreach(IType requriedImplementedType in RequiredImplementedInterfaces.ConvertAll((astType) => astType.ToIRType(irBuilder, this)))
+            {
+                if (requriedImplementedType is InterfaceType requiredImplementedInterface)
+                {
+                    if (!requiredImplementedInterface.SupportsProperties(selfType.GetProperties()))
+                        throw new UnsupportedInterfaceException(IREnumDeclaration, requiredImplementedInterface, this);
+                }
+                else
+                    throw new UnexpectedTypeException(requriedImplementedType, this);
+            }
+
+            return IREnumDeclaration;
+        }
     }
 }

@@ -1,4 +1,6 @@
-﻿include "io.nhp"
+﻿#Note this example is not up to date, and won't work with the latest version
+
+include "io.nhp"
 
 class student:
 	array<char> name

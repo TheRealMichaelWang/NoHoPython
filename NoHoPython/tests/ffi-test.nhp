@@ -1,4 +1,6 @@
-﻿cinclude "<stdlib.h>"
+﻿#Note this example is not up to date, and won't work with the latest version
+
+cinclude "<stdlib.h>"
 cinclude "<stdio.h>"
 
 mod memutils:

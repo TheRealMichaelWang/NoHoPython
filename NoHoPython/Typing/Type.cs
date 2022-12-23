@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using System.Text;
 
@@ -86,6 +87,18 @@ namespace NoHoPython.Typing
         {
             ExpectedArgumentCount = null;
             RecievedArgumentCount = recievedArgumentCount;
+        }
+    }
+
+    public sealed class UnsupportedInterfaceException : IRGenerationError
+    {
+        public EnumDeclaration EnumDeclaration { get; private set; }
+        public InterfaceType Interface { get; private set; }
+
+        public UnsupportedInterfaceException(EnumDeclaration enumDeclaration, InterfaceType @interface, Syntax.IAstElement errorReportedElement) : base(errorReportedElement, $"Enum {enumDeclaration.Name} does not support interface {@interface.TypeName}, which is annotated required supported interface.")
+        {
+            EnumDeclaration = enumDeclaration;
+            Interface = @interface;
         }
     }
 

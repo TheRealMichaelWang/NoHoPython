@@ -1,7 +1,8 @@
-﻿include "stdlib/io.nhp"
+﻿include "io.nhp"
 
 def fib(int n) int:
 	return n if n < 10 else fib(n - 1) + fib(n - 2)
 
 def main():
-	io::print(fib(46))
+	out = io::output()
+	out.writeLine(fib(46))

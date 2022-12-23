@@ -87,9 +87,6 @@
     <None Update="tests\fib.nhp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="tests\fib.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="tests\forloop.nhp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

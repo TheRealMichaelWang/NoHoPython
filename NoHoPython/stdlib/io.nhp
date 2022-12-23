@@ -92,7 +92,7 @@ mod io:
 			while ((c = fgetc(self.ptr)) != EOF) and continueCond(c):
 				buffer.pushBack(c)
 			ungetc(c, self.ptr)
-			return buffer.toArray(0)
+			return buffer.toArray()
 		def readTill(fn<bool, char> stopCond) array<char>:
 			return readWhile(lambda char c: stopCond(c) == False)
 		def readWhileConsumeFront(fn<bool, char> continueCond) array<char>:
@@ -131,14 +131,14 @@ mod io:
 			buffer = new data::list<char>(10)
 			while ((c = fgetc(self.ptr)) != EOF) and (c != '\n'):
 				buffer.pushBack(c)
-			return buffer.toArray(0)
+			return buffer.toArray()
 		
 		def readAll() array<char>:
 			cdef fgetc(handle) char
 			buffer = new data::list<char>(10)
 			while (c = fgetc(self.ptr)) != EOF:
 				buffer.pushBack(c)
-			return buffer.toArray(0)
+			return buffer.toArray()
 	
 	def output() writer:
 		cdef stdout handle

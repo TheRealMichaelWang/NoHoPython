@@ -74,10 +74,10 @@ public static class Program
         {
             compilerError.Print();
         }
-        catch (CCodegenError codegenError)
-        {
-            codegenError.Print();
-        }
+        //catch (CCodegenError codegenError)
+        //{
+        //    codegenError.Print();
+        //}
         catch (FileNotFoundException f)
         {
             Console.WriteLine($"File not found: {f.Message}");

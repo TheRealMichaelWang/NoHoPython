@@ -160,6 +160,22 @@ namespace NoHoPython.Typing
             emitter.AppendLine("\treturn to_alloc;");
             emitter.AppendLine("}");
 
+            if (ElementType.RequiresDisposal)
+            {
+                emitter.AppendLine($"{GetCName(irProgram)} marshal_foreign{GetStandardIdentifier(irProgram)}(const {ElementType.GetCName(irProgram)}* buffer, int length, void* responsible_destroyer) {{");
+                emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
+                emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocate($"length * sizeof({ElementType.GetCName(irProgram)})")};");
+                emitter.AppendLine("\tfor(int i = 0; i < length; i++) {");
+                emitter.AppendLine("\t\tto_alloc.buffer[i] = ");
+                ElementType.EmitCopyValue(irProgram, emitter, "buffer[i]", "responsible_destroyer");
+                emitter.AppendLine(";");
+                emitter.AppendLine("\t}");
+                emitter.AppendLine("\tto_alloc.length = length;");
+                emitter.AppendLine("\tto_alloc.responsible_destroyer = responsible_destroyer;");
+                emitter.AppendLine("\treturn to_alloc;");
+                emitter.AppendLine("}");
+            }
+
             emitter.AppendLine($"{GetCName(irProgram)} marshal_proto{GetStandardIdentifier(irProgram)}(int length, {ElementType.GetCName(irProgram)} proto, void* responsible_destroyer) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
             emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocate($"length * sizeof({ElementType.GetCName(irProgram)})")};");

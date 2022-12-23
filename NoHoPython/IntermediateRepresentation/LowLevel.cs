@@ -69,6 +69,28 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ErrorReportedElement = errorReportedElement;
         }
     }
+
+    public partial class MarshalIntoArray : IRValue
+    {
+        public IType Type => new ArrayType(ElementType);
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public IType ElementType { get; private set; }
+        
+        public IRValue Length { get; private set; }
+        public IRValue Address { get; private set; }
+
+        public MarshalIntoArray(IType elementType, IRValue length, IRValue address, IAstElement errorReportedElement)
+        {
+            ElementType = elementType;
+            Length = length;
+            Address = address;
+            ErrorReportedElement = errorReportedElement;
+        }
+    }
 }
 
 namespace NoHoPython.IntermediateRepresentation.Statements
@@ -105,7 +127,18 @@ namespace NoHoPython.Syntax.Values
             IRValue value = Value.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate);
             return new IntermediateRepresentation.Values.MemorySet(value.Type, Address.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Handle, willRevaluate), Index.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), value, ResponsibleDestroyer.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this);
         }
-    } 
+    }
+
+    partial class MarshalIntoArray
+    {
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
+
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
+        {
+            return new IntermediateRepresentation.Values.MarshalIntoArray(ElementType.ToIRType(irBuilder, this), Length.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), Address.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Handle, willRevaluate), this);
+        }
+    }
 }
 
 namespace NoHoPython.Syntax.Statements

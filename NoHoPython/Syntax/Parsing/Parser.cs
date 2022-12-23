@@ -265,6 +265,11 @@ namespace NoHoPython.Syntax.Parsing
                         case TokenType.New:
                             {
                                 scanner.ScanToken();
+                                if (scanner.LastToken.Type == TokenType.OpenParen)
+                                    return new InstantiateNewRecord(null, ParseArguments(), location);
+                                else if (scanner.LastToken.Type == TokenType.OpenBracket)
+                                    return ParseAllocArray(null, location);
+
                                 AstType type = ParseType();
 
                                 if (scanner.LastToken.Type == TokenType.OpenParen)
@@ -272,6 +277,8 @@ namespace NoHoPython.Syntax.Parsing
                                 else
                                     return ParseAllocArray(type, location);
                             }
+                        case TokenType.Marshal:
+                            return ParseMarshalArray(location);
                         case TokenType.Nothing:
                             scanner.ScanToken();
                             return new NothingLiteral(location);

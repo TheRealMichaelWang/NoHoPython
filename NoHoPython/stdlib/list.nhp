@@ -104,11 +104,8 @@ mod data:
 			destroy T[self.count]self.buffer
 			return popped
 		
-		def toArray(T defaultValue) array<T>:
-			buffer = new T[self.count](defaultValue)
-			for i from 0 within self.count:
-				buffer[i] = self.buffer[i] as T
-			return buffer
+		def toArray() array<T>:
+			return marshal T[self.count](self.buffer)
 		
 		def forall(fn<None, T> todo):
 			for i from 0 within self.count:

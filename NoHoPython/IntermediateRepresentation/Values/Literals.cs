@@ -229,7 +229,11 @@ namespace NoHoPython.Syntax.Values
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
-            IType elementType = ElementType.ToIRType(irBuilder, this);
+            IType elementType = ElementType != null 
+                ? ElementType.ToIRType(irBuilder, this)
+                : expectedType != null && expectedType is ArrayType expectedArrayType
+                ? expectedArrayType.ElementType
+                : throw new UnexpectedTypeException(expectedType == null ? Primitive.Nothing : expectedType, this);
 
             return new IntermediateRepresentation.Values.AllocArray(this, elementType, Length.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), ProtoValue == null ? elementType.GetDefaultValue(this) : ProtoValue.GenerateIntermediateRepresentationForValue(irBuilder, elementType, willRevaluate));
         }
@@ -239,7 +243,12 @@ namespace NoHoPython.Syntax.Values
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
-            IType prototype = RecordType.ToIRType(irBuilder, this);
+            IType prototype = RecordType != null
+                ? RecordType.ToIRType(irBuilder, this)
+                : expectedType != null && expectedType is RecordType expectedRecordType
+                ? expectedRecordType
+                : throw new UnexpectedTypeException(expectedType == null ? Primitive.Nothing : expectedType, this);
+
             return prototype is RecordType record
                 ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
                 : throw new UnexpectedTypeException(prototype, this);

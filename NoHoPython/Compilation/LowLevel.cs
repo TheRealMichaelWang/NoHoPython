@@ -88,6 +88,32 @@ namespace NoHoPython.IntermediateRepresentation.Values
             emitter.AppendLine(";");
         }
     }
+
+    partial class MarshalIntoArray
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            ElementType.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            Length.ScopeForUsedTypes(typeargs, irBuilder);
+            Address.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        {
+            ArrayType type = new ArrayType(ElementType.SubstituteWithTypearg(typeargs));
+            if(ElementType.SubstituteWithTypearg(typeargs).RequiresDisposal)
+                emitter.Append($"marshal_foreign{type.GetStandardIdentifier(irProgram)}(");
+            else
+                emitter.Append($"marshal{type.GetStandardIdentifier(irProgram)}(");
+            
+            IRValue.EmitMemorySafe(Address, irProgram, emitter, typeargs);
+            emitter.Append(", ");
+            IRValue.EmitMemorySafe(Length, irProgram, emitter, typeargs);
+            emitter.Append($", {responsibleDestroyer})");
+        }
+    }
 }
 
 namespace NoHoPython.IntermediateRepresentation.Statements

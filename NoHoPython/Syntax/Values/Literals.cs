@@ -87,12 +87,12 @@ namespace NoHoPython.Syntax.Values
     public sealed partial class AllocArray : IAstValue
     {
         public SourceLocation SourceLocation { get; private set; }
-        public AstType ElementType { get; private set; }
+        public AstType? ElementType { get; private set; }
 
         public IAstValue Length { get; private set; }
         public IAstValue? ProtoValue { get; private set; }
 
-        public AllocArray(SourceLocation sourceLocation, AstType elementType, IAstValue length, IAstValue? protoValue)
+        public AllocArray(SourceLocation sourceLocation, AstType? elementType, IAstValue length, IAstValue? protoValue)
         {
             SourceLocation = sourceLocation;
             ElementType = elementType;
@@ -100,7 +100,7 @@ namespace NoHoPython.Syntax.Values
             ProtoValue = protoValue;
         }
 
-        public override string ToString() => $"new {ElementType}[{Length}]";
+        public override string ToString() => $"new {ElementType}[{Length}]{(ProtoValue != null ? $"({ProtoValue})" : string.Empty)}";
     }
 
     public sealed partial class TrueLiteral : IAstValue
@@ -142,17 +142,36 @@ namespace NoHoPython.Syntax.Values
     public sealed partial class InstantiateNewRecord : IAstValue
     {
         public SourceLocation SourceLocation { get; private set; }
-        public AstType RecordType { get; private set; }
+        public AstType? RecordType { get; private set; }
         public readonly List<IAstValue> Arguments;
 
-        public InstantiateNewRecord(AstType recordType, List<IAstValue> arguments, SourceLocation sourceLocation)
+        public InstantiateNewRecord(AstType? recordType, List<IAstValue> arguments, SourceLocation sourceLocation)
         {
             RecordType = recordType;
             Arguments = arguments;
             SourceLocation = sourceLocation;
         }
 
-        public override string ToString() => $"new {RecordType}({string.Join(", ", Arguments)})";
+        public override string ToString() => $"new{(RecordType == null ? string.Empty : $" {RecordType}")}({string.Join(", ", Arguments)})";
+    }
+
+    public sealed partial class MarshalIntoArray : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public AstType ElementType { get; private set; }
+        public IAstValue Length { get; private set; }
+        public IAstValue Address { get; private set; }
+
+        public MarshalIntoArray(AstType elementType, IAstValue length, IAstValue address, SourceLocation sourceLocation)
+        {
+            ElementType = elementType;
+            Length = length;
+            Address = address;
+            SourceLocation = sourceLocation;
+        }
+
+        public override string ToString() => $"marshal {ElementType}[{Length}]({Address})";
     }
 }
 
@@ -185,7 +204,7 @@ namespace NoHoPython.Syntax.Parsing
             return new Values.ArrayLiteral(elements, annotatedType, location);
         }
 
-        private Values.AllocArray ParseAllocArray(AstType elementType, SourceLocation location)
+        private Values.AllocArray ParseAllocArray(AstType? elementType, SourceLocation location)
         {
             MatchAndScanToken(TokenType.OpenBracket);
             IAstValue length = ParseExpression();
@@ -200,6 +219,19 @@ namespace NoHoPython.Syntax.Parsing
             }
             else
                 return new(location, elementType, length, null);
+        }
+
+        private Values.MarshalIntoArray ParseMarshalArray(SourceLocation location)
+        {
+            MatchAndScanToken(TokenType.Marshal);
+            AstType elementType = ParseType();
+            MatchAndScanToken(TokenType.OpenBracket);
+            IAstValue length = ParseExpression();
+            MatchAndScanToken(TokenType.CloseBracket);
+            MatchAndScanToken(TokenType.OpenParen);
+            IAstValue address = ParseExpression();
+            MatchAndScanToken(TokenType.CloseParen);
+            return new(elementType, length, address, location);
         }
     }
 }

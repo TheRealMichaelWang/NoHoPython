@@ -75,6 +75,11 @@
         public IRValue GetPostEvalPure() => new MemoryGet(Type, Address.GetPostEvalPure(), Index.GetPostEvalPure(), ErrorReportedElement);
     }
 
+    partial class MarshalIntoArray
+    {
+        public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
+    }
+
     partial class ComparativeOperator
     {
         public IRValue GetPostEvalPure() => new ComparativeOperator(Operation, Left.GetPostEvalPure(), Right.GetPostEvalPure(), ErrorReportedElement);

@@ -41,6 +41,7 @@
         And,
         Or,
         New,
+        Marshal,
         As,
         Readonly,
         Nothing,

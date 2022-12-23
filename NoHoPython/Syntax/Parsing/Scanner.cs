@@ -44,9 +44,7 @@
             private readonly string source;
             private int position;
 
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
             public FileVisitor(string fileName, Scanner scanner)
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
             {
                 if (!File.Exists(fileName))
                 {
@@ -324,6 +322,7 @@
                     "and" => TokenType.And,
                     "or" => TokenType.Or,
                     "new" => TokenType.New,
+                    "marshal" => TokenType.Marshal,
                     "as" => TokenType.As,
                     "include" => TokenType.Include,
                     "cinclude" => TokenType.CInclude,

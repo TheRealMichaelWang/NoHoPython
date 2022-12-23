@@ -229,6 +229,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    partial class MarshalIntoArray
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
+        {
+            Length.AnalyzePropertyInitialization(initializedProperties);
+            Address.AnalyzePropertyInitialization(initializedProperties);
+        }
+    }
+
     partial class ComparativeOperator
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)

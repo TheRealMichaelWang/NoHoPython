@@ -20,7 +20,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             StringBuilder leftBuilder = new();
             StringBuilder rightBuilder = new();
 
-            if (((!Left.IsPure && !Right.IsConstant) || (!Right.IsPure && !Left.IsConstant) ||
+            if (((!Left.IsPure && (!Right.IsConstant || isAssignmentOperator)) || (!Right.IsPure && !Left.IsConstant) ||
                 Left.RequiresDisposal(typeargs) || (Right.RequiresDisposal(typeargs) && !isAssignmentOperator) || (ensureLeftIsMemoryPure && !Left.IsPure)) && !shortCircuit)
             {
                 if (!irProgram.EmitExpressionStatements)
@@ -51,9 +51,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 IRValue.EmitMemorySafe(Left, irProgram, leftBuilder, typeargs);
                 if (isAssignmentOperator)
                 {
-                    StringBuilder valueBuilder = new();
-                    Right.Emit(irProgram, valueBuilder, typeargs, "NULL");
-                    Right.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, rightBuilder, valueBuilder.ToString(), $"{leftBuilder}->_nhp_responsible_destroyer");
+                    if (Right.RequiresDisposal(typeargs))
+                        Right.Emit(irProgram, rightBuilder, typeargs, $"{leftBuilder}->_nhp_responsible_destroyer");
+                    else
+                    {
+                        StringBuilder valueBuilder = new();
+                        IRValue.EmitMemorySafe(Right, irProgram, valueBuilder, typeargs);
+                        Right.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, rightBuilder, valueBuilder.ToString(), $"{leftBuilder}->_nhp_responsible_destroyer");
+                    }
                 }
                 else
                     IRValue.EmitMemorySafe(Right, irProgram, rightBuilder, typeargs);

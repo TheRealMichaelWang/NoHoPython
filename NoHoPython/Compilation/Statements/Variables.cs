@@ -10,7 +10,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append(Variable.GetStandardIdentifier(irProgram));
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append(Variable.GetStandardIdentifier());
     }
 
     partial class VariableDeclaration
@@ -26,11 +26,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void EmitCDecl(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent + 1);
-            emitter.AppendLine($"{Variable.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} {Variable.GetStandardIdentifier(irProgram)};");
+            emitter.AppendLine($"{Variable.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} {Variable.GetStandardIdentifier()};");
             if (WillRevaluate && Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
             {
                 CodeBlock.CIndent(emitter, indent + 1);
-                emitter.AppendLine($"int init_{Variable.GetStandardIdentifier(irProgram)} = 0;");
+                emitter.AppendLine($"int init_{Variable.GetStandardIdentifier()} = 0;");
             }
         }
 
@@ -39,7 +39,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
             {
                 CodeBlock.CIndent(emitter, indent + 1);
-                Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, Variable.GetStandardIdentifier(irProgram));
+                Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, Variable.GetStandardIdentifier());
             }
         }
 
@@ -50,18 +50,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 if (!irProgram.EmitExpressionStatements)
                     throw new CannotEmitDestructorError(this);
-                emitter.Append($"({{if(init_{Variable.GetStandardIdentifier(irProgram)}) {{");
-                Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, Variable.GetStandardIdentifier(irProgram));
-                emitter.Append($"}} else {{init_{Variable.GetStandardIdentifier(irProgram)} = 1;}}");
+                emitter.Append($"({{if(init_{Variable.GetStandardIdentifier()}) {{");
+                Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, Variable.GetStandardIdentifier());
+                emitter.Append($"}} else {{init_{Variable.GetStandardIdentifier()} = 1;}}");
                 closeExpressionStatement = true;
             }
 
-            emitter.Append($"({Variable.GetStandardIdentifier(irProgram)} = ");
+            emitter.Append($"({Variable.GetStandardIdentifier()} = ");
             if (InitialValue.RequiresDisposal(typeargs))
                 InitialValue.Emit(irProgram, emitter, typeargs, "NULL");
             else
             {
-                StringBuilder valueBuilder = new StringBuilder();
+                StringBuilder valueBuilder = new();
                 InitialValue.Emit(irProgram, valueBuilder, typeargs, "NULL");
                 Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "NULL");
             }
@@ -91,16 +91,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            StringBuilder valueBuilder = new StringBuilder();
+            StringBuilder valueBuilder = new();
             SetValue.Emit(irProgram, valueBuilder, typeargs, "NULL");
 
             if (SetValue.RequiresDisposal(typeargs))
-                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(irProgram), valueBuilder.ToString());
+                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(), valueBuilder.ToString());
             else
             {
-                StringBuilder copyBuilder = new StringBuilder();
+                StringBuilder copyBuilder = new();
                 Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, copyBuilder, valueBuilder.ToString(), "NULL");
-                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(irProgram), copyBuilder.ToString());
+                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(), copyBuilder.ToString());
             }
         }
 

@@ -9,7 +9,7 @@ namespace NoHoPython.Syntax
 {
     partial class AstIRProgramBuilder
     {
-        private Dictionary<SymbolContainer, int> lambdaCounts = new Dictionary<SymbolContainer, int>();
+        private Dictionary<SymbolContainer, int> lambdaCounts = new();
 
         private void LinkCapturedVariables()
         {
@@ -124,13 +124,18 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 throw new NotAllCodePathsReturnError(ErrorReportedElement);
         }
 
-        public Variable SanitizeVariable(Variable variable, bool willStet, IAstElement errorReportedElement)
+        public Tuple<Variable, bool> SanitizeVariable(Variable variable, bool willStet, IAstElement errorReportedElement)
         {
             if (variable.ParentProcedure == this)
             {
 #pragma warning disable CS8602 // Parameters linked after initialization
-                if (Parameters.Contains(variable) && willStet)
-                    throw new CannotMutateVaraible(variable, errorReportedElement);
+                if (Parameters.Contains(variable))
+                {
+                    if (willStet)
+                        throw new CannotMutateVaraible(variable, errorReportedElement);
+                    else
+                        return new Tuple<Variable, bool>(variable, variable.Type is not RecordType); //records can still be captured and have their properties mutated
+                }
 #pragma warning restore CS8602
             }
             else if (!CapturedVariables.Contains(variable))
@@ -138,8 +143,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 CapturedVariables.Add(variable);
                 if (willStet)
                     throw new CannotMutateVaraible(variable, errorReportedElement);
+                else
+                    return new Tuple<Variable, bool>(variable, variable.Type is not RecordType);//records can still be captured and have their properties mutated
             }
-            return variable;
+            return new Tuple<Variable, bool>(variable, false);
         }
 
         public Typing.TypeParameter SanitizeTypeParameter(Typing.TypeParameter typeParameter)
@@ -428,7 +435,7 @@ namespace NoHoPython.Syntax.Statements
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.AbortStatement(AbortMessage == null ? null : AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, new ArrayType(Primitive.Character), false), this);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.AbortStatement(AbortMessage?.GenerateIntermediateRepresentationForValue(irBuilder, new ArrayType(Primitive.Character), false), this);
     }
 
     partial class ProcedureDeclaration
@@ -575,7 +582,7 @@ namespace NoHoPython.Syntax.Values
             IType? expectedReturnType = (expectedType is ProcedureType expectedProcedureType) ? expectedProcedureType.ReturnType : null;
             IRValue returnExpression = ReturnExpression.GenerateIntermediateRepresentationForValue(irBuilder, null, false);
 
-            List<IRStatement> statements = new List<IRStatement>(1);
+            List<IRStatement> statements = new(1);
             if (ReturnExpression is IAstStatement statement && (returnExpression.Type is NothingType || expectedReturnType is NothingType))
             {
                 lamdaDeclaration.DelayedLinkSetReturnType(Primitive.Nothing);

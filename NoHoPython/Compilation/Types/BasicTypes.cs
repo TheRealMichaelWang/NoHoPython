@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using System.Diagnostics;
 using System.Text;
 
 namespace NoHoPython.Typing
@@ -7,6 +8,8 @@ namespace NoHoPython.Typing
     {
         public static void EmitMoveExpressionStatement(IType type, IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
         {
+            Debug.Assert(irProgram.EmitExpressionStatements);
+
             emitter.Append($"({{{type.GetCName(irProgram)} _nhp_es_move_temp = {destC}; {destC} = {valueCSource}; ");
             type.EmitFreeValue(irProgram, emitter, "_nhp_es_move_temp");
             emitter.Append($" {destC};}})");

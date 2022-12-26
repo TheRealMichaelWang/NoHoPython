@@ -254,6 +254,8 @@ namespace NoHoPython.Syntax.Parsing
                                 scanner.ScanToken();
                                 return stringLiteral;
                             }
+                        case TokenType.InterpolatedStart:
+                            return ParseInterpolated(location);
                         case TokenType.OpenBracket:
                             return ParseArrayLiteral();
                         case TokenType.True:

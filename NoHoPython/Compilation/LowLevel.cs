@@ -15,23 +15,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class MemoryGet
     {
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
-        {
-            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
-            Address.ScopeForUsedTypes(typeargs, irBuilder);
-            Index.ScopeForUsedTypes(typeargs, irBuilder);
-        }
-
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
-
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
-        {
-            emitter.Append($"(({Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}*)");
-            IRValue.EmitMemorySafe(Address, irProgram, emitter, typeargs);
-            emitter.Append(")[");
-            IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
-            emitter.Append("]");
-        }
+        public override void EmitExpression(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource) => emitter.Append($"(({Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}*){leftCSource})[{rightCSource}]");
     }
 
     partial class MemorySet
@@ -98,7 +82,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            ArrayType type = new ArrayType(ElementType.SubstituteWithTypearg(typeargs));
+            ArrayType type = new(ElementType.SubstituteWithTypearg(typeargs));
             if(ElementType.SubstituteWithTypearg(typeargs).RequiresDisposal)
                 emitter.Append($"marshal_foreign{type.GetStandardIdentifier(irProgram)}(");
             else

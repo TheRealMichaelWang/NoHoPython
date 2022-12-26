@@ -166,7 +166,7 @@ namespace NoHoPython.Typing
                 emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
                 emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocate($"length * sizeof({ElementType.GetCName(irProgram)})")};");
                 emitter.AppendLine("\tfor(int i = 0; i < length; i++) {");
-                emitter.AppendLine("\t\tto_alloc.buffer[i] = ");
+                emitter.Append("\t\tto_alloc.buffer[i] = ");
                 ElementType.EmitCopyValue(irProgram, emitter, "buffer[i]", "responsible_destroyer");
                 emitter.AppendLine(";");
                 emitter.AppendLine("\t}");

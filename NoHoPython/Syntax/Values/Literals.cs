@@ -75,7 +75,7 @@ namespace NoHoPython.Syntax.Values
                 StringBuilder builder = new();
                 builder.Append("\"");
                 foreach (IAstValue value in Elements)
-                    IntermediateRepresentation.Values.CharacterLiteral.EmitCChar(builder, ((CharacterLiteral)value).Character);
+                    IntermediateRepresentation.Values.CharacterLiteral.EmitCChar(builder, ((CharacterLiteral)value).Character, false);
                 builder.Append("\"");
                 return builder.ToString();
             }

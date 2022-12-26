@@ -15,6 +15,7 @@ namespace NoHoPython.Typing
         public static readonly NothingType Nothing = new(); //not a primitive but also commonly used
 
         public abstract string TypeName { get; }
+        public string Identifier => TypeName;
 
         public abstract int Id { get; }
 
@@ -103,6 +104,8 @@ namespace NoHoPython.Typing
     public sealed partial class NothingType : IType
     {
         public string TypeName => "nothing";
+        public string Identifier => "nothing";
+
         public IRValue GetDefaultValue(IAstElement errorReportedElement) => new NothingLiteral(errorReportedElement);
 
         public bool IsCompatibleWith(IType type)
@@ -117,7 +120,8 @@ namespace NoHoPython.Typing
     public sealed partial class ArrayType : IType
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
-        public string TypeName => $"{ElementType.TypeName}[]";
+        public string TypeName => $"array<{ElementType.TypeName}>";
+        public string Identifier => $"array_{ElementType.Identifier}";
 
         public IType ElementType { get; private set; }
 
@@ -140,6 +144,7 @@ namespace NoHoPython.Typing
     {
         public bool IsNativeCType => false;
         public string TypeName => $"({string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}) => {ReturnType.TypeName}";
+        public string Identifier => $"proc_{string.Join(string.Empty, ParameterTypes.ConvertAll((type) => $"{type.Identifier}_"))}ret_{ReturnType.Identifier}";
 
         public IType ReturnType { get; private set; }
         public readonly List<IType> ParameterTypes;

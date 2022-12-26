@@ -104,9 +104,6 @@ namespace NoHoPython.IntermediateRepresentation
         //equivalent value but with type parameter references replaced
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
 
-        //gets a pure value - one that doesn't mutate state once evaluated - that can be safley evaluated following evaluation of the parent value
-        public IRValue GetPostEvalPure();
-
         //emit corresponding C code
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer);
     }
@@ -136,6 +133,8 @@ namespace NoHoPython.IntermediateRepresentation
 
         public MemoryAnalyzer MemoryAnalyzer { get; private set; }
 
+        public int ExpressionDepth;
+
         public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, List<EnumType> usedEnumTypes, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, List<InterfaceType> usedInterfaceTypes, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, List<RecordType> usedRecordTypes, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
         {
             DoBoundsChecking = doBoundsChecking;
@@ -158,7 +157,7 @@ namespace NoHoPython.IntermediateRepresentation
             this.usedInterfaceTypes = usedInterfaceTypes;
             InterfaceTypeOverloads = interfaceTypeOverload;
             this.usedRecordTypes = usedRecordTypes;
-            this.MemoryAnalyzer = memoryAnalyzer;
+            MemoryAnalyzer = memoryAnalyzer;
             RecordTypeOverloads = recordTypeOverloads;
 
             this.typeDependencyTree = typeDependencyTree;
@@ -203,7 +202,7 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void Emit(StringBuilder emitter, StringBuilder headerEmitter)
         {
-            ProcedureCall.nestedCalls = 0;
+            ExpressionDepth = 1;
 
             if (headerEmitter != emitter)
             {

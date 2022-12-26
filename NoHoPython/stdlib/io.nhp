@@ -107,9 +107,12 @@ mod io:
 		def readChar() char:
 			cdef fgetc(handle) char
 			return fgetc(self.ptr)
-		def consumeWhitespace():
+		def consumeWhitespace() char:
 			cdef isspace(char) bool
-			readWhile(lambda char c: isspace(c) or c == '\n')
+			consumed = readWhile(lambda char c: isspace(c) or c == '\n')
+			if consumed as int == 0:
+				return 0
+			return consumed[consumed as int - 1]
 		def consumeTillPhrase(array<char> phrase) bool:
 			cdef fgetc(handle) char
 			if phrase as int == 0:

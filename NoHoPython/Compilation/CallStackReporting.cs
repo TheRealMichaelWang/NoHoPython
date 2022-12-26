@@ -8,7 +8,7 @@ namespace NoHoPython.Compilation
 {
     public static class CallStackReporting
     {
-        public static int StackLimit = 1000;
+        public static readonly int StackLimit = 1000;
 
         public static void EmitReporter(StringBuilder emitter)
         {
@@ -49,10 +49,10 @@ namespace NoHoPython.Compilation
                 CodeBlock.CIndent(emitter, indent);
             
             emitter.Append("_nhp_santize_call(");
-            CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString());
+            CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString(), false, true);
             emitter.Append(", ");
 #pragma warning disable CS8604 // Possible null reference argument.
-            CharacterLiteral.EmitCString(emitter, errorReportedElement.ToString());
+            CharacterLiteral.EmitCString(emitter, errorReportedElement.ToString(), false, true);
 #pragma warning restore CS8604
 
             if(indent == -1)
@@ -75,12 +75,12 @@ namespace NoHoPython.Compilation
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("_nhp_set_errloc(");
-            CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString());
+            CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString(), false, true);
             emitter.Append(", ");
             if (errorReportedElement is IAstStatement statement)
-                CharacterLiteral.EmitCString(emitter, statement.ToString(0));
+                CharacterLiteral.EmitCString(emitter, statement.ToString(0), false, true);
             else if (errorReportedElement is IAstValue value)
-                CharacterLiteral.EmitCString(emitter, value.ToString());
+                CharacterLiteral.EmitCString(emitter, value.ToString(), false, true);
             emitter.AppendLine(");");
         }
 

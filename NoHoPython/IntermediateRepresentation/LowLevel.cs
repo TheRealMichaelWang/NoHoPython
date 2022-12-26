@@ -24,23 +24,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public sealed partial class MemoryGet : IRValue
+    public sealed partial class MemoryGet : BinaryOperator
     {
-        public IType Type { get; private set; }
-        public bool IsTruey => false;
-        public bool IsFalsey => false;
+        public override IType Type { get; }
 
-        public IAstElement ErrorReportedElement { get; private set; }
-
-        public IRValue Address { get; private set; }
-        public IRValue Index { get; private set; }
-
-        public MemoryGet(IType type, IRValue address, IRValue index, IAstElement errorReportedElement)
+        public MemoryGet(IType type, IRValue address, IRValue index, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(address, Primitive.Handle), ArithmeticCast.CastTo(index, Primitive.Integer), errorReportedElement)
         {
             Type = type;
-            Address = ArithmeticCast.CastTo(address, Primitive.Handle);
-            Index = ArithmeticCast.CastTo(index, Primitive.Integer);
-            ErrorReportedElement = errorReportedElement;
         }
     }
 

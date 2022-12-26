@@ -11,6 +11,7 @@ namespace NoHoPython.Typing
         public bool RequiresDisposal { get; }
 
         public string TypeName { get; }
+        public string Identifier { get; }
 
         public string GetCName(IRProgram irProgram);
         public string GetStandardIdentifier(IRProgram irProgram);

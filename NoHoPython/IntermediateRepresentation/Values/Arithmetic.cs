@@ -62,8 +62,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             if (typeTarget.IsCompatibleWith(value.Type))
                 return value;
-            else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to{typeTarget.TypeName}"))
-                return new AnonymousProcedureCall(new GetPropertyValue(value, $"to{typeTarget.TypeName}", value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
+            else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to_{typeTarget.Identifier}")) 
+            {
+                IRValue call = new AnonymousProcedureCall(new GetPropertyValue(value, $"to_{typeTarget.Identifier}", value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
+                if (!call.Type.IsCompatibleWith(typeTarget))
+                    throw new UnexpectedTypeException(typeTarget, call.Type, value.ErrorReportedElement);
+                return call;
+            }
             else if (typeTarget is HandleType handleType)
                 return value.Type is ArrayType
                     ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement)
@@ -105,8 +110,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type => outputTypes[Operation];
-        public bool IsTruey => false;
-        public bool IsFalsey => false;
+        public bool IsTruey => Input.IsTruey;
+        public bool IsFalsey => Input.IsFalsey;
 
         public ArithmeticCastOperation Operation { get; private set; }
         public IRValue Input { get; private set; }
@@ -122,7 +127,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public sealed partial class ArithmeticOperator : IRValue
+    public sealed partial class ArithmeticOperator : BinaryOperator
     {
         public enum ArithmeticOperation
         {
@@ -133,6 +138,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Modulo = 5,
             Exponentiate = 7
         }
+
+        public static bool OperationIsCommunicative(ArithmeticOperation operation) => operation == ArithmeticOperation.Add || operation == ArithmeticOperation.Multiply;
 
         private static Dictionary<ArithmeticOperation, string> operatorOverloadIdentifiers = new()
         {
@@ -148,49 +155,44 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement)
         {
-            return left.Type is IPropertyContainer container && container.HasProperty(operatorOverloadIdentifiers[operation])
+            return left.Type is IPropertyContainer leftContainer && leftContainer.HasProperty(operatorOverloadIdentifiers[operation])
                 ? new AnonymousProcedureCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation], errorReportedElement), new List<IRValue>()
                 {
                     right
                 }, errorReportedElement)
+                : OperationIsCommunicative(operation) && right.Type is IPropertyContainer rightContainer && rightContainer.HasProperty(operatorOverloadIdentifiers[operation])
+                ? new AnonymousProcedureCall(new GetPropertyValue(right, operatorOverloadIdentifiers[operation], errorReportedElement), new List<IRValue>()
+                {
+                    left
+                }, errorReportedElement)
                 : (IRValue)new ArithmeticOperator(operation, left, right, errorReportedElement);
         }
 
-        public IAstElement ErrorReportedElement { get; private set; }
-
         public ArithmeticOperation Operation { get; private set; }
-        public IType Type { get; private set; }
-        public bool IsTruey => false;
-        public bool IsFalsey => false;
+        public override IType Type { get; }
 
-        public IRValue Left { get; private set; }
-        public IRValue Right { get; private set; }
-
-        private ArithmeticOperator(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement)
+        private ArithmeticOperator(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
         {
             Operation = operation;
-            Left = left;
-            Right = right;
-            ErrorReportedElement = errorReportedElement;
 
             if (left.Type is DecimalType)
             {
-                Type = new DecimalType();
+                Type = Primitive.Decimal;
                 Right = ArithmeticCast.CastTo(right, Primitive.Decimal);
             }
             else if (right.Type is DecimalType)
             {
-                Type = new DecimalType();
+                Type = Primitive.Decimal;
                 Left = ArithmeticCast.CastTo(left, Primitive.Decimal);
             }
             else if (left.Type is IntegerType)
             {
-                Type = new IntegerType();
+                Type = Primitive.Integer;
                 Right = ArithmeticCast.CastTo(right, Primitive.Integer);
             }
             else if (right.Type is IntegerType)
             {
-                Type = new IntegerType();
+                Type = Primitive.Integer;
                 Left = ArithmeticCast.CastTo(left, Primitive.Integer);
             }
             else

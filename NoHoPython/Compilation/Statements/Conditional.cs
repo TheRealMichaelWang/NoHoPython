@@ -13,22 +13,37 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
             Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
-            Condition.ScopeForUsedTypes(typeargs, irBuilder);
-            IfTrueValue.ScopeForUsedTypes(typeargs, irBuilder);
-            IfFalseValue.ScopeForUsedTypes(typeargs, irBuilder);
+
+            if (Condition.IsTruey)
+                IfTrueValue.ScopeForUsedTypes(typeargs, irBuilder);
+            else if (Condition.IsFalsey)
+                IfFalseValue.ScopeForUsedTypes(typeargs, irBuilder);
+            else
+            {
+                Condition.ScopeForUsedTypes(typeargs, irBuilder);
+                IfTrueValue.ScopeForUsedTypes(typeargs, irBuilder);
+                IfFalseValue.ScopeForUsedTypes(typeargs, irBuilder);
+            }
         }
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            emitter.Append('(');
-            emitter.Append('(');
-            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
-            emitter.Append(") ? (");
-            IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs);
-            emitter.Append(") : (");
-            IRValue.EmitMemorySafe(IfFalseValue, irProgram, emitter, typeargs);
-            emitter.Append(')');
-            emitter.Append(')');
+            if (Condition.IsTruey)
+                IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs);
+            else if (Condition.IsFalsey)
+                IRValue.EmitMemorySafe(IfFalseValue, irProgram, emitter, typeargs);
+            else
+            {
+                emitter.Append('(');
+                emitter.Append('(');
+                IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
+                emitter.Append(") ? (");
+                IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs);
+                emitter.Append(") : (");
+                IRValue.EmitMemorySafe(IfFalseValue, irProgram, emitter, typeargs);
+                emitter.Append(')');
+                emitter.Append(')');
+            }
         }
     }
 }
@@ -107,9 +122,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (Condition.IsTruey && Condition.IsPure)
+            {
+                CodeBlock.CIndent(emitter, indent);
                 IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
+            }
             else if (Condition.IsFalsey && Condition.IsPure)
+            {
+                CodeBlock.CIndent(emitter, indent);
                 IfFalseBlock.Emit(irProgram, emitter, typeargs, indent);
+            }
             else
             {
                 CodeBlock.CIndent(emitter, indent);
@@ -146,7 +167,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return;
 
             if (Condition.IsTruey && Condition.IsPure)
+            {
+                CodeBlock.CIndent(emitter, indent);
                 IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
+            }
             else
             {
                 CodeBlock.CIndent(emitter, indent);

@@ -21,9 +21,11 @@ namespace NoHoPython.Syntax
         
         public SymbolContainer CurrentMasterScope => ScopedProcedures.Count > 0 ? ScopedProcedures.Peek() : (ScopedRecordDeclaration != null) ? ScopedRecordDeclaration : SymbolMarshaller.CurrentModule;
 
+        public readonly SortedSet<string> Flags;
+
         private Dictionary<IType, HashSet<IType>> typeDependencyTree;
 
-        public AstIRProgramBuilder(List<IAstStatement> statements)
+        public AstIRProgramBuilder(List<IAstStatement> statements, List<string> flags)
         {
             SymbolMarshaller = new SymbolMarshaller();
             EnumDeclarations = new List<EnumDeclaration>();
@@ -31,6 +33,7 @@ namespace NoHoPython.Syntax
             RecordDeclarations = new List<RecordDeclaration>();
             ProcedureDeclarations = new List<ProcedureDeclaration>();
             ScopedProcedures = new Stack<ProcedureDeclaration>();
+            Flags = new SortedSet<string>(flags);
             ScopedRecordDeclaration = null;
 
             typeDependencyTree = new Dictionary<IType, HashSet<IType>>(new ITypeComparer());

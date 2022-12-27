@@ -147,16 +147,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class IfElseValue : IRValue
     {
-        public static IRValue ComposeIfElseValue(IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue, IAstElement errorReportedElement)
-        {
-            if (condition.IsTruey)
-                return ifTrueValue;
-            else if (condition.IsFalsey)
-                return ifFalseValue;
-            else
-                return new IfElseValue(condition, ifTrueValue, ifFalseValue, errorReportedElement);
-        }
-
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type { get; private set; }
 
@@ -167,7 +157,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue IfTrueValue { get; private set; }
         public IRValue IfFalseValue { get; private set; }
 
-        private IfElseValue(IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue, IAstElement errorReportedElement)
+        public IfElseValue(IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
             Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
@@ -399,6 +389,6 @@ namespace NoHoPython.Syntax.Values
 {
     partial class IfElseValue
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => IntermediateRepresentation.Values.IfElseValue.ComposeIfElseValue(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), IfTrueValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), IfFalseValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), IfTrueValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), IfFalseValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this);
     }
 }

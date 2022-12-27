@@ -180,6 +180,7 @@ namespace NoHoPython.Typing
             {
                 if (i > 0)
                     emitter.AppendLine(",");
+                emitter.Append("\t");
                 emitter.Append(GetCEnumOptionForType(irProgram, options.Value[i]));
             }
             emitter.AppendLine();

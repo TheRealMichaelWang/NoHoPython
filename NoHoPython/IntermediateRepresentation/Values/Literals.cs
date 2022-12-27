@@ -8,7 +8,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
 
-        public IType Type { get => new IntegerType(); }
+        public IType Type { get => Primitive.Integer; }
         public bool IsTruey => Number != 0;
         public bool IsFalsey => Number == 0;
 
@@ -25,7 +25,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
 
-        public IType Type { get => new DecimalType(); }
+        public IType Type { get => Primitive.Decimal; }
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
@@ -42,7 +42,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
 
-        public IType Type { get => new CharacterType(); }
+        public IType Type => Primitive.Character;
         public bool IsTruey => Character == '\0';
         public bool IsFalsey => Character == '\0';
 
@@ -63,7 +63,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public TrueLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
 
-        public IType Type => new BooleanType();
+        public IType Type => Primitive.Boolean;
     }
 
     public sealed partial class FalseLiteral : IRValue
@@ -74,7 +74,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public FalseLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
 
-        public IType Type => new BooleanType();
+        public IType Type => Primitive.Boolean;
     }
 
     public sealed partial class NothingLiteral : IRValue
@@ -306,5 +306,10 @@ namespace NoHoPython.Syntax.Values
                 ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
                 : throw new UnexpectedTypeException(prototype, this);
         }
+    }
+
+    partial class FlagLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => irBuilder.Flags.Contains(Flag) ? new IntermediateRepresentation.Values.TrueLiteral(this) : new IntermediateRepresentation.Values.FalseLiteral(this); 
     }
 }

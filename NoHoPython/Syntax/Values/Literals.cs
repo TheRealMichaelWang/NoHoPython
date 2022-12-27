@@ -173,6 +173,19 @@ namespace NoHoPython.Syntax.Values
 
         public override string ToString() => $"marshal {ElementType}[{Length}]({Address})";
     }
+
+    public sealed partial class FlagLiteral : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public readonly string Flag;
+
+        public FlagLiteral(SourceLocation sourceLocation, string flag)
+        {
+            SourceLocation = sourceLocation;
+            Flag = flag;
+        }
+    }
 }
 
 namespace NoHoPython.Syntax.Parsing

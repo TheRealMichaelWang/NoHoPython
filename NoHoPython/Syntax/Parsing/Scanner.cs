@@ -325,6 +325,7 @@ namespace NoHoPython.Syntax.Parsing
                     "or" => TokenType.Or,
                     "new" => TokenType.New,
                     "marshal" => TokenType.Marshal,
+                    "flag" => TokenType.Flag,
                     "as" => TokenType.As,
                     "include" => TokenType.Include,
                     "cinclude" => TokenType.CInclude,

@@ -47,6 +47,7 @@
         Or,
         New,
         Marshal,
+        Flag,
         As,
         Readonly,
         Nothing,

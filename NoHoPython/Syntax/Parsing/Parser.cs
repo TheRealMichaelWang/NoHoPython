@@ -281,6 +281,14 @@ namespace NoHoPython.Syntax.Parsing
                             }
                         case TokenType.Marshal:
                             return ParseMarshalArray(location);
+                        case TokenType.Flag:
+                            {
+                                scanner.ScanToken();
+                                MatchToken(TokenType.StringLiteral);
+                                string flag = scanner.LastToken.Identifier;
+                                scanner.ScanToken();
+                                return new FlagLiteral(location, flag);
+                            }
                         case TokenType.Nothing:
                             scanner.ScanToken();
                             return new NothingLiteral(location);

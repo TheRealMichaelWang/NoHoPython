@@ -7,10 +7,20 @@
 		cdef printf(handle, int, int) None
 		cdef active_allocs int
 		cdef active_memory_usage int
-		preMem = active_memory_usage
-		preAllocs = active_allocs
-		todo()
-		if (currentAllocs = active_allocs) > preAllocs:
-			currentMem = active_memory_usage
-			printf(fmt="%i bytes leaked, %i allocations leaked.\n\0", currentMem - preMem, currentAllocs - preAllocs)
-			abort "Memory leak detected!"
+
+		if flag "mem0":
+			abort "Memory analysis must be enabled to detect memory leaks."
+		elif flag "mem2":
+			preMem = active_memory_usage
+			preAllocs = active_allocs
+			todo()
+			currentAllocs = active_allocs
+			if currentAllocs > preAllocs:
+				currentMem = active_memory_usage
+				abort $"Memory leak detected! {currentMem-preMem} byte(s) leaked, {currentAllocs - preAllocs} alloc(s) leaked."
+		elif flag "mem1":
+			preAllocs = active_allocs
+			todo()
+			currentAllocs = active_allocs
+			if currentAllocs > preAllocs:
+				abort $"Memory leak detected! {currentAllocs - preAllocs} alloc(s) leaked!"

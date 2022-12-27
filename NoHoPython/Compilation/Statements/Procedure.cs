@@ -601,7 +601,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            int currentNestedCalls = irProgram.ExpressionDepth;
             irProgram.ExpressionDepth++;
             if (irProgram.DoCallStack)
             {
@@ -609,46 +608,49 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     throw new CannotPerformCallStackReporting(this);
                 emitter.Append("({");
                 CallStackReporting.EmitReportCall(emitter, ErrorReportedElement, -1);
-                emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_callrep_res{currentNestedCalls} = ");
+                emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_callrep_res{irProgram.ExpressionDepth} = ");
             }
 
-            if (irProgram.EmitExpressionStatements && (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)) || !Arguments.TrueForAll((arg) => arg.IsPure)))
+            int constArgs = Arguments.Where(x => x.IsConstant && x.IsPure).Count();
+            if (irProgram.EmitExpressionStatements && (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)) || (!Arguments.TrueForAll((arg) => arg.IsPure) && constArgs < Arguments.Count - 1)))
             {
                 emitter.Append("({");
                 SortedSet<int> bufferedArguments = new();
                 for (int i = 0; i < Arguments.Count; i++)
-                    if (Arguments[i].RequiresDisposal(typeargs) || !Arguments[i].IsPure)
+                    if (Arguments[i].RequiresDisposal(typeargs) || !Arguments[i].IsConstant || !Arguments[i].IsPure)
                     {
-                        emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_argbuf_{i}{currentNestedCalls} = ");
+                        emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_argbuf_{i}{irProgram.ExpressionDepth} = ");
                         Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
                         emitter.AppendLine(";");
                         bufferedArguments.Add(i);
                     }
-                emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_res{currentNestedCalls} = ");
-                EmitCallWithResponsibleDestroyer(irProgram, emitter, typeargs, bufferedArguments, currentNestedCalls, responsibleDestroyer);
+                emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_res{irProgram.ExpressionDepth} = ");
+                EmitCallWithResponsibleDestroyer(irProgram, emitter, typeargs, bufferedArguments, irProgram.ExpressionDepth, responsibleDestroyer);
                 emitter.Append(';');
 
                 foreach (int i in bufferedArguments)
-                    if (Arguments[i].Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
-                        Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_argbuf_{i}{currentNestedCalls}");
-                emitter.Append($"_nhp_res{currentNestedCalls};}})");
+                    if (Arguments[i].RequiresDisposal(typeargs))
+                        Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_argbuf_{i}{irProgram.ExpressionDepth}");
+                emitter.Append($"_nhp_res{irProgram.ExpressionDepth};}})");
             }
             else
-                EmitCallWithResponsibleDestroyer(irProgram, emitter, typeargs, new SortedSet<int>(), currentNestedCalls, responsibleDestroyer);
-
-            irProgram.ExpressionDepth--;
-            Debug.Assert(currentNestedCalls == irProgram.ExpressionDepth);
+                EmitCallWithResponsibleDestroyer(irProgram, emitter, typeargs, new SortedSet<int>(), irProgram.ExpressionDepth, responsibleDestroyer);
 
             if (irProgram.DoCallStack)
             {
                 emitter.Append(';');
                 CallStackReporting.EmitReportReturn(emitter, -1);
-                emitter.Append($"_nhp_callrep_res{currentNestedCalls};}})");
+                emitter.Append($"_nhp_callrep_res{irProgram.ExpressionDepth};}})");
             }
+
+            irProgram.ExpressionDepth--;
         }
 
         protected void EmitArguments(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int currentNestedCall)
         {
+            bool argbufNonConstArgs = !Arguments.TrueForAll((arg) => arg.IsPure);
+            int constArgs = Arguments.Where(x => x.IsConstant && x.IsPure).Count();
+
             for (int i = 0; i < Arguments.Count; i++)
             {
                 if (i > 0)
@@ -660,7 +662,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 {
                     if (Arguments[i].RequiresDisposal(typeargs))
                         throw new CannotEmitDestructorError(Arguments[i]);
-                    else if (!Arguments[i].IsPure)
+                    else if ((argbufNonConstArgs && constArgs < Arguments.Count - 1) && (!Arguments[i].IsPure || !Arguments[i].IsConstant))
                         throw new CannotEnsureOrderOfEvaluation(this);
                     else
                         Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
@@ -695,12 +697,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 CallStackReporting.EmitReportCall(emitter, ErrorReportedElement, indent);
 
             CodeBlock.CIndent(emitter, indent);
-            if (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)) || !Arguments.TrueForAll((arg) => arg.IsPure))
+
+            int constArgs = Arguments.Where(x => x.IsConstant && x.IsPure).Count();
+            if (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)) || (!Arguments.TrueForAll((arg) => arg.IsPure) && constArgs < Arguments.Count - 1))
             {
                 SortedSet<int> bufferedArguments = new();
                 emitter.AppendLine("{");
                 for (int i = 0; i < Arguments.Count; i++)
-                    if (Arguments[i].RequiresDisposal(typeargs) || !Arguments[i].IsPure)
+                    if (Arguments[i].RequiresDisposal(typeargs) || !Arguments[i].IsConstant || !Arguments[i].IsPure)
                     {
                         CodeBlock.CIndent(emitter, indent + 1);
                         emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_argbuf_{i}0 = ");
@@ -713,7 +717,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitAndDestroyCall(bufferedArguments);
 
                 foreach (int i in bufferedArguments)
-                    if (Arguments[i].Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+                    if (Arguments[i].RequiresDisposal(typeargs))
                     {
                         CodeBlock.CIndent(emitter, indent + 1);
                         Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_argbuf_{i}0");

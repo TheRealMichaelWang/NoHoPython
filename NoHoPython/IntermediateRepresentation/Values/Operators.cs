@@ -18,18 +18,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Left { get; protected set; }
         public IRValue Right { get; protected set; }
 
-        private bool ensureLeftIsMemoryPure;
-        private bool isAssignmentOperator;
-        private bool shortCircuit;
+        public bool ShortCircuit { get; protected set; }
 
-        public BinaryOperator(IRValue left, IRValue right, IAstElement errorReportedElement, bool ensureLeftIsMemoryPure = false, bool isAssignmentOperator = false, bool shortCircuit = false)
+        public BinaryOperator(IRValue left, IRValue right, bool shortCuircuit, IAstElement errorReportedElement)
         {
             Left = left;
             Right = right;
+            ShortCircuit = shortCuircuit;
             ErrorReportedElement = errorReportedElement;
-            this.ensureLeftIsMemoryPure = ensureLeftIsMemoryPure;
-            this.isAssignmentOperator = isAssignmentOperator;
-            this.shortCircuit = shortCircuit;
         }
     }
 
@@ -49,7 +45,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public CompareOperation Operation { get; private set; }
 
-        public ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
+        public ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, false, errorReportedElement)
         {
             Operation = operation;
 
@@ -85,13 +81,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public LogicalOperation Operation { get; private set; }
 
-        public LogicalOperator(LogicalOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Boolean), ArithmeticCast.CastTo(right, Primitive.Boolean), errorReportedElement, false, false, true)
+        public LogicalOperator(LogicalOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Boolean), ArithmeticCast.CastTo(right, Primitive.Boolean), true, errorReportedElement)
         {
             Operation = operation;
         }
     }
 
-    public sealed partial class GetValueAtIndex : BinaryOperator
+    public sealed partial class GetValueAtIndex : IRValue
     {
         public static IRValue ComposeGetValueAtIndex(IRValue array, IRValue index, IType? expectedType, IAstElement errorReportedElement)
         {
@@ -105,13 +101,24 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 : (IRValue)new GetValueAtIndex(array, index, errorReportedElement);
         }
 
-#pragma warning disable CS8602 // Array is guarenteed to be an array
-        public override IType Type => (Left.Type as ArrayType).ElementType;
-#pragma warning restore CS8602 
+        public IAstElement ErrorReportedElement { get; private set; }
+        public IType Type { get; private set; }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
-        private GetValueAtIndex(IRValue array, IRValue index, IAstElement errorReportedElement) : base(array.Type is ArrayType ? array : throw new UnexpectedTypeException(array.Type, errorReportedElement), ArithmeticCast.CastTo(index, Primitive.Integer), errorReportedElement, true)
+        public IRValue Array { get; private set; }
+        public IRValue Index { get; private set; }
+
+        private GetValueAtIndex(IRValue array, IRValue index, IAstElement errorReportedElement)
         {
+            if (array.Type is ArrayType arrayType)
+                Type = arrayType.ElementType;
+            else
+                throw new UnexpectedTypeException(array.Type, errorReportedElement);
 
+            Array = array;
+            Index = ArithmeticCast.CastTo(index, Primitive.Integer);
+            ErrorReportedElement = errorReportedElement;
         }
     }
     
@@ -178,25 +185,31 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public sealed partial class SetPropertyValue : BinaryOperator, IRStatement
+    public sealed partial class SetPropertyValue : IRValue, IRStatement
     {
-        public override IType Type => Property.Type;
-        public override bool IsTruey => Right.IsTruey;
-        public override bool IsFalsey => Right.IsFalsey;
+        public IAstElement ErrorReportedElement { get; private set; }
+        public IType Type => Property.Type;
+        public bool IsTruey => Value.IsTruey;
+        public bool IsFalsey => Value.IsFalsey;
 
+        public IRValue Record { get; private set; }
         public RecordDeclaration.RecordProperty Property { get; private set; }
 
-        public SetPropertyValue(IRValue record, string propertyName, IRValue value, IAstElement errorReportedElement) : base(record, value, errorReportedElement, false, true)
+        public IRValue Value { get; private set; }
+
+        public SetPropertyValue(IRValue record, string propertyName, IRValue value, IAstElement errorReportedElement)
         {
+            Record = record;
+            ErrorReportedElement = errorReportedElement;
             IsInitializingProperty = false;
 
             if (record.Type is RecordType propertyContainer)
             {
-				if(!propertyContainer.HasProperty(propertyName))
-                	throw new UnexpectedTypeException(record.Type, errorReportedElement);
-				
+                if (!propertyContainer.HasProperty(propertyName))
+                    throw new UnexpectedTypeException(record.Type, errorReportedElement);
+
                 Property = (RecordDeclaration.RecordProperty)propertyContainer.FindProperty(propertyName);
-                Right = ArithmeticCast.CastTo(value, Property.Type);
+                Value = ArithmeticCast.CastTo(value, Property.Type);
             }
             else
                 throw new UnexpectedTypeException(record.Type, errorReportedElement);

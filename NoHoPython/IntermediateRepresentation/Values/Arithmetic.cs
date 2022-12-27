@@ -171,7 +171,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public ArithmeticOperation Operation { get; private set; }
         public override IType Type { get; }
 
-        private ArithmeticOperator(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
+        private ArithmeticOperator(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, false, errorReportedElement)
         {
             Operation = operation;
 

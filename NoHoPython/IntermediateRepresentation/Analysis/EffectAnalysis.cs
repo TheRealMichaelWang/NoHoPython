@@ -123,7 +123,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class GetValueAtIndex
     {
-        public override IRValue GetPostEvalPure() => new GetValueAtIndex(Left.GetPostEvalPure(), Right.GetPostEvalPure(), ErrorReportedElement);
+        public bool IsPure => Array.IsPure && Index.IsPure;
+        public bool IsConstant => Array.IsConstant && Index.IsConstant;
+
+        public IRValue GetPostEvalPure() => new GetValueAtIndex(Array.GetPostEvalPure(), Index.GetPostEvalPure(), ErrorReportedElement);
     }
 
     partial class SetValueAtIndex
@@ -144,9 +147,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class SetPropertyValue
     {
-        public override bool IsPure => false;
+        public bool IsPure => false;
+        public bool IsConstant => Record.IsConstant && Value.IsConstant;
 
-        public override IRValue GetPostEvalPure() => new GetPropertyValue(Left.GetPostEvalPure(), Property.Name, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new GetPropertyValue(Record.GetPostEvalPure(), Property.Name, ErrorReportedElement);
     }
 
     partial class ArithmeticCast

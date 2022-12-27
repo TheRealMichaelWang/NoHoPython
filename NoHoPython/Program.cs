@@ -42,7 +42,7 @@ public static class Program
             MemoryAnalyzer memoryAnalyzer = new MemoryAnalyzer(requestedAnalysisMode(), args.Contains("-memfail"));
 
             AstIRProgramBuilder astIRProgramBuilder = new(statements);
-            IRProgram program = astIRProgramBuilder.ToIRProgram(args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), memoryAnalyzer);
+            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), !args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), memoryAnalyzer);
             parser.IncludeCFiles(program);
 
             string outputFile;
@@ -74,10 +74,10 @@ public static class Program
         {
             compilerError.Print();
         }
-        catch (CodegenError codegenError)
-        {
-            codegenError.Print();
-        }
+        //catch (CodegenError codegenError)
+        //{
+        //    codegenError.Print();
+        //}
         catch (FileNotFoundException f)
         {
             Console.WriteLine($"File not found: {f.Message}");

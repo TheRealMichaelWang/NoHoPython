@@ -244,6 +244,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Left.AnalyzePropertyInitialization(initializedProperties);
     }
 
+    partial class GetValueAtIndex
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
+        {
+            Array.AnalyzePropertyInitialization(initializedProperties);
+            Index.AnalyzePropertyInitialization(initializedProperties);
+        }
+    }
+
     partial class SetValueAtIndex
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
@@ -273,12 +282,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public bool IsInitializingProperty { get; private set; }
 
-        public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
         {
-            Left.AnalyzePropertyInitialization(initializedProperties);
-            Right.AnalyzePropertyInitialization(initializedProperties);
+            Record.AnalyzePropertyInitialization(initializedProperties);
+            Value.AnalyzePropertyInitialization(initializedProperties);
 
-            if (Property.DefaultValue == null && Left is VariableReference variableReference && variableReference.Variable.IsRecordSelf)
+            if (Property.DefaultValue == null && Record is VariableReference variableReference && variableReference.Variable.IsRecordSelf)
             {
                 initializedProperties.Add(Property);
                 IsInitializingProperty = true;

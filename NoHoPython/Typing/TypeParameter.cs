@@ -376,7 +376,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class GetValueAtIndex
     {
-        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetValueAtIndex(Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetValueAtIndex(Array.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class SetValueAtIndex
@@ -391,6 +391,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class SetPropertyValue
     {
-        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new SetPropertyValue(Left.SubstituteWithTypearg(typeargs), Property.Name, Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new SetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.Name, Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 }

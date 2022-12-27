@@ -107,7 +107,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class WhileBlock
     {
-        public bool AllCodePathsReturn() => !(Condition.IsTruey && !WhileTrueBlock.CodeBlockSomeCodePathsBreak());
+        public bool AllCodePathsReturn() => Condition.IsTruey && !WhileTrueBlock.CodeBlockSomeCodePathsBreak();
         public bool SomeCodePathsBreak() => false;
     }
 

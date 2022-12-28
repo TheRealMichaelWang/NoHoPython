@@ -73,10 +73,10 @@ namespace NoHoPython.Syntax.Values
             if (IsStringLiteral)
             {
                 StringBuilder builder = new();
-                builder.Append("\"");
+                builder.Append('\"');
                 foreach (IAstValue value in Elements)
                     IntermediateRepresentation.Values.CharacterLiteral.EmitCChar(builder, ((CharacterLiteral)value).Character, false);
-                builder.Append("\"");
+                builder.Append('\"');
                 return builder.ToString();
             }
             else
@@ -185,6 +185,8 @@ namespace NoHoPython.Syntax.Values
             SourceLocation = sourceLocation;
             Flag = flag;
         }
+
+        public override string ToString() => $"flag {Flag}";
     }
 }
 
@@ -205,7 +207,7 @@ namespace NoHoPython.Syntax.Parsing
                 MatchAndScanToken(TokenType.More);
             }
 
-            List<IAstValue> elements = new List<IAstValue>();
+            List<IAstValue> elements = new();
             while (scanner.LastToken.Type != TokenType.CloseBracket)
             {
                 elements.Add(ParseExpression());

@@ -82,14 +82,24 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 foreach (VariableDeclaration declaration in DeclaredVariables)
                     declaration.EmitCFree(irProgram, emitter, typeargs, indent);
+                
                 if (insertFinalBreak)
                 {
+                    if (BreakLabelId != null)
+                        throw new InvalidOperationException();
+
                     CIndent(emitter, indent + 1);
                     emitter.AppendLine("break;");
                 }
             }
             CIndent(emitter, indent);
             emitter.AppendLine("}");
+
+            if (BreakLabelId != null)
+            {
+                CIndent(emitter, indent);
+                emitter.AppendLine($"loopbreaklabel{BreakLabelId.Value}:");
+            }
         }
 
         public virtual void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
@@ -309,7 +319,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             CodeBlock.CIndent(emitter, indent);
             if (Action.Type == Syntax.Parsing.TokenType.Break)
-                emitter.AppendLine("break;");
+                emitter.AppendLine($"goto loopbreaklabel{breakLabelId};");
             else
                 emitter.AppendLine("continue;");
         }

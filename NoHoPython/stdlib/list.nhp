@@ -127,6 +127,19 @@ mod data:
 						memcpy(smaller, tempBuf, sizeof(T))
 						sorted = False
 			free(tempBuf)
+
+		#assumes list is sorted
+		def binarySearch(fn<int, T, T> compare, T key):
+			if self.count < 1:
+				abort "Cannot search an empty list."
+
+			if compare(key, T[self.count - 1]self.buffer) > 0:
+				return self.count
+			if compare(key, T[0]self.buffer) < 0
+				return -1
+
+			low = 0
+			high = self.buffer
 		
 		def map(fn<T, T> transform) list<T>:
 			mapped = new list<T>(self.count)

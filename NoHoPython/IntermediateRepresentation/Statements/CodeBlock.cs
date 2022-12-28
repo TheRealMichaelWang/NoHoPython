@@ -2,6 +2,16 @@
 using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 
+namespace NoHoPython.Syntax
+{
+    partial class AstIRProgramBuilder
+    {
+        private int loopBreakLabelCount = 0;
+
+        public int GetBreakLabelId() => loopBreakLabelCount++;
+    }
+}
+
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public partial class CodeBlock : VariableContainer
@@ -10,21 +20,16 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public List<VariableDeclaration> DeclaredVariables { get; private set; }
         public bool IsLoop { get; private set; }
 
-        public CodeBlock(List<IRStatement> statements, bool isLoop, SymbolContainer? parent) : base(parent)
-        {
-            Statements = statements;
-            DeclaredVariables = new List<VariableDeclaration>();
-            IsLoop = isLoop;
-        }
+        public int? BreakLabelId { get; private set; }
 
-        public CodeBlock(SymbolContainer? parent, bool isLoop) : base(parent)
+        public CodeBlock(SymbolContainer parent, bool isLoop) : base(parent)
         {
             Statements = null;
             DeclaredVariables = new List<VariableDeclaration>();
             IsLoop = isLoop;
         }
 
-        public virtual void DelayedLinkSetStatements(List<IRStatement> statements)
+        public virtual void DelayedLinkSetStatements(List<IRStatement> statements, AstIRProgramBuilder irBuilder)
         {
             if (Statements != null)
                 throw new InvalidOperationException();
@@ -57,6 +62,20 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 combined.AddRange(DeclaredVariables.ConvertAll((declaration) => declaration.Variable));
                 return combined;
             }
+        }
+
+        public int GetLoopBreakLabelId(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder)
+        {
+            if (this.IsLoop)
+            {
+                if (this.BreakLabelId == null)
+                    this.BreakLabelId = irBuilder.GetBreakLabelId();
+                return this.BreakLabelId.Value;
+            }
+            if (parentContainer == null || parentContainer is not CodeBlock)
+                throw new UnexpectedLoopStatementException(errorReportedElement);
+            else
+                return ((CodeBlock)parentContainer).GetLoopBreakLabelId(errorReportedElement, irBuilder);
         }
     }
 }

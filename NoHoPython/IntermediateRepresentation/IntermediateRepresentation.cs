@@ -205,7 +205,7 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void Emit(StringBuilder emitter, StringBuilder headerEmitter)
         {
-            ExpressionDepth = 1;
+            ExpressionDepth = 0;
 
             if (headerEmitter != emitter)
             {

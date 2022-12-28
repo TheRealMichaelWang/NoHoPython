@@ -66,6 +66,6 @@ def main():
 				int j:
 					printf(fmt="%i\n\0", j)
 				None:
-					pass
+					break
 	
 	mem::leaksan(test)

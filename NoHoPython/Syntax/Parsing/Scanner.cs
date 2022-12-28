@@ -386,7 +386,7 @@ namespace NoHoPython.Syntax.Parsing
                 if (interpolatedTok == null)
                     return LastToken = new Token(ScanSymbol(), string.Empty);
                 else
-                    return LastToken = interpolatedTok.GetValueOrDefault();
+                    return LastToken = interpolatedTok.Value;
             }
         }
     }

@@ -115,11 +115,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ReturnType = returnType;
         }
 
-        public override void DelayedLinkSetStatements(List<IRStatement> statements)
+        public override void DelayedLinkSetStatements(List<IRStatement> statements, AstIRProgramBuilder irBuilder)
         {
             if (ReturnType == null)
                 throw new InvalidOperationException();
-            base.DelayedLinkSetStatements(statements);
+            base.DelayedLinkSetStatements(statements, irBuilder);
             if (ReturnType is not NothingType && !CodeBlockAllCodePathsReturn())
                 throw new NotAllCodePathsReturnError(ErrorReportedElement);
         }
@@ -494,7 +494,7 @@ namespace NoHoPython.Syntax.Statements
             foreach (Variable parameter in IRProcedureDeclaration.Parameters)
                 irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
 #pragma warning restore CS8602
-            IRProcedureDeclaration.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, Statements));
+            IRProcedureDeclaration.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, Statements), irBuilder);
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopedProcedures.Pop();
@@ -593,7 +593,7 @@ namespace NoHoPython.Syntax.Values
                 lamdaDeclaration.DelayedLinkSetReturnType(returnExpression.Type);
                 statements.Add(new ReturnStatement(returnExpression, irBuilder, this));
             }
-            lamdaDeclaration.DelayedLinkSetStatements(statements);
+            lamdaDeclaration.DelayedLinkSetStatements(statements, irBuilder);
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopedProcedures.Pop();

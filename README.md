@@ -13,6 +13,8 @@ A strongly-typed, memory-safe, compiled dialect of Python, that transpiles to hu
   - No C++-esque `using namespace`'s(prevents pollution of the global namespace)
 - Runtime Saftey
   - Array access' are all bounds checked.
+  - No Undefined Behavior, despite targeting C
+    - Sequence of evaluation is guarenteed
 - Easy C interop
   - Effortless FFI interop with C, via the `cdef` keyword. 
   - Include C headers with the `cinclude` keyword

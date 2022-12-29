@@ -39,7 +39,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
             {
                 CodeBlock.CIndent(emitter, indent + 1);
-                Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, Variable.GetStandardIdentifier());
+                Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, Variable.GetStandardIdentifier(), "NULL");
             }
         }
 
@@ -51,7 +51,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (!irProgram.EmitExpressionStatements)
                     throw new CannotEmitDestructorError(this);
                 emitter.Append($"({{if(init_{Variable.GetStandardIdentifier()}) {{");
-                Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, Variable.GetStandardIdentifier());
+                Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, Variable.GetStandardIdentifier(), "NULL");
                 emitter.Append($"}} else {{init_{Variable.GetStandardIdentifier()} = 1;}}");
                 closeExpressionStatement = true;
             }

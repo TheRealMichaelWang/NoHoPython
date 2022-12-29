@@ -122,7 +122,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     IRValue.EmitMemorySafe(Index, irProgram, valueBuilder, typeargs);
                 }
                 valueBuilder.Append("))");
-                Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valueBuilder.ToString());
+                Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valueBuilder.ToString(), "NULL");
             }
         }
     }

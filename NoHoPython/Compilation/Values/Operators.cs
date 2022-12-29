@@ -38,10 +38,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append("; ");
 
                 if (Left.RequiresDisposal(typeargs))
-                    Left.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"lhs{irProgram.ExpressionDepth}");
+                    Left.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"lhs{irProgram.ExpressionDepth}", "NULL");
 
                 if(Right.RequiresDisposal(typeargs))
-                    Right.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"rhs{irProgram.ExpressionDepth}");
+                    Right.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"rhs{irProgram.ExpressionDepth}", "NULL");
                 
                 emitter.Append($"res{irProgram.ExpressionDepth};}})");
                 irProgram.ExpressionDepth--;
@@ -145,7 +145,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 {
                     emitter.Append(".buffer[");
                     ArrayType.EmitBoundsCheckedIndex(irProgram, emitter, typeargs, Array, Index, ErrorReportedElement);
-                    emitter.Append("]");
+                    emitter.Append(']');
                 }
                 else
                 {
@@ -449,7 +449,7 @@ namespace NoHoPython.Typing
                 CharacterLiteral.EmitCString(emitter, statement.ToString(0), false, true);
             else if (errorReportedElement is Syntax.IAstValue value)
                 CharacterLiteral.EmitCString(emitter, value.ToString(), false, true);
-            emitter.Append(")");
+            emitter.Append(')');
         }
     }
 }

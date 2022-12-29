@@ -168,7 +168,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             foreach (int bufferedArg in bufferedArguments)
                 if (arguments[bufferedArg].RequiresDisposal(typeargs))
-                    arguments[bufferedArg].Type.EmitFreeValue(irProgram, emitter, $"intpd_buffered_arg{bufferedArg}{irProgram.ExpressionDepth}");
+                    arguments[bufferedArg].Type.EmitFreeValue(irProgram, emitter, $"intpd_buffered_arg{bufferedArg}{irProgram.ExpressionDepth}", "NULL");
 
             emitter.Append($"intpd_str{irProgram.ExpressionDepth};}})");
             irProgram.ExpressionDepth--;

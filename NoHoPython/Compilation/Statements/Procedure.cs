@@ -129,7 +129,7 @@ namespace NoHoPython.IntermediateRepresentation
             {
                 emitter.AppendLine($"{uniqueProcedure.Item1.GetCName(this)} move{uniqueProcedure.Item2}({uniqueProcedure.Item1.GetCName(this)}* dest, {uniqueProcedure.Item1.GetCName(this)} src) {{");
                 emitter.Append('\t');
-                uniqueProcedure.Item1.EmitFreeValue(this, emitter, "*dest");
+                uniqueProcedure.Item1.EmitFreeValue(this, emitter, "*dest", "NULL");
                 emitter.AppendLine("\t*dest = src;");
                 emitter.AppendLine("\treturn src;");
                 emitter.AppendLine("}");
@@ -181,7 +181,7 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_info_t*";
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.AppendLine($"({valueCSource})->_nhp_destructor({valueCSource});"); 
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent) => emitter.AppendLine($"({valueCSource})->_nhp_destructor({valueCSource});"); 
         public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => emitter.Append($"({valueCSource})->_nhp_copier({valueCSource}, {responsibleDestroyer})");
         
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
@@ -363,6 +363,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
                 emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier()};");
             emitter.AppendLine("\tint _nhp_lock;");
+            emitter.AppendLine("\tvoid* _nhp_child_agent;");
             emitter.AppendLine("};");
         }
 
@@ -381,6 +382,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine($"\tclosure->_nhp_record_copier = ({anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t)(&record_copy{GetStandardIdentifier(irProgram)});");
             emitter.AppendLine($"\tclosure->_nhp_resp_mutator = ({anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t)(&change_resp_owner{GetStandardIdentifier(irProgram)});");
             emitter.AppendLine("\tclosure->_nhp_lock = 0;");
+            emitter.AppendLine("\tclosure->_nhp_child_agent = responsible_destroyer;");
 
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
@@ -408,7 +410,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (capturedVariable.Type.SubstituteWithTypearg(typeArguments).RequiresDisposal)
                 {
                     emitter.Append('\t');
-                    capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitFreeValue(irProgram, emitter, $"to_free->{capturedVariable.GetStandardIdentifier()}");
+                    capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitFreeValue(irProgram, emitter, $"to_free->{capturedVariable.GetStandardIdentifier()}", "to_free->_nhp_child_agent");
                 }
 
             emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Dealloc("to_free", $"sizeof({GetStandardIdentifier(irProgram)}_captured_t)")};");
@@ -458,6 +460,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine("\tif(closure->_nhp_lock)");
             emitter.AppendLine($"\t\treturn ({anonProcedureType.GetCName(irProgram)})closure;");
             emitter.AppendLine("\tclosure->_nhp_lock = 1;");
+            emitter.AppendLine("\tclosure->_nhp_child_agent = responsible_destroyer;");
 
             foreach(Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
@@ -508,7 +511,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (localToReturn != variable && variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
                 {
                     CodeBlock.CIndent(emitter, indent);
-                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, variable.GetStandardIdentifier());
+                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, variable.GetStandardIdentifier(), "NULL");
                 }
 
             CodeBlock.CIndent(emitter, indent);
@@ -552,7 +555,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine("printf(\"AbortError: %s\\n\", _nhp_abort_msg.buffer);");
 
                 CodeBlock.CIndent(emitter, indent + 1);
-                AbortMessage.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_abort_msg");
+                AbortMessage.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_abort_msg", "NULL");
             }
             else
                 emitter.Append("puts(\"AbortError: No message given.\");");
@@ -630,7 +633,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 foreach (int i in bufferedArguments)
                     if (Arguments[i].RequiresDisposal(typeargs))
-                        Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_argbuf_{i}{irProgram.ExpressionDepth}");
+                        Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_argbuf_{i}{irProgram.ExpressionDepth}", "NULL");
                 emitter.Append($"_nhp_res{irProgram.ExpressionDepth};}})");
             }
             else
@@ -682,7 +685,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     EmitCall(irProgram, emitter, typeargs, bufferedArguments, 0, "NULL");
                     emitter.AppendLine(";");
                     CodeBlock.CIndent(emitter, indent + 1);
-                    Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_callrep_res0");
+                    Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_callrep_res0", "NULL");
                     CodeBlock.CIndent(emitter, indent);
                     emitter.AppendLine("}");
                 }
@@ -720,7 +723,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (Arguments[i].RequiresDisposal(typeargs))
                     {
                         CodeBlock.CIndent(emitter, indent + 1);
-                        Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_argbuf_{i}0");
+                        Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_argbuf_{i}0", "NULL");
                     }
                 CodeBlock.CIndent(emitter, indent);
                 emitter.AppendLine("}");

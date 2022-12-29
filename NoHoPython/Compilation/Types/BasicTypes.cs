@@ -11,7 +11,7 @@ namespace NoHoPython.Typing
             Debug.Assert(irProgram.EmitExpressionStatements);
 
             emitter.Append($"({{{type.GetCName(irProgram)} _nhp_es_move_temp = {destC}; {destC} = {valueCSource}; ");
-            type.EmitFreeValue(irProgram, emitter, "_nhp_es_move_temp");
+            type.EmitFreeValue(irProgram, emitter, "_nhp_es_move_temp", "NULL");
             emitter.Append($" {destC};}})");
         }
     }
@@ -24,7 +24,7 @@ namespace NoHoPython.Typing
         public abstract string GetCName(IRProgram irProgram);
         public string GetStandardIdentifier(IRProgram irProgram) => TypeName;
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) { }
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent) { }
         public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => emitter.Append(valueCSource);
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => emitter.Append($"({destC} = {valueCSource})");
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) { }
@@ -70,7 +70,7 @@ namespace NoHoPython.Typing
         public string GetCName(IRProgram irProgram) => "void";
         public string GetStandardIdentifier(IRProgram irProgram) => "nothing";
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => throw new CannotCompileNothingError(null);
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent) => throw new CannotCompileNothingError(null);
         public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileNothingError(null);
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => throw new CannotCompileNothingError(null);
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileNothingError(null);

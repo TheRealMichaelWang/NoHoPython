@@ -125,7 +125,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"; {Type.GetCName(irProgram)} _nhp_res = _nhp_buffer");
                 EmitOp();
                 emitter.Append("; ");
-                ArrayValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_buffer");
+                ArrayValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_buffer", "NULL");
                 emitter.Append("; _nhp_res;})");
             }
             else

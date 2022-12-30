@@ -116,6 +116,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public override IRValue GetPostEvalPure() => new LogicalOperator(Operation, Left.GetPostEvalPure(), Right.GetPostEvalPure(), ErrorReportedElement);
     }
 
+    partial class BitwiseOperator
+    {
+        public override IRValue GetPostEvalPure() => new BitwiseOperator(Operation, Left.GetPostEvalPure(), Right.GetPostEvalPure(), ErrorReportedElement);
+    }
+
     partial class ArithmeticOperator
     {
         public override IRValue GetPostEvalPure() => new ArithmeticOperator(Operation, Left.GetPostEvalPure(), Right.GetPostEvalPure(), ErrorReportedElement);

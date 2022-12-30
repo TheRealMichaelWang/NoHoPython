@@ -83,6 +83,13 @@
         LessEqual,
         Not,
 
+        //bitwise operators
+        BitAnd,
+        BitOr,
+        BitXor,
+        ShiftLeft,
+        ShiftRight,
+
         Tab,
         Newline,
         EndOfFile

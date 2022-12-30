@@ -21,20 +21,25 @@ namespace NoHoPython.Syntax.Values
     {
         public static readonly Dictionary<TokenType, int> OperatorPrecedence = new()
         {
-            {TokenType.Equals, 2},
-            {TokenType.NotEquals, 2},
-            {TokenType.More, 2},
-            {TokenType.Less, 2},
-            {TokenType.MoreEqual, 2},
-            {TokenType.LessEqual, 2},
-            {TokenType.Add, 3},
-            {TokenType.Subtract, 3},
-            {TokenType.Multiply, 4},
-            {TokenType.Divide, 4},
-            {TokenType.Modulo, 4},
-            {TokenType.Caret, 5},
+            {TokenType.Equals, 3},
+            {TokenType.NotEquals, 3},
+            {TokenType.More, 3},
+            {TokenType.Less, 3},
+            {TokenType.MoreEqual, 3},
+            {TokenType.LessEqual, 3},
+            {TokenType.Add, 5},
+            {TokenType.Subtract, 5},
+            {TokenType.Multiply, 6},
+            {TokenType.Divide, 6},
+            {TokenType.Modulo, 6},
+            {TokenType.Caret, 7},
             {TokenType.And, 1},
-            {TokenType.Or, 1}
+            {TokenType.Or, 1},
+            {TokenType.BitAnd, 2},
+            {TokenType.BitOr, 2},
+            {TokenType.BitXor, 2},
+            {TokenType.ShiftLeft, 4},
+            {TokenType.ShiftRight, 4}
         };
 
         private static readonly Dictionary<TokenType, string> OperatorSymbol = new()
@@ -52,7 +57,12 @@ namespace NoHoPython.Syntax.Values
             {TokenType.Modulo, "%"},
             {TokenType.Caret, "^"},
             {TokenType.And, "and"},
-            {TokenType.Or, "or"}
+            {TokenType.Or, "or"},
+            {TokenType.BitAnd, "&"},
+            {TokenType.BitOr, "|"},
+            {TokenType.BitXor, "xor"},
+            {TokenType.ShiftLeft, "lshift"},
+            {TokenType.ShiftRight, "rshift"}
         };
 
         public SourceLocation SourceLocation { get; private set; }

@@ -8,7 +8,6 @@ public static class Program
 {
     public static int Main(string[] args)
     {
-
         Console.Title = "North-Hollywood Python Compiler";
 
         if (args.Length == 0)
@@ -47,7 +46,12 @@ public static class Program
                 flags.Add("mem0");
                 return MemoryAnalyzer.AnalysisMode.None;
             }
+
             MemoryAnalyzer memoryAnalyzer = new MemoryAnalyzer(requestedAnalysisMode(), args.Contains("-memfail"));
+            if (OperatingSystem.IsWindows())
+                flags.Add("windows");
+            else if (OperatingSystem.IsLinux())
+                flags.Add("linux");
 
             for (int i = 2; i < args.Length; i++)
                 flags.Add(args[i]);

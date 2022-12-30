@@ -374,6 +374,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new LogicalOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
+    partial class BitwiseOperator
+    {
+        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new BitwiseOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
     partial class GetValueAtIndex
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetValueAtIndex(Array.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), ErrorReportedElement);

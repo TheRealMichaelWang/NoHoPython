@@ -222,6 +222,10 @@ namespace NoHoPython.Syntax.Parsing
                     return TokenType.Modulo;
                 case '^':
                     return TokenType.Caret;
+                case '&':
+                    return TokenType.BitAnd;
+                case '|':
+                    return TokenType.BitOr;
                 case '=':
                     if (lastChar == '=')
                     {
@@ -323,6 +327,9 @@ namespace NoHoPython.Syntax.Parsing
                     "within" => TokenType.Within,
                     "and" => TokenType.And,
                     "or" => TokenType.Or,
+                    "xor" => TokenType.Or,
+                    "lshift" => TokenType.ShiftLeft,
+                    "rshift" => TokenType.ShiftRight,
                     "new" => TokenType.New,
                     "marshal" => TokenType.Marshal,
                     "flag" => TokenType.Flag,

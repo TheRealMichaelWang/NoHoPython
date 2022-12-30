@@ -91,17 +91,44 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public override void EmitExpression(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource)
         {
-            emitter.Append($"({leftCSource}");
+            emitter.Append($"({leftCSource} ");
             switch (Operation)
             {
                 case LogicalOperation.And:
-                    emitter.Append(" && ");
+                    emitter.Append("&&");
                     break;
                 case LogicalOperation.Or:
-                    emitter.Append(" || ");
+                    emitter.Append("||");
                     break;
             }
-            emitter.Append($"{rightCSource})");
+            emitter.Append($" {rightCSource})");
+        }
+    }
+
+    partial class BitwiseOperator
+    {
+        public override void EmitExpression(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource)
+        {
+            emitter.Append($"({leftCSource} ");
+            switch (Operation)
+            {
+                case BitwiseOperation.And:
+                    emitter.Append('&');
+                    break;
+                case BitwiseOperation.Or:
+                    emitter.Append('|');
+                    break;
+                case BitwiseOperation.Xor:
+                    emitter.Append('^');
+                    break;
+                case BitwiseOperation.ShiftLeft:
+                    emitter.Append("<<");
+                    break;
+                case BitwiseOperation.ShiftRight:
+                    emitter.Append(">>");
+                    break;
+            }
+            emitter.Append($" {rightCSource})");
         }
     }
 

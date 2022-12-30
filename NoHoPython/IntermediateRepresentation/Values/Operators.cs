@@ -75,13 +75,34 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Or
         }
 
-        public override IType Type => new BooleanType();
+        public override IType Type => Primitive.Boolean;
         public override bool IsTruey => (Operation == LogicalOperation.And ? Left.IsTruey && Right.IsTruey : Left.IsTruey || Right.IsTruey);
         public override bool IsFalsey => (Operation == LogicalOperation.And ? Left.IsFalsey || Right.IsFalsey : Left.IsFalsey && Right.IsFalsey);
 
         public LogicalOperation Operation { get; private set; }
 
         public LogicalOperator(LogicalOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Boolean), ArithmeticCast.CastTo(right, Primitive.Boolean), true, errorReportedElement)
+        {
+            Operation = operation;
+        }
+    }
+
+    public sealed partial class BitwiseOperator : BinaryOperator
+    {
+        public enum BitwiseOperation
+        {
+            And,
+            Or,
+            Xor,
+            ShiftLeft,
+            ShiftRight
+        }
+
+        public override IType Type => Primitive.Boolean;
+
+        public BitwiseOperation Operation { get; private set; }
+
+        public BitwiseOperator(BitwiseOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Integer), ArithmeticCast.CastTo(right, Primitive.Integer), false, errorReportedElement)
         {
             Operation = operation;
         }
@@ -252,6 +273,15 @@ namespace NoHoPython.Syntax.Values
             {TokenType.Or, LogicalOperator.LogicalOperation.Or }
         };
 
+        private static Dictionary<TokenType, BitwiseOperator.BitwiseOperation> BitwiseTokens = new()
+        {
+            {TokenType.BitAnd, BitwiseOperator.BitwiseOperation.And},
+            {TokenType.BitOr, BitwiseOperator.BitwiseOperation.Or},
+            {TokenType.BitXor, BitwiseOperator.BitwiseOperation.Xor},
+            {TokenType.ShiftLeft, BitwiseOperator.BitwiseOperation.ShiftLeft},
+            {TokenType.ShiftRight, BitwiseOperator.BitwiseOperation.ShiftRight}
+        };
+
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
             return ArithmeticTokens.ContainsKey(Operator)
@@ -259,7 +289,9 @@ namespace NoHoPython.Syntax.Values
                 : ComparativeTokens.ContainsKey(Operator)
                 ? new ComparativeOperator(ComparativeTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Right.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this)
                 : LogicalTokens.ContainsKey(Operator)
-                ? (IRValue)new LogicalOperator(LogicalTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Right.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this)
+                ? new LogicalOperator(LogicalTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), this)
+                : BitwiseTokens.ContainsKey(Operator)
+                ? new BitwiseOperator(BitwiseTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), this)
                 : throw new InvalidOperationException();
         }
     }

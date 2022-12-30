@@ -103,7 +103,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource)
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent)
         {
             if (ElementType.RequiresDisposal)
                 emitter.AppendLine($"free{GetStandardIdentifier(irProgram)}({valueCSource});");
@@ -166,7 +166,7 @@ namespace NoHoPython.Typing
                 emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
                 emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocate($"length * sizeof({ElementType.GetCName(irProgram)})")};");
                 emitter.AppendLine("\tfor(int i = 0; i < length; i++) {");
-                emitter.AppendLine("\t\tto_alloc.buffer[i] = ");
+                emitter.Append("\t\tto_alloc.buffer[i] = ");
                 ElementType.EmitCopyValue(irProgram, emitter, "buffer[i]", "responsible_destroyer");
                 emitter.AppendLine(";");
                 emitter.AppendLine("\t}");
@@ -188,7 +188,7 @@ namespace NoHoPython.Typing
             if (ElementType.RequiresDisposal)
             {
                 emitter.Append('\t');
-                ElementType.EmitFreeValue(irProgram, emitter, "proto");
+                ElementType.EmitFreeValue(irProgram, emitter, "proto", "NULL");
             }
 
             emitter.AppendLine("\tto_alloc.responsible_destroyer = responsible_destroyer;");
@@ -205,7 +205,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"void free{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_free) {{");
             emitter.AppendLine("\tfor(int i = 0; i < to_free.length; i++) {");
             emitter.Append("\t\t");
-            ElementType.EmitFreeValue(irProgram, emitter, "to_free.buffer[i]");
+            ElementType.EmitFreeValue(irProgram, emitter, "to_free.buffer[i]", "NULL");
             emitter.AppendLine("\t}");
             emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Dealloc("to_free.buffer", $"to_free.length * sizeof({ElementType.GetCName(irProgram)})")};");
             emitter.AppendLine("}");
@@ -239,7 +239,7 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine($"{GetCName(irProgram)} move{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
             emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "(*dest)");
+            EmitFreeValue(irProgram, emitter, "(*dest)", "NULL");
             emitter.AppendLine("\t*dest = src;");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");

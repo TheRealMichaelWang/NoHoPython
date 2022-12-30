@@ -25,7 +25,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-        public static void EmitCChar(StringBuilder emitter, char c)
+        public static void EmitCChar(StringBuilder emitter, char c, bool formatChar)
         {
             switch (c)
             {
@@ -59,6 +59,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 case '\0':
                     emitter.Append("\\0");
                     break;
+                case '%':
+                    emitter.Append(formatChar ? "%%" : "%");
+                    break;
                 default:
                     if (char.IsControl(c))
                         throw new InvalidOperationException();
@@ -67,12 +70,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
         }
 
-        public static void EmitCString(StringBuilder emitter, string str)
+        public static void EmitCString(StringBuilder emitter, string str, bool formatStr, bool quoteEncapsulate)
         {
-            emitter.Append('\"');
+            if(quoteEncapsulate)
+                emitter.Append('\"');
+
             foreach (char c in str)
-                EmitCChar(emitter, c);
-            emitter.Append('\"');
+                EmitCChar(emitter, c, formatStr);
+            
+            if(quoteEncapsulate)
+                emitter.Append('\"');
         }
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
@@ -80,7 +87,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             emitter.Append('\'');
-            EmitCChar(emitter, Character);
+            EmitCChar(emitter, Character, false);
             emitter.Append('\'');
         }
     }
@@ -121,13 +128,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            StringBuilder arrayBuilder = new StringBuilder();
+            StringBuilder arrayBuilder = new();
             if (Elements.Count == 0)
                 arrayBuilder.Append("NULL");
             else if(Elements.TrueForAll((IRValue element) => element is CharacterLiteral)) //is string literal
             {
                 arrayBuilder.Append("\"");
-                Elements.ForEach((element) => CharacterLiteral.EmitCChar(arrayBuilder, ((CharacterLiteral)element).Character));
+                Elements.ForEach((element) => CharacterLiteral.EmitCChar(arrayBuilder, ((CharacterLiteral)element).Character, false));
                 arrayBuilder.Append("\"");
             }
             else
@@ -161,6 +168,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
+            if ((!Length.IsPure && !ProtoValue.IsConstant) || (!ProtoValue.IsPure && !Length.IsConstant))
+                throw new CannotEnsureOrderOfEvaluation(this);
+            
             emitter.Append($"marshal_proto{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
             Length.Emit(irProgram, emitter, typeargs, "NULL");
             emitter.Append(", ");
@@ -169,7 +179,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 ProtoValue.Emit(irProgram, emitter, typeargs, "NULL");
             else
             {
-                StringBuilder valueBuilder = new StringBuilder();
+                StringBuilder valueBuilder = new();
                 ProtoValue.Emit(irProgram, valueBuilder, typeargs, "NULL");
                 ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "NULL");
             }

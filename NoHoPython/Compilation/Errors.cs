@@ -57,6 +57,16 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
+    public sealed class CannotEmitInterpolatedString : CodegenError
+    {
+        public InterpolatedString InterpolatedString { get; private set; }
+
+        public CannotEmitInterpolatedString(InterpolatedString interpolatedString) : base(interpolatedString, "Cannot emit interpolated string; please emit expression statements via omitting the -nogcc flag.")
+        {
+            InterpolatedString = interpolatedString;
+        }
+    }
+
     public sealed class CannotCompileNothingError : CodegenError
     {
         public CannotCompileNothingError(IRElement? errorReportedElement) : base(errorReportedElement, "(Internal Error)Cannot actually compile/emit a nothing literal nor scope a nothing type.")
@@ -76,6 +86,22 @@ namespace NoHoPython.IntermediateRepresentation
     public sealed class CircularDependentTypesError : CodegenError
     {
         public CircularDependentTypesError(List<IType> dependecyChain, IType circularDependentType) : base(null, $"Type {dependecyChain[0].TypeName} is circularly dependent; {string.Join(" -> ", dependecyChain.ConvertAll((type) => type.TypeName))}, and depends on {circularDependentType.TypeName} again. Please note that the size of {dependecyChain[0].TypeName} has to be known during compilation)")
+        {
+
+        }
+    }
+
+    public sealed class NoFormatSpecifierForType : CodegenError
+    {
+        public NoFormatSpecifierForType(IType type) : base(null, $"Cannot interpolate value of type {type.TypeName}; No such valid C format specifier for sprintf.")
+        {
+
+        }
+    }
+
+    public sealed class CannotEnsureOrderOfEvaluation : CodegenError
+    {
+        public CannotEnsureOrderOfEvaluation(IRElement? irElement) : base(irElement, "Cannot ensure order of evaluation; try enabling expression statements via omitting the -nogcc flag.")
         {
 
         }

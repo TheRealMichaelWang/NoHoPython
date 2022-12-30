@@ -8,7 +8,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
 
-        public IType Type { get => new IntegerType(); }
+        public IType Type { get => Primitive.Integer; }
         public bool IsTruey => Number != 0;
         public bool IsFalsey => Number == 0;
 
@@ -25,7 +25,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
 
-        public IType Type { get => new DecimalType(); }
+        public IType Type { get => Primitive.Decimal; }
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
@@ -42,7 +42,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
 
-        public IType Type { get => new CharacterType(); }
+        public IType Type => Primitive.Character;
         public bool IsTruey => Character == '\0';
         public bool IsFalsey => Character == '\0';
 
@@ -63,7 +63,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public TrueLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
 
-        public IType Type => new BooleanType();
+        public IType Type => Primitive.Boolean;
     }
 
     public sealed partial class FalseLiteral : IRValue
@@ -74,7 +74,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public FalseLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
 
-        public IType Type => new BooleanType();
+        public IType Type => Primitive.Boolean;
     }
 
     public sealed partial class NothingLiteral : IRValue
@@ -140,16 +140,40 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    //public sealed partial class InterpolatedString : IRValue
-    //{
-    //    public IAstElement ErrorReportedElement { get; private set; }
-    //    public IType Type { get => new ArrayType(Primitive.Character); }
-    //    public bool IsTruey => false;
-    //    public bool IsFalsey => false;
+    public sealed partial class InterpolatedString : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public IType Type { get => new ArrayType(Primitive.Character); }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
 
-    //    public readonly List<IRValue> InterpolatedValues;
-    //    public 
-    //}
+        public readonly List<object> InterpolatedValues; //all objects are either IRValue or string
+
+        public InterpolatedString(List<object> interpolatedValues, IAstElement errorReportedElement)
+        {
+            InterpolatedValues = interpolatedValues;
+            ErrorReportedElement = errorReportedElement;
+
+            for (int i = 0; i < interpolatedValues.Count; i++)
+            {
+                if (interpolatedValues[i] is IRValue irValue)
+                {
+                    try
+                    {
+                        irValue.Type.GetFormatSpecifier();
+                    }
+                    catch (NoFormatSpecifierForType) //values without a format specifier are cast to strings
+                    {
+                        interpolatedValues[i] = ArithmeticCast.CastTo(irValue, new ArrayType(Primitive.Character));
+                    }
+                }
+                else if (interpolatedValues[i] is string)
+                    continue;
+                else
+                    throw new InvalidOperationException();
+            }
+        }
+    }
 
     public sealed partial class AllocArray : IRValue
     {
@@ -236,6 +260,24 @@ namespace NoHoPython.Syntax.Values
         }
     }
 
+    partial class InterpolatedString
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
+        {
+            List<object> IRInterpolatedValues = new();
+            foreach(object value in InterpolatedValues)
+            {
+                if (value is IAstValue astValue)
+                    IRInterpolatedValues.Add(astValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate));
+                else
+#pragma warning disable CS8604 // Possible null reference argument.
+                    IRInterpolatedValues.Add(value as string);
+#pragma warning restore CS8604 // Possible null reference argument.
+            }
+            return new IntermediateRepresentation.Values.InterpolatedString(IRInterpolatedValues, this);
+        }
+    }
+
     partial class AllocArray
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
@@ -264,5 +306,10 @@ namespace NoHoPython.Syntax.Values
                 ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
                 : throw new UnexpectedTypeException(prototype, this);
         }
+    }
+
+    partial class FlagLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => irBuilder.Flags.Contains(Flag) ? new IntermediateRepresentation.Values.TrueLiteral(this) : new IntermediateRepresentation.Values.FalseLiteral(this); 
     }
 }

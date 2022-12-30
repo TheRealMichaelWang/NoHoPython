@@ -55,17 +55,17 @@ def main():
 		cdef printf(handle, int) None
 		mem::report()
 		myList = new list<int>()
-		i = 0
-		while i < 20:
+		
+		for i from 1 to 20:
 			myList.pushBack(i)
-			i = i + 1
 		mem::report()
+		
 		stop = myList.isEmpty
 		while stop() == False:
 			match res=myList.popFront():
 				int j:
 					printf(fmt="%i\n\0", j)
 				None:
-					pass
-	test()
-	mem::report()
+					break
+	
+	mem::leaksan(test)

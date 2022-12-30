@@ -19,7 +19,7 @@ namespace NoHoPython.Scoping
         public ProcedureDeclaration ParentProcedure;
         public SymbolContainer ParentContainer => ParentProcedure;
 
-        public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_var_{Name}";
+        public string GetStandardIdentifier() => $"_nhp_var_{Name}";
 
         public Variable(IType type, string name, ProcedureDeclaration parentProcedure, bool isRecordSelf)
         {
@@ -58,7 +58,7 @@ namespace NoHoPython.Scoping
         public override IScopeSymbol? FindSymbol(string identifier, Syntax.IAstElement errorReportedElement)
         {
             IScopeSymbol? result = base.FindSymbol(identifier, errorReportedElement);
-            return result ?? (parentContainer == null ? null : parentContainer.FindSymbol(identifier, errorReportedElement));
+            return result ?? (parentContainer?.FindSymbol(identifier, errorReportedElement));
         }
     }
 }
@@ -74,10 +74,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public Variable Variable { get; private set; }
 
-        public VariableReference(Variable variable, IAstElement errorReportedElement)
+        public VariableReference(Variable variable, bool isConstant, IAstElement errorReportedElement)
         {
             Variable = variable;
+            IsConstant = isConstant;
             ErrorReportedElement = errorReportedElement;
+        }
+
+        public VariableReference(Tuple<Variable, bool> santizeResult, IAstElement errorReportedElement) : this(santizeResult.Item1, santizeResult.Item2, errorReportedElement)
+        {
+
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => throw new InvalidOperationException();
@@ -100,6 +106,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false), errorReportedELement);
             irBuilder.SymbolMarshaller.CurrentCodeBlock.DeclaredVariables.Add(this);
             InitialValue = setValue;
+            WillRevaluate = willRevaluate;
             ErrorReportedElement = errorReportedELement;
         }
 
@@ -193,7 +200,7 @@ namespace NoHoPython.Syntax.Values
             {
                 IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
                 return valueSymbol is Variable variable
-                    ? (IRValue)new IntermediateRepresentation.Values.SetVariable(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, true, this), SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type, willRevaluate), this)
+                    ? (IRValue)new IntermediateRepresentation.Values.SetVariable(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, true, this).Item1, SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type, willRevaluate), this)
                     : throw new NotAVariableException(valueSymbol, this);
             }
             catch (SymbolNotFoundException)

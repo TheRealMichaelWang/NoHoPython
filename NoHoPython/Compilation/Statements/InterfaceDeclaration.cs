@@ -102,7 +102,7 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource) => emitter.AppendLine($"free_interface{GetStandardIdentifier(irProgram)}({valueCSource});");
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent) => emitter.AppendLine($"free_interface{GetStandardIdentifier(irProgram)}({valueCSource});");
         public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => emitter.Append($"copy_interface{GetStandardIdentifier(irProgram)}({valueCSource}, {responsibleDestroyer})");
 
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
@@ -163,7 +163,7 @@ namespace NoHoPython.Typing
                 if (property.Type.RequiresDisposal)
                 {
                     emitter.Append('\t');
-                    property.Type.EmitFreeValue(irProgram, emitter, $"interface.{property.Name}");
+                    property.Type.EmitFreeValue(irProgram, emitter, $"interface.{property.Name}", "NULL");
                 }
             emitter.AppendLine("}");
         }
@@ -190,7 +190,7 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine($"{GetCName(irProgram)} move_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
             emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "*dest");
+            EmitFreeValue(irProgram, emitter, "*dest", "NULL");
             emitter.AppendLine($"\t*dest = src;");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
@@ -268,7 +268,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (Value.RequiresDisposal(typeargs))
             {
                 emitter.Append($"{realPrototype.GetCName(irProgram)} _nhp_int_res = marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join("", emittedValues)}{responsibleDestroyer}); ");
-                Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_marshal_buf");
+                Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_marshal_buf", "NULL");
                 emitter.Append("_nhp_int_res;})");
             }
             else

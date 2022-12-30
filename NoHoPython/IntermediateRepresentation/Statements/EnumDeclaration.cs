@@ -124,7 +124,8 @@ namespace NoHoPython.Typing
         private static Dictionary<EnumType, Lazy<Dictionary<string, Property>>> globalSupportedProperties = new(new ITypeComparer());
 
         public bool IsNativeCType => false;
-        public string TypeName { get => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}"; }
+        public string TypeName => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
+        public string Identifier => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
 
         public EnumDeclaration EnumDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;

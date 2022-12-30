@@ -21,9 +21,11 @@ namespace NoHoPython.Syntax
         
         public SymbolContainer CurrentMasterScope => ScopedProcedures.Count > 0 ? ScopedProcedures.Peek() : (ScopedRecordDeclaration != null) ? ScopedRecordDeclaration : SymbolMarshaller.CurrentModule;
 
+        public readonly SortedSet<string> Flags;
+
         private Dictionary<IType, HashSet<IType>> typeDependencyTree;
 
-        public AstIRProgramBuilder(List<IAstStatement> statements)
+        public AstIRProgramBuilder(List<IAstStatement> statements, List<string> flags)
         {
             SymbolMarshaller = new SymbolMarshaller();
             EnumDeclarations = new List<EnumDeclaration>();
@@ -31,6 +33,7 @@ namespace NoHoPython.Syntax
             RecordDeclarations = new List<RecordDeclaration>();
             ProcedureDeclarations = new List<ProcedureDeclaration>();
             ScopedProcedures = new Stack<ProcedureDeclaration>();
+            Flags = new SortedSet<string>(flags);
             ScopedRecordDeclaration = null;
 
             typeDependencyTree = new Dictionary<IType, HashSet<IType>>(new ITypeComparer());
@@ -104,9 +107,6 @@ namespace NoHoPython.IntermediateRepresentation
         //equivalent value but with type parameter references replaced
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
 
-        //gets a pure value - one that doesn't mutate state once evaluated - that can be safley evaluated following evaluation of the parent value
-        public IRValue GetPostEvalPure();
-
         //emit corresponding C code
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer);
     }
@@ -136,6 +136,8 @@ namespace NoHoPython.IntermediateRepresentation
 
         public MemoryAnalyzer MemoryAnalyzer { get; private set; }
 
+        public int ExpressionDepth;
+
         public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, List<EnumType> usedEnumTypes, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, List<InterfaceType> usedInterfaceTypes, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, List<RecordType> usedRecordTypes, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
         {
             DoBoundsChecking = doBoundsChecking;
@@ -158,7 +160,7 @@ namespace NoHoPython.IntermediateRepresentation
             this.usedInterfaceTypes = usedInterfaceTypes;
             InterfaceTypeOverloads = interfaceTypeOverload;
             this.usedRecordTypes = usedRecordTypes;
-            this.MemoryAnalyzer = memoryAnalyzer;
+            MemoryAnalyzer = memoryAnalyzer;
             RecordTypeOverloads = recordTypeOverloads;
 
             this.typeDependencyTree = typeDependencyTree;
@@ -203,7 +205,7 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void Emit(StringBuilder emitter, StringBuilder headerEmitter)
         {
-            ProcedureCall.nestedCalls = 0;
+            ExpressionDepth = 0;
 
             if (headerEmitter != emitter)
             {
@@ -226,7 +228,7 @@ namespace NoHoPython.IntermediateRepresentation
             ForwardDeclareRecordTypes(headerEmitter);
 
             //emit c structs
-            RecordDeclaration.EmitRecordMaskProto(this, headerEmitter);
+            RecordDeclaration.EmitRecordMaskProto(headerEmitter);
             EmitArrayTypeCStructs(headerEmitter);
             EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclareType(this, headerEmitter));
             InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclareType(this, headerEmitter));

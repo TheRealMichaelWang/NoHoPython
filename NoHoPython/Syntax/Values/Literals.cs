@@ -73,10 +73,10 @@ namespace NoHoPython.Syntax.Values
             if (IsStringLiteral)
             {
                 StringBuilder builder = new();
-                builder.Append("\"");
+                builder.Append('\"');
                 foreach (IAstValue value in Elements)
-                    IntermediateRepresentation.Values.CharacterLiteral.EmitCChar(builder, ((CharacterLiteral)value).Character);
-                builder.Append("\"");
+                    IntermediateRepresentation.Values.CharacterLiteral.EmitCChar(builder, ((CharacterLiteral)value).Character, false);
+                builder.Append('\"');
                 return builder.ToString();
             }
             else
@@ -173,6 +173,21 @@ namespace NoHoPython.Syntax.Values
 
         public override string ToString() => $"marshal {ElementType}[{Length}]({Address})";
     }
+
+    public sealed partial class FlagLiteral : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public readonly string Flag;
+
+        public FlagLiteral(SourceLocation sourceLocation, string flag)
+        {
+            SourceLocation = sourceLocation;
+            Flag = flag;
+        }
+
+        public override string ToString() => $"flag {Flag}";
+    }
 }
 
 namespace NoHoPython.Syntax.Parsing
@@ -192,7 +207,7 @@ namespace NoHoPython.Syntax.Parsing
                 MatchAndScanToken(TokenType.More);
             }
 
-            List<IAstValue> elements = new List<IAstValue>();
+            List<IAstValue> elements = new();
             while (scanner.LastToken.Type != TokenType.CloseBracket)
             {
                 elements.Add(ParseExpression());

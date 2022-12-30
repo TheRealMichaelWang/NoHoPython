@@ -7,7 +7,29 @@ using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
-    public sealed partial class ComparativeOperator : IRValue
+    public abstract partial class BinaryOperator : IRValue
+    {
+        public abstract IType Type { get; }
+        public virtual bool IsTruey => false;
+        public virtual bool IsFalsey => false;
+
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public IRValue Left { get; protected set; }
+        public IRValue Right { get; protected set; }
+
+        public bool ShortCircuit { get; protected set; }
+
+        public BinaryOperator(IRValue left, IRValue right, bool shortCuircuit, IAstElement errorReportedElement)
+        {
+            Left = left;
+            Right = right;
+            ShortCircuit = shortCuircuit;
+            ErrorReportedElement = errorReportedElement;
+        }
+    }
+
+    public sealed partial class ComparativeOperator : BinaryOperator
     {
         public enum CompareOperation
         {
@@ -19,23 +41,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
             LessEqual
         }
 
-        public IType Type => new BooleanType();
-        public bool IsTruey => false;
-        public bool IsFalsey => false;
-
-        public IAstElement ErrorReportedElement { get; private set; }
+        public override IType Type => new BooleanType();
 
         public CompareOperation Operation { get; private set; }
 
-        public IRValue Left { get; private set; }
-        public IRValue Right { get; private set; }
-
-        public ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement)
+        public ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, false, errorReportedElement)
         {
             Operation = operation;
-            Left = left;
-            Right = right;
-            ErrorReportedElement = errorReportedElement;
 
             if (left.Type is IPropertyContainer propertyContainer && !propertyContainer.HasProperty("compare"))
             {
@@ -55,7 +67,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public sealed partial class LogicalOperator : IRValue
+    public sealed partial class LogicalOperator : BinaryOperator
     {
         public enum LogicalOperation
         {
@@ -63,23 +75,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Or
         }
 
-        public IAstElement ErrorReportedElement { get; private set; }
-
-        public IType Type => new BooleanType();
-        public bool IsTruey => false;
-        public bool IsFalsey => false;
+        public override IType Type => new BooleanType();
+        public override bool IsTruey => (Operation == LogicalOperation.And ? Left.IsTruey && Right.IsTruey : Left.IsTruey || Right.IsTruey);
+        public override bool IsFalsey => (Operation == LogicalOperation.And ? Left.IsFalsey || Right.IsFalsey : Left.IsFalsey && Right.IsFalsey);
 
         public LogicalOperation Operation { get; private set; }
 
-        public IRValue Right { get; private set; }
-        public IRValue Left { get; private set; }
-
-        public LogicalOperator(LogicalOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement)
+        public LogicalOperator(LogicalOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Boolean), ArithmeticCast.CastTo(right, Primitive.Boolean), true, errorReportedElement)
         {
             Operation = operation;
-            ErrorReportedElement = errorReportedElement;
-            Right = ArithmeticCast.CastTo(right, Primitive.Boolean);
-            Left = ArithmeticCast.CastTo(left, Primitive.Boolean);
         }
     }
 
@@ -93,12 +97,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     index
                 }, array.ErrorReportedElement)
                 : array.Type is HandleType
-                ? new MemoryGet(expectedType == null ? throw new UnexpectedTypeException(Primitive.Nothing, errorReportedElement) : expectedType, array, index, errorReportedElement)
+                ? new MemoryGet(expectedType ?? throw new UnexpectedTypeException(Primitive.Nothing, errorReportedElement), array, index, errorReportedElement)
                 : (IRValue)new GetValueAtIndex(array, index, errorReportedElement);
         }
 
         public IAstElement ErrorReportedElement { get; private set; }
-
         public IType Type { get; private set; }
         public bool IsTruey => false;
         public bool IsFalsey => false;
@@ -108,15 +111,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         private GetValueAtIndex(IRValue array, IRValue index, IAstElement errorReportedElement)
         {
-            Array = array;
-            Index = index;
-            ErrorReportedElement = errorReportedElement;
+            if (array.Type is ArrayType arrayType)
+                Type = arrayType.ElementType;
+            else
+                throw new UnexpectedTypeException(array.Type, errorReportedElement);
 
-            if (Array.Type is not ArrayType)
-                throw new UnexpectedTypeException(Array.Type, Array.ErrorReportedElement);
-            if (Index.Type is not IntegerType)
-                throw new UnexpectedTypeException(Array.Type, Array.ErrorReportedElement);
-            Type = ((ArrayType)Array.Type).ElementType;
+            Array = array;
+            Index = ArithmeticCast.CastTo(index, Primitive.Integer);
+            ErrorReportedElement = errorReportedElement;
         }
     }
     
@@ -203,9 +205,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (record.Type is RecordType propertyContainer)
             {
-				if(!propertyContainer.HasProperty(propertyName))
-                	throw new UnexpectedTypeException(record.Type, errorReportedElement);
-				
+                if (!propertyContainer.HasProperty(propertyName))
+                    throw new UnexpectedTypeException(record.Type, errorReportedElement);
+
                 Property = (RecordDeclaration.RecordProperty)propertyContainer.FindProperty(propertyName);
                 Value = ArithmeticCast.CastTo(value, Property.Type);
             }

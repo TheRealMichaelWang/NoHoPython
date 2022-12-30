@@ -112,7 +112,7 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource)
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent)
         {
             if(RequiresDisposal)
                 emitter.AppendLine($"free_enum{GetStandardIdentifier(irProgram)}({valueCSource});");
@@ -180,6 +180,7 @@ namespace NoHoPython.Typing
             {
                 if (i > 0)
                     emitter.AppendLine(",");
+                emitter.Append('\t');
                 emitter.Append(GetCEnumOptionForType(irProgram, options.Value[i]));
             }
             emitter.AppendLine();
@@ -251,7 +252,7 @@ namespace NoHoPython.Typing
                 {
                     emitter.AppendLine($"\tcase {GetCEnumOptionForType(irProgram, option)}:");
                     emitter.Append("\t\t");
-                    option.EmitFreeValue(irProgram, emitter, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set");
+                    option.EmitFreeValue(irProgram, emitter, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set", "NULL");
                     emitter.AppendLine("\t\tbreak;");
                 }
             emitter.AppendLine("\t}");
@@ -288,7 +289,7 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine($"{GetCName(irProgram)} move_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
             emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "*dest");
+            EmitFreeValue(irProgram, emitter, "*dest", "NULL");
             emitter.AppendLine($"\t*dest = src;");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");

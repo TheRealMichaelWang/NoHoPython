@@ -1,4 +1,6 @@
-﻿namespace NoHoPython.Syntax.Parsing
+﻿using System.Text;
+
+namespace NoHoPython.Syntax.Parsing
 {
     public sealed class UnrecognizedEscapeCharacterException : Exception
     {
@@ -28,7 +30,7 @@
         }
     }
 
-    public sealed class Scanner
+    public sealed partial class Scanner
     {
         private sealed class FileVisitor
         {
@@ -323,6 +325,7 @@
                     "or" => TokenType.Or,
                     "new" => TokenType.New,
                     "marshal" => TokenType.Marshal,
+                    "flag" => TokenType.Flag,
                     "as" => TokenType.As,
                     "include" => TokenType.Include,
                     "cinclude" => TokenType.CInclude,
@@ -337,7 +340,7 @@
                     numStr += lastChar;
                     ScanChar();
                 } while (char.IsDigit(lastChar) || lastChar == '.');
-                if(lastChar == 'd' || lastChar == 'f')
+                if (lastChar == 'd' || lastChar == 'f')
                 {
                     ScanChar();
                     return LastToken = new Token(TokenType.DecimalLiteral, numStr);
@@ -355,23 +358,36 @@
             }
             else if (lastChar == '\"')
             {
-                string buffer = string.Empty;
                 ScanChar();
+                StringBuilder buffer = new();
                 while (lastChar != '\"')
-                    buffer += ScanCharLiteral();
+                {
+                    if (lastChar == '\0')
+                        throw new UnexpectedCharacterException('\0', lastChar);
+                    else
+                        buffer.Append(ScanCharLiteral());
+                }
                 ScanChar();
-                return LastToken = new Token(TokenType.StringLiteral, buffer);
+                return LastToken = new Token(TokenType.StringLiteral, buffer.ToString());
             }
-            else if(lastChar == '#')
+            else if (lastChar == '$')
+                return ParseInterpolatedStart();
+            else if (lastChar == '#')
             {
                 do
                 {
                     ScanChar();
                 } while (lastChar != '\0' && lastChar != '\n');
                 return ScanToken();
-            }    
+            }
             else
-                return LastToken = new Token(ScanSymbol(), string.Empty);
+            {
+                Token? interpolatedTok = ContinueParseInterpolated();
+                if (interpolatedTok == null)
+                    return LastToken = new Token(ScanSymbol(), string.Empty);
+                else
+                    return LastToken = interpolatedTok.Value;
+            }
         }
     }
 }

@@ -2,12 +2,17 @@
 {
     public enum TokenType
     {
-        //keywords
+        //literals
         Identifier,
         IntegerLiteral,
         DecimalLiteral,
         CharacterLiteral,
         StringLiteral,
+        InterpolatedStart,
+        InterpolatedMiddle,
+        InterpolatedEnd,
+
+        //keywords
         True,
         False,
         Module,
@@ -42,6 +47,7 @@
         Or,
         New,
         Marshal,
+        Flag,
         As,
         Readonly,
         Nothing,

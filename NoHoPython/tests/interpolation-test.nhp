@@ -1,0 +1,37 @@
+﻿include "io.nhp"
+include "mem.nhp"
+
+class person:
+	array<char> name
+	int age
+
+	def __init__(array<char> name, int age):
+		self.name = name
+		self.age = age
+
+	def to_array_char() array<char>:
+		return $"Name: {self.name}, Age: {self.age}"
+
+def interpol_str_test():
+	input = io::input()
+	output = io::output()
+
+	output.writeLine($"{{I}} like string interpolation!")
+
+	name = input.readLine()
+	output.writeLine($"Hello there, {name}! You are a bold one!")
+
+	age = input.readInt()
+	output.writeLine($"Nice, you're {age} year(s) old!")
+
+	#test two interpolated values
+	output.writeLine($"You're name is {name}, and you're {age} year(s) old!")
+
+	you = new person(name, age)
+	output.writeLine(you)
+	output.writeLine($"You're {you}!")
+
+	#abort $"Yo, {name}, interpolated strings make aborts way easier!"
+
+def main():
+	mem::leaksan(interpol_str_test)

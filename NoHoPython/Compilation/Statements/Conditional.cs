@@ -13,22 +13,37 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
             Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
-            Condition.ScopeForUsedTypes(typeargs, irBuilder);
-            IfTrueValue.ScopeForUsedTypes(typeargs, irBuilder);
-            IfFalseValue.ScopeForUsedTypes(typeargs, irBuilder);
+
+            if (Condition.IsTruey)
+                IfTrueValue.ScopeForUsedTypes(typeargs, irBuilder);
+            else if (Condition.IsFalsey)
+                IfFalseValue.ScopeForUsedTypes(typeargs, irBuilder);
+            else
+            {
+                Condition.ScopeForUsedTypes(typeargs, irBuilder);
+                IfTrueValue.ScopeForUsedTypes(typeargs, irBuilder);
+                IfFalseValue.ScopeForUsedTypes(typeargs, irBuilder);
+            }
         }
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            emitter.Append('(');
-            emitter.Append('(');
-            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
-            emitter.Append(") ? (");
-            IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs);
-            emitter.Append(") : (");
-            IRValue.EmitMemorySafe(IfFalseValue, irProgram, emitter, typeargs);
-            emitter.Append(')');
-            emitter.Append(')');
+            if (Condition.IsTruey)
+                IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs);
+            else if (Condition.IsFalsey)
+                IRValue.EmitMemorySafe(IfFalseValue, irProgram, emitter, typeargs);
+            else
+            {
+                emitter.Append('(');
+                emitter.Append('(');
+                IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
+                emitter.Append(") ? (");
+                IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs);
+                emitter.Append(") : (");
+                IRValue.EmitMemorySafe(IfFalseValue, irProgram, emitter, typeargs);
+                emitter.Append(')');
+                emitter.Append(')');
+            }
         }
     }
 }
@@ -67,14 +82,24 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 foreach (VariableDeclaration declaration in DeclaredVariables)
                     declaration.EmitCFree(irProgram, emitter, typeargs, indent);
+                
                 if (insertFinalBreak)
                 {
+                    if (BreakLabelId != null)
+                        throw new InvalidOperationException();
+
                     CIndent(emitter, indent + 1);
                     emitter.AppendLine("break;");
                 }
             }
             CIndent(emitter, indent);
             emitter.AppendLine("}");
+
+            if (BreakLabelId != null)
+            {
+                CIndent(emitter, indent);
+                emitter.AppendLine($"loopbreaklabel{BreakLabelId.Value}:");
+            }
         }
 
         public virtual void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
@@ -92,9 +117,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            if (Condition.IsTruey)
+            if (Condition.IsTruey && Condition.IsPure)
                 IfTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
-            else if (Condition.IsFalsey)
+            else if (Condition.IsFalsey && Condition.IsPure)
                 IfFalseBlock.ScopeForUsedTypes(typeargs, irBuilder);
             else
             {
@@ -106,10 +131,16 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
-            if (Condition.IsTruey)
+            if (Condition.IsTruey && Condition.IsPure)
+            {
+                CodeBlock.CIndent(emitter, indent);
                 IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
-            else if (Condition.IsFalsey)
+            }
+            else if (Condition.IsFalsey && Condition.IsPure)
+            {
+                CodeBlock.CIndent(emitter, indent);
                 IfFalseBlock.Emit(irProgram, emitter, typeargs, indent);
+            }
             else
             {
                 CodeBlock.CIndent(emitter, indent);
@@ -129,30 +160,35 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            if (Condition.IsFalsey)
+            if (Condition.IsFalsey && Condition.IsPure)
                 return;
-
-            if(!Condition.IsTruey)
+            if (Condition.IsTruey && Condition.IsPure)
+                IfTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+            else
+            {
                 Condition.ScopeForUsedTypes(typeargs, irBuilder);
-            
-            IfTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+                IfTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+            }
         }
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
-
-            if (Condition.IsFalsey)
+            if (Condition.IsFalsey && Condition.IsPure)
                 return;
 
-            if (!Condition.IsTruey)
+            if (Condition.IsTruey && Condition.IsPure)
+            {
+                CodeBlock.CIndent(emitter, indent);
+                IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
+            }
+            else
             {
                 CodeBlock.CIndent(emitter, indent);
                 emitter.Append("if(");
                 IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
                 emitter.Append(')');
+                IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
             }
-
-            IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
         }
     }
 
@@ -160,22 +196,25 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            if (Condition.IsFalsey)
+            if (Condition.IsFalsey && Condition.IsPure)
                 return;
 
-            if (!Condition.IsTruey)
+            if (Condition.IsTruey && Condition.IsPure)
+                WhileTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+            else
+            {
                 Condition.ScopeForUsedTypes(typeargs, irBuilder);
-
-            WhileTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+                WhileTrueBlock.ScopeForUsedTypes(typeargs, irBuilder);
+            }
         }
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
-            if (Condition.IsFalsey)
+            if (Condition.IsFalsey && Condition.IsPure)
                 return;
-            
+
             CodeBlock.CIndent(emitter, indent);
-            if (Condition.IsTruey)
+            if (Condition.IsTruey && Condition.IsPure)
                 emitter.Append("for(;;)");
             else
             {
@@ -183,7 +222,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
                 emitter.Append(')');
             }
-
             WhileTrueBlock.Emit(irProgram, emitter, typeargs, indent);
         }
     }
@@ -210,7 +248,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine(";");
             
             CodeBlock.CIndent(emitter, indent + 1);
-            emitter.AppendLine($"while((++{IteratorVariableDeclaration.Variable.GetStandardIdentifier(irProgram)}) <= _nhp_upper_{IteratorVariableDeclaration.Variable.Name}) {{");
+            emitter.AppendLine($"while((++{IteratorVariableDeclaration.Variable.GetStandardIdentifier()}) <= _nhp_upper_{IteratorVariableDeclaration.Variable.Name}) {{");
             IterationBlock.EmitNoOpen(irProgram, emitter, typeargs, indent + 1, false);
             CodeBlock.CIndent(emitter, indent);
             emitter.AppendLine("}");
@@ -245,7 +283,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (handler.MatchedVariable != null)
                 {
                     CodeBlock.CIndent(emitter, indent + 1);
-                    emitter.Append($"{currentOption.GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier(irProgram)} = ");
+                    emitter.Append($"{currentOption.GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier()} = ");
                     IRValue.EmitMemorySafe(MatchValue.GetPostEvalPure(), irProgram, emitter, typeargs);
                     emitter.AppendLine($".data.{currentOption.GetStandardIdentifier(irProgram)}_set;");
                 }
@@ -276,12 +314,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
                 {
                     CodeBlock.CIndent(emitter, indent);
-                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, variable.GetStandardIdentifier(irProgram));
+                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, variable.GetStandardIdentifier(), "NULL");
                 }
 
             CodeBlock.CIndent(emitter, indent);
             if (Action.Type == Syntax.Parsing.TokenType.Break)
-                emitter.AppendLine("break;");
+                emitter.AppendLine($"goto loopbreaklabel{breakLabelId};");
             else
                 emitter.AppendLine("continue;");
         }
@@ -322,12 +360,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.Append("_nhp_assert(");
             IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
             emitter.Append(", ");
-            CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString());
+            CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString(), false, true);
             emitter.Append(", ");
             if (ErrorReportedElement is Syntax.IAstStatement statement)
-                CharacterLiteral.EmitCString(emitter, statement.ToString(0));
+                CharacterLiteral.EmitCString(emitter, statement.ToString(0), false, true);
             else if (ErrorReportedElement is Syntax.IAstValue value)
-                CharacterLiteral.EmitCString(emitter, value.ToString());
+                CharacterLiteral.EmitCString(emitter, value.ToString(), false, true);
             emitter.AppendLine(");");
         }
     }

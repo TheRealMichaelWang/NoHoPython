@@ -94,7 +94,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 }
                 else
                     MatchedVariable = null;
-                ToExecute.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, toExecuteStatements));
+                ToExecute.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, toExecuteStatements), irBuilder);
                 irBuilder.SymbolMarshaller.GoBack();
             }
         }
@@ -120,12 +120,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public Token Action { get; private set; }
 
         private List<Variable> activeLoopVariables;
+        private int? breakLabelId;
 
         public LoopStatement(Token action, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
             Action = action;
             activeLoopVariables = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetLoopLocals(errorReportedElement);
+
+            breakLabelId = action.Type == TokenType.Break ? irBuilder.SymbolMarshaller.CurrentCodeBlock.GetLoopBreakLabelId(errorReportedElement, irBuilder) : null;
         }
     }
 
@@ -147,16 +150,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     public sealed partial class IfElseValue : IRValue
     {
-        public static IRValue ComposeIfElseValue(IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue, IAstElement errorReportedElement)
-        {
-            if (condition.IsTruey)
-                return ifTrueValue;
-            else if (condition.IsFalsey)
-                return ifFalseValue;
-            else
-                return new IfElseValue(condition, ifTrueValue, ifFalseValue, errorReportedElement);
-        }
-
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type { get; private set; }
 
@@ -167,7 +160,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue IfTrueValue { get; private set; }
         public IRValue IfFalseValue { get; private set; }
 
-        private IfElseValue(IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue, IAstElement errorReportedElement)
+        public IfElseValue(IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
             Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
@@ -226,14 +219,14 @@ namespace NoHoPython.Syntax.Statements
             IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, false);
 
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
-            scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, IfTrueBlock));
+            scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, IfTrueBlock), irBuilder);
             irBuilder.SymbolMarshaller.GoBack();
 
             if (scopedNextIf != null)
             {
                 irBuilder.SymbolMarshaller.NavigateToScope(scopedNextIf);
 #pragma warning disable CS8602 // NextIf is never null when scopedNextIf isn't
-                scopedNextIf.DelayedLinkSetStatements(new List<IRStatement>() { NextIf.GenerateIntermediateRepresentationForStatement(irBuilder) });
+                scopedNextIf.DelayedLinkSetStatements(new List<IRStatement>() { NextIf.GenerateIntermediateRepresentationForStatement(irBuilder) }, irBuilder);
 #pragma warning restore CS8602
                 irBuilder.SymbolMarshaller.GoBack();
                 return new IfElseBlock(condition, scopedCodeBlock, scopedNextIf, this);
@@ -262,7 +255,7 @@ namespace NoHoPython.Syntax.Statements
         public CodeBlock GenerateIRCodeBlock(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(scopedToExecute);
-            scopedToExecute.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
+            scopedToExecute.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute), irBuilder);
             irBuilder.SymbolMarshaller.GoBack();
             return scopedToExecute;
         }
@@ -286,7 +279,7 @@ namespace NoHoPython.Syntax.Statements
             IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, true);
 
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
-            scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
+            scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute), irBuilder);
             irBuilder.SymbolMarshaller.GoBack();
 
             return new IntermediateRepresentation.Statements.WhileBlock(condition, scopedCodeBlock, this);
@@ -313,7 +306,7 @@ namespace NoHoPython.Syntax.Statements
 
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
             VariableDeclaration iteratorDeclaration = new(IteratorIdentifier, lowerBound, false, irBuilder, this);
-            scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute));
+            scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute), irBuilder);
             irBuilder.SymbolMarshaller.GoBack();
 
             return new IntermediateRepresentation.Statements.IterationForLoop(iteratorDeclaration, upperBound, scopedCodeBlock, this);
@@ -366,7 +359,7 @@ namespace NoHoPython.Syntax.Statements
                 {
                     irBuilder.SymbolMarshaller.NavigateToScope(defaultHandlerCodeBlock);
 #pragma warning disable CS8604 // Default handler is not null when defaultHandlerCodeBlock isn't null
-                    defaultHandlerCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, DefaultHandler));
+                    defaultHandlerCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, DefaultHandler), irBuilder);
 #pragma warning restore CS8604
                     irBuilder.SymbolMarshaller.GoBack();
                 }
@@ -399,6 +392,6 @@ namespace NoHoPython.Syntax.Values
 {
     partial class IfElseValue
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => IntermediateRepresentation.Values.IfElseValue.ComposeIfElseValue(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), IfTrueValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), IfFalseValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), IfTrueValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), IfFalseValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this);
     }
 }

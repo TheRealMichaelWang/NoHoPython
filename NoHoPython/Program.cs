@@ -8,14 +8,6 @@ public static class Program
 {
     public static int Main(string[] args)
     {
-        MemoryAnalyzer.AnalysisMode requestedAnalysisMode()
-        {
-            if (args.Contains("-leaksan") || args.Contains("-meman1"))
-                return MemoryAnalyzer.AnalysisMode.LeakSanityCheck;
-            else if (args.Contains("-leaksize") || args.Contains("-meman2"))
-                return MemoryAnalyzer.AnalysisMode.UsageMagnitudeCheck;
-            return MemoryAnalyzer.AnalysisMode.None;
-        }
 
         Console.Title = "North-Hollywood Python Compiler";
 
@@ -39,10 +31,28 @@ public static class Program
 
             List<IAstStatement> statements = parser.ParseAll();
 
+            List<string> flags = new();
+            MemoryAnalyzer.AnalysisMode requestedAnalysisMode()
+            {
+                if (args.Contains("-leaksan") || args.Contains("-meman1"))
+                {
+                    flags.Add("mem1");
+                    return MemoryAnalyzer.AnalysisMode.LeakSanityCheck;
+                }
+                else if (args.Contains("-leaksize") || args.Contains("-meman2"))
+                {
+                    flags.Add("mem2");
+                    return MemoryAnalyzer.AnalysisMode.UsageMagnitudeCheck;
+                }
+                flags.Add("mem0");
+                return MemoryAnalyzer.AnalysisMode.None;
+            }
             MemoryAnalyzer memoryAnalyzer = new MemoryAnalyzer(requestedAnalysisMode(), args.Contains("-memfail"));
 
-            AstIRProgramBuilder astIRProgramBuilder = new(statements);
-            IRProgram program = astIRProgramBuilder.ToIRProgram(args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), memoryAnalyzer);
+            for (int i = 2; i < args.Length; i++)
+                flags.Add(args[i]);
+            AstIRProgramBuilder astIRProgramBuilder = new(statements, flags);
+            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), !args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), memoryAnalyzer);
             parser.IncludeCFiles(program);
 
             string outputFile;

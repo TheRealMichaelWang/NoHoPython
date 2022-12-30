@@ -49,7 +49,8 @@ namespace NoHoPython.Typing
     public sealed partial class TypeParameterReference : IType
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
-        public string TypeName { get => TypeParameter.Name; }
+        public string TypeName => TypeParameter.Name;
+        public string Identifier => TypeName;
 
         public TypeParameter TypeParameter { get; private set; }
 
@@ -303,6 +304,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArrayLiteral(ElementType.SubstituteWithTypearg(typeargs), Elements.Select((IRValue element) => element.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
     }
 
+    partial class InterpolatedString
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new InterpolatedString(InterpolatedValues.ConvertAll((value) => value is IRValue irValue ? irValue.SubstituteWithTypearg(typeargs) : value), ErrorReportedElement);
+    }
+
     partial class AllocArray
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AllocArray(ErrorReportedElement, ElementType.SubstituteWithTypearg(typeargs), Length.SubstituteWithTypearg(typeargs), ProtoValue.SubstituteWithTypearg(typeargs));
@@ -325,7 +331,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ArithmeticOperator
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class ArrayOperator
@@ -340,12 +346,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class MemoryGet
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MemoryGet(Type.SubstituteWithTypearg(typeargs), Address.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MemoryGet(Type.SubstituteWithTypearg(typeargs), Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class MemorySet
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MemorySet(Type.SubstituteWithTypearg(typeargs), Address.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ResponsibleDestroyer == null ? null : ResponsibleDestroyer.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MemorySet(Type.SubstituteWithTypearg(typeargs), Address.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ResponsibleDestroyer?.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class MarshalIntoArray
@@ -353,14 +359,19 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MarshalIntoArray(ElementType.SubstituteWithTypearg(typeargs), Length.SubstituteWithTypearg(typeargs), Address.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
+    partial class BinaryOperator
+    {
+        public abstract IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
+    }
+
     partial class ComparativeOperator
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ComparativeOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ComparativeOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class LogicalOperator
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new LogicalOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new LogicalOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class GetValueAtIndex

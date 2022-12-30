@@ -17,5 +17,4 @@ def main():
 		mem::report()
 		testobj = new cell()
 		testobj.stuff()
-	test()
-	mem::report()
+	mem::leaksan(test)

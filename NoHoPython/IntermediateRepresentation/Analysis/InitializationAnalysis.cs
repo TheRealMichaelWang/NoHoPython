@@ -165,6 +165,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Elements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties));
     }
 
+    partial class InterpolatedString
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => InterpolatedValues.ForEach((value) =>
+        {
+            if (value is IRValue irValue)
+                irValue.AnalyzePropertyInitialization(initializedProperties);
+        });
+    }
+
     partial class AnonymizeProcedure
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
@@ -189,15 +198,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Input.AnalyzePropertyInitialization(initializedProperties);
     }
 
-    partial class ArithmeticOperator
-    {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
-        {
-            Left.AnalyzePropertyInitialization(initializedProperties);
-            Right.AnalyzePropertyInitialization(initializedProperties);
-        }
-    }
-
     partial class ArrayOperator
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => ArrayValue.AnalyzePropertyInitialization(initializedProperties);
@@ -206,15 +206,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class SizeofOperator
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
-    }
-
-    partial class MemoryGet
-    {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
-        {
-            Address.AnalyzePropertyInitialization(initializedProperties);
-            Index.AnalyzePropertyInitialization(initializedProperties);
-        }
     }
 
     partial class MemorySet
@@ -238,9 +229,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    partial class ComparativeOperator
+    partial class BinaryOperator
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
+        public virtual void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
         {
             Left.AnalyzePropertyInitialization(initializedProperties);
             Right.AnalyzePropertyInitialization(initializedProperties);
@@ -249,11 +240,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class LogicalOperator
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties)
-        {
-            Left.AnalyzePropertyInitialization(initializedProperties);
-            Right.AnalyzePropertyInitialization(initializedProperties);
-        }
+        //only examine left hand side because of short circuiting
+        public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Left.AnalyzePropertyInitialization(initializedProperties);
     }
 
     partial class GetValueAtIndex

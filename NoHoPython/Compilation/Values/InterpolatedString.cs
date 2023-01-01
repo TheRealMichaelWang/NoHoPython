@@ -13,7 +13,7 @@ namespace NoHoPython.Typing
     partial class Primitive
     {
         public abstract string GetFormatSpecifier();
-        public void EmitFormatValue(StringBuilder emitter, string valueCSource) => emitter.Append(valueCSource);
+        public virtual void EmitFormatValue(StringBuilder emitter, string valueCSource) => emitter.Append(valueCSource);
     }
 
     partial class ArrayType
@@ -37,7 +37,9 @@ namespace NoHoPython.Typing
 
     partial class BooleanType
     {
-        public override string GetFormatSpecifier() => "%i";
+        public override string GetFormatSpecifier() => "%s";
+
+        public override void EmitFormatValue(StringBuilder emitter, string valueCSource) => emitter.Append($"(({valueCSource}) ? \"true\" : \"false\")");
     }
 
     partial class CharacterType
@@ -58,6 +60,12 @@ namespace NoHoPython.Typing
     partial class HandleType
     {
         public override string GetFormatSpecifier() => "%p";
+    }
+
+    partial class EmptyEnumOption
+    {
+        public string GetFormatSpecifier() => throw new NoFormatSpecifierForType(this);
+        public void EmitFormatValue(StringBuilder emitter, string valueCSource) => throw new InvalidOperationException();
     }
 
     partial class EnumType

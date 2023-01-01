@@ -25,8 +25,6 @@ namespace NoHoPython.Typing
                 existingTypeArguments[i].MatchTypeArgumentWithType(typeargs, arguments[i], errorReportedElement);
         }
 
-        public bool IsGloballyNavigable => false;
-
         public string Name { get; private set; }
         public InterfaceType? RequiredImplementedInterface { get; private set; }
 
@@ -51,6 +49,7 @@ namespace NoHoPython.Typing
     {
         public string TypeName => TypeParameter.Name;
         public string Identifier => TypeName;
+        public bool IsEmpty => false;
 
         public TypeParameter TypeParameter { get; private set; }
 
@@ -67,9 +66,9 @@ namespace NoHoPython.Typing
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs)
         {
             if (!typeargs.ContainsKey(TypeParameter))
-                return Clone();
+                return this;
 
-            return typeargs[TypeParameter].Clone();
+            return typeargs[TypeParameter];
         }
 
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
@@ -157,13 +156,26 @@ namespace NoHoPython.Typing
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NothingType();
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
-
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
             if (!IsCompatibleWith(argument))
                 throw new UnexpectedTypeException(this, errorReportedElement);
         }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
+    }
+
+    partial class EmptyEnumOption
+    {
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => this;
+
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
+        {
+            if (!argument.IsCompatibleWith(this))
+                throw new UnexpectedTypeException(argument, errorReportedElement);
+        }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
     }
 
     partial class EnumType

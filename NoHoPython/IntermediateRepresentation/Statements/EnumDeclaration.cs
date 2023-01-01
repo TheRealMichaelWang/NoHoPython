@@ -10,7 +10,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
         public SymbolContainer ParentContainer { get; private set; }
 
-        public bool IsGloballyNavigable => true;
+        public override bool IsGloballyNavigable => true;
 
         public string Name { get; private set; }
 
@@ -117,6 +117,35 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
 namespace NoHoPython.Typing
 {
+    public sealed partial class EmptyEnumOption : IType, IScopeSymbol
+    {
+        public SymbolContainer ParentContainer => EnumDeclaration;
+        public EnumDeclaration EnumDeclaration { get; private set; }
+
+        public string Name { get; private set; }
+
+        public string TypeName => Name;
+        public string Identifier => IScopeSymbol.GetAbsolouteName(this);
+        public bool IsEmpty => true;
+
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+
+        public EmptyEnumOption(string name, EnumDeclaration enumDeclaration)
+        {
+            Name = name;
+            EnumDeclaration = enumDeclaration;
+        }
+
+        public bool IsCompatibleWith(IType type)
+        {
+            if(type is EmptyEnumOption emptyEnumOption)
+            {
+                return emptyEnumOption.EnumDeclaration == EnumDeclaration && emptyEnumOption.Name == emptyEnumOption.Name;
+            }
+            return false;
+        }
+    }
+
 #pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class EnumType : IType, IPropertyContainer
 #pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
@@ -125,7 +154,8 @@ namespace NoHoPython.Typing
 
         public bool IsNativeCType => false;
         public string TypeName => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
-        public string Identifier => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public string Identifier => $"{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public bool IsEmpty => false;
 
         public EnumDeclaration EnumDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;
@@ -178,9 +208,6 @@ namespace NoHoPython.Typing
                     if (foundFlag)
                         propertyIdMap.Add(property.Name, property);
                 };
-                //foreach (InterfaceType requiredImplementedInterface in EnumDeclaration.GetRequiredImplementedInterfaces(this))
-                //    if (!requiredImplementedInterface.SupportsProperties(propertyIdMap.Values.ToList()))
-                //        throw new UnexpectedTypeException(this, EnumDeclaration.ErrorReportedElement);
                 return propertyIdMap;
             });
         }

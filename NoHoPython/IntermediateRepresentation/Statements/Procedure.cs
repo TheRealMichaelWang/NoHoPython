@@ -57,7 +57,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public IAstElement ErrorReportedElement { get; private set; }
         public SymbolContainer ParentContainer { get; private set; }
 
-        public bool IsGloballyNavigable => true;
         public string Name { get; private set; }
 
         public bool IsCompileHead => TypeParameters.Count == 0 && CapturedVariables.Count == 0 && parentContainer.IsHeadContainer;
@@ -281,7 +280,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public SymbolContainer ParentContainer { get; private set; }
         public IAstElement ErrorReportedElement { get; private set; }
-        public bool IsGloballyNavigable => true;
 
         public string Name { get; private set; }
 

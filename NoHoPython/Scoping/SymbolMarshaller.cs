@@ -11,6 +11,8 @@ namespace NoHoPython.Scoping
     public abstract class SymbolContainer
     {
         public bool IsHeadContainer { get; private set; }
+        public abstract bool IsGloballyNavigable { get; }
+
         private Dictionary<string, IScopeSymbol> symbols;
 
         public SymbolContainer(bool isHeadContainer = false)
@@ -43,7 +45,7 @@ namespace NoHoPython.Scoping
             public IAstElement ErrorReportedElement { get; private set; }
             public SymbolContainer ParentContainer { get; private set; }
 
-            public bool IsGloballyNavigable => true;
+            public override bool IsGloballyNavigable => true;
             public string Name { get; private set; }
 
             private List<IRStatement> statements;
@@ -86,9 +88,9 @@ namespace NoHoPython.Scoping
 #pragma warning restore CS8625
         }
 
-        public IScopeSymbol FindSymbol(string identifier, Syntax.IAstElement errorReportedElement)
+        public IScopeSymbol FindSymbol(string identifier, IAstElement errorReportedElement)
         {
-            static IScopeSymbol FindSymbolFromContainer(string identifier, SymbolContainer currentContainer, bool fromGlobalStack, Syntax.IAstElement errorReportedElement)
+            static IScopeSymbol FindSymbolFromContainer(string identifier, SymbolContainer currentContainer, bool fromGlobalStack, IAstElement errorReportedElement)
             {
                 if (identifier.Contains(' '))
                     throw new ArgumentException("Identifier cannot contain spaces.");
@@ -98,9 +100,20 @@ namespace NoHoPython.Scoping
                 for (int i = 0; i < parts.Length - 1; i++)
                 {
                     IScopeSymbol? symbol = scopedContainer.FindSymbol(parts[i], errorReportedElement);
-                    scopedContainer = symbol == null || (fromGlobalStack && !symbol.IsGloballyNavigable)
-                        ? throw new SymbolNotFoundException(parts[i], scopedContainer, errorReportedElement)
-                        : symbol is SymbolContainer symbolContainer ? symbolContainer : throw new SymbolNotModuleException(symbol, errorReportedElement);
+                    if (symbol == null)
+                        throw new SymbolNotFoundException(parts[i], scopedContainer, errorReportedElement);
+                    else if (symbol is SymbolContainer symbolContainer)
+                    {
+                        if (fromGlobalStack && !symbolContainer.IsGloballyNavigable)
+                            throw new SymbolNotFoundException(parts[i], symbolContainer, errorReportedElement);
+                        scopedContainer = symbolContainer;
+                    }
+                    else
+                        throw new SymbolNotModuleException(symbol, errorReportedElement);
+
+                    //scopedContainer = symbol == null || (fromGlobalStack && !symbol.IsGloballyNavigable)
+                    //    ? throw new SymbolNotFoundException(parts[i], scopedContainer, errorReportedElement)
+                    //    : symbol is SymbolContainer symbolContainer ? symbolContainer : throw new SymbolNotModuleException(symbol, errorReportedElement);
                 }
 
                 string finalIdentifier = parts.Last();

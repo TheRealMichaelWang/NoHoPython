@@ -12,6 +12,7 @@ namespace NoHoPython.Typing
 
         public string TypeName { get; }
         public string Identifier { get; }
+        public bool IsEmpty { get; }
 
         public string GetCName(IRProgram irProgram);
         public string GetStandardIdentifier(IRProgram irProgram);
@@ -33,9 +34,8 @@ namespace NoHoPython.Typing
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement);
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument);
-        public IType Clone();
 
-        public string ToString() => TypeName;
+        public string? ToString() => TypeName;
     }
 
     public sealed class ITypeComparer : IEqualityComparer<IType>

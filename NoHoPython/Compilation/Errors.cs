@@ -67,9 +67,9 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
-    public sealed class CannotCompileNothingError : CodegenError
+    public sealed class CannotCompileEmptyTypeError : CodegenError
     {
-        public CannotCompileNothingError(IRElement? errorReportedElement) : base(errorReportedElement, "(Internal Error)Cannot actually compile/emit a nothing literal nor scope a nothing type.")
+        public CannotCompileEmptyTypeError(IRElement? errorReportedElement) : base(errorReportedElement, "(Internal Error)Cannot actually compile/emit a nothing literal nor scope a nothing type nor any other type with no associated data.")
         {
 
         }

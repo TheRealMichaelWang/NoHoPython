@@ -9,8 +9,6 @@ namespace NoHoPython.Scoping
 {
     public sealed class Variable : IScopeSymbol
     {
-        public bool IsGloballyNavigable => false;
-
         public bool IsRecordSelf { get; private set; }
 
         public IType Type { get; private set; }
@@ -32,7 +30,6 @@ namespace NoHoPython.Scoping
 
     public sealed class CSymbol : IScopeSymbol
     {
-        public bool IsGloballyNavigable => false;
         public SymbolContainer ParentContainer { get; private set; }
 
         public IType Type { get; private set; }
@@ -49,6 +46,8 @@ namespace NoHoPython.Scoping
     public class VariableContainer : SymbolContainer
     {
         protected SymbolContainer parentContainer;
+
+        public override bool IsGloballyNavigable => false;
 
         public VariableContainer(SymbolContainer parentContainer) : base()
         {

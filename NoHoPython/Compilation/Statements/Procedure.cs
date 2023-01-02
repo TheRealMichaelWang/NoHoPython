@@ -553,7 +553,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine(";");
 
                 CodeBlock.CIndent(emitter, indent + 1);
-                emitter.AppendLine("printf(\"AbortError: %s\\n\", _nhp_abort_msg.buffer);");
+                emitter.AppendLine("printf(\"AbortError: %.*s\\n\", _nhp_abort_msg.length, _nhp_abort_msg.buffer);");
 
                 CodeBlock.CIndent(emitter, indent + 1);
                 AbortMessage.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_abort_msg", "NULL");
@@ -685,13 +685,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (RequiresDisposal(typeargs))
                 {
                     emitter.AppendLine("{");
-                    CodeBlock.CIndent(emitter, indent + 1);
+                    CodeBlock.CIndent(emitter, indent + 2);
                     emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_callrep_res0 = ");
                     EmitCall(irProgram, emitter, typeargs, bufferedArguments, 0, "NULL");
                     emitter.AppendLine(";");
-                    CodeBlock.CIndent(emitter, indent + 1);
+                    CodeBlock.CIndent(emitter, indent + 2);
                     Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_callrep_res0", "NULL");
-                    CodeBlock.CIndent(emitter, indent);
+                    CodeBlock.CIndent(emitter, indent + 1);
                     emitter.AppendLine("}");
                 }
                 else

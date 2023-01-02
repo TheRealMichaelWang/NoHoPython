@@ -21,10 +21,7 @@ namespace NoHoPython.Scoping
             IsHeadContainer = isHeadContainer;
         }
 
-        public virtual IScopeSymbol? FindSymbol(string identifier, IAstElement errorReportedElement)
-        {
-            return symbols.ContainsKey(identifier) ? symbols[identifier] : null;
-        }
+        public virtual IScopeSymbol? FindSymbol(string identifier, IAstElement errorReportedElement) => symbols.ContainsKey(identifier) ? symbols[identifier] : null;
 
         public virtual void DeclareSymbol(IScopeSymbol symbol, IAstElement errorReportElement)
         {
@@ -68,7 +65,7 @@ namespace NoHoPython.Scoping
             public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<Typing.TypeParameter, IType> typeargs, int indent) => throw new InvalidOperationException();
             public bool AllCodePathsReturn() => throw new InvalidOperationException();
 
-            public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => throw new InvalidOperationException();
+            public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
             public bool SomeCodePathsBreak() => throw new InvalidOperationException();
         }
 

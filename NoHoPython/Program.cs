@@ -80,18 +80,18 @@ public static class Program
             File.WriteAllText(outputFile, output.ToString());
             Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {outputFile}.");
         }
-        catch (SyntaxError syntaxError)
-        {
-            syntaxError.Print();
-        }
-        catch (IRGenerationError compilerError)
-        {
-            compilerError.Print();
-        }
-        catch (CodegenError codegenError)
-        {
-            codegenError.Print();
-        }
+        //catch (SyntaxError syntaxError)
+        //{
+        //    syntaxError.Print();
+        //}
+        //catch (IRGenerationError compilerError)
+        //{
+        //    compilerError.Print();
+        //}
+        //catch (CodegenError codegenError)
+        //{
+        //    codegenError.Print();
+        //}
         catch (FileNotFoundException f)
         {
             Console.WriteLine($"File not found: {f.Message}");

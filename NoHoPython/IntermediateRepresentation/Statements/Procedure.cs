@@ -56,6 +56,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public SymbolContainer ParentContainer { get; private set; }
+        public IScopeSymbol? LastMasterScope { get; private set; }
 
         public string Name { get; private set; }
 
@@ -69,12 +70,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public IType? ReturnType { get; private set; }
 
-        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType? returnType, SymbolContainer parentContainer, IAstElement errorReportedElement) : base(parentContainer, false)
+        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType? returnType, SymbolContainer parentContainer, IScopeSymbol? lastMasterScope, IAstElement errorReportedElement) : base(parentContainer, false)
         {
             Name = name;
             TypeParameters = typeParameters;
             ReturnType = returnType;
             ParentContainer = parentContainer;
+            LastMasterScope = lastMasterScope;
             ErrorReportedElement = errorReportedElement;
             CapturedVariables = new List<Variable>();
             CallSiteProcedures = new List<ProcedureDeclaration>();
@@ -446,9 +448,8 @@ namespace NoHoPython.Syntax.Statements
         {
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRProcedureDeclaration = new(Name, typeParameters, null, irBuilder.CurrentMasterScope, this);
-
-            SymbolContainer? oldMasterScope = irBuilder.CurrentMasterScope;
+            SymbolContainer? oldScope = irBuilder.SymbolMarshaller.CurrentScope;
+            IRProcedureDeclaration = new(Name, typeParameters, null, oldScope, (IScopeSymbol)irBuilder.CurrentMasterScope, this);
 
             irBuilder.SymbolMarshaller.DeclareSymbol(IRProcedureDeclaration, this);
 
@@ -462,7 +463,7 @@ namespace NoHoPython.Syntax.Statements
             List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, IRProcedureDeclaration, false));
             IRProcedureDeclaration.DelayedLinkSetParameters(parameters);
 
-            if (oldMasterScope is IntermediateRepresentation.Statements.RecordDeclaration parentRecord)
+            if (oldScope is IntermediateRepresentation.Statements.RecordDeclaration parentRecord)
             {
                 Variable selfVariable = new(parentRecord.GetSelfType(irBuilder), "self", IRProcedureDeclaration, true);
                 irBuilder.SymbolMarshaller.DeclareSymbol(selfVariable, this);
@@ -568,7 +569,7 @@ namespace NoHoPython.Syntax.Values
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
-            ProcedureDeclaration lamdaDeclaration = new($"lambdaNo{irBuilder.GetLambdaId()}", new(), null, irBuilder.CurrentMasterScope, this);
+            ProcedureDeclaration lamdaDeclaration = new($"lambdaNo{irBuilder.GetLambdaId()}", new(), null, irBuilder.SymbolMarshaller.CurrentScope, (IScopeSymbol)irBuilder.CurrentMasterScope, this);
             List<Variable> parameters = Parameters.ConvertAll((parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, lamdaDeclaration, false));
             lamdaDeclaration.DelayedLinkSetParameters(parameters);
             

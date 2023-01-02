@@ -151,22 +151,24 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void AnalyzePropertyInitialization(ProcedureDeclaration constructor)
         {
-            SortedSet<RecordProperty> initializedProperties = new();
-            constructor.CodeBlockAnalyzePropertyInitialization(initializedProperties);
 #pragma warning disable CS8602 // Only called during IR generation, following linking
+            SortedSet<RecordProperty> initializedProperties = new(properties.FindAll((property) => property.DefaultValue != null));
+            constructor.CodeBlockAnalyzePropertyInitialization(initializedProperties, this);
             foreach (RecordProperty property in properties)
-#pragma warning restore CS8602
-                if (property.DefaultValue == null && !initializedProperties.Contains(property))
+                if (!initializedProperties.Contains(property))
                     throw new PropertyNotInitialized(property, ErrorReportedElement);
+#pragma warning restore CS8602
         }
+
+#pragma warning disable CS8602 // Only called during IR generation, following linking
+        public bool AllPropertiesInitialized(SortedSet<RecordProperty> initializedProperties) => properties.TrueForAll(property => initializedProperties.Contains(property));
+#pragma warning restore CS8602
     }
 }
 
 namespace NoHoPython.Typing
 {
-#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class RecordType : IType, IPropertyContainer
-#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public bool IsNativeCType => false;
         public string TypeName => $"{RecordPrototype.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";

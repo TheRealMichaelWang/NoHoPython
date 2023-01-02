@@ -616,8 +616,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
 
             int constArgs = Arguments.Where(x => x.IsConstant && x.IsPure).Count();
-            if (irProgram.EmitExpressionStatements && (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)) || (!Arguments.TrueForAll((arg) => arg.IsPure) && constArgs < Arguments.Count - 1)))
+            if ((irProgram.EmitExpressionStatements && !Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs))) 
+                || ((!Arguments.TrueForAll((arg) => arg.IsPure) && constArgs < Arguments.Count - 1)))
             {
+                if (!irProgram.EmitExpressionStatements)
+                    throw new CannotEnsureOrderOfEvaluation(this);
+
                 emitter.Append("({");
                 SortedSet<int> bufferedArguments = new();
                 for (int i = 0; i < Arguments.Count; i++)

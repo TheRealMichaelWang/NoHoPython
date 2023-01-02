@@ -83,7 +83,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine($"{recordType.GetCName(irProgram)} change_resp_owner{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, void* responsible_destroyer);");
 
                 if (!recordType.HasCopier)
-                    emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}(const {recordType.GetCName(irProgram)} record, void* responsible_destroyer);");
+                    emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, void* responsible_destroyer);");
                 if (!irProgram.EmitExpressionStatements)
                     emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src);");
             }
@@ -255,7 +255,7 @@ namespace NoHoPython.Typing
             if (HasCopier)
                 return;
 
-            emitter.AppendLine($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}(const {GetCName(irProgram)} record, void* responsible_destroyer) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, void* responsible_destroyer) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} copied_record = {irProgram.MemoryAnalyzer.Allocate(GetCHeapSizer(irProgram))};");
             emitter.AppendLine("\tcopied_record->_nhp_ref_count = 0;");
             emitter.AppendLine("\tcopied_record->_nhp_lock = 0;");

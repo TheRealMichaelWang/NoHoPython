@@ -44,7 +44,7 @@ namespace NoHoPython.IntermediateRepresentation
         {
             foreach (ArrayType arrayType in usedArrayTypes)
             {
-                emitter.Append($"{arrayType.GetCName(this)} marshal{arrayType.GetStandardIdentifier(this)}(const {arrayType.ElementType.GetCName(this)}* buffer, int length");
+                emitter.Append($"{arrayType.GetCName(this)} marshal{arrayType.GetStandardIdentifier(this)}({arrayType.ElementType.GetCName(this)}* buffer, int length");
                 if (arrayType.HasResponsibleDestroyer)
                     emitter.Append(", void* responsible_destroyer");
                 emitter.AppendLine(");");
@@ -63,7 +63,10 @@ namespace NoHoPython.IntermediateRepresentation
                 if (arrayType.ElementType.RequiresDisposal)
                 {
                     emitter.AppendLine($"void free{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_free);");
-                    emitter.AppendLine($"{arrayType.GetCName(this)} copy{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_copy, void* responsible_destroyer);");
+                    emitter.AppendLine($"{arrayType.GetCName(this)} copy{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_copy");
+                    if (arrayType.HasResponsibleDestroyer)
+                        emitter.Append(", void* responsible_destroyer");
+                    emitter.Append(");");
                 }
             }
         }
@@ -169,7 +172,7 @@ namespace NoHoPython.Typing
 
         public void EmitMarshaller(IRProgram irProgram, StringBuilder emitter)
         {
-            emitter.Append($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}(const {ElementType.GetCName(irProgram)}* buffer, int length");
+            emitter.Append($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}({ElementType.GetCName(irProgram)}* buffer, int length");
 
             if (HasResponsibleDestroyer)
                 emitter.Append(", void* responsible_destroyer");
@@ -188,7 +191,7 @@ namespace NoHoPython.Typing
 
             if (ElementType.RequiresDisposal)
             {
-                emitter.Append($"{GetCName(irProgram)} marshal_foreign{GetStandardIdentifier(irProgram)}(const {ElementType.GetCName(irProgram)}* buffer, int length");
+                emitter.Append($"{GetCName(irProgram)} marshal_foreign{GetStandardIdentifier(irProgram)}({ElementType.GetCName(irProgram)}* buffer, int length");
 
                 if (HasResponsibleDestroyer)
                     emitter.Append(", void* responsible_destroyer");

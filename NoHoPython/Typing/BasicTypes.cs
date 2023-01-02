@@ -107,19 +107,14 @@ namespace NoHoPython.Typing
         public string Identifier => "nothing";
         public bool IsEmpty => true;
 
-        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new NothingLiteral(errorReportedElement);
+        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new EmptyTypeLiteral(Primitive.Nothing, errorReportedElement);
 
-        public bool IsCompatibleWith(IType type)
-        {
-            return type is NothingType;
-        }
+        public bool IsCompatibleWith(IType type) => type is NothingType;
 
         public override string ToString() => TypeName;
     }
 
-#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class ArrayType : IType
-#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public string TypeName => $"array<{ElementType.TypeName}>";
         public string Identifier => $"array_{ElementType.Identifier}";

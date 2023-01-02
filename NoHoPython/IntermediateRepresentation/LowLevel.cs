@@ -19,7 +19,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             TypeToMeasure = typeToMeasure;
             ErrorReportedElement = errorReportedElement;
-            if (TypeToMeasure is NothingType)
+            if (TypeToMeasure.IsEmpty)
                 throw new UnexpectedTypeException(TypeToMeasure, errorReportedElement);
         }
     }

@@ -472,10 +472,7 @@ namespace NoHoPython.Typing
             emitter.Append(".length, ");
             CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString(), false, true);
             emitter.Append(", ");
-            if (errorReportedElement is Syntax.IAstStatement statement)
-                CharacterLiteral.EmitCString(emitter, statement.ToString(0), false, true);
-            else if (errorReportedElement is Syntax.IAstValue value)
-                CharacterLiteral.EmitCString(emitter, value.ToString(), false, true);
+            errorReportedElement.EmitSrcAsCString(emitter);
             emitter.Append(')');
         }
     }

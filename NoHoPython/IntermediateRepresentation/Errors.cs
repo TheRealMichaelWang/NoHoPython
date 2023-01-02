@@ -46,9 +46,19 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public string Property;
 
-        public PropertyAlreadyDefinedError(string property, IAstElement astElement) : base(astElement, $"Property {property} already defined.")
+        public PropertyAlreadyDefinedError(string property, IAstElement errorReportedElement) : base(errorReportedElement, $"Property {property} already defined.")
         {
             Property = property;
+        }
+    }
+
+    public sealed class InterfaceMustRequireProperties : IRGenerationError
+    {
+        public InterfaceDeclaration InterfaceDeclaration { get; private set; }
+
+        public InterfaceMustRequireProperties(InterfaceDeclaration interfaceDeclaration, IAstElement errorReportedElement) : base(errorReportedElement, $"Interface {interfaceDeclaration.Name} must specify at least one required-implemented property.")
+        {
+            InterfaceDeclaration = interfaceDeclaration;
         }
     }
 

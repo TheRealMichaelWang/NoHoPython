@@ -62,13 +62,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             if (typeTarget.IsCompatibleWith(value.Type))
                 return value;
-            else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to_{typeTarget.Identifier}")) 
+            else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to_{typeTarget.Identifier}"))
             {
                 IRValue call = new AnonymousProcedureCall(new GetPropertyValue(value, $"to_{typeTarget.Identifier}", value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
                 if (!call.Type.IsCompatibleWith(typeTarget))
                     throw new UnexpectedTypeException(typeTarget, call.Type, value.ErrorReportedElement);
                 return call;
             }
+            else if (value.Type is EnumType valueEnumType && valueEnumType.SupportsType(typeTarget))
+                return new UnwrapEnumValue(value, typeTarget, value.ErrorReportedElement);
             else if (typeTarget is HandleType handleType)
                 return value.Type is ArrayType
                     ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement)

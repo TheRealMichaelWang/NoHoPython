@@ -20,6 +20,7 @@ namespace NoHoPython.Typing
     {
         public bool IsNativeCType => true;
         public bool RequiresDisposal => false;
+        public bool HasResponsibleDestroyer => false;
 
         public abstract string GetCName(IRProgram irProgram);
         public string GetStandardIdentifier(IRProgram irProgram) => TypeName;
@@ -66,6 +67,7 @@ namespace NoHoPython.Typing
     {
         public bool IsNativeCType => true;
         public bool RequiresDisposal => false;
+        public bool HasResponsibleDestroyer => false;
 
         public string GetCName(IRProgram irProgram) => "void";
         public string GetStandardIdentifier(IRProgram irProgram) => "nothing";

@@ -82,6 +82,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
+            if ((!Address.IsPure && !Length.IsConstant) ||
+                (!Length.IsPure && !Address.IsConstant))
+                throw new CannotEnsureOrderOfEvaluation(this);
+
             ArrayType type = new(ElementType.SubstituteWithTypearg(typeargs));
             if(ElementType.SubstituteWithTypearg(typeargs).RequiresDisposal)
                 emitter.Append($"marshal_foreign{type.GetStandardIdentifier(irProgram)}(");
@@ -91,7 +95,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
             IRValue.EmitMemorySafe(Address, irProgram, emitter, typeargs);
             emitter.Append(", ");
             IRValue.EmitMemorySafe(Length, irProgram, emitter, typeargs);
-            emitter.Append($", {responsibleDestroyer})");
+
+            if (type.HasResponsibleDestroyer)
+                emitter.Append($", {responsibleDestroyer})");
+            else
+                emitter.Append(')');
         }
     }
 }

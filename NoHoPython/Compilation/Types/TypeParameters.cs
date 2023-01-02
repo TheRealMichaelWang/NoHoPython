@@ -7,6 +7,7 @@ namespace NoHoPython.Typing
     {
         public bool IsNativeCType => false;
         public bool RequiresDisposal => throw new UnexpectedTypeParameterError(TypeParameter, null);
+        public bool HasResponsibleDestroyer => false;
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
 

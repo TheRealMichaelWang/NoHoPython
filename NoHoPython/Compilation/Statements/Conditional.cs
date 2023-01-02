@@ -267,12 +267,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
+            EnumType enumType = (EnumType)MatchValue.Type.SubstituteWithTypearg(typeargs);
+
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("switch(");
             IRValue.EmitMemorySafe(MatchValue, irProgram, emitter, typeargs);
-            emitter.AppendLine(".option) {");
 
-            EnumType enumType = (EnumType)MatchValue.Type.SubstituteWithTypearg(typeargs);
+            if (enumType.EnumDeclaration.IsEmpty)
+                emitter.AppendLine(") {");
+            else
+                emitter.AppendLine(".option) {");
+
             foreach(MatchHandler handler in MatchHandlers)
             {
                 IType currentOption = handler.MatchedType.SubstituteWithTypearg(typeargs);
@@ -362,10 +367,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.Append(", ");
             CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString(), false, true);
             emitter.Append(", ");
-            if (ErrorReportedElement is Syntax.IAstStatement statement)
-                CharacterLiteral.EmitCString(emitter, statement.ToString(0), false, true);
-            else if (ErrorReportedElement is Syntax.IAstValue value)
-                CharacterLiteral.EmitCString(emitter, value.ToString(), false, true);
+            ErrorReportedElement.EmitSrcAsCString(emitter);
             emitter.AppendLine(");");
         }
     }

@@ -43,9 +43,7 @@ namespace NoHoPython.Typing
         }
     }
 
-#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class TypeParameterReference : IType
-#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public string TypeName => TypeParameter.Name;
         public string Identifier => TypeName;
@@ -298,17 +296,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class TrueLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new TrueLiteral(ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new TrueLiteral(ErrorReportedElement);
     }
 
     partial class FalseLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new FalseLiteral(ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new FalseLiteral(ErrorReportedElement);
     }
 
-    partial class NothingLiteral
+    partial class EmptyTypeLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new NothingLiteral(ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new EmptyTypeLiteral(Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class ArrayLiteral

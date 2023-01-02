@@ -87,13 +87,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 MatchedType = matchedType;
                 ToExecute = toExecute;
                 irBuilder.SymbolMarshaller.NavigateToScope(toExecute);
+
                 if (matchIdentifier != null)
                 {
+                    if (matchedType.IsEmpty)
+                        throw new UnexpectedTypeException(matchedType, errorReportedElement);
                     MatchedVariable = new(matchedType, matchIdentifier, irBuilder.ScopedProcedures.Peek(), false);
                     irBuilder.SymbolMarshaller.DeclareSymbol(MatchedVariable, errorReportedElement);
                 }
                 else
                     MatchedVariable = null;
+                
                 ToExecute.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, toExecuteStatements), irBuilder);
                 irBuilder.SymbolMarshaller.GoBack();
             }

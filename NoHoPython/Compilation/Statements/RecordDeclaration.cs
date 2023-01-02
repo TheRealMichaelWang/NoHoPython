@@ -114,6 +114,8 @@ namespace NoHoPython.Typing
         public static string StandardRecordMask => "_nhp_std_record_mask_t*";
 
         public bool RequiresDisposal => true;
+        public bool HasResponsibleDestroyer => true;
+
         public bool HasDestructor => HasProperty("__del__");
         public bool HasCopier => HasProperty("__copy__");
 

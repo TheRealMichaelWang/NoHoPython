@@ -108,7 +108,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append('0');
     }
 
-    partial class NothingLiteral
+    partial class EmptyTypeLiteral
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
@@ -151,7 +151,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 arrayBuilder.Append('}');
             }
 
-            emitter.Append($"marshal{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({arrayBuilder.ToString()}, {Elements.Count}, {responsibleDestroyer})");
+            emitter.Append($"marshal{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({arrayBuilder.ToString()}, {Elements.Count}");
+            if (Type.SubstituteWithTypearg(typeargs).HasResponsibleDestroyer)
+                emitter.Append($", {responsibleDestroyer}");
+            emitter.Append(')');
         }
     }
 
@@ -183,7 +186,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 ProtoValue.Emit(irProgram, valueBuilder, typeargs, "NULL");
                 ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "NULL");
             }
-            emitter.Append($", {responsibleDestroyer})");
+
+            if (Type.SubstituteWithTypearg(typeargs).HasResponsibleDestroyer)
+                emitter.Append($", {responsibleDestroyer})");
+            else
+                emitter.Append(')');
         }
     }
 

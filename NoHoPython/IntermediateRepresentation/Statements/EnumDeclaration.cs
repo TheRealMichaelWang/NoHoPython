@@ -1,5 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
@@ -113,6 +114,33 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => ArithmeticCast.CastTo(Value.SubstituteWithTypearg(typeargs), TargetType.SubstituteWithTypearg(typeargs));
     }
+
+    public sealed partial class UnwrapEnumValue : IRValue
+    {
+        public Syntax.IAstElement ErrorReportedElement { get; private set; }
+        
+        public IRValue EnumValue { get; private set; }
+        public IType Type { get; private set; }
+
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public UnwrapEnumValue(IRValue enumValue, IType type, Syntax.IAstElement errorReportedElement)
+        {
+            EnumValue = enumValue;
+            if (EnumValue.Type is EnumType enumType)
+            {
+                if (!enumType.SupportsType(type) || type.IsEmpty)
+                    throw new UnexpectedTypeException(type, errorReportedElement);
+                Type = type;
+            }
+            else
+                throw new UnexpectedTypeException(EnumValue.Type, errorReportedElement);
+            ErrorReportedElement = errorReportedElement;
+        }
+
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new UnwrapEnumValue(EnumValue.SubstituteWithTypearg(typeargs), Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
 }
 
 namespace NoHoPython.Typing
@@ -128,7 +156,7 @@ namespace NoHoPython.Typing
         public string Identifier => IScopeSymbol.GetAbsolouteName(this);
         public bool IsEmpty => true;
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => new EmptyTypeLiteral(this, errorReportedElement);
 
         public EmptyEnumOption(string name, EnumDeclaration enumDeclaration)
         {
@@ -140,15 +168,13 @@ namespace NoHoPython.Typing
         {
             if(type is EmptyEnumOption emptyEnumOption)
             {
-                return emptyEnumOption.EnumDeclaration == EnumDeclaration && emptyEnumOption.Name == emptyEnumOption.Name;
+                return emptyEnumOption.EnumDeclaration == EnumDeclaration && emptyEnumOption.Name == Name;
             }
             return false;
         }
     }
 
-#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class EnumType : IType, IPropertyContainer
-#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         private static Dictionary<EnumType, Lazy<Dictionary<string, Property>>> globalSupportedProperties = new(new ITypeComparer());
 
@@ -274,7 +300,20 @@ namespace NoHoPython.Syntax.Statements
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IREnumDeclaration);
-            IREnumDeclaration.DelayedLinkSetOptions(Options.ConvertAll((AstType option) => option.ToIRType(irBuilder, this)));
+            IREnumDeclaration.DelayedLinkSetOptions(Options.ConvertAll((AstType option) =>
+            {
+                try
+                {
+                    return option.ToIRType(irBuilder, this);
+                }
+                catch (SymbolNotFoundException)
+                {
+                    option.MatchTypeArgCount(0, this);
+                    EmptyEnumOption enumOption = new(option.Identifier, IREnumDeclaration);
+                    irBuilder.SymbolMarshaller.DeclareSymbol(enumOption, this);
+                    return enumOption;
+                }
+            }));
             irBuilder.SymbolMarshaller.GoBack();
         }
 

@@ -302,6 +302,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Value.AnalyzePropertyInitialization(initializedProperties);
     }
 
+    partial class UnwrapEnumValue
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => EnumValue.AnalyzePropertyInitialization(initializedProperties);
+    }
+
     partial class MarshalIntoInterface
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) => Value.AnalyzePropertyInitialization(initializedProperties);
@@ -369,7 +374,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
     }
 
-    partial class NothingLiteral
+    partial class EmptyTypeLiteral
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties) { }
     }

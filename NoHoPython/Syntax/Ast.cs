@@ -1,9 +1,20 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Typing;
+using System.Text;
 
 namespace NoHoPython.Syntax
 {
-    public interface IAstElement : ISourceLocatable { }
+    public interface IAstElement : ISourceLocatable
+    { 
+        public void EmitSrcAsCString(StringBuilder emitter, bool encapsulateWithQuotes=true)
+        {
+            if (this is IAstValue astValue)
+                CharacterLiteral.EmitCString(emitter, astValue.ToString(), false, encapsulateWithQuotes);
+            else if (this is IAstStatement astStatement)
+                CharacterLiteral.EmitCString(emitter, astStatement.ToString(0), false, encapsulateWithQuotes);
+        }
+    }
 
     public interface IAstValue : IAstElement
     {

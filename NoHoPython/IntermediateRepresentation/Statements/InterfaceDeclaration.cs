@@ -70,6 +70,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             if (this.requiredImplementedProperties != null)
                 throw new InvalidOperationException();
+            if (requiredImplementedProperties.Count < 1)
+                throw new InterfaceMustRequireProperties(this, ErrorReportedElement);
             this.requiredImplementedProperties = requiredImplementedProperties;
             IPropertyContainer.SanitizePropertyNames(requiredImplementedProperties.ConvertAll((prop) => (Property)prop), ErrorReportedElement);
         }

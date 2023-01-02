@@ -176,6 +176,7 @@ namespace NoHoPython.Typing
     partial class ProcedureType
     {
         public bool RequiresDisposal => true;
+        public bool HasResponsibleDestroyer => true;
 
         public string GetStandardIdentifier(IRProgram irProgram) => irProgram.GetAnonProcedureStandardIdentifier(this);
 

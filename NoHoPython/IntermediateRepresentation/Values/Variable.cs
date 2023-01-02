@@ -182,6 +182,8 @@ namespace NoHoPython.Syntax.Values
                 ? (IRValue)new AnonymizeProcedure(procedureDeclaration, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek())
                 : valueSymbol is CSymbol cSymbol
                 ? new CSymbolReference(cSymbol, this)
+                : valueSymbol is IType emptyType
+                ? new EmptyTypeLiteral(emptyType, this)
                 : throw new NotAVariableException(valueSymbol, this);
         }
     }

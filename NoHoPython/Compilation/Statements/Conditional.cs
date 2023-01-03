@@ -80,7 +80,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             if (!CodeBlockAllCodePathsReturn())
             {
-                foreach (VariableDeclaration declaration in DeclaredVariables)
+                foreach (Variable declaration in LocalVariables)
                     declaration.EmitCFree(irProgram, emitter, typeargs, indent);
                 
                 if (insertFinalBreak)
@@ -289,8 +289,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 {
                     CodeBlock.CIndent(emitter, indent + 1);
                     emitter.Append($"{currentOption.GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier()} = ");
-                    IRValue.EmitMemorySafe(MatchValue.GetPostEvalPure(), irProgram, emitter, typeargs);
-                    emitter.AppendLine($".data.{currentOption.GetStandardIdentifier(irProgram)}_set;");
+
+                    StringBuilder matchedOptionValue = new();
+                    IRValue.EmitMemorySafe(MatchValue.GetPostEvalPure(), irProgram, matchedOptionValue, typeargs);
+                    matchedOptionValue.Append($".data.{currentOption.GetStandardIdentifier(irProgram)}_set");
+
+                    currentOption.EmitCopyValue(irProgram, emitter, matchedOptionValue.ToString(), "NULL");
+                    emitter.AppendLine(";");
                 }
 
                 handler.ToExecute.EmitInitialize(irProgram, emitter, typeargs, indent);

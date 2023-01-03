@@ -7,7 +7,7 @@ using NoHoPython.Typing;
 
 namespace NoHoPython.Scoping
 {
-    public sealed class Variable : IScopeSymbol
+    public sealed partial class Variable : IScopeSymbol
     {
         public bool IsRecordSelf { get; private set; }
 
@@ -103,7 +103,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public VariableDeclaration(string name, IRValue setValue, bool willRevaluate, AstIRProgramBuilder irBuilder, IAstElement errorReportedELement)
         {
             irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false), errorReportedELement);
-            irBuilder.SymbolMarshaller.CurrentCodeBlock.DeclaredVariables.Add(this);
+            irBuilder.SymbolMarshaller.CurrentCodeBlock.AddVariableDeclaration(this);
             InitialValue = setValue;
             WillRevaluate = willRevaluate;
             ErrorReportedElement = errorReportedELement;

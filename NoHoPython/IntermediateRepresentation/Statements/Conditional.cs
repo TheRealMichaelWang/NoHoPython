@@ -94,6 +94,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                         throw new UnexpectedTypeException(matchedType, errorReportedElement);
                     MatchedVariable = new(matchedType, matchIdentifier, irBuilder.ScopedProcedures.Peek(), false);
                     irBuilder.SymbolMarshaller.DeclareSymbol(MatchedVariable, errorReportedElement);
+                    ToExecute.LocalVariables.Add(MatchedVariable);
                 }
                 else
                     MatchedVariable = null;

@@ -680,18 +680,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
-            void emitAndDestroyCall(SortedSet<int> bufferedArguments)
+            void emitAndDestroyCall(SortedSet<int> bufferedArguments, int indent)
             {
                 if (RequiresDisposal(typeargs))
                 {
                     emitter.AppendLine("{");
-                    CodeBlock.CIndent(emitter, indent + 2);
+                    CodeBlock.CIndent(emitter, indent + 1);
                     emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_callrep_res0 = ");
                     EmitCall(irProgram, emitter, typeargs, bufferedArguments, 0, "NULL");
                     emitter.AppendLine(";");
-                    CodeBlock.CIndent(emitter, indent + 2);
-                    Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_callrep_res0", "NULL");
                     CodeBlock.CIndent(emitter, indent + 1);
+                    Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_callrep_res0", "NULL");
+                    CodeBlock.CIndent(emitter, indent);
                     emitter.AppendLine("}");
                 }
                 else
@@ -722,7 +722,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     }
 
                 CodeBlock.CIndent(emitter, indent + 1);
-                emitAndDestroyCall(bufferedArguments);
+                emitAndDestroyCall(bufferedArguments, indent + 1);
 
                 foreach (int i in bufferedArguments)
                     if (Arguments[i].RequiresDisposal(typeargs))
@@ -734,7 +734,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.AppendLine("}");
             }
             else
-                emitAndDestroyCall(new SortedSet<int>());
+                emitAndDestroyCall(new SortedSet<int>(), indent);
 
             if(irProgram.DoCallStack)
                 CallStackReporting.EmitReportReturn(emitter, indent);

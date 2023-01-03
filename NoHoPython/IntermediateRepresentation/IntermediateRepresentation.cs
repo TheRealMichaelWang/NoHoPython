@@ -236,7 +236,7 @@ namespace NoHoPython.IntermediateRepresentation
             ForwardDeclareAnonProcedureTypes(this, headerEmitter);
 
             //emit function headers
-            ForwardDeclareArrayTypes(this, headerEmitter);
+            ForwardDeclareArrayTypes(headerEmitter);
             EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclare(this, headerEmitter));
             InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, headerEmitter));
             RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, headerEmitter));

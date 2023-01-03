@@ -5,9 +5,10 @@ namespace NoHoPython.Typing
 {
     partial class TypeParameterReference
     {
-        public bool IsNativeCType => false;
+        public bool IsNativeCType => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public bool RequiresDisposal => throw new UnexpectedTypeParameterError(TypeParameter, null);
-        public bool HasResponsibleDestroyer => false;
+        public bool MustSetResponsibleDestroyer => throw new UnexpectedTypeParameterError(TypeParameter, null);
+        public bool ContainsRecords => throw new UnexpectedTypeParameterError(TypeParameter, null);
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
 
@@ -22,6 +23,7 @@ namespace NoHoPython.Typing
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) => throw new UnexpectedTypeParameterError(TypeParameter, null);
 
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => throw new UnexpectedTypeParameterError(TypeParameter, null);
+        public void EmitFindChildRecord(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) => throw new UnexpectedTypeParameterError(TypeParameter, null);
     }
 }

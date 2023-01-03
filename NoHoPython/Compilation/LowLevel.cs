@@ -44,8 +44,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 IRValue.EmitMemorySafe(ResponsibleDestroyer, irProgram, responsibleDestroyerBuilder, typeargs);
                 if (ResponsibleDestroyer.Type is ArrayType)
                     responsibleDestroyerBuilder.Append(".responsible_destroyer");
-                else if (ResponsibleDestroyer.Type is RecordType)
-                    responsibleDestroyerBuilder.Append("->_nhp_responsible_destroyer");
             }
             else
                 IRValue.EmitMemorySafe(Address, irProgram, responsibleDestroyerBuilder, typeargs);
@@ -96,7 +94,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             emitter.Append(", ");
             IRValue.EmitMemorySafe(Length, irProgram, emitter, typeargs);
 
-            if (type.HasResponsibleDestroyer)
+            if (type.MustSetResponsibleDestroyer)
                 emitter.Append($", {responsibleDestroyer})");
             else
                 emitter.Append(')');

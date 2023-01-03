@@ -9,7 +9,8 @@ namespace NoHoPython.Typing
     {
         public bool IsNativeCType { get; }
         public bool RequiresDisposal { get; }
-        public bool HasResponsibleDestroyer { get; }
+        public bool MustSetResponsibleDestroyer { get; }
+        public bool ContainsRecords { get; }
 
         public string TypeName { get; }
         public string Identifier { get; }
@@ -22,8 +23,9 @@ namespace NoHoPython.Typing
         public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer);
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource);
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource);
+        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newRecordCSource);
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer);
+        public void EmitFindChildRecord(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource);
 
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter);
 

@@ -152,7 +152,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
 
             emitter.Append($"marshal{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({arrayBuilder.ToString()}, {Elements.Count}");
-            if (Type.SubstituteWithTypearg(typeargs).HasResponsibleDestroyer)
+            if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer)
                 emitter.Append($", {responsibleDestroyer}");
             emitter.Append(')');
         }
@@ -187,7 +187,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "NULL");
             }
 
-            if (Type.SubstituteWithTypearg(typeargs).HasResponsibleDestroyer)
+            if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer)
                 emitter.Append($", {responsibleDestroyer})");
             else
                 emitter.Append(')');

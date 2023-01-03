@@ -358,12 +358,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"; {Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} value{irProgram.ExpressionDepth} = ");
 
                 if (Value.RequiresDisposal(typeargs))
-                    Value.Emit(irProgram, emitter, typeargs, $"record{irProgram.ExpressionDepth}->_nhp_responsible_destroyer");
+                    Value.Emit(irProgram, emitter, typeargs, $"record{irProgram.ExpressionDepth}");
                 else
                 {
                     StringBuilder valueBuilder = new();
                     Value.Emit(irProgram, valueBuilder, typeargs, "NULL");
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), $"record{irProgram.ExpressionDepth}->_nhp_responsible_destroyer");
+                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), $"record{irProgram.ExpressionDepth}");
                 }
 
                 emitter.Append(';');
@@ -384,7 +384,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 StringBuilder recordResponsibleDestroyer = new();
                 IRValue.EmitMemorySafe(Record.GetPostEvalPure(), irProgram, recordResponsibleDestroyer, typeargs);
-                recordResponsibleDestroyer.Append("->_nhp_responsible_destroyer");
 
                 if (IsInitializingProperty)
                 {
@@ -430,12 +429,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 CodeBlock.CIndent(emitter, indent + 1);
                 emitter.Append($"{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} value = ");
                 if (Value.RequiresDisposal(typeargs))
-                    Value.Emit(irProgram, emitter, typeargs, "record->_nhp_responsible_destroyer");
+                    Value.Emit(irProgram, emitter, typeargs, "record");
                 else
                 {
                     StringBuilder valueBuilder = new();
                     Value.Emit(irProgram, valueBuilder, typeargs, "NULL");
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "record->_nhp_responsible_destroyer");
+                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "record");
                 }
                 emitter.AppendLine(";");
 

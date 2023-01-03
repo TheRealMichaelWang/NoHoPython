@@ -51,15 +51,14 @@ namespace NoHoPython.Compilation
             emitter.Append("_nhp_santize_call(");
             CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString(), false, true);
             emitter.Append(", ");
-#pragma warning disable CS8604 // Possible null reference argument.
-            CharacterLiteral.EmitCString(emitter, errorReportedElement.ToString(), false, true);
-#pragma warning restore CS8604
+            errorReportedElement.EmitSrcAsCString(emitter);
 
             if(indent == -1)
                 emitter.Append(");");
             else
                 emitter.AppendLine(");");
         }
+
         public static void EmitReportReturn(StringBuilder emitter, int indent)
         {
             if (indent == -1)
@@ -71,26 +70,23 @@ namespace NoHoPython.Compilation
             }
         }
 
-        public static void EmitErrorLoc(StringBuilder emitter, IAstElement errorReportedElement, int indent)
+        public static void EmitErrorLoc(StringBuilder emitter, IAstElement errorReportedElement, int indent=0)
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("_nhp_set_errloc(");
             CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString(), false, true);
             emitter.Append(", ");
-            if (errorReportedElement is IAstStatement statement)
-                CharacterLiteral.EmitCString(emitter, statement.ToString(0), false, true);
-            else if (errorReportedElement is IAstValue value)
-                CharacterLiteral.EmitCString(emitter, value.ToString(), false, true);
+            errorReportedElement.EmitSrcAsCString(emitter);
             emitter.AppendLine(");");
         }
 
-        public static void EmitErrorLoc(StringBuilder emitter, string locationSrc, string src, int indent)
+        public static void EmitErrorLoc(StringBuilder emitter, string locationSrc, string src, int indent=0)
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.AppendLine($"_nhp_set_errloc({locationSrc}, {src});");
         }
 
-        public static void EmitPrintStackTrace(StringBuilder emitter, int indent)
+        public static void EmitPrintStackTrace(StringBuilder emitter, int indent=0)
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.AppendLine("_nhp_print_stack_trace();");

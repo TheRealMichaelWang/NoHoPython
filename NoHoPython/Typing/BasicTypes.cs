@@ -16,13 +16,13 @@ namespace NoHoPython.Typing
 
         public abstract string TypeName { get; }
         public string Identifier => TypeName;
+        public bool IsEmpty => false;
 
         public abstract int Id { get; }
 
         public abstract IRValue GetDefaultValue(IAstElement errorReportedElement);
 
         public abstract bool IsCompatibleWith(IType type);
-        public abstract IType Clone();
         public abstract IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeArgs);
 
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, IAstElement errorReportedElement)
@@ -105,23 +105,20 @@ namespace NoHoPython.Typing
     {
         public string TypeName => "nothing";
         public string Identifier => "nothing";
+        public bool IsEmpty => true;
 
-        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new NothingLiteral(errorReportedElement);
+        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new EmptyTypeLiteral(Primitive.Nothing, errorReportedElement);
 
-        public bool IsCompatibleWith(IType type)
-        {
-            return type is NothingType;
-        }
+        public bool IsCompatibleWith(IType type) => type is NothingType;
 
         public override string ToString() => TypeName;
     }
 
-#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class ArrayType : IType
-#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public string TypeName => $"array<{ElementType.TypeName}>";
         public string Identifier => $"array_{ElementType.Identifier}";
+        public bool IsEmpty => false;
 
         public IType ElementType { get; private set; }
 
@@ -138,13 +135,12 @@ namespace NoHoPython.Typing
         }
     }
 
-#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class ProcedureType : IType
-#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public bool IsNativeCType => false;
         public string TypeName => $"({string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}) => {ReturnType.TypeName}";
         public string Identifier => $"proc_{string.Join(string.Empty, ParameterTypes.ConvertAll((type) => $"{type.Identifier}_"))}ret_{ReturnType.Identifier}";
+        public bool IsEmpty => false;
 
         public IType ReturnType { get; private set; }
         public readonly List<IType> ParameterTypes;

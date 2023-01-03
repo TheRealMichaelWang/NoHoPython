@@ -49,42 +49,42 @@ namespace NoHoPython.Syntax
             return TypeArguments.Count == 0 ? Identifier : $"{Identifier}<{string.Join(", ", TypeArguments)}>";
         }
 
+        public void MatchTypeArgCount(int expected, IAstElement errorReportedElement)
+        {
+            if (TypeArguments.Count != expected)
+                throw new UnexpectedTypeArgumentsException(expected, TypeArguments.Count, errorReportedElement);
+        }
+
         public IType ToIRType(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             List<IType> typeArguments = TypeArguments.ConvertAll((AstType argument) => argument.ToIRType(irBuilder, errorReportedElement));
-
-            void MatchTypeArgCount(int expected)
-            {
-                if (typeArguments.Count != expected)
-                    throw new UnexpectedTypeArgumentsException(expected, typeArguments.Count, errorReportedElement);
-            }
 
             switch (Identifier)
             {
                 case "char":
                 case "chr":
-                    MatchTypeArgCount(0);
+                    MatchTypeArgCount(0, errorReportedElement);
                     return new CharacterType();
                 case "bool":
-                    MatchTypeArgCount(0);
+                    MatchTypeArgCount(0, errorReportedElement);
                     return new BooleanType();
                 case "int":
-                    MatchTypeArgCount(0);
+                    MatchTypeArgCount(0, errorReportedElement);
                     return new IntegerType();
                 case "dec":
-                    MatchTypeArgCount(0);
+                    MatchTypeArgCount(0, errorReportedElement);
                     return new DecimalType();
                 case "array":
-                    MatchTypeArgCount(1);
+                    MatchTypeArgCount(1, errorReportedElement);
                     return new ArrayType(typeArguments[0]);
                 case "handle":
                 case "ptr":
                 case "pointer":
-                    MatchTypeArgCount(0);
+                    MatchTypeArgCount(0, errorReportedElement);
                     return new HandleType();
                 case "nothing":
                 case "void":
-                    MatchTypeArgCount(0);
+                    MatchTypeArgCount(0, errorReportedElement);
                     return new NothingType();
                 case "fn":
                 case "proc":
@@ -98,7 +98,7 @@ namespace NoHoPython.Syntax
                         IScopeSymbol typeSymbol = irBuilder.SymbolMarshaller.FindSymbol(Identifier, errorReportedElement);
                         if (typeSymbol is Typing.TypeParameter typeParameter)
                         {
-                            MatchTypeArgCount(0);
+                            MatchTypeArgCount(0, errorReportedElement);
                             if (irBuilder.ScopedProcedures.Count > 0)
                                 irBuilder.ScopedProcedures.Peek().SanitizeTypeParameter(typeParameter);
                             return new TypeParameterReference(typeParameter);
@@ -109,6 +109,8 @@ namespace NoHoPython.Syntax
                             return new InterfaceType(interfaceDeclaration, typeArguments, errorReportedElement);
                         else if (typeSymbol is IntermediateRepresentation.Statements.EnumDeclaration enumDeclaration)
                             return new EnumType(enumDeclaration, typeArguments, errorReportedElement);
+                        else if (typeSymbol is IType symbolType)
+                            return symbolType;
                         throw new NotATypeException(typeSymbol);
                     }
             }

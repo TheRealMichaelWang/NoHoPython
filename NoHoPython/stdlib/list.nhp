@@ -47,6 +47,11 @@ mod data:
 				abort "Index out of range."
 			destroy T[i]self.buffer
 			return self.buffer{self}[i] = elem
+		def add(list<T> toadd) list<T>:
+			res = new list<T>(self.count + toadd.count)
+			res.addRange(self)
+			res.addRange(toadd)
+			return res
 		
 		def ensureCapacity(int capacity):
 			if self.capacity < capacity:
@@ -140,8 +145,8 @@ mod data:
 				if keep(self.buffer[i] as T):
 					kept.pushBack(self.buffer[i] as T)
 			return kept
-		def reduce(fn<T, T, T> add) T:
+		def reduce(fn<T, T, T> combine) T:
 			accum = getAtIndex(0)
 			for i from 1 within self.count:
-				accum = add(accum, self.buffer[i] as T)
+				accum = combine(accum, self.buffer[i] as T)
 			return accum

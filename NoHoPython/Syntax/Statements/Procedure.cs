@@ -152,7 +152,7 @@ namespace NoHoPython.Syntax.Values
             ReturnExpression = returnExpression;
         }
 
-        public override string ToString() => $"lambda{(Parameters.Count > 0 ? " " + string.Join(", ", Parameters) : "")}:";
+        public override string ToString() => $"lambda{(Parameters.Count > 0 ? " " + string.Join(", ", Parameters) : "")}: {ReturnExpression}";
     }
 }
 

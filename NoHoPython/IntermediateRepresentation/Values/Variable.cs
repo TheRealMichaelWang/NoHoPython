@@ -7,10 +7,8 @@ using NoHoPython.Typing;
 
 namespace NoHoPython.Scoping
 {
-    public sealed class Variable : IScopeSymbol
+    public sealed partial class Variable : IScopeSymbol
     {
-        public bool IsGloballyNavigable => false;
-
         public bool IsRecordSelf { get; private set; }
 
         public IType Type { get; private set; }
@@ -32,7 +30,6 @@ namespace NoHoPython.Scoping
 
     public sealed class CSymbol : IScopeSymbol
     {
-        public bool IsGloballyNavigable => false;
         public SymbolContainer ParentContainer { get; private set; }
 
         public IType Type { get; private set; }
@@ -49,6 +46,8 @@ namespace NoHoPython.Scoping
     public class VariableContainer : SymbolContainer
     {
         protected SymbolContainer parentContainer;
+
+        public override bool IsGloballyNavigable => false;
 
         public VariableContainer(SymbolContainer parentContainer) : base()
         {
@@ -104,7 +103,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public VariableDeclaration(string name, IRValue setValue, bool willRevaluate, AstIRProgramBuilder irBuilder, IAstElement errorReportedELement)
         {
             irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false), errorReportedELement);
-            irBuilder.SymbolMarshaller.CurrentCodeBlock.DeclaredVariables.Add(this);
+            irBuilder.SymbolMarshaller.CurrentCodeBlock.AddVariableDeclaration(this);
             InitialValue = setValue;
             WillRevaluate = willRevaluate;
             ErrorReportedElement = errorReportedELement;
@@ -183,6 +182,8 @@ namespace NoHoPython.Syntax.Values
                 ? (IRValue)new AnonymizeProcedure(procedureDeclaration, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek())
                 : valueSymbol is CSymbol cSymbol
                 ? new CSymbolReference(cSymbol, this)
+                : valueSymbol is IType emptyType
+                ? new EmptyTypeLiteral(emptyType, this)
                 : throw new NotAVariableException(valueSymbol, this);
         }
     }

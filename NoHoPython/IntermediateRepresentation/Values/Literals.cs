@@ -77,15 +77,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IType Type => Primitive.Boolean;
     }
 
-    public sealed partial class NothingLiteral : IRValue
+    public sealed partial class EmptyTypeLiteral : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
-        public NothingLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
+        public IType Type { get; private set; }
 
-        public IType Type => new NothingType();
+        public EmptyTypeLiteral(IType type, IAstElement errorReportedElement)
+        {
+            Type = type;
+            if (!Type.IsEmpty)
+                throw new UnexpectedTypeException(Type, errorReportedElement);
+            ErrorReportedElement = errorReportedElement;
+        }
     }
 
     public sealed partial class ArrayLiteral : IRValue
@@ -230,14 +236,14 @@ namespace NoHoPython.Syntax.Values
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.FalseLiteral(this);
     }
 
-    partial class NothingLiteral
-    {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.NothingLiteral(this);
-    }
-
     partial class CharacterLiteral
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.CharacterLiteral(Character, this);
+    }
+
+    partial class NothingLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.EmptyTypeLiteral(Primitive.Nothing, this);
     }
 
     partial class ArrayLiteral
@@ -286,7 +292,7 @@ namespace NoHoPython.Syntax.Values
                 ? ElementType.ToIRType(irBuilder, this)
                 : expectedType != null && expectedType is ArrayType expectedArrayType
                 ? expectedArrayType.ElementType
-                : throw new UnexpectedTypeException(expectedType == null ? Primitive.Nothing : expectedType, this);
+                : throw new UnexpectedTypeException(expectedType ?? Primitive.Nothing, this);
 
             return new IntermediateRepresentation.Values.AllocArray(this, elementType, Length.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), ProtoValue == null ? elementType.GetDefaultValue(this) : ProtoValue.GenerateIntermediateRepresentationForValue(irBuilder, elementType, willRevaluate));
         }
@@ -300,7 +306,7 @@ namespace NoHoPython.Syntax.Values
                 ? RecordType.ToIRType(irBuilder, this)
                 : expectedType != null && expectedType is RecordType expectedRecordType
                 ? expectedRecordType
-                : throw new UnexpectedTypeException(expectedType == null ? Primitive.Nothing : expectedType, this);
+                : throw new UnexpectedTypeException(expectedType ?? Primitive.Nothing, this);
 
             return prototype is RecordType record
                 ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)

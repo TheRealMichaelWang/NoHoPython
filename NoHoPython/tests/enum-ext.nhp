@@ -1,0 +1,36 @@
+﻿include "io.nhp"
+
+enum dayOfWeek:
+	Monday
+	Tuesday
+	Wednessday
+	Thursday
+	Friday
+	Saturday
+	Sunday
+
+enum result<T>:
+	T
+	error
+
+def getDayOfWeek(int dayNo) result<dayOfWeek>:
+	if dayNo < 0 or dayNo >= 7:
+		return result::error
+	days = [<dayOfWeek> dayOfWeek::Monday, dayOfWeek::Tuesday, dayOfWeek::Wednessday, dayOfWeek::Thursday, dayOfWeek::Friday, dayOfWeek::Saturday, dayOfWeek::Sunday]
+	return days[dayNo]
+
+def main():
+	input = io::input()
+	out = io::output()
+
+	out.writeLine("Day?>")
+	dayNo = input.readInt()
+
+	day = getDayOfWeek(dayNo) as dayOfWeek
+	match day:
+		dayOfWeek::Sunday:
+			out.writeLine("sun")
+		dayOfWeek::Saturday:
+			out.writeLine("Sat")
+		default:
+			out.writeLine("Fuck")

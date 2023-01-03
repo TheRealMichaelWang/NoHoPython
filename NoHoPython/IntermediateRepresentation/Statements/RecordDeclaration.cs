@@ -60,7 +60,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             public override bool IsReadOnly => isReadOnly;
 
-            public IRValue? DefaultValue => defaultValue != null ? defaultValue : parentProperty != null ? parentProperty.DefaultValue : null; 
+            public IRValue? DefaultValue => defaultValue ?? parentProperty?.DefaultValue; 
 
             private RecordProperty? parentProperty;
             private IRValue? defaultValue = null;
@@ -76,7 +76,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             public RecordProperty(string name, IType type, bool isReadOnly, RecordProperty? parentProperty = null) : this(name, type, isReadOnly, parentProperty, null) { }
 
-            public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), isReadOnly, parentProperty == null ? this : parentProperty, defaultValue == null ? null : defaultValue.SubstituteWithTypearg(typeargs));
+            public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), isReadOnly, parentProperty ?? this, defaultValue?.SubstituteWithTypearg(typeargs));
 
             public void DelayedLinkSetDefaultValue(IRValue defaultValue)
             {
@@ -96,7 +96,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
         public SymbolContainer ParentContainer { get; private set; }
 
-        public bool IsGloballyNavigable => false;
+        public override bool IsGloballyNavigable => false;
 
         public RecordType GetSelfType(Syntax.AstIRProgramBuilder irBuilder) => new(this, TypeParameters.ConvertAll((TypeParameter parameter) => (IType)new TypeParameterReference(irBuilder.ScopedProcedures.Count > 0 ? irBuilder.ScopedProcedures.Peek().SanitizeTypeParameter(parameter) : parameter)), ErrorReportedElement);
 
@@ -151,26 +151,29 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void AnalyzePropertyInitialization(ProcedureDeclaration constructor)
         {
-            SortedSet<RecordProperty> initializedProperties = new();
-            constructor.CodeBlockAnalyzePropertyInitialization(initializedProperties);
 #pragma warning disable CS8602 // Only called during IR generation, following linking
+            SortedSet<RecordProperty> initializedProperties = new(properties.FindAll((property) => property.DefaultValue != null));
+            constructor.CodeBlockAnalyzePropertyInitialization(initializedProperties, this);
             foreach (RecordProperty property in properties)
-#pragma warning restore CS8602
-                if (property.DefaultValue == null && !initializedProperties.Contains(property))
+                if (!initializedProperties.Contains(property))
                     throw new PropertyNotInitialized(property, ErrorReportedElement);
+#pragma warning restore CS8602
         }
+
+#pragma warning disable CS8602 // Only called during IR generation, following linking
+        public bool AllPropertiesInitialized(SortedSet<RecordProperty> initializedProperties) => properties.TrueForAll(property => initializedProperties.Contains(property));
+#pragma warning restore CS8602
     }
 }
 
 namespace NoHoPython.Typing
 {
-#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class RecordType : IType, IPropertyContainer
-#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public bool IsNativeCType => false;
         public string TypeName => $"{RecordPrototype.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
-        public string Identifier => $"{RecordPrototype.Name}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public string Identifier => $"{IScopeSymbol.GetAbsolouteName(RecordPrototype)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public bool IsEmpty => false;
 
         public RecordDeclaration RecordPrototype;
         public readonly List<IType> TypeArguments;
@@ -304,12 +307,16 @@ namespace NoHoPython.Syntax.Statements
             if (Constructor == null)
                 throw new RecordMustDefineConstructorError(IRRecordDeclaration);
             else if (Constructor.ReturnType is not NothingType)
+#pragma warning disable CS8604 // Return type already linked
                 throw new UnexpectedTypeException(Constructor.ReturnType, Primitive.Nothing, Constructor.ErrorReportedElement);
+#pragma warning restore CS8604
             if (Destructor != null) 
             {
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8604 // return type already linked
                 if (Destructor.ReturnType is not NothingType)
                     throw new UnexpectedTypeException(Destructor.ReturnType, Primitive.Nothing, Destructor.ErrorReportedElement);
+#pragma warning restore CS8604
+#pragma warning disable CS8602 //parameters already linked
                 else if (Destructor.Parameters.Count != 0)
                     throw new UnexpectedTypeArgumentsException(0, Destructor.Parameters.Count, Destructor.ErrorReportedElement);
 #pragma warning restore CS8602

@@ -46,9 +46,19 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public string Property;
 
-        public PropertyAlreadyDefinedError(string property, IAstElement astElement) : base(astElement, $"Property {property} already defined.")
+        public PropertyAlreadyDefinedError(string property, IAstElement errorReportedElement) : base(errorReportedElement, $"Property {property} already defined.")
         {
             Property = property;
+        }
+    }
+
+    public sealed class InterfaceMustRequireProperties : IRGenerationError
+    {
+        public InterfaceDeclaration InterfaceDeclaration { get; private set; }
+
+        public InterfaceMustRequireProperties(InterfaceDeclaration interfaceDeclaration, IAstElement errorReportedElement) : base(errorReportedElement, $"Interface {interfaceDeclaration.Name} must specify at least one required-implemented property.")
+        {
+            InterfaceDeclaration = interfaceDeclaration;
         }
     }
 
@@ -57,7 +67,7 @@ namespace NoHoPython.IntermediateRepresentation
         public readonly List<IType> ArgumentTypes;
         public readonly List<Variable> Parameters;
 
-        public UnexpectedArgumentsException(List<IType> argumentTypes, List<Variable> parameters, IAstElement astElement) : base(astElement, $"Procedure expected ({string.Join(", ", parameters.Select((Variable param) => param.Type + " " + param.Name))}), but got ({string.Join(", ", argumentTypes.Select((IType argument) => argument.TypeName))}) instead.")
+        public UnexpectedArgumentsException(List<IType> argumentTypes, List<Variable> parameters, IAstElement astElement) : base(astElement, $"Procedure expected ({string.Join(", ", parameters.Select((Variable param) => param.Type.TypeName + " " + param.Name))}), but got ({string.Join(", ", argumentTypes.Select((IType argument) => argument.TypeName))}) instead.")
         {
             ArgumentTypes = argumentTypes;
             Parameters = parameters;
@@ -78,7 +88,7 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public IScopeSymbol ScopeSymbol { get; private set; }
 
-        public NotAProcedureException(IScopeSymbol scopeSymbol, IAstElement astElement) : base(astElement, $"{scopeSymbol.Name} is not a procedure. Rather it is a(n) {scopeSymbol}.")
+        public NotAProcedureException(IScopeSymbol scopeSymbol, IAstElement errorReportedElement) : base(errorReportedElement, $"{scopeSymbol.Name} is not a procedure. Rather it is a(n) {scopeSymbol}.")
         {
             ScopeSymbol = scopeSymbol;
         }
@@ -88,7 +98,7 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public IScopeSymbol ScopeSymbol { get; private set; }
 
-        public NotAVariableException(IScopeSymbol scopeSymbol, IAstElement astElement) : base(astElement, $"{scopeSymbol.Name} is not a variable. Rather it is a {scopeSymbol}.")
+        public NotAVariableException(IScopeSymbol scopeSymbol, IAstElement errorReportedElement) : base(errorReportedElement, $"{scopeSymbol.Name} is not a variable. Rather it is a {scopeSymbol}.")
         {
             ScopeSymbol = scopeSymbol;
         }
@@ -98,7 +108,7 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public Variable Variable { get; private set; }
 
-        public CannotMutateVaraible(Variable capturedVariable, IAstElement astElement) : base(astElement, $"Cannot mutate captured variable or parameter {capturedVariable.Name}.")
+        public CannotMutateVaraible(Variable capturedVariable, IAstElement errorReportedElement) : base(errorReportedElement, $"Cannot mutate captured variable or parameter {capturedVariable.Name}.")
         {
             Variable = capturedVariable;
         }
@@ -108,7 +118,7 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public IType Type { get; private set; }
 
-        public NoDefaultValueError(IType type, IAstElement astElement) : base(astElement, $"Unable to get default value for {type.TypeName}.")
+        public NoDefaultValueError(IType type, IAstElement errorReportedElement) : base(errorReportedElement, $"Unable to get default value for {type.TypeName}.")
         {
             Type = type;
         }
@@ -116,7 +126,7 @@ namespace NoHoPython.IntermediateRepresentation
 
     public sealed class NotAllCodePathsReturnError : IRGenerationError
     {
-        public NotAllCodePathsReturnError(IAstElement astElement) : base(astElement, $"Not all code paths return a value.")
+        public NotAllCodePathsReturnError(IAstElement errorReportedElement) : base(errorReportedElement, $"Not all code paths return a value.")
         {
 
         }
@@ -126,9 +136,17 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public Property Property { get; private set; }
 
-        public CannotUseUninitializedProperty(Property property, IAstElement astElement) : base(astElement, $"Unable to use unitialized property {property.Name} of type {property.Type.TypeName}.")
+        public CannotUseUninitializedProperty(Property property, IAstElement errorReportedElement) : base(errorReportedElement, $"Unable to use unitialized property {property.Name} of type {property.Type.TypeName}.")
         {
             Property = property;
+        }
+    }
+
+    public sealed class CannotUseUninitializedSelf : IRGenerationError
+    {
+        public CannotUseUninitializedSelf(IAstElement errorReportedElement) : base(errorReportedElement, "Cannot use variable self until all properties are initialized.")
+        {
+
         }
     }
 

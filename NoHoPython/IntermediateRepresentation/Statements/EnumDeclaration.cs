@@ -1,5 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
@@ -10,7 +11,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
         public SymbolContainer ParentContainer { get; private set; }
 
-        public bool IsGloballyNavigable => true;
+        public override bool IsGloballyNavigable => true;
 
         public string Name { get; private set; }
 
@@ -113,19 +114,74 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => ArithmeticCast.CastTo(Value.SubstituteWithTypearg(typeargs), TargetType.SubstituteWithTypearg(typeargs));
     }
+
+    public sealed partial class UnwrapEnumValue : IRValue
+    {
+        public Syntax.IAstElement ErrorReportedElement { get; private set; }
+        
+        public IRValue EnumValue { get; private set; }
+        public IType Type { get; private set; }
+
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public UnwrapEnumValue(IRValue enumValue, IType type, Syntax.IAstElement errorReportedElement)
+        {
+            EnumValue = enumValue;
+            if (EnumValue.Type is EnumType enumType)
+            {
+                if (!enumType.SupportsType(type) || type.IsEmpty)
+                    throw new UnexpectedTypeException(type, errorReportedElement);
+                Type = type;
+            }
+            else
+                throw new UnexpectedTypeException(EnumValue.Type, errorReportedElement);
+            ErrorReportedElement = errorReportedElement;
+        }
+
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new UnwrapEnumValue(EnumValue.SubstituteWithTypearg(typeargs), Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
 }
 
 namespace NoHoPython.Typing
 {
-#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
+    public sealed partial class EmptyEnumOption : IType, IScopeSymbol
+    {
+        public SymbolContainer ParentContainer => EnumDeclaration;
+        public EnumDeclaration EnumDeclaration { get; private set; }
+
+        public string Name { get; private set; }
+
+        public string TypeName => Name;
+        public string Identifier => IScopeSymbol.GetAbsolouteName(this);
+        public bool IsEmpty => true;
+
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => new EmptyTypeLiteral(this, errorReportedElement);
+
+        public EmptyEnumOption(string name, EnumDeclaration enumDeclaration)
+        {
+            Name = name;
+            EnumDeclaration = enumDeclaration;
+        }
+
+        public bool IsCompatibleWith(IType type)
+        {
+            if(type is EmptyEnumOption emptyEnumOption)
+            {
+                return emptyEnumOption.EnumDeclaration == EnumDeclaration && emptyEnumOption.Name == Name;
+            }
+            return false;
+        }
+    }
+
     public sealed partial class EnumType : IType, IPropertyContainer
-#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         private static Dictionary<EnumType, Lazy<Dictionary<string, Property>>> globalSupportedProperties = new(new ITypeComparer());
 
         public bool IsNativeCType => false;
         public string TypeName => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
-        public string Identifier => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public string Identifier => $"{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public bool IsEmpty => false;
 
         public EnumDeclaration EnumDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;
@@ -178,9 +234,6 @@ namespace NoHoPython.Typing
                     if (foundFlag)
                         propertyIdMap.Add(property.Name, property);
                 };
-                //foreach (InterfaceType requiredImplementedInterface in EnumDeclaration.GetRequiredImplementedInterfaces(this))
-                //    if (!requiredImplementedInterface.SupportsProperties(propertyIdMap.Values.ToList()))
-                //        throw new UnexpectedTypeException(this, EnumDeclaration.ErrorReportedElement);
                 return propertyIdMap;
             });
         }
@@ -247,7 +300,20 @@ namespace NoHoPython.Syntax.Statements
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IREnumDeclaration);
-            IREnumDeclaration.DelayedLinkSetOptions(Options.ConvertAll((AstType option) => option.ToIRType(irBuilder, this)));
+            IREnumDeclaration.DelayedLinkSetOptions(Options.ConvertAll((AstType option) =>
+            {
+                try
+                {
+                    return option.ToIRType(irBuilder, this);
+                }
+                catch (SymbolNotFoundException)
+                {
+                    option.MatchTypeArgCount(0, this);
+                    EmptyEnumOption enumOption = new(option.Identifier, IREnumDeclaration);
+                    irBuilder.SymbolMarshaller.DeclareSymbol(enumOption, this);
+                    return enumOption;
+                }
+            }));
             irBuilder.SymbolMarshaller.GoBack();
         }
 

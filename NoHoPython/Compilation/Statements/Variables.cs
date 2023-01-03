@@ -1,6 +1,22 @@
-﻿using NoHoPython.IntermediateRepresentation.Statements;
+﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Typing;
 using System.Text;
+
+namespace NoHoPython.Scoping
+{
+    partial class Variable
+    {
+        public void EmitCFree(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        {
+            if (Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+            {
+                CodeBlock.CIndent(emitter, indent + 1);
+                Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, GetStandardIdentifier(), "NULL");
+            }
+        }
+    }
+}
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
@@ -31,15 +47,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 CodeBlock.CIndent(emitter, indent + 1);
                 emitter.AppendLine($"int init_{Variable.GetStandardIdentifier()} = 0;");
-            }
-        }
-
-        public void EmitCFree(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
-        {
-            if (Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
-            {
-                CodeBlock.CIndent(emitter, indent + 1);
-                Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, Variable.GetStandardIdentifier(), "NULL");
             }
         }
 

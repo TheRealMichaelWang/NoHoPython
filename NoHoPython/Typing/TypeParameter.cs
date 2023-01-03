@@ -25,8 +25,6 @@ namespace NoHoPython.Typing
                 existingTypeArguments[i].MatchTypeArgumentWithType(typeargs, arguments[i], errorReportedElement);
         }
 
-        public bool IsGloballyNavigable => false;
-
         public string Name { get; private set; }
         public InterfaceType? RequiredImplementedInterface { get; private set; }
 
@@ -45,12 +43,11 @@ namespace NoHoPython.Typing
         }
     }
 
-#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class TypeParameterReference : IType
-#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public string TypeName => TypeParameter.Name;
         public string Identifier => TypeName;
+        public bool IsEmpty => false;
 
         public TypeParameter TypeParameter { get; private set; }
 
@@ -67,9 +64,9 @@ namespace NoHoPython.Typing
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs)
         {
             if (!typeargs.ContainsKey(TypeParameter))
-                return Clone();
+                return this;
 
-            return typeargs[TypeParameter].Clone();
+            return typeargs[TypeParameter];
         }
 
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
@@ -157,13 +154,26 @@ namespace NoHoPython.Typing
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NothingType();
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
-
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
             if (!IsCompatibleWith(argument))
                 throw new UnexpectedTypeException(this, errorReportedElement);
         }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
+    }
+
+    partial class EmptyEnumOption
+    {
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => this;
+
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
+        {
+            if (!argument.IsCompatibleWith(this))
+                throw new UnexpectedTypeException(argument, errorReportedElement);
+        }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
     }
 
     partial class EnumType
@@ -286,17 +296,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class TrueLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new TrueLiteral(ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new TrueLiteral(ErrorReportedElement);
     }
 
     partial class FalseLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new FalseLiteral(ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new FalseLiteral(ErrorReportedElement);
     }
 
-    partial class NothingLiteral
+    partial class EmptyTypeLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new NothingLiteral(ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new EmptyTypeLiteral(Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class ArrayLiteral

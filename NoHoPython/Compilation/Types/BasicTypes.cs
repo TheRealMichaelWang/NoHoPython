@@ -20,6 +20,7 @@ namespace NoHoPython.Typing
     {
         public bool IsNativeCType => true;
         public bool RequiresDisposal => false;
+        public bool HasResponsibleDestroyer => false;
 
         public abstract string GetCName(IRProgram irProgram);
         public string GetStandardIdentifier(IRProgram irProgram) => TypeName;
@@ -66,16 +67,17 @@ namespace NoHoPython.Typing
     {
         public bool IsNativeCType => true;
         public bool RequiresDisposal => false;
+        public bool HasResponsibleDestroyer => false;
 
         public string GetCName(IRProgram irProgram) => "void";
         public string GetStandardIdentifier(IRProgram irProgram) => "nothing";
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent) => throw new CannotCompileNothingError(null);
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileNothingError(null);
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => throw new CannotCompileNothingError(null);
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileNothingError(null);
-        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => throw new CannotCompileNothingError(null);
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => throw new CannotCompileNothingError(null);
+        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) { }
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }

@@ -80,7 +80,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             if (!CodeBlockAllCodePathsReturn())
             {
-                foreach (VariableDeclaration declaration in DeclaredVariables)
+                foreach (Variable declaration in LocalVariables)
                     declaration.EmitCFree(irProgram, emitter, typeargs, indent);
                 
                 if (insertFinalBreak)
@@ -267,12 +267,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
+            EnumType enumType = (EnumType)MatchValue.Type.SubstituteWithTypearg(typeargs);
+
             CodeBlock.CIndent(emitter, indent);
             emitter.Append("switch(");
             IRValue.EmitMemorySafe(MatchValue, irProgram, emitter, typeargs);
-            emitter.AppendLine(".option) {");
 
-            EnumType enumType = (EnumType)MatchValue.Type.SubstituteWithTypearg(typeargs);
+            if (enumType.EnumDeclaration.IsEmpty)
+                emitter.AppendLine(") {");
+            else
+                emitter.AppendLine(".option) {");
+
             foreach(MatchHandler handler in MatchHandlers)
             {
                 IType currentOption = handler.MatchedType.SubstituteWithTypearg(typeargs);
@@ -284,8 +289,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 {
                     CodeBlock.CIndent(emitter, indent + 1);
                     emitter.Append($"{currentOption.GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier()} = ");
-                    IRValue.EmitMemorySafe(MatchValue.GetPostEvalPure(), irProgram, emitter, typeargs);
-                    emitter.AppendLine($".data.{currentOption.GetStandardIdentifier(irProgram)}_set;");
+
+                    StringBuilder matchedOptionValue = new();
+                    IRValue.EmitMemorySafe(MatchValue.GetPostEvalPure(), irProgram, matchedOptionValue, typeargs);
+                    matchedOptionValue.Append($".data.{currentOption.GetStandardIdentifier(irProgram)}_set");
+
+                    currentOption.EmitCopyValue(irProgram, emitter, matchedOptionValue.ToString(), "NULL");
+                    emitter.AppendLine(";");
                 }
 
                 handler.ToExecute.EmitInitialize(irProgram, emitter, typeargs, indent);
@@ -362,10 +372,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.Append(", ");
             CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString(), false, true);
             emitter.Append(", ");
-            if (ErrorReportedElement is Syntax.IAstStatement statement)
-                CharacterLiteral.EmitCString(emitter, statement.ToString(0), false, true);
-            else if (ErrorReportedElement is Syntax.IAstValue value)
-                CharacterLiteral.EmitCString(emitter, value.ToString(), false, true);
+            ErrorReportedElement.EmitSrcAsCString(emitter);
             emitter.AppendLine(");");
         }
     }

@@ -35,8 +35,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
         public SymbolContainer ParentContainer { get; private set; }
 
-        public bool IsGloballyNavigable => true;
-
+        public override bool IsGloballyNavigable => false;
         public string Name { get; private set; }
 
         public readonly List<TypeParameter> TypeParameters;
@@ -71,6 +70,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             if (this.requiredImplementedProperties != null)
                 throw new InvalidOperationException();
+            if (requiredImplementedProperties.Count < 1)
+                throw new InterfaceMustRequireProperties(this, ErrorReportedElement);
             this.requiredImplementedProperties = requiredImplementedProperties;
             IPropertyContainer.SanitizePropertyNames(requiredImplementedProperties.ConvertAll((prop) => (Property)prop), ErrorReportedElement);
         }
@@ -121,13 +122,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
 namespace NoHoPython.Typing
 {
-#pragma warning disable CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     public sealed partial class InterfaceType : IType, IPropertyContainer
-#pragma warning restore CS8766 // Nullability of reference types in return type doesn't match implicitly implemented member (possibly because of nullability attributes).
     {
         public bool IsNativeCType => false;
         public string TypeName => $"{InterfaceDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
-        public string Identifier => $"{InterfaceDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public string Identifier => $"{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public bool IsEmpty => false;
 
         public InterfaceDeclaration InterfaceDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;

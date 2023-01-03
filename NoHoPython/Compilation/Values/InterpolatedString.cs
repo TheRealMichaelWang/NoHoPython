@@ -13,7 +13,7 @@ namespace NoHoPython.Typing
     partial class Primitive
     {
         public abstract string GetFormatSpecifier();
-        public void EmitFormatValue(StringBuilder emitter, string valueCSource) => emitter.Append(valueCSource);
+        public virtual void EmitFormatValue(StringBuilder emitter, string valueCSource) => emitter.Append(valueCSource);
     }
 
     partial class ArrayType
@@ -37,7 +37,9 @@ namespace NoHoPython.Typing
 
     partial class BooleanType
     {
-        public override string GetFormatSpecifier() => "%i";
+        public override string GetFormatSpecifier() => "%s";
+
+        public override void EmitFormatValue(StringBuilder emitter, string valueCSource) => emitter.Append($"(({valueCSource}) ? \"true\" : \"false\")");
     }
 
     partial class CharacterType
@@ -58,6 +60,12 @@ namespace NoHoPython.Typing
     partial class HandleType
     {
         public override string GetFormatSpecifier() => "%p";
+    }
+
+    partial class EmptyEnumOption
+    {
+        public string GetFormatSpecifier() => throw new NoFormatSpecifierForType(this);
+        public void EmitFormatValue(StringBuilder emitter, string valueCSource) => throw new InvalidOperationException();
     }
 
     partial class EnumType
@@ -162,7 +170,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             emitter.Append($"intpd_str{irProgram.ExpressionDepth}.length = snprintf(NULL, 0, \"{formatBuilder.ToString()}\"");
             emitFormatValues();
-            emitter.Append($"); intpd_str{irProgram.ExpressionDepth}.buffer = {irProgram.MemoryAnalyzer.Allocate($"intpd_str{irProgram.ExpressionDepth}.length + 1")}; intpd_str{irProgram.ExpressionDepth}.responsible_destroyer = {responsibleDestroyer}; snprintf(intpd_str{irProgram.ExpressionDepth}.buffer, intpd_str{irProgram.ExpressionDepth}.length + 1, \"{formatBuilder.ToString()}\"");
+            emitter.Append($"); intpd_str{irProgram.ExpressionDepth}.buffer = {irProgram.MemoryAnalyzer.Allocate($"intpd_str{irProgram.ExpressionDepth}.length + 1")}; snprintf(intpd_str{irProgram.ExpressionDepth}.buffer, intpd_str{irProgram.ExpressionDepth}.length + 1, \"{formatBuilder.ToString()}\"");
             emitFormatValues();
             emitter.Append(");");
 

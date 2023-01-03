@@ -17,7 +17,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     public partial class CodeBlock : VariableContainer
     {
         public List<IRStatement>? Statements { get; private set; }
-        public List<VariableDeclaration> DeclaredVariables { get; private set; }
+        public List<Variable> LocalVariables { get; private set; }
+        private List<VariableDeclaration> DeclaredVariables;
+
         public bool IsLoop { get; private set; }
 
         public int? BreakLabelId { get; private set; }
@@ -25,8 +27,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public CodeBlock(SymbolContainer parent, bool isLoop) : base(parent)
         {
             Statements = null;
+            LocalVariables = new List<Variable>();
             DeclaredVariables = new List<VariableDeclaration>();
             IsLoop = isLoop;
+        }
+
+        public void AddVariableDeclaration(VariableDeclaration variableDeclaration)
+        {
+            DeclaredVariables.Add(variableDeclaration);
+            LocalVariables.Add(variableDeclaration.Variable);
         }
 
         public virtual void DelayedLinkSetStatements(List<IRStatement> statements, AstIRProgramBuilder irBuilder)
@@ -39,12 +48,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public List<Variable> GetCurrentLocals(ProcedureDeclaration currentProcedure)
         {
             if (parentContainer == null || parentContainer is not CodeBlock || this == currentProcedure)
-                return DeclaredVariables.ConvertAll((declaration) => declaration.Variable);
+                return new(LocalVariables);
             else
             {
                 List<Variable> combined = new();
                 combined.AddRange(((CodeBlock)parentContainer).GetCurrentLocals(currentProcedure));
-                combined.AddRange(DeclaredVariables.ConvertAll((declaration) => declaration.Variable));
+                combined.AddRange(LocalVariables);
                 return combined;
             }
         }
@@ -52,14 +61,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public List<Variable> GetLoopLocals(IAstElement errorReportedElement)
         {
             if (this.IsLoop)
-                return DeclaredVariables.ConvertAll((declaration) => declaration.Variable);
+                return new(LocalVariables);
             if (parentContainer == null || parentContainer is not CodeBlock)
                 throw new UnexpectedLoopStatementException(errorReportedElement);
             else
             {
                 List<Variable> combined = new();
                 combined.AddRange(((CodeBlock)parentContainer).GetLoopLocals(errorReportedElement));
-                combined.AddRange(DeclaredVariables.ConvertAll((declaration) => declaration.Variable));
+                combined.AddRange(LocalVariables);
                 return combined;
             }
         }

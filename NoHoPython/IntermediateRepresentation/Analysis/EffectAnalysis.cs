@@ -52,12 +52,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue GetPostEvalPure() => new FalseLiteral(ErrorReportedElement);
     }
 
-    partial class NothingLiteral
+    partial class EmptyTypeLiteral
     {
         public bool IsPure => true;
         public bool IsConstant => true;
 
-        public IRValue GetPostEvalPure() => new NothingLiteral(ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new EmptyTypeLiteral(Type, ErrorReportedElement);
     }
 
     partial class ArrayLiteral
@@ -244,6 +244,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsConstant => Value.IsConstant;
 
         public IRValue GetPostEvalPure() => new MarshalIntoEnum(TargetType, Value.GetPostEvalPure(), ErrorReportedElement);
+    }
+
+    partial class UnwrapEnumValue
+    {
+        public bool IsPure => EnumValue.IsPure;
+        public bool IsConstant => EnumValue.IsConstant;
+
+        public IRValue GetPostEvalPure() => new UnwrapEnumValue(EnumValue.GetPostEvalPure(), Type, ErrorReportedElement);
     }
 
     partial class MarshalIntoInterface

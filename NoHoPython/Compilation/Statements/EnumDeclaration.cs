@@ -78,8 +78,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 usedEnum.EmitPropertyGetHeaders(irProgram, emitter);
                 if(!usedEnum.EnumDeclaration.IsEmpty)
                     emitter.AppendLine($"{usedEnum.GetCName(irProgram)} change_resp_owner{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} to_mutate, void* responsible_destroyer);");
-                if (usedEnum.ContainsRecords)
-                    emitter.AppendLine($"int has_child_record{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum, void* child_record);");
                 if (usedEnum.RequiresDisposal)
                 {
                     emitter.AppendLine($"void free_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum);");
@@ -100,7 +98,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 enumType.EmitMarshallers(irProgram, emitter);
                 enumType.EmitPropertyGetters(irProgram, emitter);
                 enumType.EmitResponsibleDestroyerMutator(irProgram, emitter);
-                enumType.EmitChildRecordFinder(irProgram, emitter);
                 if (enumType.RequiresDisposal)
                 {
                     enumType.EmitDestructor(irProgram, emitter);
@@ -119,7 +116,6 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => false;
         public bool MustSetResponsibleDestroyer => false;
-        public bool ContainsRecords => false;
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_empty_option_{Name}";
         public string GetCName(IRProgram irProgram) => throw new CannotCompileEmptyTypeError(null);
@@ -130,7 +126,6 @@ namespace NoHoPython.Typing
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => throw new CannotCompileEmptyTypeError(null);
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitFindChildRecord(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => throw new InvalidOperationException();
         public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) { }
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }
@@ -140,7 +135,6 @@ namespace NoHoPython.Typing
     {
         public bool RequiresDisposal => !options.Value.TrueForAll((option) => !option.RequiresDisposal);
         public bool MustSetResponsibleDestroyer => !options.Value.TrueForAll((option) => !option.MustSetResponsibleDestroyer);
-        public bool ContainsRecords => !options.Value.TrueForAll((option) => !option.ContainsRecords);
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
 
@@ -183,7 +177,6 @@ namespace NoHoPython.Typing
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(EnumDeclaration.IsEmpty ? valueCSource : $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})");
-        public void EmitFindChildRecord(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => emitter.Append(ContainsRecords ? $"has_child_record{GetStandardIdentifier(irProgram)}({valueCSource}, {recordCSource})" : throw new InvalidOperationException());
 
         public string GetCEnumOptionForType(IRProgram irProgram, IType type) => $"{GetStandardIdentifier(irProgram)}OPTION_{type.GetStandardIdentifier(irProgram)}";
 
@@ -366,27 +359,6 @@ namespace NoHoPython.Typing
                 }
             emitter.AppendLine("\t}");
             emitter.AppendLine("\treturn to_mutate;");
-            emitter.AppendLine("}");
-        }
-
-        public void EmitChildRecordFinder(IRProgram irProgram, StringBuilder emitter)
-        {
-            if (!ContainsRecords)
-                return;
-
-            emitter.AppendLine($"int has_child_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum, void* child_record) {{");
-            emitter.AppendLine("\tswitch(_nhp_enum.option) {");
-            foreach (IType option in options.Value)
-                if (option.ContainsRecords)
-                {
-                    emitter.AppendLine($"\tcase {GetCEnumOptionForType(irProgram, option)}:");
-                    emitter.Append("\t\treturn ");
-                    option.EmitFindChildRecord(irProgram, emitter, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set", "child_record");
-                    emitter.AppendLine(";");
-                }
-            emitter.AppendLine("\tdefault:");
-            emitter.AppendLine("\t\treturn 0;");
-            emitter.AppendLine("\t}");
             emitter.AppendLine("}");
         }
     }

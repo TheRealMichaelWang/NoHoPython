@@ -229,6 +229,7 @@ namespace NoHoPython.IntermediateRepresentation
 
             //emit c structs
             RecordDeclaration.EmitRecordMaskProto(headerEmitter);
+            RecordDeclaration.EmitRecordChildFinder(headerEmitter);
             EmitArrayTypeCStructs(headerEmitter);
             EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclareType(this, headerEmitter));
             InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclareType(this, headerEmitter));

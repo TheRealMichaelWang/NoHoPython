@@ -70,8 +70,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine($"void free_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface);");
                 emitter.AppendLine($"{interfaceType.GetCName(irProgram)} copy_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* responsibleDestroyer);");
                 emitter.AppendLine($"{interfaceType.GetCName(irProgram)} change_resp_owner{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* responsibleDestroyer);");
-                if (interfaceType.ContainsRecords)
-                    emitter.AppendLine($"int has_child_record{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* child_record);");
                 if (!irProgram.EmitExpressionStatements)
                     emitter.AppendLine($"{interfaceType.GetCName(irProgram)} move_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)}* dest, {interfaceType.GetCName(irProgram)} src);");
             }
@@ -89,7 +87,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 interfaceType.EmitCopier(irProgram, emitter);
                 interfaceType.EmitMover(irProgram, emitter);
                 interfaceType.EmitResponsibleDestroyerMutator(irProgram, emitter);
-                interfaceType.EmitChildRecordFinder(irProgram, emitter);
             }
         }
     }
@@ -101,7 +98,6 @@ namespace NoHoPython.Typing
     {
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => !requiredImplementedProperties.Value.TrueForAll((property) => !property.Type.MustSetResponsibleDestroyer);
-        public bool ContainsRecords => !requiredImplementedProperties.Value.TrueForAll((property) => !property.Type.ContainsRecords);
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
 
@@ -127,7 +123,6 @@ namespace NoHoPython.Typing
         public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(MustSetResponsibleDestroyer ? $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})" : valueCSource);
-        public void EmitFindChildRecord(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => emitter.Append(ContainsRecords ? $"has_child_record{GetStandardIdentifier(irProgram)}({valueCSource}, {recordCSource})" : throw new InvalidOperationException());
 
         public void EmitGetProperty(IRProgram irProgram, StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}.{property.Name}");
 
@@ -231,25 +226,6 @@ namespace NoHoPython.Typing
                 emitter.AppendLine(";");
             }
             emitter.AppendLine("\treturn interface;");
-            emitter.AppendLine("}");
-        }
-
-        public void EmitChildRecordFinder(IRProgram iRProgram, StringBuilder emitter)
-        {
-            if (!ContainsRecords)
-                return;
-
-            emitter.AppendLine($"int has_child_record{GetStandardIdentifier(iRProgram)}({GetCName(iRProgram)} interface, void* child_record) {{");
-
-            foreach (var property in requiredImplementedProperties.Value)
-                if(property.Type.ContainsRecords)
-                {
-                    emitter.Append("\tif(");
-                    property.Type.EmitFindChildRecord(iRProgram, emitter, $"interface.{property.Name}", "child_record");
-                    emitter.AppendLine(")");
-                    emitter.AppendLine("\t\treturn 1;");
-                }
-            emitter.AppendLine("\treturn 0");
             emitter.AppendLine("}");
         }
     }

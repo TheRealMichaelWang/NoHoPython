@@ -60,9 +60,6 @@ namespace NoHoPython.IntermediateRepresentation
                 if (!EmitExpressionStatements)
                     emitter.AppendLine($"{arrayType.GetCName(this)} move{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)}* src, {arrayType.GetCName(this)} dest);");
 
-                if (arrayType.ElementType.ContainsRecords)
-                    emitter.AppendLine($"int has_child_record{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} array, void* child_record);");
-
                 if (arrayType.ElementType.RequiresDisposal)
                 {
                     emitter.AppendLine($"void free{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_free);");
@@ -106,7 +103,6 @@ namespace NoHoPython.IntermediateRepresentation
                 arrayType.EmitMover(this, emitter);
                 arrayType.EmitCopier(this, emitter);
                 arrayType.EmitResponsibleDestroyerMutator(this, emitter);
-                arrayType.EmitChildRecordFinder(this, emitter);
             }
         }
     }
@@ -119,7 +115,6 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;
-        public bool ContainsRecords => ElementType.ContainsRecords;
 
         public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent)
         {
@@ -154,7 +149,6 @@ namespace NoHoPython.Typing
         public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
 
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(MustSetResponsibleDestroyer ? $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})" : valueCSource);
-        public void EmitFindChildRecord(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => emitter.AppendLine(ContainsRecords ? $"has_child_record{GetStandardIdentifier(irProgram)}({valueCSource}, {recordCSource})" : throw new InvalidOperationException());
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) => irBuilder.ScopeForUsedArrayType(this);
 
@@ -317,22 +311,6 @@ namespace NoHoPython.Typing
             emitter.AppendLine(";");
             emitter.AppendLine("\t}");
             emitter.AppendLine("\treturn array;");
-            emitter.AppendLine("}");
-        }
-
-        public void EmitChildRecordFinder(IRProgram iRProgram, StringBuilder emitter)
-        {
-            if (!ContainsRecords)
-                return;
-
-            emitter.AppendLine($"int has_child_record{GetStandardIdentifier(iRProgram)}({GetCName(iRProgram)} array, void* child_record) {{");
-            emitter.AppendLine("\tfor(int i = 0; i < array.length; i++) {");
-            emitter.Append("\t\tif(");
-            ElementType.EmitFindChildRecord(iRProgram, emitter, "array.buffer[i]", "child_record");
-            emitter.AppendLine(")");
-            emitter.AppendLine("\t\t\treturn 1;");
-            emitter.AppendLine("\t}");
-            emitter.AppendLine("\treturn 0;");
             emitter.AppendLine("}");
         }
     }

@@ -49,7 +49,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             Operation = operation;
 
-            if (left.Type is IPropertyContainer propertyContainer && !propertyContainer.HasProperty("compare"))
+            if (left.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("compare"))
             {
                 Left = ArithmeticCast.CastTo(new AnonymousProcedureCall(new GetPropertyValue(left, "compare", errorReportedElement), new List<IRValue>()
                 {

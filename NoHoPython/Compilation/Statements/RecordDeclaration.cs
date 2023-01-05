@@ -148,7 +148,7 @@ namespace NoHoPython.Typing
                 EmitMutateResponsibleDestroyer(irProgram, emitter, valueBuilder.ToString(), responsibleDestroyer);
             }
             else
-                emitter.Append($"copy_record{GetStandardIdentifier(irProgram)}({valueCSource}, {responsibleDestroyer})");
+                emitter.Append($"copy_record{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){responsibleDestroyer})");
         }
 
         public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)

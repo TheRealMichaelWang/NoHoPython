@@ -105,11 +105,11 @@ namespace NoHoPython.Typing
         }
     }
 
-    public sealed class NotATypeException : Exception
+    public sealed class NotATypeException : IRGenerationError
     {
         public IScopeSymbol ScopeSymbol { get; private set; }
 
-        public NotATypeException(IScopeSymbol scopeSymbol) : base($"{scopeSymbol.Name} is not a type parameter, record, interface, or enum. Rather it is a {scopeSymbol}.")
+        public NotATypeException(IScopeSymbol scopeSymbol, Syntax.IAstElement errorReportedElement) : base(errorReportedElement, $"{scopeSymbol.Name} is not a type parameter, record, interface, or enum. Rather it is a {scopeSymbol}.")
         {
             ScopeSymbol = scopeSymbol;
         }

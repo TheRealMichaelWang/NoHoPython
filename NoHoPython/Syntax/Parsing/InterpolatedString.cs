@@ -14,14 +14,14 @@ namespace NoHoPython.Syntax.Parsing
         {
             ScanChar();
             if (lastChar != '\"')
-                throw new UnexpectedCharacterException('\"', lastChar);
+                throw new UnexpectedCharacterException('\"', lastChar, CurrentLocation);
             ScanChar();
 
             StringBuilder buffer = new();
             while (true)
             {
                 if (lastChar == '\0')
-                    throw new UnexpectedCharacterException('\0', lastChar);
+                    throw new UnexpectedCharacterException('\0', lastChar, CurrentLocation);
                 else if (lastChar == '\"') //regular string
                 {
                     ScanChar();
@@ -45,7 +45,7 @@ namespace NoHoPython.Syntax.Parsing
                 {
                     ScanChar();
                     if (lastChar != '}')
-                        throw new UnexpectedCharacterException('}', lastChar);
+                        throw new UnexpectedCharacterException('}', lastChar, CurrentLocation);
                     ScanChar();
                     buffer.Append('}');
                 }
@@ -81,7 +81,7 @@ namespace NoHoPython.Syntax.Parsing
                     while (true)
                     {
                         if (lastChar == '\0')
-                            throw new UnexpectedCharacterException('\0', lastChar);
+                            throw new UnexpectedCharacterException('\0', lastChar, CurrentLocation);
                         else if (lastChar == '\"') //regular string
                         {
                             ScanChar();

@@ -111,7 +111,7 @@ namespace NoHoPython.Syntax
                             return new EnumType(enumDeclaration, typeArguments, errorReportedElement);
                         else if (typeSymbol is IType symbolType)
                             return symbolType;
-                        throw new NotATypeException(typeSymbol);
+                        throw new NotATypeException(typeSymbol, errorReportedElement);
                     }
             }
         }

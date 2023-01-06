@@ -447,4 +447,26 @@ namespace NoHoPython.IntermediateRepresentation.Values
             irProgram.ExpressionDepth--;
         }
     }
+
+    partial class CheckEnumOption
+    {
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            Option.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            EnumValue.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        {
+            EnumType enumType = (EnumType)EnumValue.Type.SubstituteWithTypearg(typeargs);
+
+            emitter.Append('(');
+            IRValue.EmitMemorySafe(EnumValue, irProgram, emitter, typeargs);
+            emitter.Append(".option == ");
+            emitter.Append(enumType.GetCEnumOptionForType(irProgram, Option.SubstituteWithTypearg(typeargs)));
+            emitter.Append(')');
+        }
+    }
 }

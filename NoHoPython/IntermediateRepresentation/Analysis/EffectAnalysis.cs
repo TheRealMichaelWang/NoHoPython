@@ -254,6 +254,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue GetPostEvalPure() => new UnwrapEnumValue(EnumValue.GetPostEvalPure(), Type, ErrorReportedElement);
     }
 
+    partial class CheckEnumOption
+    {
+        public bool IsPure => EnumValue.IsPure;
+        public bool IsConstant => EnumValue.IsConstant;
+
+        public IRValue GetPostEvalPure() => new CheckEnumOption(EnumValue.GetPostEvalPure(), Type, ErrorReportedElement);
+    }
+
     partial class MarshalIntoInterface
     {
         public bool IsPure => Value.IsPure;

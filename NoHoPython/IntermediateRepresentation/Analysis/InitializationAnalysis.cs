@@ -327,6 +327,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => EnumValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
     }
 
+    partial class CheckEnumOption
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => EnumValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
+    }
+
     partial class MarshalIntoInterface
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);

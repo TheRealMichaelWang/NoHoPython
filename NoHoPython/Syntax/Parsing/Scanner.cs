@@ -310,7 +310,7 @@ namespace NoHoPython.Syntax.Parsing
                     "assert" => TokenType.Assert,
                     "del" => TokenType.Destroy,
                     "destroy" => TokenType.Destroy,
-                    "in" => TokenType.In,
+                    "is" => TokenType.Is,
                     "from" => TokenType.From,
                     "to" => TokenType.To,
                     "within" => TokenType.Within,

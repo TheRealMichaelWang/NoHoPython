@@ -65,12 +65,6 @@ namespace NoHoPython.Syntax.Parsing
             else if (lastChar == '}')
             {
                 ScanChar();
-                if (lastChar == '}')
-                {
-                    ScanChar();
-                    return new Token(TokenType.CloseBrace, string.Empty);
-                }
-
                 if (depth == 0) //begin interpolation parsing
                 {
                     StringBuilder buffer = new();

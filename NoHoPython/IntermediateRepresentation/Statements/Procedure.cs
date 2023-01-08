@@ -118,11 +118,19 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public override void DelayedLinkSetStatements(List<IRStatement> statements, AstIRProgramBuilder irBuilder)
         {
-            if (ReturnType == null)
+            if (ReturnType == null || Parameters == null)
                 throw new InvalidOperationException();
             base.DelayedLinkSetStatements(statements, irBuilder);
             if (ReturnType is not NothingType && !CodeBlockAllCodePathsReturn())
                 throw new NotAllCodePathsReturnError(ErrorReportedElement);
+
+            irBuilder.ScopedProcedures.Push(this);
+            foreach (Variable parameter in Parameters)
+                parameter.Type.ScopeForUsedTypeParameters(irBuilder);
+            foreach (Variable capturedVariable in CapturedVariables)
+                capturedVariable.Type.ScopeForUsedTypeParameters(irBuilder);
+            ReturnType.ScopeForUsedTypeParameters(irBuilder);
+            irBuilder.ScopedProcedures.Pop();
         }
 
         public Tuple<Variable, bool> SanitizeVariable(Variable variable, bool willStet, IAstElement errorReportedElement)

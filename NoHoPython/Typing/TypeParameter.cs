@@ -37,6 +37,9 @@ namespace NoHoPython.Typing
             ParentContainer = parentContainer;
         }
 
+        public override int GetHashCode() => IScopeSymbol.GetAbsolouteName(this).GetHashCode();
+        public override bool Equals(object? obj) => obj != null && obj.GetHashCode() == GetHashCode();
+
         public bool SupportsType(IType type)
         {
             return RequiredImplementedInterface == null || RequiredImplementedInterface.IsCompatibleWith(type);

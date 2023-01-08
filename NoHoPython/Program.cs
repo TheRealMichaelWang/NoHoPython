@@ -47,7 +47,7 @@ public static class Program
                 return MemoryAnalyzer.AnalysisMode.None;
             }
 
-            MemoryAnalyzer memoryAnalyzer = new MemoryAnalyzer(requestedAnalysisMode(), args.Contains("-memfail"));
+            MemoryAnalyzer memoryAnalyzer = new(requestedAnalysisMode(), args.Contains("-memfail"));
             if (OperatingSystem.IsWindows())
                 flags.Add("windows");
             else if (OperatingSystem.IsLinux())

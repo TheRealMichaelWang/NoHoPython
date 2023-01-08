@@ -20,7 +20,7 @@ namespace NoHoPython.Syntax
             foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
                 if(procedureDeclaration.CapturedVariables.Count > 0)
                     foreach (ProcedureDeclaration callSite in procedureDeclaration.CallSiteProcedures)
-                        if(procedureDeclaration != callSite)
+                        if(!procedureDeclaration.IsChildProcedure(callSite))
                             dependentProcedures[callSite].Add(procedureDeclaration);
 
             while (unprocessedProcedures.Count > 0)
@@ -83,6 +83,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             UsedTypeParameters = new List<Typing.TypeParameter>();
         }
 
+        public override string ToString() => Name;
+
         public bool HasVariable(Variable variable)
         {
             if (variable.ParentProcedure == this)
@@ -99,6 +101,18 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 #pragma warning disable CS8602 // Parameters linked after initialization
                 return !Parameters.Contains(variable);
 #pragma warning restore CS8602
+            return false;
+        }
+
+        public bool IsChildProcedure(ProcedureDeclaration potentialChild)
+        {
+            IScopeSymbol? current = potentialChild;
+            while(current is ProcedureDeclaration procedureDeclaration)
+            {
+                if (procedureDeclaration == this)
+                    return true;
+                current = procedureDeclaration.LastMasterScope;
+            }
             return false;
         }
 

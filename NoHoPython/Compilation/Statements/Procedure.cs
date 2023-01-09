@@ -4,7 +4,6 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
-using System.Diagnostics;
 using System.Text;
 
 namespace NoHoPython.Syntax
@@ -18,7 +17,7 @@ namespace NoHoPython.Syntax
         public void ScopeAnonProcedure(ProcedureType procedureType)
         {
             foreach (var uniqueProcedure in uniqueProcedureTypes)
-                if (procedureType.IsCompatibleWith(uniqueProcedure.Item1))
+                if (IRProgram.ProcedureTypeCCompatible(procedureType, uniqueProcedure.Item1))
                     return;
 
             string name = $"_nhp_anonProcTypeNo{uniqueProcedureTypes.Count}";
@@ -54,6 +53,26 @@ namespace NoHoPython.IntermediateRepresentation
 {
     partial class IRProgram
     {
+        public static bool ProcedureTypeCCompatible(ProcedureType a, ProcedureType b)
+        {
+            static bool isCCompatible(IType a, IType b)
+            {
+                if (a.IsCompatibleWith(b))
+                    return true;
+
+                return (a is RecordType || a is ProcedureType || a is HandleType) && (b is RecordType || b is ProcedureType || b is HandleType);
+            }
+
+            if (a.ParameterTypes.Count != b.ParameterTypes.Count)
+                return false;
+            if (!isCCompatible(a.ReturnType, b.ReturnType))
+                return false;
+            for (int i = 0; i < a.ParameterTypes.Count; i++)
+                if (!isCCompatible(a.ParameterTypes[i], b.ParameterTypes[i]))
+                    return false;
+            return true;
+        }
+
         private List<Tuple<ProcedureType, string>> uniqueProcedureTypes;
         private List<ProcedureReference> usedProcedureReferences;
         public readonly Dictionary<ProcedureDeclaration, List<ProcedureReference>> ProcedureOverloads;
@@ -65,7 +84,8 @@ namespace NoHoPython.IntermediateRepresentation
                 static void emitType(IRProgram irProgram, StringBuilder emitter, IType type)
                 {
                     if (type is RecordType ||
-                       type is ProcedureType)
+                       type is ProcedureType ||
+                       type is HandleType)
                         emitter.Append("void*");
                     else if (type is TypeParameterReference)
                         throw new InvalidOperationException();
@@ -139,7 +159,7 @@ namespace NoHoPython.IntermediateRepresentation
         public string GetAnonProcedureStandardIdentifier(ProcedureType procedureType)
         {
             foreach (var uniqueProcedure in uniqueProcedureTypes)
-                if (procedureType.IsCompatibleWith(uniqueProcedure.Item1))
+                if (ProcedureTypeCCompatible(procedureType, uniqueProcedure.Item1))
                     return uniqueProcedure.Item2;
             throw new InvalidOperationException();
         }

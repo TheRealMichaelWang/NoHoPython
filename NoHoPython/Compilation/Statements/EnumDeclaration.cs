@@ -104,6 +104,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     enumType.EmitCopier(irProgram, emitter);
                     enumType.EmitMover(irProgram, emitter);
                 }
+                enumType.EmitOptionTypeNames(irProgram, emitter);
             }
         }
     }
@@ -361,6 +362,23 @@ namespace NoHoPython.Typing
             emitter.AppendLine("\treturn to_mutate;");
             emitter.AppendLine("}");
         }
+
+        public void EmitOptionTypeNames(IRProgram irProgram, StringBuilder emitter)
+        {
+            if (!irProgram.NameRuntimeTypes)
+                return;
+
+            emitter.Append($"static const char* {GetStandardIdentifier(irProgram)}_typenames[] = {{");
+
+            foreach (IType option in options.Value)
+            {
+                emitter.Append($"\t\"{option.TypeName}\"");
+                if (option != options.Value.Last())
+                    emitter.Append(',');
+                emitter.AppendLine();
+            }
+            emitter.AppendLine("};");
+        }
     }
 }
 
@@ -427,17 +445,35 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 CallStackReporting.EmitErrorLoc(emitter, ErrorReportedElement);
                 CallStackReporting.EmitPrintStackTrace(emitter);
-                emitter.Append("puts(\"Unwrapping Error: ");
-                ErrorReportedElement.EmitSrcAsCString(emitter, false);
-                emitter.Append(" failed.\");");
+                if (irProgram.NameRuntimeTypes)
+                {
+                    emitter.Append("printf(\"Unwrapping Error: Expected ");
+                    ErrorReportedElement.EmitSrcAsCString(emitter, true, false);
+                    emitter.Append($"to be {Type.SubstituteWithTypearg(typeargs).TypeName}, but got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{irProgram.ExpressionDepth}.option]);");
+                }
+                else
+                {
+                    emitter.Append("puts(\"Unwrapping Error: ");
+                    ErrorReportedElement.EmitSrcAsCString(emitter, false, false);
+                    emitter.Append(" failed.\");");
+                }
             }
             else
             {
-                emitter.Append("puts(\"Failed to unwrap enum from value, ");
-                CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString(), false, false);
-                emitter.Append(".\\n\\t");
-                ErrorReportedElement.EmitSrcAsCString(emitter, false);
-                emitter.Append("\");");
+                if (irProgram.NameRuntimeTypes)
+                {
+                    emitter.Append($"printf(\"Failed to unwrap {Type.SubstituteWithTypearg(typeargs).TypeName} from ");
+                    CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString(), true, false);
+                    emitter.Append($", got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{irProgram.ExpressionDepth}.option]); ");
+                }
+                else
+                {
+                    emitter.Append("puts(\"Failed to unwrap enum from value, ");
+                    CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString(), false, false);
+                    emitter.Append(".\\n\\t");
+                    ErrorReportedElement.EmitSrcAsCString(emitter, true, false);
+                    emitter.Append("\");");
+                }
             }
             emitter.Append("abort();}");
 

@@ -7,12 +7,12 @@ namespace NoHoPython.Syntax
 {
     public interface IAstElement : ISourceLocatable
     { 
-        public void EmitSrcAsCString(StringBuilder emitter, bool encapsulateWithQuotes=true)
+        public void EmitSrcAsCString(StringBuilder emitter, bool formatStr=true, bool encapsulateWithQuotes=true)
         {
             if (this is IAstValue astValue)
-                CharacterLiteral.EmitCString(emitter, astValue.ToString(), false, encapsulateWithQuotes);
+                CharacterLiteral.EmitCString(emitter, astValue.ToString(), formatStr, encapsulateWithQuotes);
             else if (this is IAstStatement astStatement)
-                CharacterLiteral.EmitCString(emitter, astStatement.ToString(0), false, encapsulateWithQuotes);
+                CharacterLiteral.EmitCString(emitter, astStatement.ToString(0), formatStr, encapsulateWithQuotes);
         }
     }
 

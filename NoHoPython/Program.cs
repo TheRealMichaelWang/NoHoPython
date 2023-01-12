@@ -81,7 +81,7 @@ public static class Program
             Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {outputFile}.");
             if (program.EmitLineDirectives)
             {
-                Console.WriteLine($"GCC line directives have been enabled; please use the -ggdb flag while compiling {outputFile}, and gdb to debug it.");
+                Console.WriteLine($"GCC line directives have been enabled; please use the -ggdb flag while compiling {outputFile}, and gdb to debug it. Please not that this feature doesn't work very well at the moment, and is still experimental.");
             }
         }
         catch (SyntaxError syntaxError)
@@ -99,6 +99,11 @@ public static class Program
         catch (FileNotFoundException f)
         {
             Console.WriteLine($"File not found: {f.Message}");
+        }
+        catch(InvalidOperationException e)
+        {
+            Console.WriteLine("An internal compiler error has occured; please report the following stack trace to https://github.com/TheRealMichaelWang/NoHoPython/issues/new.");
+            Console.WriteLine(e.StackTrace);
         }
 
         return 0;

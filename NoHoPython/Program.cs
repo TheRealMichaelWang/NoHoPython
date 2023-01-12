@@ -56,7 +56,7 @@ public static class Program
             for (int i = 2; i < args.Length; i++)
                 flags.Add(args[i]);
             AstIRProgramBuilder astIRProgramBuilder = new(statements, flags);
-            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), args.Contains("-namert"), memoryAnalyzer);
+            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), args.Contains("-namert"), args.Contains("-linedir") || args.Contains("-ggdb"), memoryAnalyzer);
             parser.IncludeCFiles(program);
 
             string outputFile;
@@ -79,6 +79,10 @@ public static class Program
 
             File.WriteAllText(outputFile, output.ToString());
             Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {outputFile}.");
+            if (program.EmitLineDirectives)
+            {
+                Console.WriteLine($"GCC line directives have been enabled; please use the -ggdb flag while compiling {outputFile}, and gdb to debug it.");
+            }
         }
         catch (SyntaxError syntaxError)
         {

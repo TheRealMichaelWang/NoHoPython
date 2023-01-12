@@ -278,6 +278,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             foreach (ProcedureReference procedureReference in irProgram.ProcedureOverloads[this])
             {
+                if (irProgram.EmitLineDirectives)
+                    ErrorReportedElement.SourceLocation.EmitLineDirective(emitter);
                 Dictionary<TypeParameter, IType> typeargs = procedureReference.Emit(irProgram, emitter);
                 EmitInitialize(irProgram, emitter, typeargs, indent);
                 EmitNoOpen(irProgram, emitter, typeargs, indent, false);

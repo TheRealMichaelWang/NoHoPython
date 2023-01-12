@@ -1,6 +1,7 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Typing;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace NoHoPython.Syntax
@@ -57,6 +58,22 @@ namespace NoHoPython.Syntax
         }
 
         public override string ToString() => $"File \"{File}\", row {Row}, col {Column}";
+
+        public void EmitLineDirective(StringBuilder emitter)
+        {
+            emitter.Append($"#line {Row} ");
+
+            if (OperatingSystem.IsWindows())
+            {
+                //assumes windows gdb users are using cygwin
+                var pathParts = Path.GetRelativePath(@"C:\", File).Split(Path.DirectorySeparatorChar);
+                CharacterLiteral.EmitCString(emitter, $"/cygdrive/c/{string.Join('/', pathParts)}", false, true);
+            }
+            else
+                CharacterLiteral.EmitCString(emitter, File, false, true);
+
+            emitter.AppendLine();
+        }
     }
 
     public interface ISourceLocatable

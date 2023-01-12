@@ -50,17 +50,17 @@ namespace NoHoPython.Syntax.Parsing
             {
                 if (!File.Exists(fileName))
                 {
-                    if (File.Exists($"{scanner.standardLibraryDirectory}/{fileName}"))
+                    if (File.Exists(Path.Combine(scanner.standardLibraryDirectory, fileName)))
                     {
-                        fileName = $"{scanner.standardLibraryDirectory}/{fileName}";
+                        fileName = Path.Combine(scanner.standardLibraryDirectory, fileName);
                         goto file_found;
                     }
                     else if (scanner.visitorStack.Count > 0)
                     {
                         FileVisitor parent = scanner.visitorStack.Peek();
-                        if (File.Exists($"{parent.WorkingDirectory}/{fileName}"))
+                        if (File.Exists(Path.Combine(parent.WorkingDirectory, fileName)))
                         {
-                            fileName = $"{parent.WorkingDirectory}/{fileName}";
+                            fileName = Path.Combine(parent.WorkingDirectory, fileName);
                             goto file_found;
                         }
                     }

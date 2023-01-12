@@ -76,7 +76,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (Statements == null)
                 throw new InvalidOperationException();
 
-            Statements.ForEach((statement) => statement.Emit(irProgram, emitter, typeargs, indent + 1));
+            Statements.ForEach((statement) =>
+            {
+                if(irProgram.EmitLineDirectives)
+                {
+                    CodeBlock.CIndent(emitter, indent + 1);
+                    statement.ErrorReportedElement.SourceLocation.EmitLineDirective(emitter);
+                }
+                statement.Emit(irProgram, emitter, typeargs, indent + 1);
+            });
 
             if (!CodeBlockAllCodePathsReturn())
             {

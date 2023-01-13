@@ -36,7 +36,7 @@ namespace NoHoPython.IntermediateRepresentation
         private List<InterfaceType> usedInterfaceTypes;
         public readonly Dictionary<InterfaceDeclaration, List<InterfaceType>> InterfaceTypeOverloads;
         
-        public void ForwardDeclareInterfaceTypes(StringBuilder emitter)
+        public void ForwardDeclareInterfaceTypes(StatementEmitter emitter)
         {
             foreach (InterfaceType usedInterface in usedInterfaceTypes)
                 emitter.AppendLine($"typedef struct {usedInterface.GetStandardIdentifier(this)} {usedInterface.GetCName(this)};");
@@ -50,7 +50,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter)
+        public void ForwardDeclareType(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!irProgram.InterfaceTypeOverloads.ContainsKey(this))
                 return;
@@ -59,7 +59,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 interfaceType.EmitCStruct(irProgram, emitter);
         }
 
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter)
+        public void ForwardDeclare(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!irProgram.InterfaceTypeOverloads.ContainsKey(this))
                 return;
@@ -75,7 +75,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (!irProgram.InterfaceTypeOverloads.ContainsKey(this))
                 return;
@@ -103,8 +103,8 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent) => emitter.AppendLine($"free_interface{GetStandardIdentifier(irProgram)}({valueCSource});");
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer)
+        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) => emitter.Append($"free_interface{GetStandardIdentifier(irProgram)}({valueCSource});");
+        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer)
         {
             if(MustSetResponsibleDestroyer)
                 emitter.Append($"copy_interface{GetStandardIdentifier(irProgram)}({valueCSource}, {responsibleDestroyer})");
@@ -112,7 +112,7 @@ namespace NoHoPython.Typing
                 emitter.Append($"copy_interface{GetStandardIdentifier(irProgram)}({valueCSource})");
         }
 
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource)
         {
             if (irProgram.EmitExpressionStatements)
                 IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
@@ -120,13 +120,13 @@ namespace NoHoPython.Typing
                 emitter.Append($"move_interface{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(MustSetResponsibleDestroyer ? $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})" : valueCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(MustSetResponsibleDestroyer ? $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})" : valueCSource);
 
-        public void EmitGetProperty(IRProgram irProgram, StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}.{property.Name}");
+        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}.{property.Name}");
 
-        public void EmitMarshallerHeader(IRProgram irProgram, StringBuilder emitter) => emitter.AppendLine($"{GetCName(irProgram)} marshal_interface{GetStandardIdentifier(irProgram)}({string.Join(", ", requiredImplementedProperties.Value.ConvertAll((prop) => $"{prop.Type.GetCName(irProgram)} {prop.Name}"))}{(MustSetResponsibleDestroyer ? ", void* responsibleDestroyer" : string.Empty)});");
+        public void EmitMarshallerHeader(IRProgram irProgram, StatementEmitter emitter) => emitter.AppendLine($"{GetCName(irProgram)} marshal_interface{GetStandardIdentifier(irProgram)}({string.Join(", ", requiredImplementedProperties.Value.ConvertAll((prop) => $"{prop.Type.GetCName(irProgram)} {prop.Name}"))}{(MustSetResponsibleDestroyer ? ", void* responsibleDestroyer" : string.Empty)});");
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -137,7 +137,7 @@ namespace NoHoPython.Typing
             }
         }
 
-        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter)
+        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!irProgram.DeclareCompiledType(emitter, this))
                 return;
@@ -148,7 +148,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine("};");
         }
 
-        public void EmitMarshaller(IRProgram irProgram, StringBuilder emitter)
+        public void EmitMarshaller(IRProgram irProgram, StatementEmitter emitter)
         {
             emitter.Append($"{GetCName(irProgram)} marshal_interface{GetStandardIdentifier(irProgram)}({string.Join(", ", requiredImplementedProperties.Value.ConvertAll((prop) => $"{prop.Type.GetCName(irProgram)} {prop.Name}"))}");
 
@@ -167,7 +167,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitDestructor(IRProgram irProgram, StringBuilder emitter)
+        public void EmitDestructor(IRProgram irProgram, StatementEmitter emitter)
         {
             emitter.AppendLine($"void free_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} interface) {{");
 
@@ -176,11 +176,12 @@ namespace NoHoPython.Typing
                 {
                     emitter.Append('\t');
                     property.Type.EmitFreeValue(irProgram, emitter, $"interface.{property.Name}", "NULL");
+                    emitter.AppendLine();
                 }
             emitter.AppendLine("}");
         }
 
-        public void EmitCopier(IRProgram irProgram, StringBuilder emitter)
+        public void EmitCopier(IRProgram irProgram, StatementEmitter emitter)
         {
             emitter.Append($"{GetCName(irProgram)} copy_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} interface");
 
@@ -199,7 +200,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitMover(IRProgram irProgram, StringBuilder emitter)
+        public void EmitMover(IRProgram irProgram, StatementEmitter emitter)
         {
             if (irProgram.EmitExpressionStatements)
                 return;
@@ -207,12 +208,13 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"{GetCName(irProgram)} move_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
             emitter.Append('\t');
             EmitFreeValue(irProgram, emitter, "*dest", "NULL");
+            emitter.AppendLine();
             emitter.AppendLine($"\t*dest = src;");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
         }
 
-        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StringBuilder emitter)
+        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!MustSetResponsibleDestroyer)
                 return;
@@ -243,7 +245,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             InterfaceType realPrototype = (InterfaceType)TargetType.SubstituteWithTypearg(typeargs);
 
@@ -262,21 +264,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
             bool firstEmit = true;
             foreach (Property property in properties)
             {
-                StringBuilder valueEmitter = new();
+                string valueEmitter;
                 if (Value.RequiresDisposal(typeargs))
-                    valueEmitter.Append("_nhp_marshal_buf");
+                    valueEmitter = "_nhp_marshal_buf";
+                else if (firstEmit)
+                    valueEmitter = BufferedEmitter.EmittedBufferedMemorySafe(Value, irProgram, typeargs);
                 else
                 {
-                    if (firstEmit)
-                        IRValue.EmitMemorySafe(Value, irProgram, valueEmitter, typeargs);
-                    else
-                    {
-                        IRValue.EmitMemorySafe(Value.GetPostEvalPure(), irProgram, valueEmitter, typeargs);
-                        firstEmit = false;
-                    }
+                    valueEmitter = BufferedEmitter.EmittedBufferedMemorySafe(Value.GetPostEvalPure(), irProgram, typeargs);
+                    firstEmit = false;
                 }
 
-                StringBuilder getPropertyEmitter = new();
+                BufferedEmitter getPropertyEmitter = new();
                 if (Value.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
                     propertyContainer.EmitGetProperty(irProgram, getPropertyEmitter, valueEmitter.ToString(), property);
                 else

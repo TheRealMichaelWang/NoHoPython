@@ -1,4 +1,5 @@
 ﻿using NoHoPython.Typing;
+using System.Diagnostics;
 using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Values
@@ -9,7 +10,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append(Number);
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append(Number.ToString());
     }
 
     partial class DecimalLiteral
@@ -18,14 +19,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append(Number);
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append(Number.ToString());
     }
 
     partial class CharacterLiteral
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-        public static void EmitCChar(StringBuilder emitter, char c, bool formatChar)
+        public static void EmitCChar(IEmitter emitter, char c, bool formatChar)
         {
             switch (c)
             {
@@ -63,14 +64,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     emitter.Append(formatChar ? "%%" : "%");
                     break;
                 default:
-                    if (char.IsControl(c))
-                        throw new InvalidOperationException();
+                    Debug.Assert(!char.IsControl(c));
                     emitter.Append(c);
                     break;
             }
         }
 
-        public static void EmitCString(StringBuilder emitter, string str, bool formatStr, bool quoteEncapsulate)
+        public static void EmitCString(IEmitter emitter, string str, bool formatStr, bool quoteEncapsulate)
         {
             if(quoteEncapsulate)
                 emitter.Append('\"');
@@ -84,7 +84,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             emitter.Append('\'');
             EmitCChar(emitter, Character, false);
@@ -97,7 +97,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append('1');
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append('1');
     }
 
     partial class FalseLiteral
@@ -105,7 +105,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append('0');
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append('0');
     }
 
     partial class EmptyTypeLiteral
@@ -113,7 +113,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) { }
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) { }
     }
 
     partial class ArrayLiteral
@@ -126,9 +126,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            StringBuilder arrayBuilder = new();
+            BufferedEmitter arrayBuilder = new();
             if (Elements.Count == 0)
                 arrayBuilder.Append("NULL");
             else if(Elements.TrueForAll((IRValue element) => element is CharacterLiteral)) //is string literal
@@ -169,7 +169,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             if ((!Length.IsPure && !ProtoValue.IsConstant) || (!ProtoValue.IsPure && !Length.IsConstant))
                 throw new CannotEnsureOrderOfEvaluation(this);
@@ -181,11 +181,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (ProtoValue.RequiresDisposal(typeargs))
                 ProtoValue.Emit(irProgram, emitter, typeargs, "NULL");
             else
-            {
-                StringBuilder valueBuilder = new();
-                ProtoValue.Emit(irProgram, valueBuilder, typeargs, "NULL");
-                ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), "NULL");
-            }
+                ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(ProtoValue, irProgram, typeargs, "NULL"), "NULL");
 
             if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer)
                 emitter.Append($", {responsibleDestroyer})");
@@ -202,7 +198,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             base.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public override void EmitCall(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer)
+        public override void EmitCall(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer)
         {
             emitter.Append($"construct_{RecordPrototype.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
             EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);

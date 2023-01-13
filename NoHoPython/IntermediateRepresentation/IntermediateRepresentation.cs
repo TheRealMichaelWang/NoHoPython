@@ -108,13 +108,13 @@ namespace NoHoPython.IntermediateRepresentation
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
 
         //emit corresponding C code
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer);
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer);
     }
 
     public partial interface IRStatement : IRElement
     {
         //emit corresponding C code
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent);
+        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent);
     }
 
     public sealed partial class IRProgram
@@ -192,7 +192,7 @@ namespace NoHoPython.IntermediateRepresentation
                 IncludedCFiles.Add(cFile);
         }
 
-        public bool DeclareCompiledType(StringBuilder emitter, IType type)
+        public bool DeclareCompiledType(StatementEmitter emitter, IType type)
         {
             if (!compiledTypes.Add(type))
                 return false;
@@ -200,72 +200,76 @@ namespace NoHoPython.IntermediateRepresentation
             return true;
         }
 
-        public void CompileUncompiledDependencies(StringBuilder emitter, IType type)
+        public void CompileUncompiledDependencies(StatementEmitter emitter, IType type)
         {
             foreach (IType dependency in typeDependencyTree[type])
                 if (!compiledTypes.Contains(dependency))
                     dependency.EmitCStruct(this, emitter);
         }
 
-        public void Emit(StringBuilder emitter, StringBuilder headerEmitter)
+        public void Emit(string outputFile, string? headerFile)
         {
-            ExpressionDepth = 0;
-
-            if (headerEmitter != emitter)
+            using (StatementEmitter emitter = new(outputFile, this))
+            using(StatementEmitter headerEmitter = (headerFile == null) ? emitter : new StatementEmitter(headerFile, this))
             {
-                headerEmitter.AppendLine("#ifndef _NHP_HEADER_GUARD_");
-                headerEmitter.AppendLine("#define _NHP_HEADER_GUARD_");
+                ExpressionDepth = 0;
+
+                if (headerEmitter != emitter)
+                {
+                    headerEmitter.AppendLine("#ifndef _NHP_HEADER_GUARD_");
+                    headerEmitter.AppendLine("#define _NHP_HEADER_GUARD_");
+                }
+                foreach (string includedCFile in IncludedCFiles)
+                    if (includedCFile.StartsWith('<'))
+                        emitter.AppendLine($"#include {includedCFile}");
+                    else
+                        emitter.AppendLine($"#include \"{includedCFile}\"");
+                emitter.AppendLine();
+
+                //emit typedefs
+                this.compiledTypes.Clear();
+                EmitArrayTypeTypedefs(headerEmitter);
+                ForwardDeclareEnumTypes(headerEmitter);
+                ForwardDeclareInterfaceTypes(headerEmitter);
+                EmitAnonProcedureTypedefs(headerEmitter);
+                ForwardDeclareRecordTypes(headerEmitter);
+
+                //emit c structs
+                RecordDeclaration.EmitRecordMaskProto(headerEmitter);
+                RecordDeclaration.EmitRecordChildFinder(headerEmitter);
+                EmitArrayTypeCStructs(headerEmitter);
+                EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclareType(this, headerEmitter));
+                InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclareType(this, headerEmitter));
+                RecordDeclarations.ForEach((record) => record.ForwardDeclareType(this, headerEmitter));
+                ForwardDeclareAnonProcedureTypes(this, headerEmitter);
+
+                //emit function headers
+                ForwardDeclareArrayTypes(headerEmitter);
+                EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclare(this, headerEmitter));
+                InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, headerEmitter));
+                RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, headerEmitter));
+                ProcedureDeclarations.ForEach((procedure) => procedure.ForwardDeclareActual(this, headerEmitter));
+                usedProcedureReferences.ForEach((procedure) => procedure.EmitCaptureContextCStruct(this, headerEmitter));
+
+                if (headerEmitter != emitter)
+                    headerEmitter.AppendLine("#endif");
+
+                //emit utility functions
+                MemoryAnalyzer.EmitAnalyzers(emitter);
+                if (DoCallStack)
+                    CallStackReporting.EmitReporter(emitter);
+                if (!EliminateAsserts)
+                    AssertStatement.EmitAsserter(emitter, DoCallStack);
+
+                //emit function behavior
+                EmitAnonProcedureCapturedContecies(emitter);
+                EmitArrayTypeMarshallers(emitter, DoCallStack);
+                EmitAnonProcedureMovers(this, emitter);
+                EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new(), 0));
+                InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(this, emitter, new(), 0));
+                RecordDeclarations.ForEach((record) => record.Emit(this, emitter, new(), 0));
+                ProcedureDeclarations.ForEach((proc) => proc.EmitActual(this, emitter, 0));
             }
-            foreach (string includedCFile in IncludedCFiles)
-                if (includedCFile.StartsWith('<'))
-                    emitter.AppendLine($"#include {includedCFile}");
-                else
-                    emitter.AppendLine($"#include \"{includedCFile}\"");
-            emitter.AppendLine();
-
-            //emit typedefs
-            this.compiledTypes.Clear();
-            EmitArrayTypeTypedefs(headerEmitter);
-            ForwardDeclareEnumTypes(headerEmitter);
-            ForwardDeclareInterfaceTypes(headerEmitter);
-            EmitAnonProcedureTypedefs(headerEmitter);
-            ForwardDeclareRecordTypes(headerEmitter);
-
-            //emit c structs
-            RecordDeclaration.EmitRecordMaskProto(headerEmitter);
-            RecordDeclaration.EmitRecordChildFinder(headerEmitter);
-            EmitArrayTypeCStructs(headerEmitter);
-            EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclareType(this, headerEmitter));
-            InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclareType(this, headerEmitter));
-            RecordDeclarations.ForEach((record) => record.ForwardDeclareType(this, headerEmitter));
-            ForwardDeclareAnonProcedureTypes(this, headerEmitter);
-
-            //emit function headers
-            ForwardDeclareArrayTypes(headerEmitter);
-            EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclare(this, headerEmitter));
-            InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, headerEmitter));
-            RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, headerEmitter));
-            ProcedureDeclarations.ForEach((procedure) => procedure.ForwardDeclareActual(this, headerEmitter));
-            usedProcedureReferences.ForEach((procedure) => procedure.EmitCaptureContextCStruct(this, headerEmitter));
-
-            if (headerEmitter != emitter)
-                headerEmitter.AppendLine("#endif");
-
-            //emit utility functions
-            MemoryAnalyzer.EmitAnalyzers(emitter);
-            if(DoCallStack)
-                CallStackReporting.EmitReporter(emitter);
-            if(!EliminateAsserts)
-                AssertStatement.EmitAsserter(emitter, DoCallStack);
-
-            //emit function behavior
-            EmitAnonProcedureCapturedContecies(emitter);
-            EmitArrayTypeMarshallers(emitter, DoCallStack);
-            EmitAnonProcedureMovers(this, emitter);
-            EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new Dictionary<TypeParameter, IType>(), 0));
-            InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(this, emitter, new Dictionary<TypeParameter, IType>(), 0));
-            RecordDeclarations.ForEach((record) => record.Emit(this, emitter, new Dictionary<TypeParameter, IType>(), 0));
-            ProcedureDeclarations.ForEach((proc) => proc.EmitActual(this, emitter, 0));
         }
     }
 }

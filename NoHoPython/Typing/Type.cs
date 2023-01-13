@@ -18,14 +18,14 @@ namespace NoHoPython.Typing
         public string GetCName(IRProgram irProgram);
         public string GetStandardIdentifier(IRProgram irProgram);
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent);
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer);
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource);
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newRecordCSource);
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer);
+        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent);
+        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer);
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource);
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer);
 
-        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter);
+        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder);
 

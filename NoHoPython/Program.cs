@@ -65,19 +65,15 @@ public static class Program
             else
                 outputFile = "out.c";
 
-            StringBuilder output = new();
             if (args.Contains("-header"))
             {
                 string headerName = outputFile.EndsWith(".c") ? outputFile.Replace(".c", ".h") : outputFile + ".h";
-                StringBuilder headerBuilder = new();
                 program.IncludeCFile(headerName);
-                program.Emit(output, headerBuilder);
-                File.WriteAllText(headerName, headerBuilder.ToString());
+                program.Emit(outputFile, headerName);
             }
             else
-                program.Emit(output, output);
+                program.Emit(outputFile, null);
 
-            File.WriteAllText(outputFile, output.ToString());
             Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {outputFile}.");
             if (program.EmitLineDirectives)
             {

@@ -70,7 +70,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public IType? ReturnType { get; private set; }
 
-        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType? returnType, SymbolContainer parentContainer, IScopeSymbol? lastMasterScope, IAstElement errorReportedElement) : base(parentContainer, false)
+        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType? returnType, SymbolContainer parentContainer, IScopeSymbol? lastMasterScope, IAstElement errorReportedElement) : base(parentContainer, false, errorReportedElement.SourceLocation)
         {
             Name = name;
             TypeParameters = typeParameters;

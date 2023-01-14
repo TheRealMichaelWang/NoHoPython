@@ -147,9 +147,9 @@ namespace NoHoPython.Scoping
             scopeStack.Push(symbolContainer);
         }
 
-        public CodeBlock NewCodeBlock(bool isLoop)
+        public CodeBlock NewCodeBlock(bool isLoop, SourceLocation blockBeginLocation)
         {
-            CodeBlock codeBlock = new(scopeStack.Peek(), isLoop);
+            CodeBlock codeBlock = new(scopeStack.Peek(), isLoop, blockBeginLocation);
             NavigateToScope(codeBlock);
             return codeBlock;
         }

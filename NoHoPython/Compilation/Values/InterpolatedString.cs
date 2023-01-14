@@ -164,9 +164,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append(';');
             }
 
-            emitter.Append($"intpd_str{irProgram.ExpressionDepth}.length = snprintf(NULL, 0, \"{formatBuilder.ToString()}\"");
+            emitter.Append($"intpd_str{irProgram.ExpressionDepth}.length = snprintf(NULL, 0, \"{formatBuilder}\"");
             emitFormatValues();
-            emitter.Append($"); intpd_str{irProgram.ExpressionDepth}.buffer = {irProgram.MemoryAnalyzer.Allocate($"intpd_str{irProgram.ExpressionDepth}.length + 1")}; snprintf(intpd_str{irProgram.ExpressionDepth}.buffer, intpd_str{irProgram.ExpressionDepth}.length + 1, \"{formatBuilder.ToString()}\"");
+            emitter.Append($"); intpd_str{irProgram.ExpressionDepth}.buffer = {irProgram.MemoryAnalyzer.Allocate($"intpd_str{irProgram.ExpressionDepth}.length + 1")}; snprintf(intpd_str{irProgram.ExpressionDepth}.buffer, intpd_str{irProgram.ExpressionDepth}.length + 1, \"{formatBuilder}\"");
             emitFormatValues();
             emitter.Append(");");
 

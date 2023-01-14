@@ -86,6 +86,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 statement.Emit(irProgram, emitter, typeargs, indent + 1);
             });
 
+            emitter.LastSourceLocation = BlockBeginLocation;
             if (!CodeBlockAllCodePathsReturn())
             {
                 foreach (Variable declaration in LocalVariables)

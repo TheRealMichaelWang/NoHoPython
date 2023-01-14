@@ -90,7 +90,7 @@ namespace NoHoPython.Compilation
             emitter.AppendLine($"_nhp_set_errloc({locationSrc}, {src});");
         }
 
-        public static void EmitPrintStackTrace(StatementEmitter emitter, int indent=0)
+        public static void EmitPrintStackTrace(StatementEmitter emitter, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
             EmitPrintStackTrace(emitter);

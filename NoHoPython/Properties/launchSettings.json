@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "tests/enum-test2.nhp\r\nout.c\r\n-namert\r\n-linedir"
+      "commandLineArgs": "tests/enum-test2.nhp\r\nout.c\r\n-namert\r\n-linedir\r\n-stacktrace"
     }
   }
 }

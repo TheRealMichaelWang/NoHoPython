@@ -77,7 +77,7 @@ public static class Program
             Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {outputFile}.");
             if (program.EmitLineDirectives)
             {
-                Console.WriteLine($"GCC line directives have been enabled; please use the -ggdb flag while compiling {outputFile}, and gdb to debug it. Please not that this feature doesn't work very well at the moment, and is still experimental.");
+                Console.WriteLine($"GCC line directives have been enabled; please use the -ggdb flag while compiling {outputFile}, and gdb to debug it. Please not that this feature doesn't work very well at the moment, and is still experimental. In addition, unless you want to debug internal gdb code, type \"skip file {outputFile}\", then run.");
             }
         }
         catch (SyntaxError syntaxError)

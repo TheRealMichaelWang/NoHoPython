@@ -20,7 +20,7 @@ namespace NoHoPython.Typing
 
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent);
         public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer);
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource);
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent);
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource);
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer);

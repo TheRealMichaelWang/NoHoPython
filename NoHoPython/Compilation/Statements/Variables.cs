@@ -99,12 +99,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
             string setValueCSource = BufferedEmitter.EmitBufferedValue(SetValue, irProgram, typeargs, "NULL");
 
             if (SetValue.RequiresDisposal(typeargs))
-                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(), setValueCSource);
+                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(), setValueCSource, "NULL");
             else
             {
                 BufferedEmitter copyBuilder = new();
                 Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, copyBuilder, setValueCSource, "NULL");
-                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(), copyBuilder.ToString());
+                Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Variable.GetStandardIdentifier(), copyBuilder.ToString(), "NULL");
             }
         }
 

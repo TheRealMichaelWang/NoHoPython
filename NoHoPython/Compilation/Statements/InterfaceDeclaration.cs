@@ -67,11 +67,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (InterfaceType interfaceType in irProgram.InterfaceTypeOverloads[this])
             {
                 interfaceType.EmitMarshallerHeader(irProgram, emitter);
-                emitter.AppendLine($"void free_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface);");
+                emitter.AppendLine($"void free_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* child_agent);");
                 emitter.AppendLine($"{interfaceType.GetCName(irProgram)} copy_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* responsibleDestroyer);");
                 emitter.AppendLine($"{interfaceType.GetCName(irProgram)} change_resp_owner{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* responsibleDestroyer);");
                 if (!irProgram.EmitExpressionStatements)
-                    emitter.AppendLine($"{interfaceType.GetCName(irProgram)} move_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)}* dest, {interfaceType.GetCName(irProgram)} src);");
+                    emitter.AppendLine($"{interfaceType.GetCName(irProgram)} move_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)}* dest, {interfaceType.GetCName(irProgram)} src, void* child_agent);");
             }
         }
 
@@ -103,7 +103,7 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
-        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) => emitter.Append($"free_interface{GetStandardIdentifier(irProgram)}({valueCSource});");
+        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) => emitter.Append($"free_interface{GetStandardIdentifier(irProgram)}({valueCSource}, {childAgent});");
         public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer)
         {
             if(MustSetResponsibleDestroyer)
@@ -112,12 +112,12 @@ namespace NoHoPython.Typing
                 emitter.Append($"copy_interface{GetStandardIdentifier(irProgram)}({valueCSource})");
         }
 
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource)
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
         {
             if (irProgram.EmitExpressionStatements)
-                IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
+                IType.EmitMove(this, irProgram, emitter, destC, valueCSource, childAgent);
             else
-                emitter.Append($"move_interface{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+                emitter.Append($"move_interface{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource}, {childAgent})");
         }
 
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
@@ -169,13 +169,13 @@ namespace NoHoPython.Typing
 
         public void EmitDestructor(IRProgram irProgram, StatementEmitter emitter)
         {
-            emitter.AppendLine($"void free_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} interface) {{");
+            emitter.AppendLine($"void free_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} interface, void* child_agent) {{");
 
             foreach (var property in requiredImplementedProperties.Value)
                 if (property.Type.RequiresDisposal)
                 {
                     emitter.Append('\t');
-                    property.Type.EmitFreeValue(irProgram, emitter, $"interface.{property.Name}", "NULL");
+                    property.Type.EmitFreeValue(irProgram, emitter, $"interface.{property.Name}", "child_agent");
                     emitter.AppendLine();
                 }
             emitter.AppendLine("}");
@@ -205,9 +205,9 @@ namespace NoHoPython.Typing
             if (irProgram.EmitExpressionStatements)
                 return;
 
-            emitter.AppendLine($"{GetCName(irProgram)} move_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} move_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src, void* child_agent) {{");
             emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "*dest", "NULL");
+            EmitFreeValue(irProgram, emitter, "*dest", "child_agent");
             emitter.AppendLine();
             emitter.AppendLine($"\t*dest = src;");
             emitter.AppendLine("\treturn src;");

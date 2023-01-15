@@ -54,7 +54,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine("struct _nhp_std_record_mask {");
             emitter.AppendLine("\tint _nhp_ref_count;");
             emitter.AppendLine("\tint _nhp_lock;");
-            emitter.AppendLine("\t_nhp_std_record_mask_t* parent_record;");
+            emitter.AppendLine($"\t{RecordType.StandardRecordMask} parent_record;");
             emitter.AppendLine("} _nhp_std_record_mask;");
         }
 
@@ -98,7 +98,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (!recordType.HasCopier)
                     emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} parent_record);");
                 if (!irProgram.EmitExpressionStatements)
-                    emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src);");
+                    emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src, void* child_agent);");
             }
         }
 
@@ -151,15 +151,15 @@ namespace NoHoPython.Typing
                 emitter.Append($"copy_record{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){responsibleDestroyer})");
         }
 
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource)
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
         {
             if (irProgram.EmitExpressionStatements)
-                IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
+                IType.EmitMove(this, irProgram, emitter, destC, valueCSource, childAgent);
             else
-                emitter.Append($"move_record(&{destC}, {valueCSource})");
+                emitter.Append($"move_record(&{destC}, {valueCSource}, {childAgent})");
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => emitter.Append($"borrow_record{GetStandardIdentifier(irProgram)}({valueCSource}, ({RecordType.StandardRecordMask}){responsibleDestroyer})");
+        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => emitter.Append($"borrow_record{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){responsibleDestroyer})");
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
 
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append($"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){newResponsibleDestroyer})");
@@ -253,7 +253,7 @@ namespace NoHoPython.Typing
                 if (recordProperty.Type.RequiresDisposal)
                 {
                     emitter.Append('\t');
-                    recordProperty.Type.EmitFreeValue(irProgram, emitter, $"record->{recordProperty.Name}", "NULL");
+                    recordProperty.Type.EmitFreeValue(irProgram, emitter, $"record->{recordProperty.Name}", "record");
                     emitter.AppendLine();
                 }
             }
@@ -288,9 +288,9 @@ namespace NoHoPython.Typing
             if (irProgram.EmitExpressionStatements)
                 return;
 
-            emitter.AppendLine($"{GetCName(irProgram)} move_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} move_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src, void* child_agent) {{");
             emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "*dest", "NULL");
+            EmitFreeValue(irProgram, emitter, "*dest", "child_agent");
             emitter.AppendLine();
             emitter.AppendLine("\t*dest = src;");
             emitter.AppendLine("\treturn src;");

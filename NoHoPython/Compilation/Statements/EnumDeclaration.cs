@@ -80,10 +80,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     emitter.AppendLine($"{usedEnum.GetCName(irProgram)} change_resp_owner{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} to_mutate, void* responsible_destroyer);");
                 if (usedEnum.RequiresDisposal)
                 {
-                    emitter.AppendLine($"void free_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum);");
+                    emitter.AppendLine($"void free_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum, void* child_agent);");
                     emitter.AppendLine($"{usedEnum.GetCName(irProgram)} copy_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum, void* responsible_destroyer);");
                     if (!irProgram.EmitExpressionStatements)
-                        emitter.AppendLine($"{usedEnum.GetCName(irProgram)} move_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)}* dest, {usedEnum.GetCName(irProgram)} src);");
+                        emitter.AppendLine($"{usedEnum.GetCName(irProgram)} move_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)}* dest, {usedEnum.GetCName(irProgram)} src, void* child_agent);");
                 }
             }
         }
@@ -123,7 +123,7 @@ namespace NoHoPython.Typing
 
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) => throw new CannotCompileEmptyTypeError(null);
         public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent) => throw new CannotCompileEmptyTypeError(null);
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string recordCSource) => throw new CannotCompileEmptyTypeError(null);
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
@@ -144,7 +144,7 @@ namespace NoHoPython.Typing
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
         {
             if(RequiresDisposal)
-                emitter.Append($"free_enum{GetStandardIdentifier(irProgram)}({valueCSource});");
+                emitter.Append($"free_enum{GetStandardIdentifier(irProgram)}({valueCSource}, {childAgent});");
         }
 
         public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer)
@@ -160,14 +160,14 @@ namespace NoHoPython.Typing
                 emitter.Append(valueCSource);
         }
 
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource)
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
         {
             if (RequiresDisposal)
             {
                 if (irProgram.EmitExpressionStatements)
-                    IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
+                    IType.EmitMove(this, irProgram, emitter, destC, valueCSource, childAgent);
                 else
-                    emitter.Append($"move_enum{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+                    emitter.Append($"move_enum{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource}, {childAgent})");
             }
             else
                 emitter.Append($"({destC} = {valueCSource})");
@@ -287,14 +287,14 @@ namespace NoHoPython.Typing
 
         public void EmitDestructor(IRProgram irProgram, StatementEmitter emitter)
         {
-            emitter.AppendLine($"void free_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum) {{");
+            emitter.AppendLine($"void free_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum, void* child_agent) {{");
             emitter.AppendLine("\tswitch(_nhp_enum.option) {");
             foreach(IType option in options.Value)
                 if (option.RequiresDisposal)
                 {
                     emitter.AppendLine($"\tcase {GetCEnumOptionForType(irProgram, option)}:");
                     emitter.Append("\t\t");
-                    option.EmitFreeValue(irProgram, emitter, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set", "NULL");
+                    option.EmitFreeValue(irProgram, emitter, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set", "child_agent");
                     emitter.AppendLine();
                     emitter.AppendLine("\t\tbreak;");
                 }
@@ -334,9 +334,9 @@ namespace NoHoPython.Typing
             if (irProgram.EmitExpressionStatements)
                 return;
 
-            emitter.AppendLine($"{GetCName(irProgram)} move_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} move_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src, void* child_agent) {{");
             emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "*dest", "NULL");
+            EmitFreeValue(irProgram, emitter, "*dest", "child_agent");
             emitter.AppendLine();
             emitter.AppendLine($"\t*dest = src;");
             emitter.AppendLine("\treturn src;");

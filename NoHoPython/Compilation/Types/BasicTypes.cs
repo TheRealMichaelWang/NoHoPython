@@ -1,18 +1,16 @@
 ﻿using NoHoPython.IntermediateRepresentation;
-using System.Diagnostics;
-using System.Text;
 
 namespace NoHoPython.Typing
 {
     partial interface IType
     {
-        public static void EmitMoveExpressionStatement(IType type, IRProgram irProgram, IEmitter emitter, string destC, string valueCSource)
+        public static void EmitMove(IType type, IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
         {
             if (!irProgram.EmitExpressionStatements)
                 throw new CannotEmitDestructorError(null);
-
+            
             emitter.Append($"({{{type.GetCName(irProgram)} _nhp_es_move_temp = {destC}; {destC} = {valueCSource}; ");
-            type.EmitFreeValue(irProgram, emitter, "_nhp_es_move_temp", "NULL");
+            type.EmitFreeValue(irProgram, emitter, "_nhp_es_move_temp", childAgent);
             emitter.Append($" {destC};}})");
         }
     }
@@ -28,7 +26,7 @@ namespace NoHoPython.Typing
 
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) { }
         public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => emitter.Append(valueCSource);
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource) => emitter.Append($"({destC} = {valueCSource})");
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent) => emitter.Append($"({destC} = {valueCSource})");
         public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter) { }
 
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
@@ -75,7 +73,7 @@ namespace NoHoPython.Typing
 
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) => throw new CannotCompileEmptyTypeError(null);
         public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent) => throw new CannotCompileEmptyTypeError(null);
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string recordCSource) => throw new CannotCompileEmptyTypeError(null);
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);

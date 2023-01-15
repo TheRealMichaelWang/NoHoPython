@@ -136,7 +136,7 @@ namespace NoHoPython.IntermediateRepresentation
 
             foreach (var uniqueProcedure in uniqueProcedureTypes)
             {
-                emitter.AppendLine($"{uniqueProcedure.Item1.GetCName(this)} move{uniqueProcedure.Item2}({uniqueProcedure.Item1.GetCName(this)}* dest, {uniqueProcedure.Item1.GetCName(this)} src);");
+                emitter.AppendLine($"{uniqueProcedure.Item1.GetCName(this)} move{uniqueProcedure.Item2}({uniqueProcedure.Item1.GetCName(this)}* dest, {uniqueProcedure.Item1.GetCName(this)} src, void* child_agent);");
             }
         }
 
@@ -147,9 +147,9 @@ namespace NoHoPython.IntermediateRepresentation
 
             foreach (var uniqueProcedure in uniqueProcedureTypes)
             {
-                emitter.AppendLine($"{uniqueProcedure.Item1.GetCName(this)} move{uniqueProcedure.Item2}({uniqueProcedure.Item1.GetCName(this)}* dest, {uniqueProcedure.Item1.GetCName(this)} src) {{");
+                emitter.AppendLine($"{uniqueProcedure.Item1.GetCName(this)} move{uniqueProcedure.Item2}({uniqueProcedure.Item1.GetCName(this)}* dest, {uniqueProcedure.Item1.GetCName(this)} src, void* child_agent) {{");
                 emitter.Append('\t');
-                uniqueProcedure.Item1.EmitFreeValue(this, emitter, "*dest", "NULL");
+                uniqueProcedure.Item1.EmitFreeValue(this, emitter, "*dest", "child_agent");
                 emitter.AppendLine();
                 emitter.AppendLine("\t*dest = src;");
                 emitter.AppendLine("\treturn src;");
@@ -206,12 +206,12 @@ namespace NoHoPython.Typing
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) => emitter.Append($"({valueCSource})->_nhp_destructor({valueCSource});"); 
         public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => emitter.Append($"({valueCSource})->_nhp_copier({valueCSource}, {responsibleDestroyer})");
         
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource)
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
         {
             if (irProgram.EmitExpressionStatements)
-                IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
+                IType.EmitMove(this, irProgram, emitter, destC, valueCSource, childAgent);
             else
-                emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+                emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource}, {childAgent})");
         }
 
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);

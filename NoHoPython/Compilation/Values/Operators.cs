@@ -223,7 +223,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 else
                     Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), $"arr{irProgram.ExpressionDepth}.responsible_destroyer");
 
-                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"arr{irProgram.ExpressionDepth}.buffer[ind{irProgram.ExpressionDepth}]", valueBuilder.ToString());
+                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"arr{irProgram.ExpressionDepth}.buffer[ind{irProgram.ExpressionDepth}]", valueBuilder.ToString(), $"arr{irProgram.ExpressionDepth}.responsible_destroyer");
                 emitter.Append(";})");
 
                 irProgram.ExpressionDepth--;
@@ -255,7 +255,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 else
                     Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), arrayResponsibleDestructor.ToString());
 
-                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, destBuilder.ToString(), valueBuilder.ToString());
+                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, destBuilder.ToString(), valueBuilder.ToString(), arrayResponsibleDestructor.ToString());
             }
         }
 
@@ -289,7 +289,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), "arr.responsible_destroyer");
 
                 CodeBlock.CIndent(emitter, indent + 1);
-                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, "arr.buffer[ind]", valueBuilder.ToString());
+                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, "arr.buffer[ind]", valueBuilder.ToString(), "arr.responsible_destroyer");
                 emitter.AppendLine(";");
                 CodeBlock.CIndent(emitter, indent);
                 emitter.AppendLine("}");
@@ -352,7 +352,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     emitter.Append($"(record{irProgram.ExpressionDepth}->{Property.Name} = value{irProgram.ExpressionDepth});}})");
                 else
                 {
-                    Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"record{irProgram.ExpressionDepth}->{Property.Name}", $"value{irProgram.ExpressionDepth}");
+                    Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"record{irProgram.ExpressionDepth}->{Property.Name}", $"value{irProgram.ExpressionDepth}", $"record{irProgram.ExpressionDepth}");
                     emitter.Append(";})");
                 }
                 
@@ -379,7 +379,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         Value.Emit(irProgram, toCopyBuilder, typeargs, recordResponsibleDestroyer.ToString());
                     else
                         Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, toCopyBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), recordResponsibleDestroyer.ToString());
-                    Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"{recordCSource}->{Property.Name}", toCopyBuilder.ToString());
+                    Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"{recordCSource}->{Property.Name}", toCopyBuilder.ToString(), recordCSource);
                 }
             }
         }
@@ -409,7 +409,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     emitter.AppendLine($"record->{Property.Name} = value;");
                 else
                 {
-                    Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"record->{Property.Name}", "value");
+                    Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"record->{Property.Name}", "value", "record");
                     emitter.AppendLine(";");
                 }
                 CodeBlock.CIndent(emitter, indent);

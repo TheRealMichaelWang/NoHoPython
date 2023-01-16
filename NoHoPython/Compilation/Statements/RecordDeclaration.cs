@@ -53,6 +53,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine("typedef struct _nhp_std_record_mask _nhp_std_record_mask_t;");
             emitter.AppendLine("struct _nhp_std_record_mask {");
             emitter.AppendLine("\tint _nhp_ref_count;");
+            emitter.AppendLine("\tint _nhp_master_count;");
             emitter.AppendLine("\tint _nhp_lock;");
             emitter.AppendLine($"\t{RecordType.StandardRecordMask} parent_record;");
             emitter.AppendLine("} _nhp_std_record_mask;");
@@ -184,6 +185,7 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
             emitter.AppendLine("\tint _nhp_ref_count;");
+            emitter.AppendLine("\tint _nhp_master_count;");
             emitter.AppendLine("\tint _nhp_lock;");
             emitter.AppendLine($"\t{StandardRecordMask} parent_record;");
             foreach (var property in properties.Value)
@@ -209,6 +211,7 @@ namespace NoHoPython.Typing
             
             emitter.AppendLine($"\t{GetCName(irProgram)} _nhp_self = {irProgram.MemoryAnalyzer.Allocate(GetCHeapSizer(irProgram))};");
             emitter.AppendLine("\t_nhp_self->_nhp_ref_count = 0;");
+            emitter.AppendLine("\t_nhp_self->_nhp_master_count = 0;");
             emitter.AppendLine("\t_nhp_self->_nhp_lock = 0;");
             emitter.AppendLine("\t_nhp_self->parent_record = parent_record;");
             
@@ -236,18 +239,24 @@ namespace NoHoPython.Typing
         {
             emitter.AppendLine($"void free_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, {StandardRecordMask} child_agent) {{");
 
-            emitter.AppendLine($"\tif(record->_nhp_lock || _nhp_record_has_child(({RecordType.StandardRecordMask})record, child_agent))");
+            emitter.AppendLine($"\tif(record->_nhp_lock || _nhp_record_has_child(({StandardRecordMask})record, child_agent))");
             emitter.AppendLine("\t\treturn;");
 
+
             emitter.AppendLine("\tif(record->_nhp_ref_count) {");
+            emitter.AppendLine($"\t\tif(_nhp_record_has_child(child_agent, ({StandardRecordMask})record)) {{");
+            emitter.AppendLine("\t\t\tif(record->_nhp_master_count == 0)");
+            emitter.AppendLine("\t\t\t\trecord->parent_record = NULL;");
+            emitter.AppendLine("\t\t\telse");
+            emitter.AppendLine("\t\t\t\trecord->_nhp_master_count--;");
+            emitter.AppendLine("\t\t}");
             emitter.AppendLine("\t\trecord->_nhp_ref_count--;");
             emitter.AppendLine("\t\treturn;");
             emitter.AppendLine("\t}");
+            
             emitter.AppendLine("\trecord->_nhp_lock = 1;");
-
             if (HasDestructor)
                 emitter.AppendLine("\trecord->__del__->_nhp_this_anon(record->__del__);");
-
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
             {
                 if (recordProperty.Type.RequiresDisposal)
@@ -269,6 +278,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, {StandardRecordMask} parent_record) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} copied_record = {irProgram.MemoryAnalyzer.Allocate(GetCHeapSizer(irProgram))};");
             emitter.AppendLine("\tcopied_record->_nhp_ref_count = 0;");
+            emitter.AppendLine("\tcopied_record->_nhp_master_count = 0;");
             emitter.AppendLine("\tcopied_record->_nhp_lock = 0;");
             emitter.AppendLine("\tcopied_record->parent_record = parent_record;");
 
@@ -300,8 +310,13 @@ namespace NoHoPython.Typing
         public void EmitBorrower(IRProgram irProgram, StatementEmitter emitter)
         {
             emitter.AppendLine($"{GetCName(irProgram)} borrow_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, void* responsible_destroyer) {{");
-            emitter.AppendLine($"\tif(!_nhp_record_has_child(({StandardRecordMask})record, responsible_destroyer))");
+
+            emitter.AppendLine($"\tif(!_nhp_record_has_child(({StandardRecordMask})record, responsible_destroyer)) {{");
             emitter.AppendLine("\t\trecord->_nhp_ref_count++;");
+            emitter.AppendLine($"\t\tif(_nhp_record_has_child(({StandardRecordMask})responsible_destroyer, ({StandardRecordMask})record))");
+            emitter.AppendLine("\t\t\trecord->_nhp_master_count++;");
+            emitter.AppendLine("\t}");
+            
             emitter.AppendLine("\treturn record;");
             emitter.AppendLine("}");
         }

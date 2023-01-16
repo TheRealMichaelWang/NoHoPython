@@ -173,7 +173,7 @@ namespace NoHoPython.Typing
 
         public void EmitMarshaller(IRProgram irProgram, StatementEmitter emitter)
         {
-            emitter.Append($"{GetCName(irProgram)}       {GetStandardIdentifier(irProgram)}({ElementType.GetCName(irProgram)}* buffer, int length");
+            emitter.Append($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}({ElementType.GetCName(irProgram)}* buffer, int length");
 
             if (MustSetResponsibleDestroyer)
                 emitter.Append(", void* responsible_destroyer");

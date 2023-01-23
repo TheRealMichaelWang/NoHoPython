@@ -13,7 +13,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Input.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             void EmitCCast(string castTo)
             {
@@ -53,7 +53,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ArithmeticOperator
     {
-        public override void EmitExpression(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource)
+        public override void EmitExpression(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource)
         {
             if (Operation == ArithmeticOperation.Exponentiate)
             {
@@ -100,7 +100,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ArrayValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             void EmitOp()
             {

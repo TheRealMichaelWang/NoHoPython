@@ -176,7 +176,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 else if (interpolatedValues[i] is string str)
                 {
                     if (str != string.Empty)
-                        InterpolatedValues.Add(i);
+                        InterpolatedValues.Add(str);
                 }
                 else
                     throw new InvalidOperationException();

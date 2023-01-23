@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using NoHoPython.IntermediateRepresentation;
+using System.Text;
 
 namespace NoHoPython.Syntax.Values
 {
@@ -72,7 +73,7 @@ namespace NoHoPython.Syntax.Values
         {
             if (IsStringLiteral)
             {
-                StringBuilder builder = new();
+                BufferedEmitter builder = new();
                 builder.Append('\"');
                 foreach (IAstValue value in Elements)
                     IntermediateRepresentation.Values.CharacterLiteral.EmitCChar(builder, ((CharacterLiteral)value).Character, false);

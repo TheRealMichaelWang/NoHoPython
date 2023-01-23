@@ -36,7 +36,7 @@ namespace NoHoPython.IntermediateRepresentation
         private List<EnumType> usedEnumTypes;
         public readonly Dictionary<EnumDeclaration, List<EnumType>> EnumTypeOverloads;
 
-        public void ForwardDeclareEnumTypes(StringBuilder emitter)
+        public void ForwardDeclareEnumTypes(StatementEmitter emitter)
         {
             foreach (EnumType usedEnum in usedEnumTypes)
             {
@@ -58,7 +58,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclareType(IRProgram irProgram, StringBuilder emitter)
+        public void ForwardDeclareType(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!irProgram.EnumTypeOverloads.ContainsKey(this))
                 return;
@@ -67,7 +67,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 enumType.EmitCStruct(irProgram, emitter);
         }
 
-        public void ForwardDeclare(IRProgram irProgram, StringBuilder emitter)
+        public void ForwardDeclare(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!irProgram.EnumTypeOverloads.ContainsKey(this))
                 return;
@@ -80,15 +80,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     emitter.AppendLine($"{usedEnum.GetCName(irProgram)} change_resp_owner{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} to_mutate, void* responsible_destroyer);");
                 if (usedEnum.RequiresDisposal)
                 {
-                    emitter.AppendLine($"void free_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum);");
+                    emitter.AppendLine($"void free_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum, void* child_agent);");
                     emitter.AppendLine($"{usedEnum.GetCName(irProgram)} copy_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum, void* responsible_destroyer);");
                     if (!irProgram.EmitExpressionStatements)
-                        emitter.AppendLine($"{usedEnum.GetCName(irProgram)} move_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)}* dest, {usedEnum.GetCName(irProgram)} src);");
+                        emitter.AppendLine($"{usedEnum.GetCName(irProgram)} move_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)}* dest, {usedEnum.GetCName(irProgram)} src, void* child_agent);");
                 }
             }
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (!irProgram.EnumTypeOverloads.ContainsKey(this))
                 return;
@@ -121,13 +121,13 @@ namespace NoHoPython.Typing
         public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_empty_option_{Name}";
         public string GetCName(IRProgram irProgram) => throw new CannotCompileEmptyTypeError(null);
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter) { }
+        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string recordCSource) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter) { }
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }
     }
@@ -141,13 +141,13 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => EnumDeclaration.IsEmpty ? $"{GetStandardIdentifier(irProgram)}_options_t" : $"{GetStandardIdentifier(irProgram)}_t";
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent)
+        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
         {
             if(RequiresDisposal)
-                emitter.AppendLine($"free_enum{GetStandardIdentifier(irProgram)}({valueCSource});");
+                emitter.Append($"free_enum{GetStandardIdentifier(irProgram)}({valueCSource}, {childAgent});");
         }
 
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer)
         {
             if (RequiresDisposal)
             {
@@ -160,24 +160,24 @@ namespace NoHoPython.Typing
                 emitter.Append(valueCSource);
         }
 
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
         {
             if (RequiresDisposal)
             {
                 if (irProgram.EmitExpressionStatements)
-                    IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
+                    IType.EmitMove(this, irProgram, emitter, destC, valueCSource, childAgent);
                 else
-                    emitter.Append($"move_enum{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+                    emitter.Append($"move_enum{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource}, {childAgent})");
             }
             else
                 emitter.Append($"({destC} = {valueCSource})");
         }
 
-        public void EmitGetProperty(IRProgram irProgram, StringBuilder emitter, string valueCSource, Property property) => emitter.Append($"get_{property.Name}{GetStandardIdentifier(irProgram)}({valueCSource})");
+        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, Property property) => emitter.Append($"get_{property.Name}{GetStandardIdentifier(irProgram)}({valueCSource})");
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(EnumDeclaration.IsEmpty ? valueCSource : $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})");
+        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(EnumDeclaration.IsEmpty ? valueCSource : $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})");
 
         public string GetCEnumOptionForType(IRProgram irProgram, IType type) => $"{GetStandardIdentifier(irProgram)}OPTION_{type.GetStandardIdentifier(irProgram)}";
 
@@ -190,7 +190,7 @@ namespace NoHoPython.Typing
             }
         }
 
-        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter)
+        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!irProgram.DeclareCompiledType(emitter, this) || EnumDeclaration.IsEmpty)
                 return;
@@ -207,7 +207,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine("};");
         }
 
-        public void EmitOptionsCEnum(IRProgram irProgram, StringBuilder emitter)
+        public void EmitOptionsCEnum(IRProgram irProgram, StatementEmitter emitter)
         {
             emitter.AppendLine($"typedef enum {GetStandardIdentifier(irProgram)}_options {{");
             for(int i = 0; i < options.Value.Count; i++)
@@ -222,7 +222,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"{GetStandardIdentifier(irProgram)}_options_t;");
         }
 
-        public void EmitMarshallerHeaders(IRProgram irProgram, StringBuilder emitter)
+        public void EmitMarshallerHeaders(IRProgram irProgram, StatementEmitter emitter)
         {
             if (EnumDeclaration.IsEmpty)
                 return;
@@ -236,13 +236,13 @@ namespace NoHoPython.Typing
             }
         }
 
-        public void EmitPropertyGetHeaders(IRProgram irProgram, StringBuilder emitter)
+        public void EmitPropertyGetHeaders(IRProgram irProgram, StatementEmitter emitter)
         {
             foreach (Property property in globalSupportedProperties[this].Value.Values)
                 emitter.AppendLine($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum);");
         }
 
-        public void EmitMarshallers(IRProgram irProgram, StringBuilder emitter)
+        public void EmitMarshallers(IRProgram irProgram, StatementEmitter emitter)
         {
             if (EnumDeclaration.IsEmpty)
                 return;
@@ -266,7 +266,7 @@ namespace NoHoPython.Typing
             }
         }
 
-        public void EmitPropertyGetters(IRProgram irProgram, StringBuilder emitter)
+        public void EmitPropertyGetters(IRProgram irProgram, StatementEmitter emitter)
         {
             foreach (Property property in globalSupportedProperties[this].Value.Values)
             {
@@ -285,23 +285,24 @@ namespace NoHoPython.Typing
             }
         }
 
-        public void EmitDestructor(IRProgram irProgram, StringBuilder emitter)
+        public void EmitDestructor(IRProgram irProgram, StatementEmitter emitter)
         {
-            emitter.AppendLine($"void free_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum) {{");
+            emitter.AppendLine($"void free_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum, void* child_agent) {{");
             emitter.AppendLine("\tswitch(_nhp_enum.option) {");
             foreach(IType option in options.Value)
                 if (option.RequiresDisposal)
                 {
                     emitter.AppendLine($"\tcase {GetCEnumOptionForType(irProgram, option)}:");
                     emitter.Append("\t\t");
-                    option.EmitFreeValue(irProgram, emitter, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set", "NULL");
+                    option.EmitFreeValue(irProgram, emitter, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set", "child_agent");
+                    emitter.AppendLine();
                     emitter.AppendLine("\t\tbreak;");
                 }
             emitter.AppendLine("\t}");
             emitter.AppendLine("}");
         }
 
-        public void EmitCopier(IRProgram irProgram, StringBuilder emitter)
+        public void EmitCopier(IRProgram irProgram, StatementEmitter emitter)
         {
             emitter.Append($"{GetCName(irProgram)} copy_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum");
 
@@ -328,20 +329,21 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitMover(IRProgram irProgram, StringBuilder emitter)
+        public void EmitMover(IRProgram irProgram, StatementEmitter emitter)
         {
             if (irProgram.EmitExpressionStatements)
                 return;
 
-            emitter.AppendLine($"{GetCName(irProgram)} move_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} move_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src, void* child_agent) {{");
             emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "*dest", "NULL");
+            EmitFreeValue(irProgram, emitter, "*dest", "child_agent");
+            emitter.AppendLine();
             emitter.AppendLine($"\t*dest = src;");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
         }
 
-        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StringBuilder emitter)
+        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!MustSetResponsibleDestroyer)
                 return;
@@ -363,7 +365,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitOptionTypeNames(IRProgram irProgram, StringBuilder emitter)
+        public void EmitOptionTypeNames(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!irProgram.NameRuntimeTypes)
                 return;
@@ -394,7 +396,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             EnumType realPrototype = (EnumType)TargetType.SubstituteWithTypearg(typeargs);
 
@@ -408,11 +410,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (Value.RequiresDisposal(typeargs))
                     Value.Emit(irProgram, emitter, typeargs, responsibleDestroyer);
                 else
-                {
-                    StringBuilder valueBuilder = new();
-                    Value.Emit(irProgram, valueBuilder, typeargs, "NULL");
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valueBuilder.ToString(), responsibleDestroyer);
-                }
+                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), responsibleDestroyer);
                 emitter.Append(')');
             }
         }
@@ -428,7 +426,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             EnumValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             if (!irProgram.EmitExpressionStatements)
                 throw new InvalidOperationException();
@@ -494,7 +492,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             EnumValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             EnumType enumType = (EnumType)EnumValue.Type.SubstituteWithTypearg(typeargs);
 

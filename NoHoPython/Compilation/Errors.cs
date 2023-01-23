@@ -39,11 +39,9 @@ namespace NoHoPython.IntermediateRepresentation
 
     public sealed class CannotEmitDestructorError : CodegenError
     {
-        public IRValue Value { get; private set; }
-
-        public CannotEmitDestructorError(IRValue value) : base(value, "Cannot emit destructor for value. Please move to a variable, or consider enabling expression-statements.")
+        public CannotEmitDestructorError(IRElement? errorReportedElement) : base(errorReportedElement, "Cannot emit destructor for value. Please move to a variable, or consider enabling expression-statements.")
         {
-            Value = value;
+
         }
     }
 

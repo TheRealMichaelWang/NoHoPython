@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "\"E:\\calcgod2\\src\\main.nhp\"\r\nout.c\r\n-leaksan\r\n-callstack"
+      "commandLineArgs": "tests/enum-test2.nhp\r\nout.c\r\n-namert\r\n-linedir\r\n-stacktrace"
     }
   }
 }

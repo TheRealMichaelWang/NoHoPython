@@ -2,6 +2,7 @@
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Values
@@ -26,7 +27,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             if (Condition.IsTruey)
                 IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs);
@@ -52,7 +53,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     partial class CodeBlock
     {
-        public static void CIndent(StringBuilder emitter, int indent) => emitter.Append(new string('\t', indent));
+        public static void CIndent(StatementEmitter emitter, int indent)
+        {
+            Debug.Assert(indent >= 0);
+            emitter.Append(new string('\t', indent));
+        }
 
         public virtual void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -62,7 +67,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements.ForEach((statement) => statement.ScopeForUsedTypes(typeargs, irBuilder));
         }
 
-        public void EmitInitialize(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void EmitInitialize(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
@@ -71,13 +76,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 declaration.EmitCDecl(irProgram, emitter, typeargs, indent);
         }
 
-        public void EmitNoOpen(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent, bool insertFinalBreak)
+        public void EmitNoOpen(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent, bool insertFinalBreak)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
 
-            Statements.ForEach((statement) => statement.Emit(irProgram, emitter, typeargs, indent + 1));
+            Statements.ForEach((statement) => {
+                emitter.LastSourceLocation = statement.ErrorReportedElement.SourceLocation;
+                statement.Emit(irProgram, emitter, typeargs, indent + 1);
+            });
 
+            emitter.LastSourceLocation = BlockBeginLocation;
             if (!CodeBlockAllCodePathsReturn())
             {
                 foreach (Variable declaration in LocalVariables)
@@ -102,7 +111,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public virtual void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public virtual void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
@@ -129,7 +138,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (Condition.IsTruey && Condition.IsPure)
             {
@@ -171,7 +180,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (Condition.IsFalsey && Condition.IsPure)
                 return;
@@ -208,7 +217,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (Condition.IsFalsey && Condition.IsPure)
                 return;
@@ -235,7 +244,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             IterationBlock.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.AppendLine("{");
@@ -265,7 +274,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 handler.ToExecute.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             EnumType enumType = (EnumType)MatchValue.Type.SubstituteWithTypearg(typeargs);
 
@@ -290,7 +299,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     CodeBlock.CIndent(emitter, indent + 1);
                     emitter.Append($"{currentOption.GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier()} = ");
 
-                    StringBuilder matchedOptionValue = new();
+                    BufferedEmitter matchedOptionValue = new();
                     IRValue.EmitMemorySafe(MatchValue.GetPostEvalPure(), irProgram, matchedOptionValue, typeargs);
                     matchedOptionValue.Append($".data.{currentOption.GetStandardIdentifier(irProgram)}_set");
 
@@ -318,13 +327,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             foreach (Variable variable in activeLoopVariables)
                 if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
                 {
                     CodeBlock.CIndent(emitter, indent);
                     variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, variable.GetStandardIdentifier(), "NULL");
+                    emitter.AppendLine();
                 }
 
             CodeBlock.CIndent(emitter, indent);
@@ -337,7 +347,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class AssertStatement
     {
-        public static void EmitAsserter(StringBuilder emitter, bool doCallStack)
+        public static void EmitAsserter(StatementEmitter emitter, bool doCallStack)
         {
             emitter.AppendLine("void _nhp_assert(int flag, const char* src_loc, const char* assertion_src) {");
             emitter.AppendLine("\tif(!flag) {");
@@ -361,7 +371,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => Condition.ScopeForUsedTypes(typeargs, irBuilder);
 
-        public void Emit(IRProgram irProgram, StringBuilder emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             if (irProgram.EliminateAsserts)
                 return;

@@ -28,50 +28,50 @@ namespace NoHoPython.IntermediateRepresentation
     {
         private List<ArrayType> usedArrayTypes;
 
-        public void EmitArrayTypeTypedefs(StringBuilder emitter)
+        public void EmitArrayTypeTypedefs(StatementEmitter emitter)
         {
             foreach (ArrayType arrayType in usedArrayTypes)
                 emitter.AppendLine($"typedef struct {arrayType.GetStandardIdentifier(this)} {arrayType.GetCName(this)};");
         }
 
-        public void EmitArrayTypeCStructs(StringBuilder emitter)
+        public void EmitArrayTypeCStructs(StatementEmitter emitter)
         {
             foreach (ArrayType arrayType in usedArrayTypes)
                 arrayType.EmitCStruct(this, emitter);
         }
 
-        public void ForwardDeclareArrayTypes(IRProgram irProgram, StringBuilder emitter)
+        public void ForwardDeclareArrayTypes(StatementEmitter emitter)
         {
             foreach (ArrayType arrayType in usedArrayTypes)
             {
                 emitter.Append($"{arrayType.GetCName(this)} marshal{arrayType.GetStandardIdentifier(this)}({arrayType.ElementType.GetCName(this)}* buffer, int length");
-                if (arrayType.HasResponsibleDestroyer)
+                if (arrayType.MustSetResponsibleDestroyer)
                     emitter.Append(", void* responsible_destroyer");
                 emitter.AppendLine(");");
 
                 emitter.AppendLine($"{arrayType.GetCName(this)} marshal_proto{arrayType.GetStandardIdentifier(this)}(int length, {arrayType.ElementType.GetCName(this)} proto");
-                if (arrayType.HasResponsibleDestroyer)
+                if (arrayType.MustSetResponsibleDestroyer)
                     emitter.Append(", void* responsible_destroyer");
                 emitter.AppendLine(");");
 
-                if(arrayType.HasResponsibleDestroyer)
-                    emitter.AppendLine($"{arrayType.GetCName(irProgram)} change_resp_owner{arrayType.GetStandardIdentifier(irProgram)}({arrayType.GetCName(irProgram)} array, void* responsible_destroyer);");
+                if(arrayType.MustSetResponsibleDestroyer)
+                    emitter.AppendLine($"{arrayType.GetCName(this)} change_resp_owner{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} array, void* responsible_destroyer);");
 
-                if (!irProgram.EmitExpressionStatements)
-                    emitter.AppendLine($"{arrayType.GetCName(this)} move{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)}* src, {arrayType.GetCName(this)} dest);");
+                if (!EmitExpressionStatements)
+                    emitter.AppendLine($"{arrayType.GetCName(this)} move{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)}* src, {arrayType.GetCName(this)} dest, void* child_agent);");
 
                 if (arrayType.ElementType.RequiresDisposal)
                 {
                     emitter.AppendLine($"void free{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_free);");
                     emitter.AppendLine($"{arrayType.GetCName(this)} copy{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_copy");
-                    if (arrayType.HasResponsibleDestroyer)
+                    if (arrayType.MustSetResponsibleDestroyer)
                         emitter.Append(", void* responsible_destroyer");
                     emitter.Append(");");
                 }
             }
         }
 
-        public void EmitArrayTypeMarshallers(StringBuilder emitter, bool doCallStack)
+        public void EmitArrayTypeMarshallers(StatementEmitter emitter, bool doCallStack)
         {
             if (DoBoundsChecking)
             {
@@ -114,48 +114,49 @@ namespace NoHoPython.Typing
     {
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
-        public bool HasResponsibleDestroyer => ElementType.HasResponsibleDestroyer;
+        public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent)
+        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
         {
             if (ElementType.RequiresDisposal)
-                emitter.AppendLine($"free{GetStandardIdentifier(irProgram)}({valueCSource});");
+                emitter.Append($"free{GetStandardIdentifier(irProgram)}({valueCSource});");
             else
-                emitter.AppendLine($"{irProgram.MemoryAnalyzer.Dealloc($"{valueCSource}.buffer", $"{valueCSource}.length * sizeof({ElementType.GetCName(irProgram)})")};");
+                emitter.Append($"{irProgram.MemoryAnalyzer.Dealloc($"{valueCSource}.buffer", $"{valueCSource}.length * sizeof({ElementType.GetCName(irProgram)})")};");
         }
 
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer)
         {
             if (ElementType.RequiresDisposal)
                 emitter.Append($"copy{GetStandardIdentifier(irProgram)}({valueCSource}");
             else
                 emitter.Append($"marshal{GetStandardIdentifier(irProgram)}({valueCSource}.buffer, {valueCSource}.length");
 
-            if (HasResponsibleDestroyer)
+            if (MustSetResponsibleDestroyer)
                 emitter.Append($", {responsibleDestroyer}");
 
             emitter.Append(')');
         }
 
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource)
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
         {
             if (irProgram.EmitExpressionStatements)
-                IType.EmitMoveExpressionStatement(this, irProgram, emitter, destC, valueCSource);
+                IType.EmitMove(this, irProgram, emitter, destC, valueCSource, childAgent);
             else
-                emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource})");
+                emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource}, {childAgent})");
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, $"{recordCSource}->_nhp_responsible_destroyer");
+        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
 
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(HasResponsibleDestroyer ? $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})" : valueCSource);
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(MustSetResponsibleDestroyer ? $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})" : valueCSource);
+
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) => irBuilder.ScopeForUsedArrayType(this);
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_array_{ElementType.GetStandardIdentifier(irProgram)}";
 
-        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter)
+        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!irProgram.DeclareCompiledType(emitter, this))
                 return;
@@ -164,17 +165,17 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"\t{ElementType.GetCName(irProgram)}* buffer;");
             emitter.AppendLine("\tint length;");
             
-            if(HasResponsibleDestroyer)
+            if(MustSetResponsibleDestroyer)
                 emitter.AppendLine("\tvoid* responsible_destroyer;");
             
             emitter.AppendLine("};");
         }
 
-        public void EmitMarshaller(IRProgram irProgram, StringBuilder emitter)
+        public void EmitMarshaller(IRProgram irProgram, StatementEmitter emitter)
         {
             emitter.Append($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}({ElementType.GetCName(irProgram)}* buffer, int length");
 
-            if (HasResponsibleDestroyer)
+            if (MustSetResponsibleDestroyer)
                 emitter.Append(", void* responsible_destroyer");
 
             emitter.AppendLine(") {");
@@ -183,7 +184,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"\tmemcpy(to_alloc.buffer, buffer, length * sizeof({ElementType.GetCName(irProgram)}));");
             emitter.AppendLine("\tto_alloc.length = length;");
 
-            if(HasResponsibleDestroyer)
+            if(MustSetResponsibleDestroyer)
                 emitter.AppendLine("\tto_alloc.responsible_destroyer = responsible_destroyer;");
             
             emitter.AppendLine("\treturn to_alloc;");
@@ -193,7 +194,7 @@ namespace NoHoPython.Typing
             {
                 emitter.Append($"{GetCName(irProgram)} marshal_foreign{GetStandardIdentifier(irProgram)}({ElementType.GetCName(irProgram)}* buffer, int length");
 
-                if (HasResponsibleDestroyer)
+                if (MustSetResponsibleDestroyer)
                     emitter.Append(", void* responsible_destroyer");
 
                 emitter.AppendLine(") {");
@@ -206,7 +207,7 @@ namespace NoHoPython.Typing
                 emitter.AppendLine("\t}");
                 emitter.AppendLine("\tto_alloc.length = length;");
                 
-                if(HasResponsibleDestroyer)
+                if(MustSetResponsibleDestroyer)
                     emitter.AppendLine("\tto_alloc.responsible_destroyer = responsible_destroyer;");
                 
                 emitter.AppendLine("\treturn to_alloc;");
@@ -215,7 +216,7 @@ namespace NoHoPython.Typing
 
             emitter.Append($"{GetCName(irProgram)} marshal_proto{GetStandardIdentifier(irProgram)}(int length, {ElementType.GetCName(irProgram)} proto");
 
-            if (HasResponsibleDestroyer)
+            if (MustSetResponsibleDestroyer)
                 emitter.Append(", void* responsible_destroyer");
 
             emitter.AppendLine(") {");
@@ -231,9 +232,10 @@ namespace NoHoPython.Typing
             {
                 emitter.Append('\t');
                 ElementType.EmitFreeValue(irProgram, emitter, "proto", "NULL");
+                emitter.AppendLine();
             }
 
-            if(HasResponsibleDestroyer)
+            if(MustSetResponsibleDestroyer)
                 emitter.AppendLine("\tto_alloc.responsible_destroyer = responsible_destroyer;");
             
             emitter.AppendLine("\tto_alloc.length = length;");
@@ -241,7 +243,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitDestructor(IRProgram irProgram, StringBuilder emitter)
+        public void EmitDestructor(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!ElementType.RequiresDisposal)
                 return;
@@ -249,27 +251,28 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"void free{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_free) {{");
             emitter.AppendLine("\tfor(int i = 0; i < to_free.length; i++) {");
             emitter.Append("\t\t");
-            ElementType.EmitFreeValue(irProgram, emitter, "to_free.buffer[i]", "NULL");
+            ElementType.EmitFreeValue(irProgram, emitter, "to_free.buffer[i]", "to_free.responsible_destroyer");
+            emitter.AppendLine();
             emitter.AppendLine("\t}");
             emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Dealloc("to_free.buffer", $"to_free.length * sizeof({ElementType.GetCName(irProgram)})")};");
             emitter.AppendLine("}");
         }
 
-        public void EmitCopier(IRProgram irProgram, StringBuilder emitter)
+        public void EmitCopier(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!ElementType.RequiresDisposal)
                 return;
 
             emitter.Append($"{GetCName(irProgram)} copy{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_copy");
 
-            if (HasResponsibleDestroyer)
+            if (MustSetResponsibleDestroyer)
                 emitter.Append(", void* responsible_destroyer");
 
             emitter.AppendLine(") {");
             emitter.AppendLine($"\t{GetCName(irProgram)} copied;");
             emitter.AppendLine("\tcopied.length = to_copy.length;");
 
-            if(HasResponsibleDestroyer)
+            if(MustSetResponsibleDestroyer)
                 emitter.AppendLine("\tcopied.responsible_destroyer = responsible_destroyer;");
             
             emitter.AppendLine($"\tcopied.buffer = {irProgram.MemoryAnalyzer.Allocate($"to_copy.length * sizeof({ElementType.GetCName(irProgram)})")};");
@@ -284,22 +287,23 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitMover(IRProgram irProgram, StringBuilder emitter)
+        public void EmitMover(IRProgram irProgram, StatementEmitter emitter)
         {
             if (irProgram.EmitExpressionStatements)
                 return;
 
-            emitter.AppendLine($"{GetCName(irProgram)} move{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src) {{");
+            emitter.AppendLine($"{GetCName(irProgram)} move{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src, void* child_agent) {{");
             emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "(*dest)", "NULL");
+            EmitFreeValue(irProgram, emitter, "(*dest)", "child_agent");
+            emitter.AppendLine();
             emitter.AppendLine("\t*dest = src;");
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
         }
 
-        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StringBuilder emitter)
+        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StatementEmitter emitter)
         {
-            if (!HasResponsibleDestroyer)
+            if (!MustSetResponsibleDestroyer)
                 return;
 
             emitter.AppendLine($"{GetCName(irProgram)} change_resp_owner{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} array, void* responsible_destroyer) {{");

@@ -205,13 +205,13 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(false);
+            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(false, SourceLocation);
             IAstStatement.ForwardDeclareBlock(irBuilder, IfTrueBlock);
             irBuilder.SymbolMarshaller.GoBack();
 
             if (NextIf != null)
             {
-                scopedNextIf = irBuilder.SymbolMarshaller.NewCodeBlock(false);
+                scopedNextIf = irBuilder.SymbolMarshaller.NewCodeBlock(false, NextIf.SourceLocation);
                 NextIf.ForwardDeclare(irBuilder);
                 irBuilder.SymbolMarshaller.GoBack();
             }
@@ -250,7 +250,7 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            scopedToExecute = irBuilder.SymbolMarshaller.NewCodeBlock(false);
+            scopedToExecute = irBuilder.SymbolMarshaller.NewCodeBlock(false, SourceLocation);
             IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
             irBuilder.SymbolMarshaller.GoBack();
         }
@@ -274,7 +274,7 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(true);
+            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(true, SourceLocation);
             IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
             irBuilder.SymbolMarshaller.GoBack();
         }
@@ -299,7 +299,7 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(true);
+            scopedCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(true, SourceLocation);
             IAstStatement.ForwardDeclareBlock(irBuilder, ToExecute);
             irBuilder.SymbolMarshaller.GoBack();
         }
@@ -329,13 +329,13 @@ namespace NoHoPython.Syntax.Statements
         {
             handlerCodeBlocks = new Dictionary<MatchHandler, CodeBlock>();
             MatchHandlers.ForEach((handler) => {
-                handlerCodeBlocks.Add(handler, irBuilder.SymbolMarshaller.NewCodeBlock(false));
+                handlerCodeBlocks.Add(handler, irBuilder.SymbolMarshaller.NewCodeBlock(false, SourceLocation));
                 IAstStatement.ForwardDeclareBlock(irBuilder, handler.Statements);
                 irBuilder.SymbolMarshaller.GoBack();
             });
             if(DefaultHandler != null)
             {
-                defaultHandlerCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(false);
+                defaultHandlerCodeBlock = irBuilder.SymbolMarshaller.NewCodeBlock(false, SourceLocation);
                 IAstStatement.ForwardDeclareBlock(irBuilder, DefaultHandler);
                 irBuilder.SymbolMarshaller.GoBack();
             }

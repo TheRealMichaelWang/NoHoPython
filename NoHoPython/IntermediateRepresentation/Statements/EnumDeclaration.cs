@@ -128,6 +128,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public UnwrapEnumValue(IRValue enumValue, IType type, Syntax.IAstElement errorReportedElement)
         {
             EnumValue = enumValue;
+            ErrorReportedElement = errorReportedElement;
             if (EnumValue.Type is EnumType enumType)
             {
                 if (!enumType.SupportsType(type) || type.IsEmpty)
@@ -136,10 +137,38 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             else
                 throw new UnexpectedTypeException(EnumValue.Type, errorReportedElement);
-            ErrorReportedElement = errorReportedElement;
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new UnwrapEnumValue(EnumValue.SubstituteWithTypearg(typeargs), Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
+    public sealed partial class CheckEnumOption : IRValue
+    {
+        public Syntax.IAstElement ErrorReportedElement { get; private set; }
+
+        public IRValue EnumValue { get; private set; }
+        public IType Option { get; private set; }
+
+        public IType Type => Primitive.Boolean;
+
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public CheckEnumOption(IRValue enumValue, IType option, Syntax.IAstElement errorReportedElement)
+        {
+            EnumValue = enumValue;
+            ErrorReportedElement = errorReportedElement;
+            if(EnumValue.Type is EnumType enumType)
+            {
+                if (!enumType.SupportsType(option))
+                    throw new UnexpectedTypeException(option, errorReportedElement);
+                Option = option;
+            }
+            else
+                throw new UnexpectedTypeException(EnumValue.Type, errorReportedElement);
+        }
+
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new CheckEnumOption(EnumValue.SubstituteWithTypearg(typeargs), Option.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 }
 
@@ -333,5 +362,13 @@ namespace NoHoPython.Syntax.Statements
 
             return IREnumDeclaration;
         }
+    }
+}
+
+namespace NoHoPython.Syntax.Values
+{
+    partial class CheckEnumOption
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.CheckEnumOption(Enum.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Option.ToIRType(irBuilder, this), this);
     }
 }

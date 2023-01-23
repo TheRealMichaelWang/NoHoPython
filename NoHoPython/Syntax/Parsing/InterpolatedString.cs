@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Text;
 
 namespace NoHoPython.Syntax.Parsing
 {
@@ -14,14 +10,14 @@ namespace NoHoPython.Syntax.Parsing
         {
             ScanChar();
             if (lastChar != '\"')
-                throw new UnexpectedCharacterException('\"', lastChar);
+                throw new UnexpectedCharacterException('\"', lastChar, CurrentLocation);
             ScanChar();
 
             StringBuilder buffer = new();
             while (true)
             {
                 if (lastChar == '\0')
-                    throw new UnexpectedCharacterException('\0', lastChar);
+                    throw new UnexpectedCharacterException('\0', lastChar, CurrentLocation);
                 else if (lastChar == '\"') //regular string
                 {
                     ScanChar();
@@ -45,7 +41,7 @@ namespace NoHoPython.Syntax.Parsing
                 {
                     ScanChar();
                     if (lastChar != '}')
-                        throw new UnexpectedCharacterException('}', lastChar);
+                        throw new UnexpectedCharacterException('}', lastChar, CurrentLocation);
                     ScanChar();
                     buffer.Append('}');
                 }
@@ -69,19 +65,13 @@ namespace NoHoPython.Syntax.Parsing
             else if (lastChar == '}')
             {
                 ScanChar();
-                if (lastChar == '}')
-                {
-                    ScanChar();
-                    return new Token(TokenType.OpenBrace, string.Empty);
-                }
-
                 if (depth == 0) //begin interpolation parsing
                 {
                     StringBuilder buffer = new();
                     while (true)
                     {
                         if (lastChar == '\0')
-                            throw new UnexpectedCharacterException('\0', lastChar);
+                            throw new UnexpectedCharacterException('\0', lastChar, CurrentLocation);
                         else if (lastChar == '\"') //regular string
                         {
                             ScanChar();
@@ -98,7 +88,7 @@ namespace NoHoPython.Syntax.Parsing
                             }
                             else //next will be tokens for interpolated values
                             {
-                                interpolationDepths.Push(0);
+                                //interpolationDepths.Push(0);
                                 return LastToken = new Token(TokenType.InterpolatedMiddle, buffer.ToString());
                             }
                         }
@@ -110,7 +100,7 @@ namespace NoHoPython.Syntax.Parsing
                 {
                     interpolationDepths.Pop();
                     interpolationDepths.Push(depth - 1);
-                    return new Token(TokenType.OpenBrace, string.Empty);
+                    return new Token(TokenType.CloseBrace, string.Empty);
                 }
             }
             else

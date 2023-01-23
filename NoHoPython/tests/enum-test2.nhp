@@ -11,7 +11,7 @@ class student:
 		self.name = name
 		self.age = age
 		self.grade = grade
-	def toString() array<char>:
+	def to_array_char() array<char>:
 		return self.name
 
 class faculty:
@@ -23,16 +23,16 @@ class faculty:
 		self.name = name
 		self.age = age
 		self.payment = payment
-	def toString() array<char>:
+	def to_array_char() array<char>:
 		return self.name
 
 interface person:
 	array<char> name
 	int age
 	
-	fn<array<char>> toString
+	fn<array<char>> to_array_char
 
-enum schoolperson: io::stringableObj:
+enum schoolperson: #io::stringableObj:
 	student
 	faculty
 	int
@@ -45,12 +45,12 @@ def writeSchoolPerson(io::writer writer, schoolperson sp):
 		faculty f:
 			writer.write("faculty: ")
 		default:
-			writer.write("int or char")
+			writer.write($"{sp}")
 
 	writer.write(sp)
 
 def main():
 	out = io::output()
-	printSchoolPerson(out, new student("michael", 17, 11))
-	printSchoolPerson(out, new faculty("maine", 40, 140))
-	printSchoolPerson(out, 100)
+	writeSchoolPerson(out, new student("michael", 17, 11))
+	writeSchoolPerson(out, new faculty("maine", 40, 140))
+	writeSchoolPerson(out, 100)

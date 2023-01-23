@@ -157,9 +157,9 @@ namespace NoHoPython.Typing
         {
             if (type is ProcedureType procedureType)
             {
-                if (!ReturnType.IsCompatibleWith(procedureType.ReturnType))
-                    return false;
                 if (ParameterTypes.Count != procedureType.ParameterTypes.Count)
+                    return false;
+                if (!ReturnType.IsCompatibleWith(procedureType.ReturnType))
                     return false;
                 for (int i = 0; i < ParameterTypes.Count; i++)
                     if (!procedureType.ParameterTypes[i].IsCompatibleWith(ParameterTypes[i]))

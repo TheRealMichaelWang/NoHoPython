@@ -21,15 +21,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         private List<VariableDeclaration> DeclaredVariables;
 
         public bool IsLoop { get; private set; }
-
         public int? BreakLabelId { get; private set; }
 
-        public CodeBlock(SymbolContainer parent, bool isLoop) : base(parent)
+        public SourceLocation BlockBeginLocation { get; private set; }
+
+        public CodeBlock(SymbolContainer parent, bool isLoop, SourceLocation blockBeginLocation) : base(parent)
         {
+            IsLoop = isLoop;
+            BlockBeginLocation = blockBeginLocation;
             Statements = null;
             LocalVariables = new List<Variable>();
             DeclaredVariables = new List<VariableDeclaration>();
-            IsLoop = isLoop;
         }
 
         public void AddVariableDeclaration(VariableDeclaration variableDeclaration)

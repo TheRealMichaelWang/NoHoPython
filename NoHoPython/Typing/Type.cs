@@ -9,7 +9,7 @@ namespace NoHoPython.Typing
     {
         public bool IsNativeCType { get; }
         public bool RequiresDisposal { get; }
-        public bool HasResponsibleDestroyer { get; }
+        public bool MustSetResponsibleDestroyer { get; }
 
         public string TypeName { get; }
         public string Identifier { get; }
@@ -18,14 +18,14 @@ namespace NoHoPython.Typing
         public string GetCName(IRProgram irProgram);
         public string GetStandardIdentifier(IRProgram irProgram);
 
-        public void EmitFreeValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string childAgent);
-        public void EmitCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer);
-        public void EmitMoveValue(IRProgram irProgram, StringBuilder emitter, string destC, string valueCSource);
-        public void EmitClosureBorrowValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, StringBuilder emitter, string valueCSource, string recordCSource);
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, StringBuilder emitter, string valueCSource, string newResponsibleDestroyer);
+        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent);
+        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer);
+        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent);
+        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource);
+        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer);
 
-        public void EmitCStruct(IRProgram irProgram, StringBuilder emitter);
+        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder);
 
@@ -104,11 +104,11 @@ namespace NoHoPython.Typing
         }
     }
 
-    public sealed class NotATypeException : Exception
+    public sealed class NotATypeException : IRGenerationError
     {
         public IScopeSymbol ScopeSymbol { get; private set; }
 
-        public NotATypeException(IScopeSymbol scopeSymbol) : base($"{scopeSymbol.Name} is not a type parameter, record, interface, or enum. Rather it is a {scopeSymbol}.")
+        public NotATypeException(IScopeSymbol scopeSymbol, Syntax.IAstElement errorReportedElement) : base(errorReportedElement, $"{scopeSymbol.Name} is not a type parameter, record, interface, or enum. Rather it is a {scopeSymbol}.")
         {
             ScopeSymbol = scopeSymbol;
         }

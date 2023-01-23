@@ -39,7 +39,7 @@
         CInclude,
         Assert,
         Destroy,
-        In,
+        Is,
         From,
         Within,
         To,

@@ -20,7 +20,7 @@ namespace NoHoPython.Syntax
             foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
                 if(procedureDeclaration.CapturedVariables.Count > 0)
                     foreach (ProcedureDeclaration callSite in procedureDeclaration.CallSiteProcedures)
-                        if(procedureDeclaration != callSite)
+                        if(!procedureDeclaration.IsChildProcedure(callSite))
                             dependentProcedures[callSite].Add(procedureDeclaration);
 
             while (unprocessedProcedures.Count > 0)
@@ -70,7 +70,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public IType? ReturnType { get; private set; }
 
-        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType? returnType, SymbolContainer parentContainer, IScopeSymbol? lastMasterScope, IAstElement errorReportedElement) : base(parentContainer, false)
+        public ProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, IType? returnType, SymbolContainer parentContainer, IScopeSymbol? lastMasterScope, IAstElement errorReportedElement) : base(parentContainer, false, errorReportedElement.SourceLocation)
         {
             Name = name;
             TypeParameters = typeParameters;
@@ -82,6 +82,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             CallSiteProcedures = new List<ProcedureDeclaration>();
             UsedTypeParameters = new List<Typing.TypeParameter>();
         }
+
+        public override string ToString() => Name;
 
         public bool HasVariable(Variable variable)
         {
@@ -102,6 +104,18 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             return false;
         }
 
+        public bool IsChildProcedure(ProcedureDeclaration potentialChild)
+        {
+            IScopeSymbol? current = potentialChild;
+            while(current is ProcedureDeclaration procedureDeclaration)
+            {
+                if (procedureDeclaration == this)
+                    return true;
+                current = procedureDeclaration.LastMasterScope;
+            }
+            return false;
+        }
+
         public void DelayedLinkSetParameters(List<Variable> parameters)
         {
             if (Parameters != null)
@@ -118,11 +132,19 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public override void DelayedLinkSetStatements(List<IRStatement> statements, AstIRProgramBuilder irBuilder)
         {
-            if (ReturnType == null)
+            if (ReturnType == null || Parameters == null)
                 throw new InvalidOperationException();
             base.DelayedLinkSetStatements(statements, irBuilder);
             if (ReturnType is not NothingType && !CodeBlockAllCodePathsReturn())
                 throw new NotAllCodePathsReturnError(ErrorReportedElement);
+
+            irBuilder.ScopedProcedures.Push(this);
+            foreach (Variable parameter in Parameters)
+                parameter.Type.ScopeForUsedTypeParameters(irBuilder);
+            foreach (Variable capturedVariable in CapturedVariables)
+                capturedVariable.Type.ScopeForUsedTypeParameters(irBuilder);
+            ReturnType.ScopeForUsedTypeParameters(irBuilder);
+            irBuilder.ScopedProcedures.Pop();
         }
 
         public Tuple<Variable, bool> SanitizeVariable(Variable variable, bool willStet, IAstElement errorReportedElement)

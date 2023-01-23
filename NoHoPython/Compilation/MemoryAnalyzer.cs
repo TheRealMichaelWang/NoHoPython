@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using NoHoPython.IntermediateRepresentation;
+using System.Text;
 
 namespace NoHoPython.Compilation
 {
@@ -23,7 +24,7 @@ namespace NoHoPython.Compilation
             ProtectAllocFailure = protectAllocFailure;
         }
 
-        public void EmitAnalyzers(StringBuilder emitter)
+        public void EmitAnalyzers(StatementEmitter emitter)
         {
             if (Mode == AnalysisMode.None && !ProtectAllocFailure)
                 return;

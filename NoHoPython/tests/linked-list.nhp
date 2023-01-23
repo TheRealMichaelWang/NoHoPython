@@ -1,5 +1,7 @@
 ﻿include "mem.nhp"
 
+#linked lists no longer work because of restrictions on match statements; matched variables are copies of the original enum values. See issue #18 for more details
+
 enum nullable<T>:
 	T
 	None

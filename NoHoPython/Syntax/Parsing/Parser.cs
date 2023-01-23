@@ -368,6 +368,11 @@ namespace NoHoPython.Syntax.Parsing
                         scanner.ScanToken();
                         value = new ExplicitCast(value, ParseType(), value.SourceLocation);
                     }
+                    else if(scanner.LastToken.Type == TokenType.Is)
+                    {
+                        scanner.ScanToken();
+                        value = new CheckEnumOption(value, ParseType(), value.SourceLocation);
+                    }
                     else
                         break;
                 }

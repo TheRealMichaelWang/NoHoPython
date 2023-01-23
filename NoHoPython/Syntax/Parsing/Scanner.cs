@@ -2,28 +2,28 @@
 
 namespace NoHoPython.Syntax.Parsing
 {
-    public sealed class UnrecognizedEscapeCharacterException : Exception
+    public sealed class UnrecognizedEscapeCharacterException : SyntaxError
     {
         public char EscapeCharacter { get; private set; }
 
-        public UnrecognizedEscapeCharacterException(char escapeCharacter) : base($"Unrecognized escape character \"{escapeCharacter}\".")
+        public UnrecognizedEscapeCharacterException(char escapeCharacter, SourceLocation sourceLocation) : base(sourceLocation, $"Unrecognized escape character \"{escapeCharacter}\".")
         {
             EscapeCharacter = escapeCharacter;
         }
     }
 
-    public sealed class UnexpectedCharacterException : Exception
+    public sealed class UnexpectedCharacterException : SyntaxError
     {
         public char? ExpectedCharacter { get; private set; }
         public char RecievedCharacter { get; private set; }
 
-        public UnexpectedCharacterException(char expectedCharacter, char recievedCharacter) : base($"Expected {expectedCharacter} but got {recievedCharacter} instead.")
+        public UnexpectedCharacterException(char expectedCharacter, char recievedCharacter, SourceLocation sourceLocation) : base(sourceLocation, $"Expected {expectedCharacter} but got {recievedCharacter} instead.")
         {
             ExpectedCharacter = expectedCharacter;
             RecievedCharacter = recievedCharacter;
         }
 
-        public UnexpectedCharacterException(char recievedCharacter) : base($"Unexpected character {recievedCharacter}.")
+        public UnexpectedCharacterException(char recievedCharacter, SourceLocation sourceLocation) : base(sourceLocation, $"Unexpected character {recievedCharacter}.")
         {
             RecievedCharacter = recievedCharacter;
             ExpectedCharacter = null;
@@ -50,17 +50,17 @@ namespace NoHoPython.Syntax.Parsing
             {
                 if (!File.Exists(fileName))
                 {
-                    if (File.Exists($"{scanner.standardLibraryDirectory}/{fileName}"))
+                    if (File.Exists(Path.Combine(scanner.standardLibraryDirectory, fileName)))
                     {
-                        fileName = $"{scanner.standardLibraryDirectory}/{fileName}";
+                        fileName = Path.Combine(scanner.standardLibraryDirectory, fileName);
                         goto file_found;
                     }
                     else if (scanner.visitorStack.Count > 0)
                     {
                         FileVisitor parent = scanner.visitorStack.Peek();
-                        if (File.Exists($"{parent.WorkingDirectory}/{fileName}"))
+                        if (File.Exists(Path.Combine(parent.WorkingDirectory, fileName)))
                         {
-                            fileName = $"{parent.WorkingDirectory}/{fileName}";
+                            fileName = Path.Combine(parent.WorkingDirectory, fileName);
                             goto file_found;
                         }
                     }
@@ -136,33 +136,22 @@ namespace NoHoPython.Syntax.Parsing
             char internalScanChar()
             {
                 if (lastChar == '\0')
-                    throw new UnrecognizedEscapeCharacterException('\0');
+                    throw new UnrecognizedEscapeCharacterException('\0', CurrentLocation);
                 else if (lastChar == '\\') //control characters
                 {
-                    char c = ScanChar();
-                    switch (c)
+                    return ScanChar() switch
                     {
-                        case '\"':
-                            return '\"';
-                        case '\'':
-                            return '\'';
-                        case 'a':
-                            return '\a';
-                        case 'b':
-                            return '\b';
-                        case 'f':
-                            return '\f';
-                        case 't':
-                            return '\t';
-                        case 'r':
-                            return '\r';
-                        case 'n':
-                            return '\n';
-                        case '0':
-                            return '\0';
-                        default:
-                            throw new UnrecognizedEscapeCharacterException(c);
-                    }
+                        '\"' => '\"',
+                        '\'' => '\'',
+                        'a' => '\a',
+                        'b' => '\b',
+                        'f' => '\f',
+                        't' => '\t',
+                        'r' => '\r',
+                        'n' => '\n',
+                        '0' => '\0',
+                        _ => throw new UnrecognizedEscapeCharacterException(lastChar, CurrentLocation)
+                    };
                 }
                 else
                     return lastChar;
@@ -267,7 +256,7 @@ namespace NoHoPython.Syntax.Parsing
                         visitorStack.Pop();
                     return TokenType.EndOfFile;
                 default:
-                    throw new UnexpectedCharacterException(symChar);
+                    throw new UnexpectedCharacterException(symChar, CurrentLocation);
             }
         }
 
@@ -321,7 +310,7 @@ namespace NoHoPython.Syntax.Parsing
                     "assert" => TokenType.Assert,
                     "del" => TokenType.Destroy,
                     "destroy" => TokenType.Destroy,
-                    "in" => TokenType.In,
+                    "is" => TokenType.Is,
                     "from" => TokenType.From,
                     "to" => TokenType.To,
                     "within" => TokenType.Within,
@@ -359,7 +348,7 @@ namespace NoHoPython.Syntax.Parsing
                 ScanChar();
                 LastToken = new Token(TokenType.CharacterLiteral, ScanCharLiteral().ToString());
                 if (lastChar != '\'')
-                    throw new UnexpectedCharacterException('\'', lastChar);
+                    throw new UnexpectedCharacterException('\'', lastChar, CurrentLocation);
                 ScanChar();
                 return LastToken;
             }
@@ -370,7 +359,7 @@ namespace NoHoPython.Syntax.Parsing
                 while (lastChar != '\"')
                 {
                     if (lastChar == '\0')
-                        throw new UnexpectedCharacterException('\0', lastChar);
+                        throw new UnexpectedCharacterException('\0', lastChar, CurrentLocation);
                     else
                         buffer.Append(ScanCharLiteral());
                 }

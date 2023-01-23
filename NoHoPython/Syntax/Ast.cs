@@ -1,18 +1,19 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Typing;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace NoHoPython.Syntax
 {
     public interface IAstElement : ISourceLocatable
     { 
-        public void EmitSrcAsCString(StringBuilder emitter, bool encapsulateWithQuotes=true)
+        public void EmitSrcAsCString(IEmitter emitter, bool formatStr=true, bool encapsulateWithQuotes=true)
         {
             if (this is IAstValue astValue)
-                CharacterLiteral.EmitCString(emitter, astValue.ToString(), false, encapsulateWithQuotes);
+                CharacterLiteral.EmitCString(emitter, astValue.ToString(), formatStr, encapsulateWithQuotes);
             else if (this is IAstStatement astStatement)
-                CharacterLiteral.EmitCString(emitter, astStatement.ToString(0), false, encapsulateWithQuotes);
+                CharacterLiteral.EmitCString(emitter, astStatement.ToString(0), formatStr, encapsulateWithQuotes);
         }
     }
 
@@ -57,6 +58,20 @@ namespace NoHoPython.Syntax
         }
 
         public override string ToString() => $"File \"{File}\", row {Row}, col {Column}";
+
+        public void EmitLineDirective(IEmitter emitter)
+        {
+            emitter.Append($"#line {Row} ");
+
+            if (OperatingSystem.IsWindows())
+            {
+                //assumes windows gdb users are using cygwin
+                var pathParts = Path.GetRelativePath(@"C:\", File).Split(Path.DirectorySeparatorChar);
+                CharacterLiteral.EmitCString(emitter, $"/cygdrive/c/{string.Join('/', pathParts)}", false, true);
+            }
+            else
+                CharacterLiteral.EmitCString(emitter, File, false, true);
+        }
     }
 
     public interface ISourceLocatable

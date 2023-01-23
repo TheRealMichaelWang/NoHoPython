@@ -10,7 +10,7 @@ namespace NoHoPython.Compilation
     {
         public static readonly int StackLimit = 1000;
 
-        public static void EmitReporter(StringBuilder emitter)
+        public static void EmitReporter(StatementEmitter emitter)
         {
             emitter.AppendLine($"static const char* _nhp_call_stack_src_locs[{StackLimit}];");
             emitter.AppendLine($"static const char* _nhp_call_stack_src[{StackLimit}];");
@@ -43,53 +43,60 @@ namespace NoHoPython.Compilation
             emitter.AppendLine("}");
         }
 
-        public static void EmitReportCall(StringBuilder emitter, IAstElement errorReportedElement, int indent)
+        public static void EmitReportCall(StatementEmitter emitter, IAstElement errorReportedElement, int indent)
         {
-            if(indent != -1)
-                CodeBlock.CIndent(emitter, indent);
-            
+            CodeBlock.CIndent(emitter, indent);
+            EmitReportCall(emitter, errorReportedElement);
+            emitter.AppendLine();
+        }
+
+        public static void EmitReportCall(IEmitter emitter, IAstElement errorReportedElement)
+        {
             emitter.Append("_nhp_santize_call(");
             CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString(), false, true);
             emitter.Append(", ");
             errorReportedElement.EmitSrcAsCString(emitter);
-
-            if(indent == -1)
-                emitter.Append(");");
-            else
-                emitter.AppendLine(");");
+            emitter.Append(");");
         }
 
-        public static void EmitReportReturn(StringBuilder emitter, int indent)
-        {
-            if (indent == -1)
-                emitter.Append("--_nhp_stack_size;");
-            else
-            {
-                CodeBlock.CIndent(emitter, indent);
-                emitter.AppendLine("--_nhp_stack_size;");
-            }
-        }
-
-        public static void EmitErrorLoc(StringBuilder emitter, IAstElement errorReportedElement, int indent=0)
+        public static void EmitReportReturn(StatementEmitter emitter, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
+            EmitReportReturn(emitter);
+            emitter.AppendLine();
+        }
+
+        public static void EmitReportReturn(IEmitter emitter) => emitter.Append("--_nhp_stack_size;");
+
+        public static void EmitErrorLoc(StatementEmitter emitter, IAstElement errorReportedElement, int indent)
+        {
+            CodeBlock.CIndent(emitter, indent);
+            EmitErrorLoc(emitter, errorReportedElement);
+            emitter.AppendLine();
+        }
+
+        public static void EmitErrorLoc(IEmitter emitter, IAstElement errorReportedElement)
+        {
             emitter.Append("_nhp_set_errloc(");
             CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString(), false, true);
             emitter.Append(", ");
             errorReportedElement.EmitSrcAsCString(emitter);
-            emitter.AppendLine(");");
+            emitter.Append(");");
         }
 
-        public static void EmitErrorLoc(StringBuilder emitter, string locationSrc, string src, int indent=0)
+        public static void EmitErrorLoc(StatementEmitter emitter, string locationSrc, string src, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
             emitter.AppendLine($"_nhp_set_errloc({locationSrc}, {src});");
         }
 
-        public static void EmitPrintStackTrace(StringBuilder emitter, int indent=0)
+        public static void EmitPrintStackTrace(StatementEmitter emitter, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
-            emitter.AppendLine("_nhp_print_stack_trace();");
+            EmitPrintStackTrace(emitter);
+            emitter.AppendLine();
         }
+
+        public static void EmitPrintStackTrace(IEmitter emitter) => emitter.Append("_nhp_print_stack_trace();");
     }
 }

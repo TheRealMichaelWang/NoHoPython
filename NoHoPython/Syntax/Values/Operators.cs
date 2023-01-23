@@ -180,4 +180,21 @@ namespace NoHoPython.Syntax.Values
         public override string ToString() => $"{Record}.{Property} = {Value}";
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{this}";
     }
+
+    public sealed partial class CheckEnumOption : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public IAstValue Enum { get; private set; }
+        public AstType Option { get; private set; }
+
+        public CheckEnumOption(IAstValue @enum, AstType option, SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+            Enum = @enum;
+            Option = option;
+        }
+
+        public override string ToString() => $"{Enum} is {Option}";
+    }
 }

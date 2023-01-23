@@ -26,6 +26,7 @@ def interpol_str_test():
 
 	#test two interpolated values
 	output.writeLine($"You're name is {name}, and you're {age} year(s) old!")
+	output.writeLine($"I love {$"nested string interpolation, {name}!"}. You're {age} right?")
 
 	you = new person(name, age)
 	output.writeLine(you)

@@ -157,7 +157,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public InterpolatedString(List<object> interpolatedValues, IAstElement errorReportedElement)
         {
-            InterpolatedValues = interpolatedValues;
+            InterpolatedValues = new(interpolatedValues.Count);
             ErrorReportedElement = errorReportedElement;
 
             for (int i = 0; i < interpolatedValues.Count; i++)
@@ -166,15 +166,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 {
                     try
                     {
-                        irValue.Type.GetFormatSpecifier();
+                        InterpolatedValues.Add(ArithmeticCast.CastTo(irValue, new ArrayType(Primitive.Character)));
                     }
-                    catch (NoFormatSpecifierForType) //values without a format specifier are cast to strings
+                    catch //values without a format specifier are cast to strings
                     {
-                        interpolatedValues[i] = ArithmeticCast.CastTo(irValue, new ArrayType(Primitive.Character));
+                        InterpolatedValues.Add(irValue);
                     }
                 }
-                else if (interpolatedValues[i] is string)
-                    continue;
+                else if (interpolatedValues[i] is string str)
+                {
+                    if (str != string.Empty)
+                        InterpolatedValues.Add(str);
+                }
                 else
                     throw new InvalidOperationException();
             }

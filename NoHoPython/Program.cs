@@ -47,7 +47,7 @@ public static class Program
                 return MemoryAnalyzer.AnalysisMode.None;
             }
 
-            MemoryAnalyzer memoryAnalyzer = new MemoryAnalyzer(requestedAnalysisMode(), args.Contains("-memfail"));
+            MemoryAnalyzer memoryAnalyzer = new(requestedAnalysisMode(), args.Contains("-memfail"));
             if (OperatingSystem.IsWindows())
                 flags.Add("windows");
             else if (OperatingSystem.IsLinux())
@@ -56,7 +56,7 @@ public static class Program
             for (int i = 2; i < args.Length; i++)
                 flags.Add(args[i]);
             AstIRProgramBuilder astIRProgramBuilder = new(statements, flags);
-            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), !args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), memoryAnalyzer);
+            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), args.Contains("-namert"), args.Contains("-linedir") || args.Contains("-ggdb"), memoryAnalyzer);
             parser.IncludeCFiles(program);
 
             string outputFile;
@@ -65,20 +65,20 @@ public static class Program
             else
                 outputFile = "out.c";
 
-            StringBuilder output = new();
             if (args.Contains("-header"))
             {
                 string headerName = outputFile.EndsWith(".c") ? outputFile.Replace(".c", ".h") : outputFile + ".h";
-                StringBuilder headerBuilder = new();
                 program.IncludeCFile(headerName);
-                program.Emit(output, headerBuilder);
-                File.WriteAllText(headerName, headerBuilder.ToString());
+                program.Emit(outputFile, headerName);
             }
             else
-                program.Emit(output, output);
+                program.Emit(outputFile, null);
 
-            File.WriteAllText(outputFile, output.ToString());
             Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {outputFile}.");
+            if (program.EmitLineDirectives)
+            {
+                Console.WriteLine($"GCC line directives have been enabled; please use the -ggdb flag while compiling {outputFile}, and gdb to debug it. Please not that this feature doesn't work very well at the moment, and is still experimental. In addition, unless you want to debug internal gdb code, type \"skip file {outputFile}\", then run.");
+            }
         }
         catch (SyntaxError syntaxError)
         {
@@ -95,6 +95,11 @@ public static class Program
         catch (FileNotFoundException f)
         {
             Console.WriteLine($"File not found: {f.Message}");
+        }
+        catch(InvalidOperationException e)
+        {
+            Console.WriteLine("An internal compiler error has occured; please report the following stack trace to https://github.com/TheRealMichaelWang/NoHoPython/issues/new.");
+            Console.WriteLine(e.StackTrace);
         }
 
         return 0;

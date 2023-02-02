@@ -7,6 +7,10 @@
         
         //gets a pure value - one that doesn't mutate state once evaluated - that can be safley evaluated following evaluation of the parent value
         public IRValue GetPostEvalPure();
+
+        public static bool EvaluationOrderGuarenteed(params IRValue[] operands) => EvaluationOrderGuarenteed(operands as IEnumerable<IRValue>); 
+
+        public static bool EvaluationOrderGuarenteed(IEnumerable<IRValue> operands) => operands.All((operand) => operand.IsPure) || operands.All((operand) => operand.IsConstant);
     }
 }
 
@@ -66,6 +70,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsConstant => Elements.TrueForAll((elem) => elem.IsConstant);
 
         public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
+    }
+
+    partial class TupleLiteral
+    {
+        public bool IsPure => TupleElements.TrueForAll((elem) => elem.IsPure);
+        public bool IsConstant => TupleElements.TrueForAll((elem) => elem.IsConstant);
+
+        public IRValue GetPostEvalPure() => new TupleLiteral(TupleElements.Select((element) => element.GetPostEvalPure()).ToList(), ErrorReportedElement);
     }
 
     partial class InterpolatedString

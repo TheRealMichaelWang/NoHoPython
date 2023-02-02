@@ -146,6 +146,28 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    public sealed partial class TupleLiteral : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public IType Type => TupleType;
+        public TupleType TupleType => new TupleType(TupleElements.ConvertAll((elem) => elem.Type));;
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public readonly List<IRValue> TupleElements;
+
+        public TupleLiteral(List<IRValue> tupleElements, IAstElement errorReportedElement)
+        {
+            TupleElements = tupleElements;
+            ErrorReportedElement = errorReportedElement;
+
+            //sort tuple elements
+            ITypeComparer comparer = new();
+            TupleElements.Sort((a, b) => comparer.Compare(a.Type, b.Type));
+        }
+    }
+
     public sealed partial class InterpolatedString : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }

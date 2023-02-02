@@ -96,6 +96,7 @@ namespace NoHoPython.Typing
 {
     partial class InterfaceType
     {
+        public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => !requiredImplementedProperties.Value.TrueForAll((property) => !property.Type.MustSetResponsibleDestroyer);
 

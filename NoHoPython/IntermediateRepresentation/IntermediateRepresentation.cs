@@ -81,7 +81,7 @@ namespace NoHoPython.Syntax
                     "<string.h>",
                     "<math.h>"
                 },
-                usedArrayTypes, uniqueProcedureTypes, usedProcedureReferences, procedureOverloads, usedEnumTypes, enumTypeOverloads, usedInterfaceTypes, interfaceTypeOverloads, usedRecordTypes, recordTypeOverloads, typeDependencyTree, memoryAnalyzer);
+                usedArrayTypes, usedTupleTypes.ToList(), uniqueProcedureTypes, usedProcedureReferences, procedureOverloads, usedEnumTypes, enumTypeOverloads, usedInterfaceTypes, interfaceTypeOverloads, usedRecordTypes.ToList(), recordTypeOverloads, typeDependencyTree, memoryAnalyzer);
         }
     }
 }
@@ -140,7 +140,7 @@ namespace NoHoPython.IntermediateRepresentation
 
         public int ExpressionDepth;
 
-        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, List<EnumType> usedEnumTypes, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, List<InterfaceType> usedInterfaceTypes, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, List<RecordType> usedRecordTypes, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
+        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<TupleType> usedTupleTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, List<EnumType> usedEnumTypes, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, List<InterfaceType> usedInterfaceTypes, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, List<RecordType> usedRecordTypes, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
         {
             DoBoundsChecking = doBoundsChecking;
             EliminateAsserts = eliminateAsserts;
@@ -157,6 +157,7 @@ namespace NoHoPython.IntermediateRepresentation
 
             this.uniqueProcedureTypes = uniqueProcedureTypes;
             this.usedArrayTypes = usedArrayTypes;
+            this.usedTupleTypes = usedTupleTypes;
             this.usedProcedureReferences = usedProcedureReferences;
             ProcedureOverloads = procedureOverloads;
             this.usedEnumTypes = usedEnumTypes;
@@ -164,9 +165,9 @@ namespace NoHoPython.IntermediateRepresentation
             this.usedInterfaceTypes = usedInterfaceTypes;
             InterfaceTypeOverloads = interfaceTypeOverload;
             this.usedRecordTypes = usedRecordTypes;
-            MemoryAnalyzer = memoryAnalyzer;
             RecordTypeOverloads = recordTypeOverloads;
 
+            MemoryAnalyzer = memoryAnalyzer;
             this.typeDependencyTree = typeDependencyTree;
             compiledTypes = new HashSet<IType>(new ITypeComparer());
 

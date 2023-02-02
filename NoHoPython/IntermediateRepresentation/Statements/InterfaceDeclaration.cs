@@ -124,7 +124,6 @@ namespace NoHoPython.Typing
 {
     public sealed partial class InterfaceType : IType, IPropertyContainer
     {
-        public bool IsNativeCType => false;
         public string TypeName => $"{InterfaceDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
         public string Identifier => $"{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
         public bool IsEmpty => false;

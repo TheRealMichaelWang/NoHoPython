@@ -1,9 +1,4 @@
 ﻿using NoHoPython.Syntax;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NoHoPython.Typing
 {
@@ -44,6 +39,15 @@ namespace NoHoPython.Typing
     partial class EnumType
     {
         public void ScopeForUsedTypeParameters(AstIRProgramBuilder irBuilder) => TypeArguments.ForEach((typearg) => typearg.ScopeForUsedTypeParameters(irBuilder));
+    }
+
+    partial class TupleType
+    {
+        public void ScopeForUsedTypeParameters(AstIRProgramBuilder irBuilder)
+        {
+            foreach (IType type in ValueTypes.Keys)
+                type.ScopeForUsedTypes(irBuilder);
+        }
     }
 
     partial class TypeParameterReference

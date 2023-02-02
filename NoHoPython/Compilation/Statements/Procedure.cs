@@ -196,6 +196,7 @@ namespace NoHoPython.Typing
 {
     partial class ProcedureType
     {
+        public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
 
@@ -636,9 +637,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_callrep_res{irProgram.ExpressionDepth} = ");
             }
 
-            int constArgs = Arguments.Where(x => x.IsConstant && x.IsPure).Count();
-            if ((irProgram.EmitExpressionStatements && !Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs))) 
-                || ((!Arguments.TrueForAll((arg) => arg.IsPure) && constArgs < Arguments.Count - 1)))
+            if ((irProgram.EmitExpressionStatements && Arguments.Any((arg) => arg.RequiresDisposal(typeargs))) 
+                || !IRValue.EvaluationOrderGuarenteed(Arguments))
             {
                 if (!irProgram.EmitExpressionStatements)
                     throw new CannotEnsureOrderOfEvaluation(this);
@@ -677,8 +677,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         protected void EmitArguments(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int currentNestedCall)
         {
-            bool argbufNonConstArgs = !Arguments.TrueForAll((arg) => arg.IsPure);
-            int constArgs = Arguments.Where(x => x.IsConstant && x.IsPure).Count();
+            bool cannotGuarenteeEvaluationOrder = !IRValue.EvaluationOrderGuarenteed(Arguments);
 
             for (int i = 0; i < Arguments.Count; i++)
             {
@@ -691,7 +690,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 {
                     if (Arguments[i].RequiresDisposal(typeargs))
                         throw new CannotEmitDestructorError(Arguments[i]);
-                    else if ((argbufNonConstArgs && constArgs < Arguments.Count - 1) && (!Arguments[i].IsPure || !Arguments[i].IsConstant))
+                    else if (cannotGuarenteeEvaluationOrder && (!Arguments[i].IsPure || !Arguments[i].IsConstant))
                         throw new CannotEnsureOrderOfEvaluation(this);
                     else
                         Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
@@ -728,8 +727,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             CodeBlock.CIndent(emitter, indent);
 
-            int constArgs = Arguments.Where(x => x.IsConstant && x.IsPure).Count();
-            if (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)) || (!Arguments.TrueForAll((arg) => arg.IsPure) && constArgs < Arguments.Count - 1))
+            if (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)) || !IRValue.EvaluationOrderGuarenteed(Arguments))
             {
                 SortedSet<int> bufferedArguments = new();
                 emitter.AppendLine("{");

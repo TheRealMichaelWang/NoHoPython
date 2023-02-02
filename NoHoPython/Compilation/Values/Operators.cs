@@ -22,7 +22,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             BufferedEmitter leftBuilder = new();
             BufferedEmitter rightBuilder = new();
 
-            if((!ShortCircuit && (!Left.IsPure && !Right.IsConstant) || (!Right.IsPure && !Left.IsConstant))
+            if((!ShortCircuit && !IRValue.EvaluationOrderGuarenteed(Left, Right))
                 || Left.RequiresDisposal(typeargs) || Right.RequiresDisposal(typeargs))
             {
                 if (!irProgram.EmitExpressionStatements)
@@ -145,8 +145,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            if ((!Array.IsPure && !Index.IsConstant) ||
-                (!Index.IsPure && !Array.IsConstant))
+            if (!IRValue.EvaluationOrderGuarenteed(Array, Index))
             {
                 if (!irProgram.EmitExpressionStatements)
                     throw new CannotEnsureOrderOfEvaluation(this);
@@ -198,9 +197,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            if ((!Array.IsPure && (!Index.IsConstant || !Value.IsConstant)) ||
-               (!Index.IsPure && (!Array.IsConstant || !Value.IsConstant)) ||
-               (!Value.IsPure && (!Index.IsConstant || !Array.IsConstant)))
+            if (!IRValue.EvaluationOrderGuarenteed(Array, Index, Value))
             {
                 if (!irProgram.EmitExpressionStatements)
                     throw new CannotEnsureOrderOfEvaluation(this);
@@ -263,9 +260,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             CodeBlock.CIndent(emitter, indent);
 
-            if ((!Array.IsPure && (!Index.IsConstant || !Value.IsConstant)) ||
-               (!Index.IsPure && (!Array.IsConstant || !Value.IsConstant)) ||
-               (!Value.IsPure && (!Index.IsConstant || !Array.IsConstant)))
+            if (!IRValue.EvaluationOrderGuarenteed(Array, Index, Value))
             {
                 emitter.AppendLine("{");
 
@@ -334,7 +329,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            if ((!Record.IsPure && !Value.IsConstant) || (!Value.IsPure && !Record.IsConstant))
+            if (!IRValue.EvaluationOrderGuarenteed(Record, Value))
             {
                 irProgram.ExpressionDepth++;
 
@@ -387,7 +382,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
-            if ((!Record.IsPure && !Value.IsConstant) || (!Value.IsPure && !Record.IsConstant))
+            if (!IRValue.EvaluationOrderGuarenteed(Record, Value))
             {
                 emitter.AppendLine("{");
 

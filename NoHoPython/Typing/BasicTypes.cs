@@ -137,8 +137,7 @@ namespace NoHoPython.Typing
 
     public sealed partial class ProcedureType : IType
     {
-        public bool IsNativeCType => false;
-        public string TypeName => $"({string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}) => {ReturnType.TypeName}";
+        public string TypeName => $"fn<{ReturnType.TypeName}, {string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}>";
         public string Identifier => $"proc_{string.Join(string.Empty, ParameterTypes.ConvertAll((type) => $"{type.Identifier}_"))}ret_{ReturnType.Identifier}";
         public bool IsEmpty => false;
 

@@ -8,14 +8,13 @@ namespace NoHoPython.Syntax
 {
     partial class AstIRProgramBuilder
     {
-        private List<RecordType> usedRecordTypes = new();
+        private HashSet<RecordType> usedRecordTypes = new(new ITypeComparer());
         private Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads = new();
 
         public bool DeclareUsedRecordType(RecordType recordType)
         {
-            foreach (RecordType usedRecord in usedRecordTypes)
-                if (recordType.IsCompatibleWith(usedRecord))
-                    return false;
+            if (usedRecordTypes.Contains(recordType))
+                return false;
 
             usedRecordTypes.Add(recordType);
             if (!recordTypeOverloads.ContainsKey(recordType.RecordPrototype))
@@ -241,7 +240,6 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine($"\tif(record->_nhp_lock || _nhp_record_has_child(({StandardRecordMask})record, child_agent))");
             emitter.AppendLine("\t\treturn;");
-
 
             emitter.AppendLine("\tif(record->_nhp_ref_count) {");
             emitter.AppendLine($"\t\tif(_nhp_record_has_child(child_agent, ({StandardRecordMask})record)) {{");

@@ -40,9 +40,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, Property property);
     }
 
-    public abstract class Property
+    public class Property
     {
-        public abstract bool IsReadOnly { get; }
+        public virtual bool IsReadOnly => true;
 
         public readonly string Name;
         public IType Type { get; private set; }

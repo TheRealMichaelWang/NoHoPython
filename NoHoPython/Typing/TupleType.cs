@@ -1,12 +1,8 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Syntax;
 using NoHoPython.Typing;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NoHoPython.Typing
 {
@@ -68,6 +64,57 @@ namespace NoHoPython.Typing
                 return true;
             }
             return false;
+        }
+    }
+}
+
+namespace NoHoPython.IntermediateRepresentation.Values
+{
+    public sealed partial class MarshalIntoLowerTuple : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public IType Type => TargetType;
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public TupleType TargetType { get; private set; }
+        public IRValue Value { get; private set; }
+
+        public MarshalIntoLowerTuple(TupleType targetType, IRValue value, IAstElement errorReportedElement)
+        {
+            TargetType = targetType;
+            Value = value;
+            ErrorReportedElement = errorReportedElement;
+
+            if (Value.Type is TupleType valueTupleType)
+            {
+                foreach(KeyValuePair<IType, int> valueType in targetType.ValueTypes)
+                {
+                    if (!valueTupleType.ValueTypes.ContainsKey(valueType.Key) || valueTupleType.ValueTypes[valueType.Key] < TargetType.ValueTypes[valueType.Key])
+                        throw new CannotMarshalIntoLowerTupleError(value, targetType, valueType, errorReportedElement);
+                }
+            }
+            else
+                throw new UnexpectedTypeException(Value.Type, errorReportedElement);
+        }
+    }
+}
+
+namespace NoHoPython.IntermediateRepresentation
+{
+    public sealed class CannotMarshalIntoLowerTupleError : IRGenerationError
+    {
+        public IRValue Value { get; private set; }
+        public TupleType TargetType { get; private set; }
+
+        public KeyValuePair<IType, int> ExpectedSupportedValueType { get; private set; }
+
+        public CannotMarshalIntoLowerTupleError(IRValue value, TupleType targetType, KeyValuePair<IType, int> expectedSupportedValueType, IAstElement errorReportedElement) : base(errorReportedElement, $"Unable to marshal tuple {value} into {targetType.TypeName} because it doesn't support {expectedSupportedValueType.Value} {expectedSupportedValueType.Key.TypeName}(s).")
+        {
+            Value = value;
+            TargetType = targetType;
+            ExpectedSupportedValueType = expectedSupportedValueType;
         }
     }
 }

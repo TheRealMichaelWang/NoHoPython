@@ -800,7 +800,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
             emitter.Append("->_nhp_this_anon(");
-            IRValue.EmitMemorySafe(ProcedureValue.GetPostEvalPure(), irProgram, emitter, typeargs);
+            IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
             if(Arguments.Count > 0)
                 emitter.Append(", ");
             EmitArguments(irProgram, emitter, typeargs, bufferedArguments, currentNestedCall);

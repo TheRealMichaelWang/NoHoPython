@@ -27,10 +27,36 @@ namespace NoHoPython.IntermediateRepresentation
     {
         private List<TupleType> usedTupleTypes;
 
-        public void ForwardDeclareTupleTypes(StatementEmitter emitter)
+        private void EmitTupleTypeTypedefs(StatementEmitter emitter)
         {
             foreach(TupleType usedTupleType in usedTupleTypes)
                 emitter.AppendLine($"typedef struct {usedTupleType.GetStandardIdentifier(this)} {usedTupleType.GetCName(this)};");
+        }
+
+        private void EmitTupleCStructs(StatementEmitter emitter)
+        {
+            foreach(TupleType usedTupleType in usedTupleTypes)
+                usedTupleType.EmitCStruct(this, emitter);
+        }
+
+        private void ForwardDeclareTupleTypes(StatementEmitter emitter)
+        {
+            foreach(TupleType usedTupleType in usedTupleTypes)
+            {
+                usedTupleType.EmitDestructorHeader(this, emitter);
+                emitter.AppendLine(";");
+                usedTupleType.EmitMoverHeader(this, emitter);
+                emitter.AppendLine(";");
+            }
+        }
+
+        private void EmitTupleTypeMarshallers(StatementEmitter emitter)
+        {
+            foreach (TupleType usedTupleType in usedTupleTypes)
+            {
+                usedTupleType.EmitDestructor(this, emitter);
+                usedTupleType.EmitMover(this, emitter);
+            }
         }
     }
 }

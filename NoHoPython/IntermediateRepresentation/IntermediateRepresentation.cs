@@ -230,6 +230,7 @@ namespace NoHoPython.IntermediateRepresentation
                 //emit typedefs
                 this.compiledTypes.Clear();
                 EmitArrayTypeTypedefs(headerEmitter);
+                EmitTupleTypeTypedefs(headerEmitter);
                 ForwardDeclareEnumTypes(headerEmitter);
                 ForwardDeclareInterfaceTypes(headerEmitter);
                 EmitAnonProcedureTypedefs(headerEmitter);
@@ -239,6 +240,7 @@ namespace NoHoPython.IntermediateRepresentation
                 RecordDeclaration.EmitRecordMaskProto(headerEmitter);
                 RecordDeclaration.EmitRecordChildFinder(headerEmitter);
                 EmitArrayTypeCStructs(headerEmitter);
+                EmitTupleCStructs(headerEmitter);
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclareType(this, headerEmitter));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclareType(this, headerEmitter));
                 RecordDeclarations.ForEach((record) => record.ForwardDeclareType(this, headerEmitter));
@@ -246,6 +248,7 @@ namespace NoHoPython.IntermediateRepresentation
 
                 //emit function headers
                 ForwardDeclareArrayTypes(headerEmitter);
+                ForwardDeclareTupleTypes(headerEmitter);
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclare(this, headerEmitter));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, headerEmitter));
                 RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, headerEmitter));
@@ -265,6 +268,7 @@ namespace NoHoPython.IntermediateRepresentation
                 //emit function behavior
                 EmitAnonProcedureCapturedContecies(emitter);
                 EmitArrayTypeMarshallers(emitter, DoCallStack);
+                EmitTupleTypeMarshallers(emitter);
                 EmitAnonProcedureMovers(this, emitter);
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new(), 0));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(this, emitter, new(), 0));

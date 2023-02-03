@@ -151,9 +151,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type => TupleType;
-        public TupleType TupleType => new TupleType(TupleElements.ConvertAll((elem) => elem.Type));;
         public bool IsTruey => false;
         public bool IsFalsey => false;
+
+        public TupleType TupleType => new TupleType(TupleElements.ConvertAll((elem) => elem.Type));
 
         public readonly List<IRValue> TupleElements;
 

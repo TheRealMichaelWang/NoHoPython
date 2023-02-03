@@ -181,7 +181,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             emitter.Append($"({TupleType.GetCName(irProgram)}) {{");
 
-            List<Property> initializeProperties = TupleType.GetProperties();
+            List<Property> initializeProperties = ((TupleType)TupleType.SubstituteWithTypearg(typeargs)).GetProperties();
             ITypeComparer typeComparer = new ITypeComparer();
             initializeProperties.Sort((a, b) => typeComparer.Compare(a.Type, b.Type));
             

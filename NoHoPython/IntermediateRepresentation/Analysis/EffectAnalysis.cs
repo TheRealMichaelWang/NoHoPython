@@ -80,6 +80,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue GetPostEvalPure() => new TupleLiteral(TupleElements.Select((element) => element.GetPostEvalPure()).ToList(), ErrorReportedElement);
     }
 
+    partial class MarshalIntoLowerTuple
+    {
+        public bool IsPure => Value.IsPure;
+        public bool IsConstant => Value.IsConstant;
+
+        public IRValue GetPostEvalPure() => new MarshalIntoLowerTuple(TargetType, Value.GetPostEvalPure(), ErrorReportedElement);
+    }
+
     partial class InterpolatedString
     {
         public bool IsPure => InterpolatedValues.TrueForAll((value) => value is IRValue irValue ? irValue.IsPure : true);
@@ -93,7 +101,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => Length.IsPure && ProtoValue.IsPure;
         public bool IsConstant => Length.IsConstant && ProtoValue.IsConstant;
 
-        public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
+        public IRValue GetPostEvalPure() => new AllocArray(ErrorReportedElement, ElementType, Length.GetPostEvalPure(), ProtoValue.GetPostEvalPure());
     }
 
     partial class ProcedureCall

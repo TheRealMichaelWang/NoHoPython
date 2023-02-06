@@ -46,7 +46,7 @@ namespace NoHoPython.Typing
         public void ScopeForUsedTypeParameters(AstIRProgramBuilder irBuilder)
         {
             foreach (IType type in ValueTypes.Keys)
-                type.ScopeForUsedTypes(irBuilder);
+                type.ScopeForUsedTypeParameters(irBuilder);
         }
     }
 

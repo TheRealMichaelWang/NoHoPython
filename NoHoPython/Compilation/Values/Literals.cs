@@ -187,6 +187,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             
             for(int i = 0; i < initializeProperties.Count; i++)
             {
+                if (i > 0)
+                    emitter.Append(", ");
+
                 emitter.Append($".{initializeProperties[i].Name} = ");
                 if (TupleElements[i].RequiresDisposal(typeargs))
                     TupleElements[i].Emit(irProgram, emitter, typeargs, responsibleDestroyer);

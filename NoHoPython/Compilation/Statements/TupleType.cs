@@ -88,10 +88,17 @@ namespace NoHoPython.Typing
             if (RequiresDisposal)
             {
                 emitter.Append($"({GetCName(irProgram)}){{");
+
+                bool emitCommaSeparator = false;
                 foreach (KeyValuePair<IType, int> valuePair in ValueTypes)
                 {
                     for (int i = 0; i < valuePair.Value; i++)
                     {
+                        if (emitCommaSeparator)
+                            emitter.Append(", ");
+                        else
+                            emitCommaSeparator = true;
+
                         emitter.Append($".{valuePair.Key.Identifier}{i} = ");
                         valuePair.Key.EmitCopyValue(irProgram, emitter, $"{valueCSource}.{valuePair.Key.Identifier}{i}", responsibleDestroyer);
                     }
@@ -127,10 +134,17 @@ namespace NoHoPython.Typing
             if (MustSetResponsibleDestroyer)
             {
                 emitter.Append($"({GetCName(irProgram)}){{");
+
+                bool emitCommaSeparator = false;
                 foreach (KeyValuePair<IType, int> valuePair in ValueTypes)
                 {
                     for (int i = 0; i < valuePair.Value; i++)
                     {
+                        if (emitCommaSeparator)
+                            emitter.Append(", ");
+                        else
+                            emitCommaSeparator = true;
+
                         emitter.Append($".{valuePair.Key.Identifier}{i} = ");
                         valuePair.Key.EmitMutateResponsibleDestroyer(irProgram, emitter, $"{valueCSource}.{valuePair.Key.Identifier}{i}", newResponsibleDestroyer);
                     }
@@ -163,12 +177,12 @@ namespace NoHoPython.Typing
                 for (int i = 0; i < valuePair.Value; i++)
                     emitter.AppendLine($"\t{valuePair.Key.GetCName(irProgram)} {valuePair.Key.Identifier}{i};");
             }
-            emitter.AppendLine("}");
+            emitter.AppendLine("};");
         }
 
         public void EmitDestructorHeader(IRProgram irProgram, StatementEmitter emitter)
         {
-            emitter.AppendLine($"void free_{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_free");
+            emitter.Append($"void free_{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_free");
             if (MustSetResponsibleDestroyer)
                 emitter.Append(", void* child_agent");
             emitter.Append(')');
@@ -191,7 +205,11 @@ namespace NoHoPython.Typing
             {
                 if (valuePair.Key.RequiresDisposal) {
                     for (int i = 0; i < valuePair.Value; i++)
-                        valuePair.Key.EmitFreeValue(irProgram, emitter, $"to_free->{valuePair.Key.Identifier}{i}", "child_agent");
+                    {
+                        emitter.Append('\t');
+                        valuePair.Key.EmitFreeValue(irProgram, emitter, $"to_free.{valuePair.Key.Identifier}{i}", "child_agent");
+                        emitter.AppendLine();
+                    }
                 }
             }
 

@@ -49,7 +49,7 @@ namespace NoHoPython.IntermediateRepresentation
                     emitter.Append(", void* responsible_destroyer");
                 emitter.AppendLine(");");
 
-                emitter.AppendLine($"{arrayType.GetCName(this)} marshal_proto{arrayType.GetStandardIdentifier(this)}(int length, {arrayType.ElementType.GetCName(this)} proto");
+                emitter.Append($"{arrayType.GetCName(this)} marshal_proto{arrayType.GetStandardIdentifier(this)}(int length, {arrayType.ElementType.GetCName(this)} proto");
                 if (arrayType.MustSetResponsibleDestroyer)
                     emitter.Append(", void* responsible_destroyer");
                 emitter.AppendLine(");");

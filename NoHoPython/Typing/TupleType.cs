@@ -29,14 +29,14 @@ namespace NoHoPython.Typing
             {
                 if (ValueTypes.ContainsKey(type))
                 {
-                    ValueTypes[type]++;
                     string identifier = $"{type.Identifier}{ValueTypes[type]}";
+                    ValueTypes[type]++;
                     properties.Add(identifier, new Property(identifier, type));
                 }
                 else
                 {
                     ValueTypes.Add(type, 1);
-                    string identifier = $"{type.Identifier}1";
+                    string identifier = $"{type.Identifier}0";
                     properties.Add(identifier, new Property(identifier, type));
                 }
             }
@@ -116,5 +116,13 @@ namespace NoHoPython.IntermediateRepresentation
             TargetType = targetType;
             ExpectedSupportedValueType = expectedSupportedValueType;
         }
+    }
+}
+
+namespace NoHoPython.Syntax.Values
+{
+    partial class TupleLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.TupleLiteral(TupleElements.ConvertAll((element) => element.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this);
     }
 }

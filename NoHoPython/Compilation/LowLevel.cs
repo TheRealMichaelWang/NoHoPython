@@ -117,11 +117,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"({TargetType.GetCName(irProgram)}){{");
                 foreach(Property property in targetProperties)
                 {
+                    if (property != targetProperties.First())
+                        emitter.Append(", ");
+
                     emitter.Append($".{property.Name} = ");
 
                     BufferedEmitter higherValueProperty = new();
                     IRValue.EmitMemorySafe(Value, irProgram, higherValueProperty, typeargs);
-                    higherValueProperty.Append($".{property.Name}; ");
+                    higherValueProperty.Append($".{property.Name}");
                     property.Type.EmitCopyValue(irProgram, emitter, higherValueProperty.ToString(), responsibleDestroyer);
                 }
                 emitter.Append('}');
@@ -142,6 +145,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"({TargetType.GetCName(irProgram)}){{");
                 foreach (Property property in targetProperties)
                 {
+                    if(property != targetProperties.First())
+                        emitter.Append(", ");
+
                     emitter.Append($".{property.Name} = ");
                     if (Value.RequiresDisposal(typeargs))
                         emitter.Append($"higher_tuple{irProgram.ExpressionDepth}.{property.Name};");
@@ -155,10 +161,22 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 if (Value.RequiresDisposal(typeargs))
                 {
-                    List<Property> propertiesToFree = ((TupleType)Value.Type.SubstituteWithTypearg(typeargs)).GetProperties();
-                    for(int i = targetProperties.Count; i < propertiesToFree.Count; i++)
+                    TupleType targetTupleType = (TupleType)TargetType.SubstituteWithTypearg(typeargs);
+                    foreach (KeyValuePair<IType, int> valueType in ((TupleType)Value.Type.SubstituteWithTypearg(typeargs)).ValueTypes)
                     {
-                        targetProperties[i].Type.EmitFreeValue(irProgram, emitter, $"higher_tuple{irProgram.ExpressionDepth}.{targetProperties[i].Name}", "NULL");
+                        if (valueType.Key.RequiresDisposal)
+                        {
+                            if (!targetTupleType.ValueTypes.ContainsKey(valueType.Key))
+                            {
+                                for(int i = 0; i < valueType.Value; i++)
+                                    valueType.Key.EmitFreeValue(irProgram, emitter, $"higher_tuple{irProgram.ExpressionDepth}.{valueType.Key.Identifier}{i}", "NULL");
+                            }
+                            else
+                            {
+                                for (int i = targetTupleType.ValueTypes[valueType.Key]; i < valueType.Value; i++)
+                                    valueType.Key.EmitFreeValue(irProgram, emitter, $"higher_tuple{irProgram.ExpressionDepth}.{valueType.Key.Identifier}{i}", "NULL");
+                            }
+                        }
                     }
                     emitter.Append($"res{irProgram.ExpressionDepth};");
                 }

@@ -77,6 +77,10 @@ namespace NoHoPython.Syntax
                 case "array":
                     MatchTypeArgCount(1, errorReportedElement);
                     return new ArrayType(typeArguments[0]);
+                case "tuple":
+                    return typeArguments.Count < 2
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new TupleType(typeArguments);
                 case "handle":
                 case "ptr":
                 case "pointer":
@@ -88,11 +92,9 @@ namespace NoHoPython.Syntax
                     return new NothingType();
                 case "fn":
                 case "proc":
-                    {
-                        return typeArguments.Count < 1
-                            ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
-                            : (IType)new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1));
-                    }
+                    return typeArguments.Count < 1
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1));
                 default:
                     {
                         IScopeSymbol typeSymbol = irBuilder.SymbolMarshaller.FindSymbol(Identifier, errorReportedElement);

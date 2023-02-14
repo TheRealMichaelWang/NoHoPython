@@ -173,7 +173,7 @@ namespace NoHoPython.Typing
                 emitter.Append($"({destC} = {valueCSource})");
         }
 
-        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, Property property) => emitter.Append($"get_{property.Name}{GetStandardIdentifier(irProgram)}({valueCSource})");
+        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier) => emitter.Append($"get_{propertyIdentifier}{GetStandardIdentifier(irProgram)}({valueCSource})");
 
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
@@ -268,6 +268,10 @@ namespace NoHoPython.Typing
 
         public void EmitPropertyGetters(IRProgram irProgram, StatementEmitter emitter)
         {
+            Dictionary<TypeParameter, IType> typeargs = new(TypeArguments.Count);
+            for (int i = 0; i < TypeArguments.Count; i++)
+                typeargs.Add(EnumDeclaration.TypeParameters[i], TypeArguments[i]);
+
             foreach (Property property in globalSupportedProperties[this].Value.Values)
             {
                 emitter.AppendLine($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum) {{");
@@ -277,7 +281,7 @@ namespace NoHoPython.Typing
                     emitter.AppendLine($"\tcase {GetCEnumOptionForType(irProgram, option)}:");
                     emitter.Append("\t\treturn ");
                     IPropertyContainer propertyContainer = (IPropertyContainer)option;
-                    propertyContainer.EmitGetProperty(irProgram, emitter, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set", property);
+                    property.EmitGet(irProgram, emitter, typeargs, propertyContainer, $"_nhp_enum.data.{option.GetStandardIdentifier(irProgram)}_set");
                     emitter.AppendLine(";");
                 }
                 emitter.AppendLine("\t}");

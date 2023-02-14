@@ -1,6 +1,7 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.Syntax
 {
@@ -65,6 +66,16 @@ namespace NoHoPython.Typing
 {
     partial class TupleType
     {
+        partial class TupleProperty
+        {
+            public override void EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource)
+            {
+                IType realPropertyType = Type.SubstituteWithTypearg(typeargs);
+                Debug.Assert(realPropertyType is not TypeParameterReference);
+                propertyContainer.EmitGetProperty(irProgram, emitter, valueCSource, $"{realPropertyType.Identifier}{TypeNumber}");
+            }
+        }
+
         public bool IsNativeCType => true;
         public bool RequiresDisposal => ValueTypes.Keys.Any((type) => type.RequiresDisposal);
         public bool MustSetResponsibleDestroyer => ValueTypes.Keys.Any((type) => type.MustSetResponsibleDestroyer);
@@ -155,7 +166,7 @@ namespace NoHoPython.Typing
                 emitter.Append(valueCSource);
         }
 
-        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}.{property.Name}");
+        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier) => emitter.Append($"{valueCSource}.{propertyIdentifier}");
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {

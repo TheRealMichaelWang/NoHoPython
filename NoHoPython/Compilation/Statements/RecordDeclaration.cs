@@ -47,6 +47,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     partial class RecordDeclaration
     {
+        partial class RecordProperty
+        {
+            public override void EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource) => propertyContainer.EmitGetProperty(irProgram, emitter, valueCSource, Name);
+        }
+
         public static void EmitRecordMaskProto(StatementEmitter emitter)
         {
             emitter.AppendLine("typedef struct _nhp_std_record_mask _nhp_std_record_mask_t;");
@@ -164,7 +169,7 @@ namespace NoHoPython.Typing
 
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append($"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){newResponsibleDestroyer})");
 
-        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}->{property.Name}");
+        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier) => emitter.Append($"{valueCSource}->{propertyIdentifier}");
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {

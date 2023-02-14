@@ -3,6 +3,19 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Typing;
 
+namespace NoHoPython.IntermediateRepresentation.Statements
+{
+    partial interface IPropertyContainer
+    {
+        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier);
+    }
+
+    partial class Property
+    {
+        public abstract void EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource);
+    }
+}
+
 namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class BinaryOperator
@@ -309,7 +322,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
             if (Record.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
-                propertyContainer.EmitGetProperty(irProgram, emitter, BufferedEmitter.EmittedBufferedMemorySafe(Record, irProgram, typeargs), Property);
+                Property.EmitGet(irProgram, emitter, typeargs, propertyContainer, BufferedEmitter.EmittedBufferedMemorySafe(Record, irProgram, typeargs));
             else
                 throw new UnexpectedTypeException(Record.Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
         }

@@ -8,6 +8,18 @@ namespace NoHoPython.Typing
 {
     public sealed partial class TupleType : IType, IPropertyContainer
     {
+        public sealed partial class TupleProperty : Property
+        {
+            public override bool IsReadOnly => true;
+
+            public int TypeNumber { get; private set; }
+
+            public TupleProperty(IType type, int typeNumber) : base($"{type.Identifier}{typeNumber}", type)
+            {
+                TypeNumber = typeNumber;
+            }
+        }
+
         public string TypeName => $"tuple<{string.Join(", ", orderedValueTypes.ConvertAll((type) => type.TypeName))}>";
         public string Identifier => $"tuple_{string.Join("_", orderedValueTypes.ConvertAll((type) => type.Identifier))}";
         public bool IsEmpty => false;
@@ -27,18 +39,16 @@ namespace NoHoPython.Typing
 
             foreach (IType type in valueTypes)
             {
+                TupleProperty tupleProperty;
                 if (ValueTypes.ContainsKey(type))
-                {
-                    string identifier = $"{type.Identifier}{ValueTypes[type]}";
-                    ValueTypes[type]++;
-                    properties.Add(identifier, new Property(identifier, type));
-                }
+                    tupleProperty = new TupleProperty(type, ValueTypes[type]++);
                 else
                 {
+                    tupleProperty = new TupleProperty(type, 0);
                     ValueTypes.Add(type, 1);
-                    string identifier = $"{type.Identifier}0";
-                    properties.Add(identifier, new Property(identifier, type));
                 }
+
+                properties.Add(tupleProperty.Name, tupleProperty);
             }
         }
 

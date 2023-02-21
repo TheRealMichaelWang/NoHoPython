@@ -174,7 +174,7 @@ namespace NoHoPython.Syntax.Statements
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}assert {Condition}";
     }
 
-    public partial class DestroyStatement : IAstStatement
+    public sealed partial class DestroyStatement : IAstStatement
     {
         public SourceLocation SourceLocation { get; private set; }
         

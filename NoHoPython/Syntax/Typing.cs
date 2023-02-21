@@ -1,6 +1,7 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
+using NoHoPython.Syntax.Statements;
 using NoHoPython.Typing;
 
 namespace NoHoPython.Syntax
@@ -33,7 +34,7 @@ namespace NoHoPython.Syntax
         }
     }
 
-    public sealed class AstType
+    public sealed partial class AstType
     {
         public readonly string Identifier;
         public readonly List<AstType> TypeArguments;
@@ -111,6 +112,8 @@ namespace NoHoPython.Syntax
                             return new InterfaceType(interfaceDeclaration, typeArguments, errorReportedElement);
                         else if (typeSymbol is IntermediateRepresentation.Statements.EnumDeclaration enumDeclaration)
                             return new EnumType(enumDeclaration, typeArguments, errorReportedElement);
+                        else if (typeSymbol is IntermediateRepresentation.Statements.TypedefDeclaration typedefDeclaration)
+                            return TypedefToIRType(typedefDeclaration, typeArguments, irBuilder, errorReportedElement);
                         else if (typeSymbol is IType symbolType)
                             return symbolType;
                         throw new NotATypeException(typeSymbol, errorReportedElement);

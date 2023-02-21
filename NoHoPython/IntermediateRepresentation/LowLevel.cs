@@ -60,7 +60,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public partial class MarshalIntoArray : IRValue
+    public sealed partial class MarshalIntoArray : IRValue
     {
         public IType Type => new ArrayType(ElementType);
         public bool IsTruey => false;

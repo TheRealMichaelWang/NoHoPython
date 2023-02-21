@@ -173,6 +173,35 @@ namespace NoHoPython.Syntax.Statements
 
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}module {Identifier}\n{IAstStatement.BlockToString(indent, Statements)}";
     }
+
+    public sealed partial class TypedefDeclaration : IAstStatement
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public readonly string Identifier;
+        public readonly List<TypeParameter> TypeParameters;
+
+        public AstType DefinedType { get; private set; }
+
+        public TypedefDeclaration(string identifier, List<TypeParameter> typeParameters, AstType definedType, SourceLocation sourceLocation)
+        {
+            Identifier = identifier;
+            TypeParameters = typeParameters;
+            DefinedType = definedType;
+            SourceLocation = sourceLocation;
+        }
+
+        public string ToString(int indent)
+        {
+            StringBuilder builder = new();
+            builder.Append($"{IAstStatement.Indent(indent)}def {Identifier}");
+            if (TypeParameters.Count > 0)
+                builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            builder.Append(' ');
+            builder.AppendLine(DefinedType.ToString());
+            return builder.ToString();
+        }
+    }
 }
 
 namespace NoHoPython.Syntax.Parsing
@@ -256,7 +285,7 @@ namespace NoHoPython.Syntax.Parsing
             {
                 if (scanner.LastToken.Type == TokenType.Define)
                 {
-                    procedures.Add(ParseProcedureDeclaration());
+                    procedures.Add((ProcedureDeclaration)ParseProcedureDeclaration(true));
                     return null;
                 }
 

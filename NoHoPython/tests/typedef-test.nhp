@@ -1,0 +1,9 @@
+﻿def string array<char>
+
+def print(string str):
+	cdef putchar(char) None
+	for i from 0 within str:
+		putchar(str[i])
+
+def main():
+	print("Hello world")

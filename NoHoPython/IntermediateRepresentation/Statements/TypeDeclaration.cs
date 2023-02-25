@@ -47,6 +47,8 @@ namespace NoHoPython.Syntax.Statements
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
             IRTypedefedDeclaration = new IntermediateRepresentation.Statements.TypedefDeclaration(Identifier, DefinedType, typeParameters, irBuilder.SymbolMarshaller.CurrentScope, this);
+
+            irBuilder.SymbolMarshaller.DeclareSymbol(IRTypedefedDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRTypedefedDeclaration);
 
             foreach (Typing.TypeParameter parameter in typeParameters)

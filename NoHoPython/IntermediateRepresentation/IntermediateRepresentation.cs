@@ -250,8 +250,8 @@ namespace NoHoPython.IntermediateRepresentation
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclare(this, headerEmitter));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, headerEmitter));
                 RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, headerEmitter));
+                usedProcedureReferences.ForEach((procedure) => procedure.EmitCaptureContextCStruct(this, headerEmitter, usedProcedureReferences.FindAll((procedureReference) => procedureReference.IsAnonymous)));
                 ProcedureDeclarations.ForEach((procedure) => procedure.ForwardDeclareActual(this, headerEmitter));
-                usedProcedureReferences.ForEach((procedure) => procedure.EmitCaptureContextCStruct(this, headerEmitter));
 
                 if (headerEmitter != emitter)
                     headerEmitter.AppendLine("#endif");

@@ -37,10 +37,7 @@ namespace NoHoPython.Typing
             ParentContainer = parentContainer;
         }
 
-        public bool SupportsType(IType type)
-        {
-            return RequiredImplementedInterface == null || RequiredImplementedInterface.IsCompatibleWith(type);
-        }
+        public bool SupportsType(IType type) => RequiredImplementedInterface == null || RequiredImplementedInterface.IsCompatibleWith(type);
     }
 
     public sealed partial class TypeParameterReference : IType
@@ -275,6 +272,30 @@ namespace NoHoPython.Typing
                 return ArithmeticCast.CastTo(argument, this);
         }
     }
+
+    partial class TupleType
+    {
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new TupleType(orderedValueTypes.Select((type) => type.SubstituteWithTypearg(typeargs)).ToList());
+
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
+        {
+            if (argument is TupleType tupleType)
+                TypeParameter.MatchTypeargs(typeargs, orderedValueTypes, tupleType.orderedValueTypes, errorReportedElement);
+            else
+                throw new UnexpectedTypeException(argument, errorReportedElement);
+        }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        {
+            if (argument.Type is TupleType tupleType)
+            {
+                TypeParameter.MatchTypeargs(typeargs, orderedValueTypes, tupleType.orderedValueTypes, argument.ErrorReportedElement);
+                return argument;
+            }
+            else
+                return ArithmeticCast.CastTo(argument, this);
+        }
+    }
 }
 
 namespace NoHoPython.IntermediateRepresentation.Values
@@ -312,6 +333,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class ArrayLiteral
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArrayLiteral(ElementType.SubstituteWithTypearg(typeargs), Elements.Select((IRValue element) => element.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
+    }
+
+    partial class TupleLiteral
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new TupleLiteral(TupleElements.Select((IRValue element) => element.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
+    }
+
+    partial class MarshalIntoLowerTuple
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MarshalIntoLowerTuple((TupleType)TargetType.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class InterpolatedString

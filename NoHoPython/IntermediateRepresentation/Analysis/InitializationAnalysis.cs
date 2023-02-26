@@ -166,6 +166,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Elements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties, recordDeclaration));
     }
 
+    partial class TupleLiteral
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => TupleElements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties, recordDeclaration));
+    }
+
+    partial class MarshalIntoLowerTuple
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
+    }
+
     partial class InterpolatedString
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => InterpolatedValues.ForEach((value) =>

@@ -7,27 +7,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public sealed partial class InterfaceDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
-        public sealed class InterfaceProperty : Property
+        public sealed partial class InterfaceProperty : Property
         {
             public override bool IsReadOnly => true;
 
-            public InterfaceProperty(string name, IType type) : base(name, type)
-            {
+            public InterfaceProperty(string name, IType type) : base(name, type) { }
 
-            }
+            public bool SatisfiesRequirement(Property property) => property.Name == Name && Type.IsCompatibleWith(property.Type);
 
-            public bool SatisfiesRequirement(Property property)
-            {
-                return property.Name == Name && Type.IsCompatibleWith(property.Type);
-            }
-
-            public bool SatisfiesRequirement(List<RecordDeclaration.RecordProperty> recordProperties)
-            {
-                foreach (RecordDeclaration.RecordProperty property in recordProperties)
-                    if (SatisfiesRequirement(property))
-                        return true;
-                return false;
-            }
+            public bool SatisfiesRequirement(List<RecordDeclaration.RecordProperty> recordProperties) => recordProperties.Any((property) => SatisfiesRequirement(property));
 
             public InterfaceProperty SubstituteWithTypeargs(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs));
         }
@@ -124,7 +112,6 @@ namespace NoHoPython.Typing
 {
     public sealed partial class InterfaceType : IType, IPropertyContainer
     {
-        public bool IsNativeCType => false;
         public string TypeName => $"{InterfaceDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
         public string Identifier => $"{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
         public bool IsEmpty => false;

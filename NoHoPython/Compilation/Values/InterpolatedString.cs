@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Typing;
 using System.Text;
 
@@ -84,6 +85,22 @@ namespace NoHoPython.Typing
     {
         public string GetFormatSpecifier(IRProgram irProgram) => throw new NoFormatSpecifierForType(this);
         public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource) => throw new InvalidOperationException();
+    }
+
+    partial class TupleType
+    {
+        public string GetFormatSpecifier(IRProgram irProgram) => $"({string.Join(", ", orderedValueTypes.ConvertAll((type) => type.GetFormatSpecifier(irProgram)))})";
+
+        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource)
+        {
+            Property[] properties = this.properties.Values.ToArray();
+            for (int i = 0; i < properties.Length; i++)
+            {
+                if (i > 0)
+                    emitter.Append(", ");
+                properties[i].Type.EmitFormatValue(irProgram, emitter, $"{valueCSource}.{properties[i].Name}");
+            }
+        }
     }
 
     partial class ProcedureType

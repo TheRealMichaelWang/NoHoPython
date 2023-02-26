@@ -85,6 +85,21 @@ namespace NoHoPython.Syntax.Values
         }
     }
 
+    public sealed partial class TupleLiteral : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public readonly List<IAstValue> TupleElements;
+
+        public TupleLiteral(List<IAstValue> tupleElements, SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+            TupleElements = tupleElements;
+        }
+
+        public override string ToString() => $"({string.Join(", ", TupleElements)})";
+    }
+
     public sealed partial class AllocArray : IAstValue
     {
         public SourceLocation SourceLocation { get; private set; }
@@ -93,12 +108,12 @@ namespace NoHoPython.Syntax.Values
         public IAstValue Length { get; private set; }
         public IAstValue? ProtoValue { get; private set; }
 
-        public AllocArray(SourceLocation sourceLocation, AstType? elementType, IAstValue length, IAstValue? protoValue)
+        public AllocArray(AstType? elementType, IAstValue length, IAstValue? protoValue, SourceLocation sourceLocation)
         {
-            SourceLocation = sourceLocation;
             ElementType = elementType;
             Length = length;
             ProtoValue = protoValue;
+            SourceLocation = sourceLocation;
         }
 
         public override string ToString() => $"new {ElementType}[{Length}]{(ProtoValue != null ? $"({ProtoValue})" : string.Empty)}";
@@ -231,10 +246,10 @@ namespace NoHoPython.Syntax.Parsing
                 scanner.ScanToken();
                 IAstValue protoValue = ParseExpression();
                 MatchAndScanToken(TokenType.CloseParen);
-                return new(location, elementType, length, protoValue);
+                return new(elementType, length, protoValue, location);
             }
             else
-                return new(location, elementType, length, null);
+                return new(elementType, length, null, location);
         }
 
         private Values.MarshalIntoArray ParseMarshalArray(SourceLocation location)

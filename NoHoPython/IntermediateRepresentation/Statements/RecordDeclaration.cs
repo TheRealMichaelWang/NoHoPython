@@ -4,7 +4,6 @@ using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Diagnostics;
-using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
@@ -19,7 +18,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
     }
 
-    public interface IPropertyContainer
+    public partial interface IPropertyContainer
     {
         public static void SanitizePropertyNames(List<Property> properties, Syntax.IAstElement errorReportedElement)
         {
@@ -36,15 +35,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public Property FindProperty(string identifier);
 
         public List<Property> GetProperties();
-
-        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, Property property);
     }
 
-    public abstract class Property
+    public abstract partial class Property
     {
         public abstract bool IsReadOnly { get; }
 
-        public readonly string Name;
+        public string Name { get; private set; }
         public IType Type { get; private set; }
 
         public Property(string name, IType type)

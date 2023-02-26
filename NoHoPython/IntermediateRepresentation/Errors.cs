@@ -8,24 +8,24 @@ namespace NoHoPython.IntermediateRepresentation
 {
     public abstract class IRGenerationError : Exception
     {
-        public IAstElement AstElement { get;private set; }
+        public IAstElement ErrorReportedElement { get;private set; }
 
-        public IRGenerationError(IAstElement astElement, string message) : base(message)
+        public IRGenerationError(IAstElement errorReportedElement, string message) : base(message)
         {
-            AstElement = astElement;
+            ErrorReportedElement = errorReportedElement;
         }
 
         public void Print()
         {
             Console.WriteLine($"IR Generation Error: {Message}");
 
-            Console.WriteLine($"\nIn {AstElement.SourceLocation}:\n");
+            Console.WriteLine($"\nIn {ErrorReportedElement.SourceLocation}:\n");
 
-            if (AstElement is IAstValue astValue)
+            if (ErrorReportedElement is IAstValue astValue)
             {
                 Console.WriteLine($"\t{astValue}");
             }
-            else if (AstElement is IAstStatement astStatement)
+            else if (ErrorReportedElement is IAstStatement astStatement)
                 Console.WriteLine(astStatement.ToString(0));
         }
     }

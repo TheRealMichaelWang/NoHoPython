@@ -77,6 +77,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     : value.Type is Primitive
                     ? PrimitiveCast(value, handleType)
                     : throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
+            else if (typeTarget is TupleType tupleTarget && value.Type is TupleType)
+                return new MarshalIntoLowerTuple(tupleTarget, value, value.ErrorReportedElement);
             else return typeTarget is EnumType enumType
                 ? new MarshalIntoEnum(enumType, value, value.ErrorReportedElement)
                 : typeTarget is InterfaceType interfaceType

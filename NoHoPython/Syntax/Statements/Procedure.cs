@@ -160,7 +160,7 @@ namespace NoHoPython.Syntax.Parsing
 {
     partial class AstParser
     {
-        private ProcedureDeclaration ParseProcedureDeclaration()
+        private IAstStatement ParseProcedureDeclaration(bool mustBeProcedure = false)
         {
             SourceLocation location = scanner.CurrentLocation;
 
@@ -172,7 +172,14 @@ namespace NoHoPython.Syntax.Parsing
 
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? ParseTypeParameters() : new List<TypeParameter>();
 
-            MatchAndScanToken(TokenType.OpenParen);
+            if (mustBeProcedure)
+                MatchAndScanToken(TokenType.OpenParen);
+            else
+            {
+                if (scanner.LastToken.Type != TokenType.OpenParen)
+                    return new TypedefDeclaration(identifer, typeParameters, ParseType(), location);
+                scanner.ScanToken();
+            }
 
             List<ProcedureParameter> parameters = new();
             while (scanner.LastToken.Type != TokenType.CloseParen)

@@ -214,8 +214,25 @@ namespace NoHoPython.Syntax.Parsing
                             {
                                 scanner.ScanToken();
                                 IAstValue expression = ParseExpression();
-                                MatchAndScanToken(TokenType.CloseParen);
-                                return expression;
+
+                                if (scanner.LastToken.Type == TokenType.CloseParen)
+                                {
+                                    scanner.ScanToken();
+                                    return expression;
+                                }
+                                else //parse tuple literal
+                                {
+                                    List<IAstValue> elements = new();
+                                    elements.Add(expression);
+                                    do
+                                    {
+                                        MatchAndScanToken(TokenType.Comma);
+                                        elements.Add(ParseExpression());
+                                    }
+                                    while (scanner.LastToken.Type != TokenType.CloseParen);
+                                    scanner.ScanToken();
+                                    return new TupleLiteral(elements, location);
+                                }
                             }
                         case TokenType.Identifier:
                             {

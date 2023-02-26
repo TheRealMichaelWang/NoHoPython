@@ -1,6 +1,7 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
+using NoHoPython.Syntax.Statements;
 using NoHoPython.Typing;
 
 namespace NoHoPython.Syntax
@@ -33,7 +34,7 @@ namespace NoHoPython.Syntax
         }
     }
 
-    public sealed class AstType
+    public sealed partial class AstType
     {
         public readonly string Identifier;
         public readonly List<AstType> TypeArguments;
@@ -77,6 +78,10 @@ namespace NoHoPython.Syntax
                 case "array":
                     MatchTypeArgCount(1, errorReportedElement);
                     return new ArrayType(typeArguments[0]);
+                case "tuple":
+                    return typeArguments.Count < 2
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new TupleType(typeArguments);
                 case "handle":
                 case "ptr":
                 case "pointer":
@@ -88,11 +93,9 @@ namespace NoHoPython.Syntax
                     return new NothingType();
                 case "fn":
                 case "proc":
-                    {
-                        return typeArguments.Count < 1
-                            ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
-                            : (IType)new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1));
-                    }
+                    return typeArguments.Count < 1
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1));
                 default:
                     {
                         IScopeSymbol typeSymbol = irBuilder.SymbolMarshaller.FindSymbol(Identifier, errorReportedElement);
@@ -109,6 +112,8 @@ namespace NoHoPython.Syntax
                             return new InterfaceType(interfaceDeclaration, typeArguments, errorReportedElement);
                         else if (typeSymbol is IntermediateRepresentation.Statements.EnumDeclaration enumDeclaration)
                             return new EnumType(enumDeclaration, typeArguments, errorReportedElement);
+                        else if (typeSymbol is IntermediateRepresentation.Statements.TypedefDeclaration typedefDeclaration)
+                            return TypedefToIRType(typedefDeclaration, typeArguments, irBuilder, errorReportedElement);
                         else if (typeSymbol is IType symbolType)
                             return symbolType;
                         throw new NotATypeException(typeSymbol, errorReportedElement);

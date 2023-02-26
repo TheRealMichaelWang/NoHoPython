@@ -39,7 +39,7 @@ namespace NoHoPython.Typing
         public string? ToString() => TypeName;
     }
 
-    public sealed class ITypeComparer : IEqualityComparer<IType>
+    public sealed class ITypeComparer : IEqualityComparer<IType>, IComparer<IType>
     {
         public bool Equals(IType? a, IType? b)
         {
@@ -51,9 +51,11 @@ namespace NoHoPython.Typing
         public int GetHashCode(IType? type)
         {
             if (type == null)
-                throw new InvalidOperationException();
-            return type.TypeName.GetHashCode();
+                return 0;
+            return type.Identifier.GetHashCode();
         }
+
+        public int Compare(IType? a, IType? b) => GetHashCode(a) - GetHashCode(b);
     }
 
     public sealed class UnexpectedTypeException : IRGenerationError

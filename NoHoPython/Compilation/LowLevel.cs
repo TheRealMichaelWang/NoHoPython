@@ -1,6 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Typing;
-using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
@@ -32,6 +31,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
+            if (!IRValue.EvaluationOrderGuarenteed(Address, Index, Value))
+                throw new CannotEnsureOrderOfEvaluation(this);
+
             emitter.Append($"((({Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}*)");
             IRValue.EmitMemorySafe(Address, irProgram, emitter, typeargs);
             emitter.Append(")[");
@@ -76,8 +78,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            if ((!Address.IsPure && !Length.IsConstant) ||
-                (!Length.IsPure && !Address.IsConstant))
+            if (!IRValue.EvaluationOrderGuarenteed(Address, Length))
                 throw new CannotEnsureOrderOfEvaluation(this);
 
             ArrayType type = new(ElementType.SubstituteWithTypearg(typeargs));
@@ -94,6 +95,96 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($", {responsibleDestroyer})");
             else
                 emitter.Append(')');
+        }
+    }
+
+    partial class MarshalIntoLowerTuple
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            TargetType.SubstituteWithTypearg(typeargs).ScopeForUsedTypeParameters(irBuilder);
+            Value.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => TargetType.SubstituteWithTypearg(typeargs).RequiresDisposal;
+
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        {
+            List<Property> targetProperties = ((TupleType)TargetType.SubstituteWithTypearg(typeargs)).GetProperties();
+
+            if (Value.IsPure && !Value.RequiresDisposal(typeargs))
+            {
+                emitter.Append($"({TargetType.GetCName(irProgram)}){{");
+                foreach(Property property in targetProperties)
+                {
+                    if (property != targetProperties.First())
+                        emitter.Append(", ");
+
+                    emitter.Append($".{property.Name} = ");
+
+                    BufferedEmitter higherValueProperty = new();
+                    IRValue.EmitMemorySafe(Value, irProgram, higherValueProperty, typeargs);
+                    higherValueProperty.Append($".{property.Name}");
+                    property.Type.EmitCopyValue(irProgram, emitter, higherValueProperty.ToString(), responsibleDestroyer);
+                }
+                emitter.Append('}');
+            }
+            else
+            {
+                if (!irProgram.EmitExpressionStatements)
+                    throw new CannotEmitDestructorError(Value);
+
+                irProgram.ExpressionDepth++;
+                emitter.Append($"({{{Value.Type.GetCName(irProgram)} higher_tuple{irProgram.ExpressionDepth} = ");
+                Value.Emit(irProgram, emitter, typeargs, "NULL");
+                emitter.Append(';');
+
+                if (Value.RequiresDisposal(typeargs))
+                    emitter.Append($"{TargetType.GetCName(irProgram)} res{irProgram.ExpressionDepth} = ");
+                
+                emitter.Append($"({TargetType.GetCName(irProgram)}){{");
+                foreach (Property property in targetProperties)
+                {
+                    if(property != targetProperties.First())
+                        emitter.Append(", ");
+
+                    emitter.Append($".{property.Name} = ");
+                    if (Value.RequiresDisposal(typeargs))
+                        emitter.Append($"higher_tuple{irProgram.ExpressionDepth}.{property.Name};");
+                    else
+                    {
+                        property.Type.EmitCopyValue(irProgram, emitter, $"higher_tuple{irProgram.ExpressionDepth}.{property.Name}", responsibleDestroyer);
+                        emitter.Append(';');
+                    }
+                }
+                emitter.Append("};");
+
+                if (Value.RequiresDisposal(typeargs))
+                {
+                    TupleType targetTupleType = (TupleType)TargetType.SubstituteWithTypearg(typeargs);
+                    foreach (KeyValuePair<IType, int> valueType in ((TupleType)Value.Type.SubstituteWithTypearg(typeargs)).ValueTypes)
+                    {
+                        if (valueType.Key.RequiresDisposal)
+                        {
+                            if (!targetTupleType.ValueTypes.ContainsKey(valueType.Key))
+                            {
+                                for(int i = 0; i < valueType.Value; i++)
+                                    valueType.Key.EmitFreeValue(irProgram, emitter, $"higher_tuple{irProgram.ExpressionDepth}.{valueType.Key.Identifier}{i}", "NULL");
+                            }
+                            else
+                            {
+                                for (int i = targetTupleType.ValueTypes[valueType.Key]; i < valueType.Value; i++)
+                                    valueType.Key.EmitFreeValue(irProgram, emitter, $"higher_tuple{irProgram.ExpressionDepth}.{valueType.Key.Identifier}{i}", "NULL");
+                            }
+                        }
+                    }
+                    emitter.Append($"res{irProgram.ExpressionDepth};");
+                }
+                else
+                    emitter.Append("})");
+
+                irProgram.ExpressionDepth--;
+            }
         }
     }
 }

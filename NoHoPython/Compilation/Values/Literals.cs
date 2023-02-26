@@ -1,6 +1,6 @@
-﻿using NoHoPython.Typing;
+﻿using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.Typing;
 using System.Diagnostics;
-using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
@@ -151,10 +151,53 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 arrayBuilder.Append('}');
             }
 
-            emitter.Append($"marshal{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({arrayBuilder.ToString()}, {Elements.Count}");
+            emitter.Append($"marshal{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({arrayBuilder}, {Elements.Count}");
             if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer)
                 emitter.Append($", {responsibleDestroyer}");
             emitter.Append(')');
+        }
+    }
+
+    partial class TupleLiteral
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            TupleElements.ForEach((element) => element.ScopeForUsedTypes(typeargs, irBuilder));
+        }
+
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs)
+        {
+            foreach (IType valueType in TupleType.ValueTypes.Keys)
+                if (valueType.RequiresDisposal)
+                    return true;
+            return false;
+        }
+
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        {
+            if (!IRValue.EvaluationOrderGuarenteed(TupleElements))
+                throw new CannotEnsureOrderOfEvaluation(this);
+
+            emitter.Append($"({TupleType.GetCName(irProgram)}) {{");
+
+            List<Property> initializeProperties = ((TupleType)TupleType.SubstituteWithTypearg(typeargs)).GetProperties();
+            ITypeComparer typeComparer = new ITypeComparer();
+            initializeProperties.Sort((a, b) => typeComparer.Compare(a.Type, b.Type));
+            
+            for(int i = 0; i < initializeProperties.Count; i++)
+            {
+                if (i > 0)
+                    emitter.Append(", ");
+
+                emitter.Append($".{initializeProperties[i].Name} = ");
+                if (TupleElements[i].RequiresDisposal(typeargs))
+                    TupleElements[i].Emit(irProgram, emitter, typeargs, responsibleDestroyer);
+                else
+                    initializeProperties[i].Type.EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(TupleElements[i], irProgram, typeargs, "NULL"), responsibleDestroyer);
+            }
+
+            emitter.Append('}');
         }
     }
 
@@ -171,7 +214,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            if ((!Length.IsPure && !ProtoValue.IsConstant) || (!ProtoValue.IsPure && !Length.IsConstant))
+            if (!IRValue.EvaluationOrderGuarenteed(Length, ProtoValue))
                 throw new CannotEnsureOrderOfEvaluation(this);
             
             emitter.Append($"marshal_proto{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");

@@ -1,0 +1,12 @@
+﻿def print(array<char> str):
+	cdef puts(handle) None
+	puts(str)
+
+def getT<T>(tuple<T, int> arg) T:
+	return arg.T0
+
+def main():
+	myTuple = (1, 2, 3, "Michael")
+	print($"{myTuple}, with name: {myTuple.array_char0}")
+	lowerTuple = myTuple as tuple<int, int>
+	print($"{lowerTuple}, {getT(lowerTuple)}")

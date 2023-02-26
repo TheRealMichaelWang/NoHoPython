@@ -4,7 +4,6 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
-using System.Text;
 
 namespace NoHoPython.Syntax
 {
@@ -196,6 +195,7 @@ namespace NoHoPython.Typing
 {
     partial class ProcedureType
     {
+        public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
 
@@ -291,9 +291,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public string GetStandardIdentifier(IRProgram irProgram) => $"{IScopeSymbol.GetAbsolouteName(ProcedureDeclaration, ProcedureDeclaration.LastMasterScope is IScopeSymbol parentSymbol ? parentSymbol : null)}{string.Join(string.Empty, ProcedureDeclaration.UsedTypeParameters.ToList().ConvertAll((typeParam) => $"_{typeArguments[typeParam].GetStandardIdentifier(irProgram)}_as_{typeParam.Name}"))}" + (IsAnonymous ? "_anon_capture" : string.Empty);
 
-        public string GetClosureCaptureCType(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_captured_t";
+        public string GetClosureCaptureCType(IRProgram irProgram) => complementaryProcedureReference == null ? $"{GetStandardIdentifier(irProgram)}_captured_t" : complementaryProcedureReference.GetClosureCaptureCType(irProgram);
 
         private ProcedureType anonProcedureType;
+        private ProcedureReference? complementaryProcedureReference = null;
+        private bool emittedCapturedContextStruct = false;
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -372,22 +374,39 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             return typeArguments;
         }
 
-        public void EmitCaptureContextCStruct(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitCaptureContextCStruct(IRProgram irProgram, StatementEmitter emitter, List<ProcedureReference> anonProcedureReferences)
         {
+            bool HasCompatibleCaptureContextCStruct(ProcedureReference procedureReference)
+            {
+                if (!procedureReference.emittedCapturedContextStruct)
+                    return false;
+
+                foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
+                    if (!procedureReference.ProcedureDeclaration.CapturedVariables.Any((otherCapturedVariable) => variable.GetStandardIdentifier() == otherCapturedVariable.GetStandardIdentifier() && variable.Type.SubstituteWithTypearg(typeArguments).IsCompatibleWith(otherCapturedVariable.Type.SubstituteWithTypearg(typeArguments))))
+                        return false;
+
+                return true;
+            }
+
             if (!IsAnonymous)
                 return;
 
-            emitter.AppendLine($"struct {GetStandardIdentifier(irProgram)}_captured {{");
-            emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_t _nhp_this_anon;");
-            emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_destructor_t _nhp_destructor;");
-            emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_copier_t _nhp_copier;");
-            emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t _nhp_record_copier;");
-            emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t _nhp_resp_mutator;"); 
-            foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
-                emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier()};");
-            emitter.AppendLine("\tint _nhp_lock;");
-            emitter.AppendLine("\tvoid* _nhp_child_agent;");
-            emitter.AppendLine("};");
+            complementaryProcedureReference = anonProcedureReferences.Find((procedureReference) => HasCompatibleCaptureContextCStruct(procedureReference));
+
+            if (complementaryProcedureReference == null)
+            {
+                emitter.AppendLine($"struct {GetStandardIdentifier(irProgram)}_captured {{");
+                emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_t _nhp_this_anon;");
+                emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_destructor_t _nhp_destructor;");
+                emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_copier_t _nhp_copier;");
+                emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t _nhp_record_copier;");
+                emitter.AppendLine($"\t{anonProcedureType.GetStandardIdentifier(irProgram)}_record_copier_t _nhp_resp_mutator;");
+                foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
+                    emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier()};");
+                emitter.AppendLine("\tint _nhp_lock;");
+                emitter.AppendLine("\tvoid* _nhp_child_agent;");
+                emitter.AppendLine("};");
+            }
         }
 
         public void EmitAnonymizer(IRProgram irProgram, StatementEmitter emitter)
@@ -636,9 +655,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_callrep_res{irProgram.ExpressionDepth} = ");
             }
 
-            int constArgs = Arguments.Where(x => x.IsConstant && x.IsPure).Count();
-            if ((irProgram.EmitExpressionStatements && !Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs))) 
-                || ((!Arguments.TrueForAll((arg) => arg.IsPure) && constArgs < Arguments.Count - 1)))
+            if ((irProgram.EmitExpressionStatements && Arguments.Any((arg) => arg.RequiresDisposal(typeargs))) 
+                || !IRValue.EvaluationOrderGuarenteed(Arguments))
             {
                 if (!irProgram.EmitExpressionStatements)
                     throw new CannotEnsureOrderOfEvaluation(this);
@@ -677,8 +695,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         protected void EmitArguments(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int currentNestedCall)
         {
-            bool argbufNonConstArgs = !Arguments.TrueForAll((arg) => arg.IsPure);
-            int constArgs = Arguments.Where(x => x.IsConstant && x.IsPure).Count();
+            bool cannotGuarenteeEvaluationOrder = !IRValue.EvaluationOrderGuarenteed(Arguments);
 
             for (int i = 0; i < Arguments.Count; i++)
             {
@@ -691,7 +708,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 {
                     if (Arguments[i].RequiresDisposal(typeargs))
                         throw new CannotEmitDestructorError(Arguments[i]);
-                    else if ((argbufNonConstArgs && constArgs < Arguments.Count - 1) && (!Arguments[i].IsPure || !Arguments[i].IsConstant))
+                    else if (cannotGuarenteeEvaluationOrder && (!Arguments[i].IsPure || !Arguments[i].IsConstant))
                         throw new CannotEnsureOrderOfEvaluation(this);
                     else
                         Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
@@ -728,8 +745,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             CodeBlock.CIndent(emitter, indent);
 
-            int constArgs = Arguments.Where(x => x.IsConstant && x.IsPure).Count();
-            if (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)) || (!Arguments.TrueForAll((arg) => arg.IsPure) && constArgs < Arguments.Count - 1))
+            if (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)) || !IRValue.EvaluationOrderGuarenteed(Arguments))
             {
                 SortedSet<int> bufferedArguments = new();
                 emitter.AppendLine("{");
@@ -802,7 +818,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
             emitter.Append("->_nhp_this_anon(");
-            IRValue.EmitMemorySafe(ProcedureValue.GetPostEvalPure(), irProgram, emitter, typeargs);
+            IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
             if(Arguments.Count > 0)
                 emitter.Append(", ");
             EmitArguments(irProgram, emitter, typeargs, bufferedArguments, currentNestedCall);

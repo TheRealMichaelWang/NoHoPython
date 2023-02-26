@@ -8,14 +8,13 @@ namespace NoHoPython.Syntax
 {
     partial class AstIRProgramBuilder
     {
-        private List<RecordType> usedRecordTypes = new();
+        private HashSet<RecordType> usedRecordTypes = new(new ITypeComparer());
         private Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads = new();
 
         public bool DeclareUsedRecordType(RecordType recordType)
         {
-            foreach (RecordType usedRecord in usedRecordTypes)
-                if (recordType.IsCompatibleWith(usedRecord))
-                    return false;
+            if (usedRecordTypes.Contains(recordType))
+                return false;
 
             usedRecordTypes.Add(recordType);
             if (!recordTypeOverloads.ContainsKey(recordType.RecordPrototype))
@@ -48,6 +47,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     partial class RecordDeclaration
     {
+        partial class RecordProperty
+        {
+            public override void EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource) => propertyContainer.EmitGetProperty(irProgram, emitter, valueCSource, Name);
+        }
+
         public static void EmitRecordMaskProto(StatementEmitter emitter)
         {
             emitter.AppendLine("typedef struct _nhp_std_record_mask _nhp_std_record_mask_t;");
@@ -165,7 +169,7 @@ namespace NoHoPython.Typing
 
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append($"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){newResponsibleDestroyer})");
 
-        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}->{property.Name}");
+        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier) => emitter.Append($"{valueCSource}->{propertyIdentifier}");
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -241,7 +245,6 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine($"\tif(record->_nhp_lock || _nhp_record_has_child(({StandardRecordMask})record, child_agent))");
             emitter.AppendLine("\t\treturn;");
-
 
             emitter.AppendLine("\tif(record->_nhp_ref_count) {");
             emitter.AppendLine($"\t\tif(_nhp_record_has_child(child_agent, ({StandardRecordMask})record)) {{");

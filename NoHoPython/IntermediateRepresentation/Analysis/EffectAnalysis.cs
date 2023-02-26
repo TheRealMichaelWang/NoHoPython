@@ -7,6 +7,10 @@
         
         //gets a pure value - one that doesn't mutate state once evaluated - that can be safley evaluated following evaluation of the parent value
         public IRValue GetPostEvalPure();
+
+        public static bool EvaluationOrderGuarenteed(params IRValue[] operands) => EvaluationOrderGuarenteed(operands as IEnumerable<IRValue>); 
+
+        public static bool EvaluationOrderGuarenteed(IEnumerable<IRValue> operands) => operands.All((operand) => operand.IsPure) || operands.All((operand) => operand.IsConstant);
     }
 }
 
@@ -68,6 +72,22 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
     }
 
+    partial class TupleLiteral
+    {
+        public bool IsPure => TupleElements.TrueForAll((elem) => elem.IsPure);
+        public bool IsConstant => TupleElements.TrueForAll((elem) => elem.IsConstant);
+
+        public IRValue GetPostEvalPure() => new TupleLiteral(TupleElements.Select((element) => element.GetPostEvalPure()).ToList(), ErrorReportedElement);
+    }
+
+    partial class MarshalIntoLowerTuple
+    {
+        public bool IsPure => Value.IsPure;
+        public bool IsConstant => Value.IsConstant;
+
+        public IRValue GetPostEvalPure() => new MarshalIntoLowerTuple(TargetType, Value.GetPostEvalPure(), ErrorReportedElement);
+    }
+
     partial class InterpolatedString
     {
         public bool IsPure => InterpolatedValues.TrueForAll((value) => value is IRValue irValue ? irValue.IsPure : true);
@@ -81,7 +101,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => Length.IsPure && ProtoValue.IsPure;
         public bool IsConstant => Length.IsConstant && ProtoValue.IsConstant;
 
-        public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
+        public IRValue GetPostEvalPure() => new AllocArray(ErrorReportedElement, ElementType, Length.GetPostEvalPure(), ProtoValue.GetPostEvalPure());
     }
 
     partial class ProcedureCall

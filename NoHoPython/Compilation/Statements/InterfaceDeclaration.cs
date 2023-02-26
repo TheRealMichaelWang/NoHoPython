@@ -48,6 +48,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     partial class InterfaceDeclaration
     {
+        partial class InterfaceProperty
+        {
+            public override void EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource) => propertyContainer.EmitGetProperty(irProgram, emitter, valueCSource, Name);
+        }
+
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
         public void ForwardDeclareType(IRProgram irProgram, StatementEmitter emitter)
@@ -96,6 +101,7 @@ namespace NoHoPython.Typing
 {
     partial class InterfaceType
     {
+        public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => !requiredImplementedProperties.Value.TrueForAll((property) => !property.Type.MustSetResponsibleDestroyer);
 
@@ -124,7 +130,7 @@ namespace NoHoPython.Typing
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
         public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(MustSetResponsibleDestroyer ? $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})" : valueCSource);
 
-        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, Property property) => emitter.Append($"{valueCSource}.{property.Name}");
+        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier) => emitter.Append($"{valueCSource}.{propertyIdentifier}");
 
         public void EmitMarshallerHeader(IRProgram irProgram, StatementEmitter emitter) => emitter.AppendLine($"{GetCName(irProgram)} marshal_interface{GetStandardIdentifier(irProgram)}({string.Join(", ", requiredImplementedProperties.Value.ConvertAll((prop) => $"{prop.Type.GetCName(irProgram)} {prop.Name}"))}{(MustSetResponsibleDestroyer ? ", void* responsibleDestroyer" : string.Empty)});");
 
@@ -277,7 +283,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 BufferedEmitter getPropertyEmitter = new();
                 if (Value.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
-                    propertyContainer.EmitGetProperty(irProgram, getPropertyEmitter, valueEmitter.ToString(), property);
+                    property.EmitGet(irProgram, emitter, typeargs, propertyContainer, valueEmitter);
                 else
                     throw new InvalidOperationException();
 

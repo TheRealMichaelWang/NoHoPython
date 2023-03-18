@@ -10,7 +10,8 @@ def main():
 	
 	input = io::input()
 	output = io::output()
-	map = new data::hashmap<array<char>, array<char>>(dj2b, 256)
+	#map = new data::hashmap<array<char>, array<char>>(dj2b, 256)
+	map = new data::treemap<array<char>, array<char>>(lambda array<char> a, array<char> b: dj2b(a) - dj2b(b))
 	while True:
 		name = input.readLine()
 		map.emplace(name, name)

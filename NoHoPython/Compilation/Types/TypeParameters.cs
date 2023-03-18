@@ -1,5 +1,4 @@
 ﻿using NoHoPython.IntermediateRepresentation;
-using System.Text;
 
 namespace NoHoPython.Typing
 {

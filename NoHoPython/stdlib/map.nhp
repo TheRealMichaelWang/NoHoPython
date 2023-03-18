@@ -8,14 +8,6 @@ mod data:
 		fn<bool, K, V> emplace
 		fn<bool, K> has
 	
-	class keyValuePair<K, V>:
-		K key
-		V value
-		
-		def __init__(K key, V value):
-			self.key = key
-			self.value = value
-	
 	class hashmap<K, V>:
 		handle keyBuckets
 		handle valueBuckets
@@ -109,11 +101,11 @@ mod data:
 	
 	class treemap<K, V>:
 		fn<int, K, K> compare
-		list<keyValuePair<K, V>> buckets
+		list<tuple<K, V>> buckets
 		
 		def __init__(fn<int, K, K> compare):
 			self.compare = compare
-			self.buckets = new list<keyValuePair<K, V>>(10)
+			self.buckets = new list<tuple<K, V>>(10)
 		
 		def has(K key) bool:
 			low = 0
@@ -121,7 +113,8 @@ mod data:
 			while low < high:
 				mid = (high + low) / 2
 				
-				res = self.compare(key, self.buckets[mid].key)
+				bucket = self.buckets[mid]
+				res = self.compare(key, bucket.K0)
 				if res == 0: #exact match
 					return True
 				elif res > 0: #key is greater than pivot
@@ -138,9 +131,10 @@ mod data:
 			while low < high:
 				mid = (high + low) / 2
 				
-				res = self.compare(key, self.buckets[mid].key)
+				bucket = self.buckets[mid]
+				res = self.compare(key, bucket.K0)
 				if res == 0: #exact match
-					return self.buckets[res].value
+					return bucket.V0
 				elif res > 0: #key is greater than pivot
 					low = mid
 				else: #key is smaller than pivot
@@ -154,15 +148,16 @@ mod data:
 			while low < high:
 				mid = (high + low) / 2
 				
-				res = self.compare(key, self.buckets[mid].key)
+				bucket = self.buckets[mid]
+				res = self.compare(key, bucket.K0)
 				if res == 0: #exact match, overwrite bucket value
-					self.buckets[mid].value = value
+					self.buckets[mid] = (key, value)
 					return False
 				elif res > 0: #key is greater than pivot
-					low = mid
+					low = mid + 1
 				else: #key is smaller than pivot
 					high = mid
 			
 			#key was never found, actually insert
-			self.buckets.insert(low, new keyValuePair<K, V>(key, value))
+			self.buckets.insert(low, (key, value))
 			return True

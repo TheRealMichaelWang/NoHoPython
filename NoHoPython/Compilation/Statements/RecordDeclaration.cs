@@ -149,7 +149,11 @@ namespace NoHoPython.Typing
             if (HasCopier)
             {
                 StringBuilder valueBuilder = new();
-                valueBuilder.Append($"{valueCSource}->__copy__->_nhp_this_anon({valueCSource}->__copy__)");
+
+                ProcedureType copierType = (ProcedureType)FindProperty("__copy__").Type;
+                valueBuilder.Append("((");
+                valueBuilder.Append(copierType.GetStandardIdentifier(irProgram));
+                valueBuilder.Append($"_t){valueCSource}->__copy__->_nhp_this_anon)({valueCSource}->__copy__)");
                 EmitMutateResponsibleDestroyer(irProgram, emitter, valueBuilder.ToString(), responsibleDestroyer);
             }
             else

@@ -169,7 +169,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs)
         {
             foreach (IType valueType in TupleType.ValueTypes.Keys)
-                if (valueType.RequiresDisposal)
+                if (valueType.SubstituteWithTypearg(typeargs).RequiresDisposal)
                     return true;
             return false;
         }
@@ -179,7 +179,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (!IRValue.EvaluationOrderGuarenteed(TupleElements))
                 throw new CannotEnsureOrderOfEvaluation(this);
 
-            emitter.Append($"({TupleType.GetCName(irProgram)}) {{");
+            emitter.Append($"({TupleType.SubstituteWithTypearg(typeargs).GetCName(irProgram)}) {{");
 
             List<Property> initializeProperties = ((TupleType)TupleType.SubstituteWithTypearg(typeargs)).GetProperties();
             ITypeComparer typeComparer = new ITypeComparer();

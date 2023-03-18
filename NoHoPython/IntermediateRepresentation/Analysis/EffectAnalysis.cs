@@ -231,7 +231,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => true;
         public bool IsConstant => true; 
         
-        public IRValue GetPostEvalPure() => new AnonymizeProcedure(Procedure, parentProcedure, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new AnonymizeProcedure(Procedure, GetFunctionHandle, parentProcedure, ErrorReportedElement);
     }
 
     partial class IfElseValue

@@ -289,7 +289,7 @@ namespace NoHoPython.Syntax.Statements
             IntermediateRepresentation.Statements.ProcedureDeclaration? Copier = null;
             IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => {
                 var irProcedure = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
-                messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, this, null));
+                messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, false, this, null));
 
                 if (reciever.Name == "__init__")
                     Constructor = irProcedure;

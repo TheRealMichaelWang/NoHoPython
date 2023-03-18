@@ -870,7 +870,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            if (Procedure.ProcedureDeclaration.CapturedVariables.Count > 0)
+            if(GetFunctionHandle)
+                emitter.Append($"&{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}");
+            else if (Procedure.ProcedureDeclaration.CapturedVariables.Count > 0)
                 emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({string.Join("", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => $"{((capturedVar.IsRecordSelf && parentProcedure == null) ? "_nhp_self" : capturedVar.GetStandardIdentifier())}, "))}{responsibleDestroyer})");
             else
                 emitter.Append($"capture_anon_proc(&{Procedure.GetStandardIdentifier(irProgram)})");

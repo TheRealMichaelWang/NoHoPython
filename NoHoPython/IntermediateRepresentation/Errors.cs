@@ -3,6 +3,7 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.IntermediateRepresentation
 {
@@ -193,10 +194,21 @@ namespace NoHoPython.IntermediateRepresentation
         public EnumType EnumType { get; private set; }
         public IType UnhandledType { get; private set; }
 
-        public UnhandledMatchOption(EnumType enumType, IType unhandledType, IAstStatement astStatement) : base(astStatement, $"Match statement doesn't implement handler for type {unhandledType.TypeName}, which is implemented by matched enum {enumType.TypeName}.")
+        public UnhandledMatchOption(EnumType enumType, IType unhandledType, IAstStatement errorReportedStatement) : base(errorReportedStatement, $"Match statement doesn't implement handler for type {unhandledType.TypeName}, which is implemented by matched enum {enumType.TypeName}.")
         {
             EnumType = enumType;
             UnhandledType = unhandledType;
+        }
+    }
+
+    public sealed class CannotGetFunctionPointer : IRGenerationError
+    {
+        public ProcedureDeclaration ProcedureDeclaration { get; private set; }
+
+        public CannotGetFunctionPointer(ProcedureDeclaration procedureDeclaration, IAstElement errorReportedElement) : base(errorReportedElement, $"Cannot get function pointer of procedure {procedureDeclaration.Name} because it captures {procedureDeclaration.CapturedVariables} variable(s).")
+        {
+            Debug.Assert(procedureDeclaration.CapturedVariables.Count > 0);
+            ProcedureDeclaration = procedureDeclaration;
         }
     }
 

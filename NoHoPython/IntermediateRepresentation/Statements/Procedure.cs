@@ -397,29 +397,35 @@ namespace NoHoPython.IntermediateRepresentation.Values
     public sealed partial class AnonymizeProcedure : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
-        public IType Type { get => new ProcedureType(Procedure.ReturnType, Procedure.ParameterTypes); }
+        public IType Type => GetFunctionHandle ? Primitive.Handle : new ProcedureType(Procedure.ReturnType, Procedure.ParameterTypes);
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
         public ProcedureReference Procedure { get; private set; }
+        public bool GetFunctionHandle { get; private set; }
         private ProcedureDeclaration? parentProcedure;
 
-        private AnonymizeProcedure(ProcedureReference procedure, ProcedureDeclaration? parentProcedure, IAstElement errorReportedElement)
+
+        private AnonymizeProcedure(ProcedureReference procedure, bool getFunctionHandle, ProcedureDeclaration? parentProcedure, IAstElement errorReportedElement)
         {
             Procedure = procedure;
             ErrorReportedElement = errorReportedElement;
+            GetFunctionHandle = getFunctionHandle;
             this.parentProcedure = parentProcedure;
 
             if(parentProcedure != null)
                 procedure.ProcedureDeclaration.CallSiteProcedures.Add(parentProcedure);
+
+            if (getFunctionHandle && procedure.ProcedureDeclaration.CapturedVariables.Count > 0)
+                throw new CannotGetFunctionPointer(procedure.ProcedureDeclaration, errorReportedElement);
         }
 
-        public AnonymizeProcedure(ProcedureDeclaration procedure, IAstElement errorReportedElement, ProcedureDeclaration? parentDeclaration) : this(new ProcedureReference(procedure, true, errorReportedElement), parentDeclaration, errorReportedElement)
+        public AnonymizeProcedure(ProcedureDeclaration procedure, bool getFunctionHandle, IAstElement errorReportedElement, ProcedureDeclaration? parentDeclaration) : this(new ProcedureReference(procedure, !getFunctionHandle, errorReportedElement), getFunctionHandle, parentDeclaration, errorReportedElement)
         {
             
         }
 
-        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs), parentProcedure, ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs), GetFunctionHandle, parentProcedure, ErrorReportedElement);
     }
 
     public sealed partial class ForeignFunctionCall : ProcedureCall
@@ -619,7 +625,7 @@ namespace NoHoPython.Syntax.Values
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopedProcedures.Pop();
             irBuilder.AddProcDeclaration(lamdaDeclaration);
-            return new AnonymizeProcedure(lamdaDeclaration, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek());
+            return new AnonymizeProcedure(lamdaDeclaration, expectedType == null ? false : expectedType is HandleType, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek());
         }
     }
 }

@@ -179,7 +179,7 @@ namespace NoHoPython.Syntax.Values
             return valueSymbol is Variable variable
                 ? new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), this)
                 : valueSymbol is ProcedureDeclaration procedureDeclaration
-                ? (IRValue)new AnonymizeProcedure(procedureDeclaration, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek())
+                ? (IRValue)new AnonymizeProcedure(procedureDeclaration, expectedType == null ? false : expectedType is HandleType, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek())
                 : valueSymbol is CSymbol cSymbol
                 ? new CSymbolReference(cSymbol, this)
                 : valueSymbol is IType emptyType

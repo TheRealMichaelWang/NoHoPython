@@ -65,7 +65,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public static void EmitRecordChildFinder(StatementEmitter emitter)
         {
-            emitter.AppendLine("int _nhp_record_has_child(_nhp_std_record_mask_t* parent, _nhp_std_record_mask_t* child) {");
+            emitter.AppendLine("static int _nhp_record_has_child(_nhp_std_record_mask_t* parent, _nhp_std_record_mask_t* child) {");
             emitter.AppendLine("\twhile(child != NULL) {");
             emitter.AppendLine("\t\tif(parent == child)");
             emitter.AppendLine("\t\t\treturn 1;");
@@ -230,7 +230,7 @@ namespace NoHoPython.Typing
                     emitter.AppendLine(";");
                 }
 
-            emitter.Append("\t_nhp_self->__init__->_nhp_this_anon(_nhp_self->__init__");
+            emitter.Append($"\t(({constructorType.GetStandardIdentifier(irProgram)}_t)_nhp_self->__init__->_nhp_this_anon)(_nhp_self->__init__");
             for (int i = 0; i < constructorType.ParameterTypes.Count; i++)
                 emitter.Append($", param{i}");
             emitter.AppendLine(");");
@@ -259,7 +259,10 @@ namespace NoHoPython.Typing
             
             emitter.AppendLine("\trecord->_nhp_lock = 1;");
             if (HasDestructor)
-                emitter.AppendLine("\trecord->__del__->_nhp_this_anon(record->__del__);");
+            {
+                ProcedureType destructorType = (ProcedureType)FindProperty("__del__").Type;
+                emitter.AppendLine($"\t(({destructorType.GetStandardIdentifier(irProgram)}_t)record->__del__->_nhp_this_anon)(record->__del__);");
+            }
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
             {
                 if (recordProperty.Type.RequiresDisposal)

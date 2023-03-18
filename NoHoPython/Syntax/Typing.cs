@@ -1,7 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
-using NoHoPython.Syntax.Statements;
 using NoHoPython.Typing;
 
 namespace NoHoPython.Syntax

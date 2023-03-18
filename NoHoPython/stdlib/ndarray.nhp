@@ -27,8 +27,11 @@ class ndarray<T>:
 			i = i - 1
 		
 		#initialize buffer
-		self.buffer = new T[std::reduce(self.dims, lambda int a, int b: a * b)](defaultValue)
+		len = std::reduce(self.dims, lambda int a, int b: a * b)
+		self.buffer = new T[len](defaultValue)
+
 	def get(array<int> indicies) T:
 		return self.buffer[computeNDIndex(indicies, self._indexFactors)]
+	
 	def set(array<int> indicies, T elem) T:
 		return self.buffer[computeNDIndex(indicies, self._indexFactors)] = elem

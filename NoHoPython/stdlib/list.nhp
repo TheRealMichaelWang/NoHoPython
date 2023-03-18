@@ -137,7 +137,8 @@ mod data:
 			mapped = new list<T>(self.count)
 			mapped.count = self.count
 			for i from 0 within self.count:
-				mapped.buffer{mapped}[i] = transform(self.buffer[i] as T)
+				value = transform(self.buffer[i] as T)
+				mapped.buffer{mapped}[i] = value
 			return mapped
 		def filter(fn<bool, T> keep) list<T>:
 			kept = new list<T>(self.count)

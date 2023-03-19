@@ -108,7 +108,7 @@ namespace NoHoPython.IntermediateRepresentation
             }
 
             emitter.AppendLine("typedef struct nhp_anon_proc_info nhp_anon_proc_info_t;");
-            emitter.AppendLine("typedef void (*nhp_anon_proc_destructor)(void* to_free);");
+            emitter.AppendLine("typedef void (*nhp_anon_proc_destructor)(void* to_free, void* child_agent);");
             emitter.AppendLine("typedef nhp_anon_proc_info_t* (*nhp_anon_proc_copier)(void* to_copy, void* responsible_destroyer);");
 
             emitter.AppendLine("struct nhp_anon_proc_info {");
@@ -213,7 +213,7 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => StandardProcedureType;
 
-        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) => emitter.Append($"if(({valueCSource})->_nhp_destructor) {{({valueCSource})->_nhp_destructor({valueCSource});}} else {{{irProgram.MemoryAnalyzer.Dealloc(valueCSource, "sizeof(nhp_anon_proc_info_t)")};}}"); 
+        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) => emitter.Append($"if(({valueCSource})->_nhp_destructor) {{({valueCSource})->_nhp_destructor({valueCSource}, {childAgent});}} else {{{irProgram.MemoryAnalyzer.Dealloc(valueCSource, "sizeof(nhp_anon_proc_info_t)")};}}"); 
         public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => emitter.Append($"(({valueCSource})->_nhp_copier ? ({valueCSource})->_nhp_copier({valueCSource}, {responsibleDestroyer}) : (({StandardProcedureType})memcpy({irProgram.MemoryAnalyzer.Allocate($"sizeof(nhp_anon_proc_info_t)")}, {valueCSource}, sizeof(nhp_anon_proc_info_t))))");
         
         public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
@@ -409,7 +409,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
                     emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier()};");
                 emitter.AppendLine("\tint _nhp_lock;");
-                emitter.AppendLine("\tvoid* _nhp_child_agent;");
                 emitter.AppendLine($"}} {GetStandardIdentifier(irProgram)}_captured_t;");
                 emittedCapturedContextStruct = true;
             }
@@ -458,7 +457,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine("NULL;");
 
             emitter.AppendLine("\tclosure->_nhp_lock = 0;");
-            emitter.AppendLine("\tclosure->_nhp_child_agent = responsible_destroyer;");
 
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
@@ -475,7 +473,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (!IsAnonymous || !ProcedureDeclaration.CapturedVariables.Any((variable) => variable.Type.RequiresDisposal) || (complementaryProcedureReference != null && complementaryProcedureReference.ProcedureDeclaration.CapturedVariables.Count == ProcedureDeclaration.CapturedVariables.Count))
                 return;
 
-            emitter.AppendLine($"void free{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_free_anon) {{");
+            emitter.AppendLine($"void free{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_free_anon, void* child_agent) {{");
             emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* to_free = ({GetClosureCaptureCType(irProgram)}*)to_free_anon;");
 
             emitter.AppendLine("\tif(to_free->_nhp_lock)");
@@ -486,7 +484,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (capturedVariable.Type.SubstituteWithTypearg(typeArguments).RequiresDisposal)
                 {
                     emitter.Append('\t');
-                    capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitFreeValue(irProgram, emitter, $"to_free->{capturedVariable.GetStandardIdentifier()}", "to_free->_nhp_child_agent");
+                    capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitFreeValue(irProgram, emitter, $"to_free->{capturedVariable.GetStandardIdentifier()}", "child_agent");
                     emitter.AppendLine();
                 }
 
@@ -537,7 +535,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine("\tif(closure->_nhp_lock)");
             emitter.AppendLine($"\t\treturn ({ProcedureType.StandardProcedureType})closure;");
             emitter.AppendLine("\tclosure->_nhp_lock = 1;");
-            emitter.AppendLine("\tclosure->_nhp_child_agent = responsible_destroyer;");
 
             foreach(Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {

@@ -673,7 +673,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"_nhp_res{irProgram.ExpressionDepth};}})");
             }
             else
-                EmitCall(irProgram, emitter, typeargs, new SortedSet<int>(), irProgram.ExpressionDepth, responsibleDestroyer);
+                EmitCall(irProgram, emitter, typeargs, new(), irProgram.ExpressionDepth, responsibleDestroyer);
 
             if (irProgram.DoCallStack)
             {

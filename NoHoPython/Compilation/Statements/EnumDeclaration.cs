@@ -74,7 +74,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             foreach(EnumType usedEnum in irProgram.EnumTypeOverloads[this])
             {
-                usedEnum.EmitMarshallerHeaders(irProgram, emitter);
+                //usedEnum.EmitMarshallerHeaders(irProgram, emitter);
                 usedEnum.EmitPropertyGetHeaders(irProgram, emitter);
                 if (usedEnum.RequiresDisposal)
                 {
@@ -93,7 +93,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             foreach (EnumType enumType in irProgram.EnumTypeOverloads[this])
             {
-                enumType.EmitMarshallers(irProgram, emitter);
+                //enumType.EmitMarshallers(irProgram, emitter);
                 enumType.EmitPropertyGetters(irProgram, emitter);
                 if (enumType.RequiresDisposal)
                 {
@@ -217,19 +217,19 @@ namespace NoHoPython.Typing
             emitter.AppendLine($"{GetStandardIdentifier(irProgram)}_options_t;");
         }
 
-        public void EmitMarshallerHeaders(IRProgram irProgram, StatementEmitter emitter)
-        {
-            if (EnumDeclaration.IsEmpty)
-                return;
+        //public void EmitMarshallerHeaders(IRProgram irProgram, StatementEmitter emitter)
+        //{
+        //    if (EnumDeclaration.IsEmpty)
+        //        return;
 
-            foreach (IType option in options.Value)
-            {
-                if(option.IsEmpty)
-                    emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}();");
-                else
-                    emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}({option.GetCName(irProgram)} option);");
-            }
-        }
+        //    foreach (IType option in options.Value)
+        //    {
+        //        if(option.IsEmpty)
+        //            emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}();");
+        //        else
+        //            emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}({option.GetCName(irProgram)} option);");
+        //    }
+        //}
 
         public void EmitPropertyGetHeaders(IRProgram irProgram, StatementEmitter emitter)
         {
@@ -237,29 +237,29 @@ namespace NoHoPython.Typing
                 emitter.AppendLine($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum);");
         }
 
-        public void EmitMarshallers(IRProgram irProgram, StatementEmitter emitter)
-        {
-            if (EnumDeclaration.IsEmpty)
-                return;
+        //public void EmitMarshallers(IRProgram irProgram, StatementEmitter emitter)
+        //{
+        //    if (EnumDeclaration.IsEmpty)
+        //        return;
 
-            foreach (IType option in options.Value)
-            {
-                if (option.IsEmpty)
-                {
-                    emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}() {{");
-                    emitter.AppendLine($"\t{GetCName(irProgram)} marshalled_enum;");
-                }
-                else
-                {
-                    emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}({option.GetCName(irProgram)} option) {{");
-                    emitter.AppendLine($"\t{GetCName(irProgram)} marshalled_enum;");
-                    emitter.AppendLine($"\tmarshalled_enum.data.{option.GetStandardIdentifier(irProgram)}_set = option;");
-                }
-                emitter.AppendLine($"\tmarshalled_enum.option = {GetCEnumOptionForType(irProgram, option)};");
-                emitter.AppendLine("\treturn marshalled_enum;");
-                emitter.AppendLine("}");
-            }
-        }
+        //    foreach (IType option in options.Value)
+        //    {
+        //        if (option.IsEmpty)
+        //        {
+        //            emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}() {{");
+        //            emitter.AppendLine($"\t{GetCName(irProgram)} marshalled_enum;");
+        //        }
+        //        else
+        //        {
+        //            emitter.AppendLine($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}_with_{option.GetStandardIdentifier(irProgram)}({option.GetCName(irProgram)} option) {{");
+        //            emitter.AppendLine($"\t{GetCName(irProgram)} marshalled_enum;");
+        //            emitter.AppendLine($"\tmarshalled_enum.data.{option.GetStandardIdentifier(irProgram)}_set = option;");
+        //        }
+        //        emitter.AppendLine($"\tmarshalled_enum.option = {GetCEnumOptionForType(irProgram, option)};");
+        //        emitter.AppendLine("\treturn marshalled_enum;");
+        //        emitter.AppendLine("}");
+        //    }
+        //}
 
         public void EmitPropertyGetters(IRProgram irProgram, StatementEmitter emitter)
         {
@@ -380,15 +380,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (realPrototype.EnumDeclaration.IsEmpty)
                 emitter.Append(realPrototype.GetCEnumOptionForType(irProgram, Value.Type));
             else if(Value.Type.IsEmpty)
-                emitter.Append($"marshal{realPrototype.GetStandardIdentifier(irProgram)}_with_{Value.Type.GetStandardIdentifier(irProgram)}()");
+                emitter.Append($"(({realPrototype.GetCName(irProgram)}) {{.option = {realPrototype.GetCEnumOptionForType(irProgram, Value.Type.SubstituteWithTypearg(typeargs))}}})");
             else
             {
-                emitter.Append($"marshal{realPrototype.GetStandardIdentifier(irProgram)}_with_{Value.Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
+                emitter.Append($"(({realPrototype.GetCName(irProgram)}) {{.option = {realPrototype.GetCEnumOptionForType(irProgram, Value.Type.SubstituteWithTypearg(typeargs))}, .data = {{ .{Value.Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set = ");
+
                 if (Value.RequiresDisposal(typeargs))
                     Value.Emit(irProgram, emitter, typeargs, responsibleDestroyer);
                 else
                     Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), responsibleDestroyer);
-                emitter.Append(')');
+                emitter.Append("}})");
             }
         }
     }

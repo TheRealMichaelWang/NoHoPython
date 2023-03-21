@@ -98,7 +98,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
                 emitter.AppendLine($"void free_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} child_agent);");
                 emitter.AppendLine($"{recordType.GetCName(irProgram)} borrow_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, void* responsible_destroyer);");
-                emitter.AppendLine($"{recordType.GetCName(irProgram)} change_resp_owner{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} responsible_destroyer);");
 
                 if (!recordType.HasCopier)
                     emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} parent_record);");
@@ -119,7 +118,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 recordType.EmitCopier(irProgram, emitter);
                 recordType.EmitMover(irProgram, emitter);
                 recordType.EmitBorrower(irProgram, emitter);
-                recordType.EmitResponsibleDestroyerMutator(irProgram, emitter);
             }
         }
     }
@@ -148,13 +146,10 @@ namespace NoHoPython.Typing
         {
             if (HasCopier)
             {
-                StringBuilder valueBuilder = new();
-
                 ProcedureType copierType = (ProcedureType)FindProperty("__copy__").Type;
-                valueBuilder.Append("((");
-                valueBuilder.Append(copierType.GetStandardIdentifier(irProgram));
-                valueBuilder.Append($"_t){valueCSource}->__copy__->_nhp_this_anon)({valueCSource}->__copy__)");
-                EmitMutateResponsibleDestroyer(irProgram, emitter, valueBuilder.ToString(), responsibleDestroyer);
+                emitter.Append("((");
+                emitter.Append(copierType.GetStandardIdentifier(irProgram));
+                emitter.Append($"_t){valueCSource}->__copy__->_nhp_this_anon)({valueCSource}->__copy__, {responsibleDestroyer})");
             }
             else
                 emitter.Append($"copy_record{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){responsibleDestroyer})");
@@ -170,8 +165,6 @@ namespace NoHoPython.Typing
 
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => emitter.Append($"borrow_record{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){responsibleDestroyer})");
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
-
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append($"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){newResponsibleDestroyer})");
 
         public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier) => emitter.Append($"{valueCSource}->{propertyIdentifier}");
 
@@ -292,10 +285,10 @@ namespace NoHoPython.Typing
             emitter.AppendLine("\tcopied_record->_nhp_lock = 0;");
             emitter.AppendLine("\tcopied_record->parent_record = parent_record;");
 
-            foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
+            foreach (RecordDeclaration.RecordProperty property in properties.Value)
             {
-                emitter.Append($"\tcopied_record->{recordProperty.Name} = ");
-                recordProperty.Type.EmitRecordCopyValue(irProgram, emitter, $"record->{recordProperty.Name}", "copied_record");
+                emitter.Append($"\tcopied_record->{property.Name} = ");
+                property.Type.EmitRecordCopyValue(irProgram, emitter, $"record->{property.Name}", "copied_record");
                 emitter.AppendLine(";");
             }
 
@@ -327,14 +320,6 @@ namespace NoHoPython.Typing
             emitter.AppendLine("\t\t\trecord->_nhp_master_count++;");
             emitter.AppendLine("\t}");
             
-            emitter.AppendLine("\treturn record;");
-            emitter.AppendLine("}");
-        }
-
-        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StatementEmitter emitter)
-        {
-            emitter.AppendLine($"{GetCName(irProgram)} change_resp_owner{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, {StandardRecordMask} parent_record) {{");
-            emitter.AppendLine("\trecord->parent_record = parent_record;");
             emitter.AppendLine("\treturn record;");
             emitter.AppendLine("}");
         }

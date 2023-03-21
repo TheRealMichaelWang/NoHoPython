@@ -20,7 +20,6 @@ namespace NoHoPython.Typing
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string recordCSource) => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter) => throw new UnexpectedTypeParameterError(TypeParameter, null);
 
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) => throw new UnexpectedTypeParameterError(TypeParameter, null);
     }
 }

@@ -76,8 +76,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 usedEnum.EmitMarshallerHeaders(irProgram, emitter);
                 usedEnum.EmitPropertyGetHeaders(irProgram, emitter);
-                if(!usedEnum.EnumDeclaration.IsEmpty)
-                    emitter.AppendLine($"{usedEnum.GetCName(irProgram)} change_resp_owner{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} to_mutate, void* responsible_destroyer);");
                 if (usedEnum.RequiresDisposal)
                 {
                     emitter.AppendLine($"void free_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} _nhp_enum, void* child_agent);");
@@ -97,7 +95,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 enumType.EmitMarshallers(irProgram, emitter);
                 enumType.EmitPropertyGetters(irProgram, emitter);
-                enumType.EmitResponsibleDestroyerMutator(irProgram, emitter);
                 if (enumType.RequiresDisposal)
                 {
                     enumType.EmitDestructor(irProgram, emitter);
@@ -126,7 +123,6 @@ namespace NoHoPython.Typing
         public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent) => throw new CannotCompileEmptyTypeError(null);
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string recordCSource) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
         public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter) { }
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }
@@ -177,7 +173,6 @@ namespace NoHoPython.Typing
 
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(EnumDeclaration.IsEmpty ? valueCSource : $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})");
 
         public string GetCEnumOptionForType(IRProgram irProgram, IType type) => $"{GetStandardIdentifier(irProgram)}OPTION_{type.GetStandardIdentifier(irProgram)}";
 
@@ -344,28 +339,6 @@ namespace NoHoPython.Typing
             emitter.AppendLine();
             emitter.AppendLine($"\t*dest = src;");
             emitter.AppendLine("\treturn src;");
-            emitter.AppendLine("}");
-        }
-
-        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StatementEmitter emitter)
-        {
-            if (!MustSetResponsibleDestroyer)
-                return;
-
-            emitter.AppendLine($"{GetCName(irProgram)} change_resp_owner{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_mutate, void* responsible_destroyer) {{");
-           
-            emitter.AppendLine("\tswitch(to_mutate.option) {");
-            foreach (IType option in options.Value)
-                if (!option.IsEmpty)
-                {
-                    emitter.AppendLine($"\tcase {GetCEnumOptionForType(irProgram, option)}:");
-                    emitter.Append($"\t\tto_mutate.data.{option.GetStandardIdentifier(irProgram)}_set = ");
-                    option.EmitMutateResponsibleDestroyer(irProgram, emitter, $"to_mutate.data.{option.GetStandardIdentifier(irProgram)}_set", "responsible_destroyer");
-                    emitter.AppendLine(";");
-                    emitter.AppendLine("\t\tbreak;");
-                }
-            emitter.AppendLine("\t}");
-            emitter.AppendLine("\treturn to_mutate;");
             emitter.AppendLine("}");
         }
 

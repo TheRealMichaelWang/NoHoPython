@@ -73,6 +73,14 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
+    public sealed class CannotConfigureResponsibleDestroyerError : CodegenError
+    {
+        public CannotConfigureResponsibleDestroyerError(ProcedureCall procedureCall, IType rawReturnType, string responsibleDestroyer) : base(procedureCall, $"Cannot configure responsible destroyer for call {procedureCall} and raw-return-type {rawReturnType} with {responsibleDestroyer} as the responsible destroyer.")
+        {
+
+        }
+    }
+
     public sealed class UnexpectedTypeParameterError : CodegenError
     {
         public UnexpectedTypeParameterError(Typing.TypeParameter typeParameter, IRElement? errorReportedElement) : base(errorReportedElement, $"(Internal Error)Could not scope or compile/emit the type parameter {typeParameter.Name}.")

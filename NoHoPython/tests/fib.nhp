@@ -1,8 +1,6 @@
-﻿include "io.nhp"
-
-def fib(int n) int:
+﻿def fib(int n) int:
 	return n if n < 10 else fib(n - 1) + fib(n - 2)
 
 def main():
-	out = io::output()
-	out.writeLine(fib(46))
+	cdef puts(handle) None
+	puts(msg = $"{fib(45)}")

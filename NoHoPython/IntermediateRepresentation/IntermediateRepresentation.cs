@@ -268,7 +268,6 @@ namespace NoHoPython.IntermediateRepresentation
                 //emit function behavior
                 EmitAnonProcedureCapturedContecies(emitter);
                 EmitBufferCopiers(emitter);
-                EmitBufferResponsibleDestroyerMutators(emitter);
                 EmitArrayTypeMarshallers(emitter, DoCallStack);
                 EmitTupleTypeMarshallers(emitter);
                 EmitAnonProcedureMovers(this, emitter);

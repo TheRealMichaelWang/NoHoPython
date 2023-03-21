@@ -140,32 +140,6 @@ namespace NoHoPython.Typing
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
 
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer)
-        {
-            if (MustSetResponsibleDestroyer)
-            {
-                emitter.Append($"({GetCName(irProgram)}){{");
-
-                bool emitCommaSeparator = false;
-                foreach (KeyValuePair<IType, int> valuePair in ValueTypes)
-                {
-                    for (int i = 0; i < valuePair.Value; i++)
-                    {
-                        if (emitCommaSeparator)
-                            emitter.Append(", ");
-                        else
-                            emitCommaSeparator = true;
-
-                        emitter.Append($".{valuePair.Key.Identifier}{i} = ");
-                        valuePair.Key.EmitMutateResponsibleDestroyer(irProgram, emitter, $"{valueCSource}.{valuePair.Key.Identifier}{i}", newResponsibleDestroyer);
-                    }
-                }
-                emitter.Append('}');
-            }
-            else
-                emitter.Append(valueCSource);
-        }
-
         public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier) => emitter.Append($"{valueCSource}.{propertyIdentifier}");
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)

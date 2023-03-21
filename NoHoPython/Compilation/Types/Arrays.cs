@@ -63,9 +63,6 @@ namespace NoHoPython.IntermediateRepresentation
                     emitter.Append(", void* responsible_destroyer");
                 emitter.AppendLine(");");
 
-                if(arrayType.MustSetResponsibleDestroyer)
-                    emitter.AppendLine($"{arrayType.GetCName(this)} change_resp_owner{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} array, void* responsible_destroyer);");
-
                 if (!EmitExpressionStatements)
                     emitter.AppendLine($"{arrayType.GetCName(this)} move{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)}* src, {arrayType.GetCName(this)} dest, void* child_agent);");
 
@@ -109,7 +106,6 @@ namespace NoHoPython.IntermediateRepresentation
                 arrayType.EmitMarshaller(this, emitter);
                 arrayType.EmitMover(this, emitter);
                 arrayType.EmitCopier(this, emitter);
-                arrayType.EmitResponsibleDestroyerMutator(this, emitter);
             }
         }
 
@@ -127,24 +123,6 @@ namespace NoHoPython.IntermediateRepresentation
                 emitter.AppendLine("\tfor(int i = 0; i < len; i++) {");
                 emitter.Append("\t\tbuf[i] = ");
                 elementType.EmitCopyValue(this, emitter, "src[i]", "responsible_destroyer");
-                emitter.AppendLine(";");
-                emitter.AppendLine("\t}");
-                emitter.AppendLine("\treturn buf;");
-                emitter.AppendLine("}");
-            }
-        }
-
-        private void EmitBufferResponsibleDestroyerMutators(StatementEmitter emitter)
-        {
-            foreach(IType elementType in bufferTypes)
-            {
-                if (!elementType.MustSetResponsibleDestroyer)
-                    continue;
-
-                emitter.AppendLine($"{elementType.GetCName(this)}* buffer_mutate_resp_destroyer_{elementType.GetStandardIdentifier(this)}({elementType.GetCName(this)}* buf, int len, void* new_resp_destroyer) {{");
-                emitter.AppendLine("\tfor(int i = 0; i < len; i++) {");
-                emitter.Append("\t\tbuf[i] = ");
-                elementType.EmitMutateResponsibleDestroyer(this, emitter, "buf[i]", "new_resp_destroyer");
                 emitter.AppendLine(";");
                 emitter.AppendLine("\t}");
                 emitter.AppendLine("\treturn buf;");
@@ -197,8 +175,6 @@ namespace NoHoPython.Typing
 
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
-
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(MustSetResponsibleDestroyer ? $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})" : valueCSource);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -319,17 +295,6 @@ namespace NoHoPython.Typing
             emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
         }
-
-        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StatementEmitter emitter)
-        {
-            if (!MustSetResponsibleDestroyer)
-                return;
-
-            emitter.AppendLine($"{GetCName(irProgram)} change_resp_owner{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} array, void* responsible_destroyer) {{");
-            emitter.AppendLine($"buffer_mutate_resp_destroyer_{ElementType.GetStandardIdentifier(irProgram)}(array.buffer, array.length, responsible_destroyer);");
-            emitter.AppendLine("\treturn array;");
-            emitter.AppendLine("}");
-        }
     }
 
     partial class MemorySpan
@@ -382,8 +347,6 @@ namespace NoHoPython.Typing
             ElementType.ScopeForUsedTypes(irBuilder);
             irBuilder.ScopeForUsedBufferType(ElementType);
         }
-
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(MustSetResponsibleDestroyer ? $"buffer_mutate_resp_destroyer_{ElementType.GetStandardIdentifier(irProgram)}({valueCSource}, {Length}, {newResponsibleDestroyer})" : valueCSource);
 
         public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter) { }
     }

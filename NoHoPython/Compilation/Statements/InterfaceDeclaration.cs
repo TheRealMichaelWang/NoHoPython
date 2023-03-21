@@ -74,7 +74,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 interfaceType.EmitMarshallerHeader(irProgram, emitter);
                 emitter.AppendLine($"void free_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* child_agent);");
                 emitter.AppendLine($"{interfaceType.GetCName(irProgram)} copy_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* responsibleDestroyer);");
-                emitter.AppendLine($"{interfaceType.GetCName(irProgram)} change_resp_owner{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* responsibleDestroyer);");
                 if (!irProgram.EmitExpressionStatements)
                     emitter.AppendLine($"{interfaceType.GetCName(irProgram)} move_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)}* dest, {interfaceType.GetCName(irProgram)} src, void* child_agent);");
             }
@@ -91,7 +90,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 interfaceType.EmitDestructor(irProgram, emitter);
                 interfaceType.EmitCopier(irProgram, emitter);
                 interfaceType.EmitMover(irProgram, emitter);
-                interfaceType.EmitResponsibleDestroyerMutator(irProgram, emitter);
             }
         }
     }
@@ -128,7 +126,6 @@ namespace NoHoPython.Typing
 
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
-        public void EmitMutateResponsibleDestroyer(IRProgram irProgram, IEmitter emitter, string valueCSource, string newResponsibleDestroyer) => emitter.Append(MustSetResponsibleDestroyer ? $"change_resp_owner{GetStandardIdentifier(irProgram)}({valueCSource}, {newResponsibleDestroyer})" : valueCSource);
 
         public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier) => emitter.Append($"{valueCSource}.{propertyIdentifier}");
 
@@ -217,23 +214,6 @@ namespace NoHoPython.Typing
             emitter.AppendLine();
             emitter.AppendLine($"\t*dest = src;");
             emitter.AppendLine("\treturn src;");
-            emitter.AppendLine("}");
-        }
-
-        public void EmitResponsibleDestroyerMutator(IRProgram irProgram, StatementEmitter emitter)
-        {
-            if (!MustSetResponsibleDestroyer)
-                return;
-
-            emitter.AppendLine($"{GetCName(irProgram)} change_resp_owner{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} interface, void* responsibleDestroyer) {{");
-
-            foreach (var property in requiredImplementedProperties.Value)
-            {
-                emitter.Append($"\tinterface.{property.Name} = ");
-                property.Type.EmitMutateResponsibleDestroyer(irProgram, emitter, $"interface.{property.Name}", "responsibleDestroyer");
-                emitter.AppendLine(";");
-            }
-            emitter.AppendLine("\treturn interface;");
             emitter.AppendLine("}");
         }
     }

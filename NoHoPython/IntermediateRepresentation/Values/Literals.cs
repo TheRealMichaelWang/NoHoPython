@@ -98,7 +98,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
 
-        public IType Type { get => new ArrayType(ElementType); }
+        public IType Type { get => new MemorySpan(ElementType, Elements.Count); }
         public bool IsTruey => false;
         public bool IsFalsey => false;
 

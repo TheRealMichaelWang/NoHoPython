@@ -333,13 +333,6 @@ namespace NoHoPython.Syntax.Parsing
                 {
                     if (scanner.LastToken.Type == TokenType.OpenBracket || scanner.LastToken.Type == TokenType.OpenBrace)
                     {
-                        IAstValue? responsibleDestroyer = null;
-                        if(scanner.LastToken.Type == TokenType.OpenBrace)
-                        {
-                            scanner.ScanToken();
-                            responsibleDestroyer = ParseExpression();
-                            MatchAndScanToken(TokenType.CloseBrace);
-                        }
                         MatchAndScanToken(TokenType.OpenBracket);
                         IAstValue index = ParseExpression();
                         MatchAndScanToken(TokenType.CloseBracket);
@@ -347,10 +340,7 @@ namespace NoHoPython.Syntax.Parsing
                         if (scanner.LastToken.Type == TokenType.Set)
                         {
                             scanner.ScanToken();
-                            if (responsibleDestroyer != null)
-                                value = new MemorySet(value, index, ParseExpression(), responsibleDestroyer, value.SourceLocation);
-                            else
-                                value = new SetValueAtIndex(value, index, ParseExpression(), value.SourceLocation);
+                            value = new SetValueAtIndex(value, index, ParseExpression(), value.SourceLocation);
                         }
                         else
                             value = new GetValueAtIndex(value, index, value.SourceLocation);

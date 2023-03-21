@@ -118,7 +118,31 @@ namespace NoHoPython.Typing
                 return argument;
             }
             else
-                return ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs));
+                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs)));
+        }
+    }
+
+    partial class MemorySpan
+    {
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MemorySpan(ElementType.SubstituteWithTypearg(typeargs), Length);
+
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
+        {
+            if (argument is MemorySpan memorySpan)
+                ElementType.MatchTypeArgumentWithType(typeargs, memorySpan.ElementType, errorReportedElement);
+            else
+                throw new UnexpectedTypeException(argument, errorReportedElement);
+        }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        {
+            if (argument.Type is MemorySpan memorySpan)
+            {
+                ElementType.MatchTypeArgumentWithType(typeargs, memorySpan.ElementType, argument.ErrorReportedElement);
+                return argument;
+            }
+            else
+                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs)));
         }
     }
 
@@ -193,7 +217,7 @@ namespace NoHoPython.Typing
                 return argument;
             }
             else
-                return ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs));
+                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs)));
         }
     }
 
@@ -217,7 +241,7 @@ namespace NoHoPython.Typing
                 return argument;
             }
             else
-                return ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs));
+                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs)));
         }
     }
 
@@ -392,12 +416,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class MemorySet
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MemorySet(Type.SubstituteWithTypearg(typeargs), Address.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ResponsibleDestroyer?.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MemorySet(Type.SubstituteWithTypearg(typeargs), Address.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
-    partial class MarshalIntoArray
+    partial class MarshalHandleIntoArray
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MarshalIntoArray(ElementType.SubstituteWithTypearg(typeargs), Length.SubstituteWithTypearg(typeargs), Address.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MarshalHandleIntoArray(ElementType.SubstituteWithTypearg(typeargs), Length.SubstituteWithTypearg(typeargs), Address.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
+    partial class MarshalMemorySpanIntoArray
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MarshalMemorySpanIntoArray(Span.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class BinaryOperator

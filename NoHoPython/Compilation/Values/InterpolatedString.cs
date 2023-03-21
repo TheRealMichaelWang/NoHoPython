@@ -36,6 +36,19 @@ namespace NoHoPython.Typing
         }
     }
 
+    partial class MemorySpan
+    {
+        public string GetFormatSpecifier(IRProgram irProgram) => ElementType.IsCompatibleWith(Primitive.Character) ? $"%.{Length}s" : "%p";
+
+        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource)
+        {
+            if (!ElementType.IsCompatibleWith(Primitive.Character))
+                emitter.Append("(void*)");
+
+            emitter.Append(valueCSource);
+        }
+    }
+
     partial class BooleanType
     {
         public override string GetFormatSpecifier(IRProgram irProgram) => "%s";

@@ -134,6 +134,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             if (array.Type is ArrayType arrayType)
                 Type = arrayType.ElementType;
+            else if (array.Type is MemorySpan memorySpan)
+                Type = memorySpan.ElementType;
             else
                 throw new UnexpectedTypeException(array.Type, errorReportedElement);
 
@@ -154,7 +156,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     value
                 }, array.ErrorReportedElement)
                 : array.Type is HandleType
-                ? new MemorySet(value.Type, array, index, value, null, errorReportedElement)
+                ? new MemorySet(value.Type, array, index, value, errorReportedElement)
                 : (IRValue)new SetValueAtIndex(array, index, value, errorReportedElement);
         }
 

@@ -128,33 +128,31 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            BufferedEmitter arrayBuilder = new();
+            string sizeCSource = $"{Elements.Count} * sizeof({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)})";
+            emitter.Append($"memcpy({irProgram.MemoryAnalyzer.Allocate(sizeCSource)}, ");
+
             if (Elements.Count == 0)
-                arrayBuilder.Append("NULL");
+                emitter.Append("NULL");
             else if(Elements.TrueForAll((IRValue element) => element is CharacterLiteral)) //is string literal
             {
-                arrayBuilder.Append("\"");
-                Elements.ForEach((element) => CharacterLiteral.EmitCChar(arrayBuilder, ((CharacterLiteral)element).Character, false));
-                arrayBuilder.Append("\"");
+                emitter.Append('\"');
+                Elements.ForEach((element) => CharacterLiteral.EmitCChar(emitter, ((CharacterLiteral)element).Character, false));
+                emitter.Append('\"');
             }
             else
             {
-                arrayBuilder.Append($"({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)}[])");
-                arrayBuilder.Append('{');
+                emitter.Append($"({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)}[])");
+                emitter.Append('{');
 
                 for(int i = 0; i < Elements.Count; i++)
                 {
                     if (i > 0)
-                        arrayBuilder.Append(", ");
-                    Elements[i].Emit(irProgram, arrayBuilder, typeargs, responsibleDestroyer);
+                        emitter.Append(", ");
+                    Elements[i].Emit(irProgram, emitter, typeargs, responsibleDestroyer);
                 }
-                arrayBuilder.Append('}');
+                emitter.Append('}');
             }
-
-            emitter.Append($"marshal{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({arrayBuilder}, {Elements.Count}");
-            if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer)
-                emitter.Append($", {responsibleDestroyer}");
-            emitter.Append(')');
+            emitter.Append($", {sizeCSource})");
         }
     }
 

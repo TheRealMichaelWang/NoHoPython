@@ -122,17 +122,34 @@ namespace NoHoPython.Typing
 
         public IType ElementType { get; private set; }
 
-        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new ArrayLiteral(ElementType, new List<IRValue>(), errorReportedElement);
+        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new ArrayLiteral(ElementType, new(), errorReportedElement);
 
         public ArrayType(IType elementType)
         {
             ElementType = elementType;
         }
 
-        public bool IsCompatibleWith(IType type)
+        public bool IsCompatibleWith(IType type) => type is ArrayType arrayType && ElementType.IsCompatibleWith(arrayType.ElementType);
+    }
+
+    public sealed partial class MemorySpan : IType
+    {
+        public string TypeName => $"span<{ElementType.TypeName}, {Length}>";
+        public string Identifier => $"span_{ElementType.Identifier}_of_{Length}";
+        public bool IsEmpty => false;
+
+        public IType ElementType { get; private set; }
+        public int Length { get; private set; }
+
+        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new ArrayLiteral(ElementType, new(), errorReportedElement);
+
+        public MemorySpan(IType elementType, int length)
         {
-            return type is ArrayType arrayType && ElementType.IsCompatibleWith(arrayType.ElementType);
+            ElementType = elementType;
+            Length = length;
         }
+
+        public bool IsCompatibleWith(IType type) => type is MemorySpan memorySpan && ElementType.IsCompatibleWith(memorySpan.ElementType) && memorySpan.Length == Length;
     }
 
     public sealed partial class ProcedureType : IType

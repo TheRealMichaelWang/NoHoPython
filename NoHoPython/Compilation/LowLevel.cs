@@ -40,15 +40,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
             emitter.Append("] = ");
 
-            string heapResponsibleDestroyer;
-            if (ResponsibleDestroyer == null)
-                heapResponsibleDestroyer = BufferedEmitter.EmittedBufferedMemorySafe(Address, irProgram, typeargs);
-            else
-            {
-                heapResponsibleDestroyer = BufferedEmitter.EmittedBufferedMemorySafe(ResponsibleDestroyer, irProgram, typeargs);
-                if (ResponsibleDestroyer.Type is ArrayType)
-                    heapResponsibleDestroyer += ".responsible_destroyer";
-            }
+            string heapResponsibleDestroyer = ArrayType.GetResponsibleDestroyer(irProgram, typeargs, Address);
 
             if (Value.RequiresDisposal(typeargs))
                 Value.Emit(irProgram, emitter, typeargs, heapResponsibleDestroyer);
@@ -65,7 +57,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    partial class MarshalIntoArray
+    partial class MarshalHandleIntoArray
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -95,6 +87,45 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($", {responsibleDestroyer})");
             else
                 emitter.Append(')');
+        }
+    }
+
+    partial class MarshalMemorySpanIntoArray
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            ElementType.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            Span.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        {
+            ArrayType type = new(ElementType.SubstituteWithTypearg(typeargs));
+            MemorySpan memorySpan = (MemorySpan)Span.Type.SubstituteWithTypearg(typeargs);
+
+            if (Span.RequiresDisposal(typeargs))
+            {
+                emitter.Append($"(({type.GetCName(irProgram)}){{ .buffer = ");
+                Span.Emit(irProgram, emitter, typeargs, responsibleDestroyer);
+                emitter.Append($", .length = {memorySpan.Length}}})");
+            }
+            else
+            {
+                if (ElementType.SubstituteWithTypearg(typeargs).RequiresDisposal)
+                    emitter.Append($"marshal_foreign{type.GetStandardIdentifier(irProgram)}(");
+                else
+                    emitter.Append($"marshal{type.GetStandardIdentifier(irProgram)}(");
+
+                Span.Emit(irProgram, emitter, typeargs, "NULL");
+                emitter.Append($", {memorySpan.Length}");
+
+                if (type.MustSetResponsibleDestroyer)
+                    emitter.Append($", {responsibleDestroyer})");
+                else
+                    emitter.Append(')');
+            }
         }
     }
 

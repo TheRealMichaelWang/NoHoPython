@@ -30,7 +30,7 @@ mod data:
 			copied = new list<T>(self.count)
 			copied.count = self.count
 			for i from 0 within self.count:
-				copied.buffer{copied}[i] = self.buffer[i] as T
+				copied.buffer[i] = self.buffer[i] as T
 			return copied
 		
 		def clear():
@@ -46,7 +46,7 @@ mod data:
 			if i < 0 or i >= self.count:
 				abort "Index out of range."
 			destroy T[i]self.buffer
-			return self.buffer{self}[i] = elem
+			return self.buffer[i] = elem
 		def add(list<T> toadd) list<T>:
 			res = new list<T>(self.count + toadd.count)
 			res.addRange(self)
@@ -65,27 +65,27 @@ mod data:
 			ensureCapacity(self.count + 1)
 			cdef memcpy(handle, handle, int) handle
 			memcpy(self.buffer + sizeof(T), self.buffer, self.count * sizeof(T))
-			self.buffer{self}[0] = elem
+			self.buffer[0] = elem
 			self.count = self.count + 1
 		def pushBack(T elem):
 			ensureCapacity(self.count + 1)
-			self.buffer{self}[self.count] = elem
+			self.buffer[self.count] = elem
 			self.count = self.count + 1
 		def insert(int index, T elem):
 			ensureCapacity(self.count + 1)
 			cdef memcpy(handle, handle, int) handle
 			memcpy(self.buffer + ((index + 1) * sizeof(T)), self.buffer + (index * sizeof(T)), (self.count - index) * sizeof(T))
-			self.buffer{self}[index] = elem
+			self.buffer[index] = elem
 			self.count = self.count + 1
 		def addBuffer(array<T> buf):
 			ensureCapacity(self.count + buf as int)
 			for i from 0 within buf:
-				self.buffer{self}[self.count + i] = buf[i]
+				self.buffer[self.count + i] = buf[i]
 			self.count = self.count + buf as int
 		def addRange(list<T> range):
 			ensureCapacity(self.count + range.count)
 			for i from 0 within range.count:
-				self.buffer{self}[self.count + i] = range.buffer[i] as T
+				self.buffer[self.count + i] = range.buffer[i] as T
 			self.count = self.count + range.count
 		
 		def remove(fn<bool, T> compare) bool:
@@ -138,7 +138,7 @@ mod data:
 			mapped.count = self.count
 			for i from 0 within self.count:
 				value = transform(self.buffer[i] as T)
-				mapped.buffer{mapped}[i] = value
+				mapped.buffer[i] = value
 			return mapped
 		def filter(fn<bool, T> keep) list<T>:
 			kept = new list<T>(self.count)

@@ -250,10 +250,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue GetPostEvalPure() => new SizeofOperator(TypeToMeasure, ErrorReportedElement);
     }
 
-    partial class MarshalIntoArray
+    partial class MarshalHandleIntoArray
     {
         public bool IsPure => Length.IsPure && Address.IsPure;
         public bool IsConstant => Length.IsConstant && Address.IsConstant;
+
+        public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
+    }
+
+    partial class MarshalMemorySpanIntoArray
+    {
+        public bool IsPure => Span.IsPure;
+        public bool IsConstant => Span.IsConstant;
 
         public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
     }

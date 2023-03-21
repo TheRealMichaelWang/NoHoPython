@@ -245,18 +245,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Address.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
             Index.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
             Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
-            if (ResponsibleDestroyer != null)
-                ResponsibleDestroyer.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
         }
     }
 
-    partial class MarshalIntoArray
+    partial class MarshalHandleIntoArray
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
         {
             Length.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
             Address.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
         }
+    }
+
+    partial class MarshalMemorySpanIntoArray
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Span.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
     }
 
     partial class BinaryOperator

@@ -65,12 +65,12 @@ mod data:
 				for i from hash % self.bucketCount within self.bucketCount:
 					if self.bucketStates[i] as bool == False: #empty bucket, claim it
 						self.keyBuckets[i] = hash
-						self.valueBuckets{self}[i] = value
+						self.valueBuckets[i] = value
 						self.bucketStates[i] = True
 						return True
 					elif self.keyBuckets[i] as int == hash:
 						destroy V[i]self.valueBuckets
-						self.valueBuckets{self}[i] = value
+						self.valueBuckets[i] = value
 						return False
 				
 				oldKeys = self.keyBuckets

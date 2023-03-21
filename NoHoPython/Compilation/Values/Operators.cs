@@ -172,25 +172,28 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     ArrayType.EmitBoundsCheckedIndex(irProgram, emitter, typeargs, Array, Index, ErrorReportedElement);
                 else
                     IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
-                emitter.Append($"; arr{irProgram.ExpressionDepth}.buffer[ind{irProgram.ExpressionDepth}];}})");
+                emitter.Append($"; arr{irProgram.ExpressionDepth}");
+
+                if (Array.Type is ArrayType)
+                    emitter.Append(".buffer");
+
+                emitter.Append("[ind{irProgram.ExpressionDepth}];}})");
 
                 irProgram.ExpressionDepth--;
             }
             else
             {
                 IRValue.EmitMemorySafe(Array, irProgram, emitter, typeargs);
+
+                if (Array.Type is ArrayType)
+                    emitter.Append(".buffer");
+
+                emitter.Append('[');
                 if (irProgram.DoBoundsChecking)
-                {
-                    emitter.Append(".buffer[");
                     ArrayType.EmitBoundsCheckedIndex(irProgram, emitter, typeargs, Array, Index, ErrorReportedElement);
-                    emitter.Append(']');
-                }
                 else
-                {
-                    emitter.Append(".buffer[");
                     IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
-                    emitter.Append(']');
-                }
+                emitter.Append(']');        
             }
         }
     }
@@ -209,6 +212,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
+            string arrayResponsibleDestroyer = ArrayType.GetResponsibleDestroyer(irProgram, typeargs, Array);
             if (!IRValue.EvaluationOrderGuarenteed(Array, Index, Value))
             {
                 if (!irProgram.EmitExpressionStatements)
@@ -228,11 +232,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append(';');
                 BufferedEmitter valueBuilder = new();
                 if (Value.RequiresDisposal(typeargs))
-                    Value.Emit(irProgram, valueBuilder, typeargs, $"arr{irProgram.ExpressionDepth}.responsible_destroyer");
+                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer);
                 else
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), $"arr{irProgram.ExpressionDepth}.responsible_destroyer");
+                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), arrayResponsibleDestroyer);
 
-                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"arr{irProgram.ExpressionDepth}.buffer[ind{irProgram.ExpressionDepth}]", valueBuilder.ToString(), $"arr{irProgram.ExpressionDepth}.responsible_destroyer");
+                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Array.Type is ArrayType ? $"arr{irProgram.ExpressionDepth}.buffer[ind{irProgram.ExpressionDepth}]" : $"arr{irProgram.ExpressionDepth}[ind{irProgram.ExpressionDepth}]", valueBuilder.ToString(), arrayResponsibleDestroyer);
                 emitter.Append(";})");
 
                 irProgram.ExpressionDepth--;
@@ -241,30 +245,23 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 BufferedEmitter destBuilder = new();
                 IRValue.EmitMemorySafe(Array, irProgram, destBuilder, typeargs);
-                if (irProgram.DoBoundsChecking)
-                {
-                    destBuilder.Append(".buffer[");
-                    ArrayType.EmitBoundsCheckedIndex(irProgram, destBuilder, typeargs, Array, Index, ErrorReportedElement);
-                    destBuilder.Append(']');
-                }
-                else
-                {
-                    destBuilder.Append(".buffer[");
-                    IRValue.EmitMemorySafe(Index, irProgram, destBuilder, typeargs);
-                    destBuilder.Append(']');
-                }
 
-                BufferedEmitter arrayResponsibleDestructor = new();
-                IRValue.EmitMemorySafe(Array.GetPostEvalPure(), irProgram, arrayResponsibleDestructor, typeargs);
-                arrayResponsibleDestructor.Append(".responsible_destroyer");
+                if (Array.Type is ArrayType)
+                    destBuilder.Append(".buffer");
+                destBuilder.Append('[');
+                if (irProgram.DoBoundsChecking)
+                    ArrayType.EmitBoundsCheckedIndex(irProgram, destBuilder, typeargs, Array, Index, ErrorReportedElement);
+                else
+                    IRValue.EmitMemorySafe(Index, irProgram, destBuilder, typeargs);
+                destBuilder.Append(']');
 
                 BufferedEmitter valueBuilder = new();
                 if (Value.RequiresDisposal(typeargs))
-                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestructor.ToString());
+                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer);
                 else
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), arrayResponsibleDestructor.ToString());
+                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), arrayResponsibleDestroyer);
 
-                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, destBuilder.ToString(), valueBuilder.ToString(), arrayResponsibleDestructor.ToString());
+                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, destBuilder.ToString(), valueBuilder.ToString(), arrayResponsibleDestroyer);
             }
         }
 
@@ -272,6 +269,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             CodeBlock.CIndent(emitter, indent);
 
+            string arrayResponsibleDestroyer = ArrayType.GetResponsibleDestroyer(irProgram, typeargs, Array);
             if (!IRValue.EvaluationOrderGuarenteed(Array, Index, Value))
             {
                 emitter.AppendLine("{");
@@ -291,12 +289,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 BufferedEmitter valueBuilder = new();
                 if (Value.RequiresDisposal(typeargs))
-                    Value.Emit(irProgram, valueBuilder, typeargs, "arr.responsible_destroyer");
+                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer);
                 else
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), "arr.responsible_destroyer");
+                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), arrayResponsibleDestroyer);
 
                 CodeBlock.CIndent(emitter, indent + 1);
-                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, "arr.buffer[ind]", valueBuilder.ToString(), "arr.responsible_destroyer");
+                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, "arr.buffer[ind]", valueBuilder.ToString(), arrayResponsibleDestroyer);
                 emitter.AppendLine(";");
                 CodeBlock.CIndent(emitter, indent);
                 emitter.AppendLine("}");
@@ -440,12 +438,33 @@ namespace NoHoPython.Typing
             emitter.Append("_nhp_bounds_check(");
             IRValue.EmitMemorySafe(index, irProgram, emitter, typeargs);
             emitter.Append(", ");
-            IRValue.EmitMemorySafe(array.GetPostEvalPure(), irProgram, emitter, typeargs);
-            emitter.Append(".length, ");
+            if (array.Type is ArrayType)
+            {
+                IRValue.EmitMemorySafe(array.GetPostEvalPure(), irProgram, emitter, typeargs);
+                emitter.Append(".length, ");
+            }
+            else
+            {
+                MemorySpan memorySpan = (MemorySpan)array.Type;
+                emitter.Append($"{memorySpan.Length}, ");
+            }
             CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString(), false, true);
             emitter.Append(", ");
             errorReportedElement.EmitSrcAsCString(emitter);
             emitter.Append(')');
+        }
+
+        public static string GetResponsibleDestroyer(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, IRValue array)
+        {
+            IRValue? responsibleDestroyer = array.GetResponsibleDestroyer();
+            if (responsibleDestroyer == null)
+                return "NULL";
+            else
+            {
+                BufferedEmitter bufferedEmitter = new();
+                responsibleDestroyer.Emit(irProgram, bufferedEmitter, typeargs, "NULL");
+                return bufferedEmitter.ToString();
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.Syntax
 {
@@ -303,6 +304,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public string GetClosureCaptureCType(IRProgram irProgram) => ProcedureDeclaration.CapturedVariables.Count == 0 ? "nhp_anon_proc_info_t" : (complementaryProcedureReference == null ? $"{GetStandardIdentifier(irProgram)}_captured_t" : complementaryProcedureReference.GetClosureCaptureCType(irProgram));
 
+        public string GetComplementaryIdentifier(IRProgram iRProgram) => complementaryProcedureReference == null ? GetStandardIdentifier(iRProgram) : complementaryProcedureReference.GetStandardIdentifier(iRProgram);
+
         private ProcedureType anonProcedureType;
         private ProcedureReference? complementaryProcedureReference = null;
         private bool emittedCapturedContextStruct = false;
@@ -362,7 +365,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.Append($"{ProcedureType.StandardProcedureType} capture_{GetStandardIdentifier(irProgram)}(");
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
                 emitter.Append($"{capturedVariable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {capturedVariable.GetStandardIdentifier()}, ");
-            emitter.Append("void* responsible_destroyer)");
+            emitter.Append("void* responsible_destroyer, void* fn_ptr)");
         }
 
         public void ForwardDeclare(IRProgram irProgram, StatementEmitter emitter)
@@ -370,7 +373,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             EmitCFunctionHeader(irProgram, emitter);
             emitter.AppendLine(";");
 
-            if (IsAnonymous && ProcedureDeclaration.CapturedVariables.Count > 0)
+            if (IsAnonymous && ProcedureDeclaration.CapturedVariables.Count > 0 && complementaryProcedureReference == null)
             {
                 EmitCaptureCFunctionHeader(irProgram, emitter);
                 emitter.AppendLine(";");
@@ -399,10 +402,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     return false;
 
                 foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
-                    if (!procedureReference.ProcedureDeclaration.CapturedVariables.Any((otherCapturedVariable) => variable.GetStandardIdentifier() == otherCapturedVariable.GetStandardIdentifier() && variable.Type.SubstituteWithTypearg(typeArguments).IsCompatibleWith(otherCapturedVariable.Type.SubstituteWithTypearg(procedureReference.typeArguments))))
+                    if (!procedureReference.ProcedureDeclaration.CapturedVariables.Any((otherCapturedVariable) => variable.GetStandardIdentifier() == otherCapturedVariable.GetStandardIdentifier() && variable.Type.SubstituteWithTypearg(typeArguments).IsCompatibleWith(otherCapturedVariable.Type.SubstituteWithTypearg(procedureReference.typeArguments)) && variable.IsRecordSelf == variable.IsRecordSelf))
                         return false;
 
-                return true;
+                return ProcedureDeclaration.CapturedVariables.Count == procedureReference.ProcedureDeclaration.CapturedVariables.Count;
             }
 
             if (!IsAnonymous || ProcedureDeclaration.CapturedVariables.Count == 0)
@@ -424,7 +427,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void EmitAnonymizer(IRProgram irProgram, StatementEmitter emitter)
         {
-            if (!IsAnonymous || ProcedureDeclaration.CapturedVariables.Count == 0)
+            if (!IsAnonymous || ProcedureDeclaration.CapturedVariables.Count == 0 || complementaryProcedureReference != null)
                 return;
 
             EmitCaptureCFunctionHeader(irProgram, emitter);
@@ -432,20 +435,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* closure = {irProgram.MemoryAnalyzer.Allocate($"sizeof({GetClosureCaptureCType(irProgram)})")};");
 
-            emitter.AppendLine($"\tclosure->common._nhp_this_anon = &{GetStandardIdentifier(irProgram)};");
+            emitter.AppendLine($"\tclosure->common._nhp_this_anon = fn_ptr;");
 
             emitter.Append("\tclosure->common._nhp_destructor = ");
             if (ProcedureDeclaration.CapturedVariables.Any((variable) => variable.Type.RequiresDisposal))
-            {
-                if (complementaryProcedureReference == null || complementaryProcedureReference.ProcedureDeclaration.CapturedVariables.Count != ProcedureDeclaration.CapturedVariables.Count)
-                    emitter.AppendLine($"(nhp_anon_proc_destructor)(&free{GetStandardIdentifier(irProgram)});");
-                else
-                    emitter.AppendLine($"(nhp_anon_proc_destructor)(&free{complementaryProcedureReference.GetStandardIdentifier(irProgram)});");
-            }
+                emitter.AppendLine($"(nhp_anon_proc_destructor)(&free{GetComplementaryIdentifier(irProgram)});");
             else
                 emitter.AppendLine("NULL;");
 
-            emitter.AppendLine($"\tclosure->common._nhp_copier = (nhp_anon_proc_copier)(&copy{GetStandardIdentifier(irProgram)});");
+            emitter.AppendLine($"\tclosure->common._nhp_copier = (nhp_anon_proc_copier)(&copy{GetComplementaryIdentifier(irProgram)});");
 
             emitter.Append("\tclosure->common._nhp_record_copier = ");
             if(ProcedureDeclaration.CapturedVariables.Any((variable) => variable.IsRecordSelf))
@@ -467,7 +465,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void EmitAnonDestructor(IRProgram irProgram, StatementEmitter emitter)
         {
-            if (!IsAnonymous || !ProcedureDeclaration.CapturedVariables.Any((variable) => variable.Type.RequiresDisposal) || (complementaryProcedureReference != null && complementaryProcedureReference.ProcedureDeclaration.CapturedVariables.Count == ProcedureDeclaration.CapturedVariables.Count))
+            if (!IsAnonymous || !ProcedureDeclaration.CapturedVariables.Any((variable) => variable.Type.RequiresDisposal) || complementaryProcedureReference != null)
                 return;
 
             emitter.AppendLine($"void free{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_free_anon, void* child_agent) {{");
@@ -491,7 +489,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void EmitAnonCopier(IRProgram irProgram, StatementEmitter emitter)
         {
-            if (!IsAnonymous || ProcedureDeclaration.CapturedVariables.Count == 0)
+            if (!IsAnonymous || ProcedureDeclaration.CapturedVariables.Count == 0 || complementaryProcedureReference != null)
                 return;
 
             emitter.AppendLine($"{ProcedureType.StandardProcedureType} copy{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_copy_anon, void* responsible_destroyer) {{");
@@ -499,13 +497,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.Append($"\treturn capture_{GetStandardIdentifier(irProgram)}(");
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
                 emitter.Append($"to_copy->{capturedVariable.GetStandardIdentifier()}, ");
-            emitter.AppendLine("responsible_destroyer);");
+            emitter.AppendLine("responsible_destroyer, to_copy_anon->_nhp_this_anon);");
             emitter.AppendLine("}");
         }
 
         public void EmitAnonRecordCopier(IRProgram irProgram, StatementEmitter emitter)
         {
-            if (!IsAnonymous || !ProcedureDeclaration.CapturedVariables.Any((variable) => variable.IsRecordSelf))
+            if (!IsAnonymous || !ProcedureDeclaration.CapturedVariables.Any((variable) => variable.IsRecordSelf) || complementaryProcedureReference != null)
                 return;
 
             emitter.AppendLine($"{ProcedureType.StandardProcedureType} record_copy{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_copy_anon, {RecordType.StandardRecordMask} record) {{");
@@ -516,7 +514,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.Append(capturedVariable.IsRecordSelf ? $"(({capturedVariable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)})record)" : $"to_copy->{capturedVariable.GetStandardIdentifier()}");
                 emitter.Append(", ");
             }
-            emitter.AppendLine("record);");
+            emitter.AppendLine("record, to_copy_anon->_nhp_this_anon);");
             emitter.AppendLine("}");
         }
     }
@@ -765,7 +763,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.AppendLine("}");
             }
             else
-                emitAndDestroyCall(new SortedSet<int>(), indent);
+                emitAndDestroyCall(new(), indent);
 
             if(irProgram.DoCallStack)
                 CallStackReporting.EmitReportReturn(emitter, indent);
@@ -832,18 +830,37 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class AnonymizeProcedure
     {
+        ProcedureReference? toAnonymize = null;
+
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
 
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => Procedure.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            toAnonymize = Procedure.SubstituteWithTypearg(typeargs);
+            toAnonymize.ScopeForUsedTypes(irBuilder);
+        }
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
         {
-            if(GetFunctionHandle)
-                emitter.Append($"&{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}");
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            if (GetFunctionHandle)
+                emitter.Append($"&{toAnonymize.GetStandardIdentifier(irProgram)}");
             else if (Procedure.ProcedureDeclaration.CapturedVariables.Count > 0)
-                emitter.Append($"capture_{Procedure.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}({string.Join("", Procedure.SubstituteWithTypearg(typeargs).ProcedureDeclaration.CapturedVariables.ConvertAll((capturedVar) => $"{((capturedVar.IsRecordSelf && parentProcedure == null) ? "_nhp_self" : capturedVar.GetStandardIdentifier())}, "))}{responsibleDestroyer})");
+            {
+                emitter.Append($"capture_{toAnonymize.GetComplementaryIdentifier(irProgram)}(");
+                foreach (Variable capturedVar in toAnonymize.ProcedureDeclaration.CapturedVariables) 
+                {
+                    if (capturedVar.IsRecordSelf && parentProcedure == null)
+                        emitter.Append("_nhp_self");
+                    else
+                        emitter.Append(capturedVar.GetStandardIdentifier());
+                    emitter.Append(", ");
+                }
+                emitter.Append($"{responsibleDestroyer}, &{toAnonymize.GetStandardIdentifier(irProgram)})");
+            }
             else
                 emitter.Append($"capture_anon_proc(&{Procedure.GetStandardIdentifier(irProgram)})");
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
         }
     }
 

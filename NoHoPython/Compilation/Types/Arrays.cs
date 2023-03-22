@@ -309,8 +309,6 @@ namespace NoHoPython.Typing
 
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
         {
-            emitter.Append($"free({valueCSource});");
-
             if (ElementType.RequiresDisposal)
             {
                 emitter.Append($"for(int free_i = 0; free_i < {Length}; free_i++) {{ ");

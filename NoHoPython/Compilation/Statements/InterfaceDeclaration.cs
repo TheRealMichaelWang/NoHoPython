@@ -73,7 +73,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 interfaceType.EmitMarshallerHeader(irProgram, emitter);
                 emitter.AppendLine($"void free_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* child_agent);");
-                emitter.AppendLine($"{interfaceType.GetCName(irProgram)} copy_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* responsibleDestroyer);");
+                
+                emitter.Append($"{interfaceType.GetCName(irProgram)} copy_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface");
+                if (interfaceType.MustSetResponsibleDestroyer)
+                    emitter.Append(", void* responsibleDestroyer");
+                emitter.AppendLine(");");
+
                 if (!irProgram.EmitExpressionStatements)
                     emitter.AppendLine($"{interfaceType.GetCName(irProgram)} move_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)}* dest, {interfaceType.GetCName(irProgram)} src, void* child_agent);");
             }
@@ -237,9 +242,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (Value.RequiresDisposal(typeargs))
             {
+                irProgram.ExpressionDepth++;
                 if (!irProgram.EmitExpressionStatements)
                     throw new CannotEmitDestructorError(Value);
-                emitter.Append($"({{{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_marshal_buf = ");
+                emitter.Append($"({{{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_marshal_buf{irProgram.ExpressionDepth} = ");
                 Value.Emit(irProgram, emitter, typeargs, "NULL");
                 emitter.Append(';');
             }
@@ -252,7 +258,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 string valueEmitter;
                 if (Value.RequiresDisposal(typeargs))
-                    valueEmitter = "_nhp_marshal_buf";
+                    valueEmitter = $"_nhp_marshal_buf{irProgram.ExpressionDepth}";
                 else if (firstEmit)
                     valueEmitter = BufferedEmitter.EmittedBufferedMemorySafe(Value, irProgram, typeargs);
                 else
@@ -263,21 +269,37 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 BufferedEmitter getPropertyEmitter = new();
                 if (Value.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
-                    property.EmitGet(irProgram, emitter, typeargs, propertyContainer, valueEmitter);
+                    property.EmitGet(irProgram, getPropertyEmitter, typeargs, propertyContainer, valueEmitter);
                 else
                     throw new InvalidOperationException();
 
-                emittedValues.Add(getPropertyEmitter.ToString() + ", ");
+                emittedValues.Add(getPropertyEmitter.ToString());
             }
 
             if (Value.RequiresDisposal(typeargs))
             {
-                emitter.Append($"{realPrototype.GetCName(irProgram)} _nhp_int_res = marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join("", emittedValues)}{responsibleDestroyer}); ");
-                Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_marshal_buf", "NULL");
-                emitter.Append("_nhp_int_res;})");
+                emitter.Append($"{realPrototype.GetCName(irProgram)} _nhp_int_res{irProgram.ExpressionDepth} = marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}(");
+                foreach (string toEmit in emittedValues)
+                {
+                    if (toEmit != emittedValues.First())
+                        emitter.Append(", ");
+                    emitter.Append(toEmit);
+                }
+
+                if (realPrototype.MustSetResponsibleDestroyer)
+                    emitter.Append($", {responsibleDestroyer}");
+                emitter.Append("); ");
+
+                Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_marshal_buf{irProgram.ExpressionDepth}", "NULL");
+                emitter.Append($"_nhp_int_res{irProgram.ExpressionDepth};}})");
+                irProgram.ExpressionDepth--;
             }
             else
-                emitter.Append($"marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join("", emittedValues)}{responsibleDestroyer})");
+            {
+                emitter.Append($"marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join(", ", emittedValues)}");
+                if (realPrototype.MustSetResponsibleDestroyer)
+                    emitter.Append($", {responsibleDestroyer}");
+            }
         }
     }
 }

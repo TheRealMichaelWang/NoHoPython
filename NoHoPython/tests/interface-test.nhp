@@ -11,7 +11,7 @@ class student:
 		self.age = age
 		self.grade = grade
 
-def ldInterface(person p, student s):
+def ldInterface(person p, person s):
 	assert (p.name as int) == (s.name as int)
 	assert p.age == s.age
 

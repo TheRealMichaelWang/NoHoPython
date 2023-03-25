@@ -299,6 +299,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"marshal_interface{realPrototype.GetStandardIdentifier(irProgram)}({string.Join(", ", emittedValues)}");
                 if (realPrototype.MustSetResponsibleDestroyer)
                     emitter.Append($", {responsibleDestroyer}");
+                emitter.Append(')');
             }
         }
     }

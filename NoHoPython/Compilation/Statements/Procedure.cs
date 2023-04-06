@@ -4,7 +4,6 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
-using System.Diagnostics;
 
 namespace NoHoPython.Syntax
 {
@@ -210,6 +209,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
+        public bool TypeParameterAffectsCodegen => false;
 
         public string GetStandardIdentifier(IRProgram irProgram) => irProgram.GetAnonProcedureStandardIdentifier(this);
 
@@ -402,7 +402,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     return false;
 
                 foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
-                    if (!procedureReference.ProcedureDeclaration.CapturedVariables.Any((otherCapturedVariable) => variable.GetStandardIdentifier() == otherCapturedVariable.GetStandardIdentifier() && variable.Type.SubstituteWithTypearg(typeArguments).IsCompatibleWith(otherCapturedVariable.Type.SubstituteWithTypearg(procedureReference.typeArguments)) && variable.IsRecordSelf == variable.IsRecordSelf))
+                    if (!procedureReference.ProcedureDeclaration.CapturedVariables.Any((otherCapturedVariable) => variable.GetStandardIdentifier() == otherCapturedVariable.GetStandardIdentifier() && variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram) == otherCapturedVariable.Type.SubstituteWithTypearg(procedureReference.typeArguments).GetCName(irProgram) && variable.IsRecordSelf == variable.IsRecordSelf))
                         return false;
 
                 return ProcedureDeclaration.CapturedVariables.Count == procedureReference.ProcedureDeclaration.CapturedVariables.Count;

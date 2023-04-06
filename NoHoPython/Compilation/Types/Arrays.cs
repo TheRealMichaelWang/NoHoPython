@@ -139,6 +139,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;
+        public bool TypeParameterAffectsCodegen => ElementType.TypeParameterAffectsCodegen;
 
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
         {
@@ -302,6 +303,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;
+        public bool TypeParameterAffectsCodegen => ElementType.TypeParameterAffectsCodegen;
 
         public string GetCName(IRProgram irProgram) => $"{ElementType.GetCName(irProgram)}*";
 

@@ -241,7 +241,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public override void EmitCall(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> releasedArguments, int currentNestedCall, string responsibleDestroyer)
         {
-            emitter.Append($"construct_{RecordPrototype.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
+            RecordType recordType = (RecordType)RecordPrototype.SubstituteWithTypearg(typeargs);
+            emitter.Append($"construct_{recordType.GetOriginalStandardIdentifer(irProgram)}(");
             EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);
             if (Arguments.Count > 0)
                 emitter.Append(", ");

@@ -2,7 +2,6 @@
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
-using System.Text;
 
 namespace NoHoPython.Syntax
 {
@@ -18,7 +17,7 @@ namespace NoHoPython.Syntax
 
             usedRecordTypes.Add(recordType);
             if (!recordTypeOverloads.ContainsKey(recordType.RecordPrototype))
-                recordTypeOverloads.Add(recordType.RecordPrototype, new List<RecordType>());
+                recordTypeOverloads.Add(recordType.RecordPrototype, new());
             recordTypeOverloads[recordType.RecordPrototype].Add(recordType);
 
             typeDependencyTree.Add(recordType, new HashSet<IType>(recordType.GetProperties().ConvertAll((prop) => prop.Type).Where((type) => type is not RecordType), new ITypeComparer()));
@@ -32,13 +31,20 @@ namespace NoHoPython.IntermediateRepresentation
 {
     partial class IRProgram
     {
-        private List<RecordType> usedRecordTypes;
         public readonly Dictionary<RecordDeclaration, List<RecordType>> RecordTypeOverloads;
 
         public void ForwardDeclareRecordTypes(StatementEmitter emitter)
         {
-            foreach (RecordType recordType in usedRecordTypes)
-                emitter.AppendLine($"typedef struct {recordType.GetStandardIdentifier(this)} {recordType.GetStandardIdentifier(this)}_t;");
+            foreach(RecordDeclaration recordDeclaration in RecordTypeOverloads.Keys)
+            {
+                if(recordDeclaration.EmitMultipleCStructs)
+                {
+                    foreach(RecordType recordType in RecordTypeOverloads[recordDeclaration])
+                        emitter.AppendLine($"typedef struct {recordType.GetStandardIdentifier(this)} {recordType.GetStandardIdentifier(this)}_t;");
+                }
+                else
+                    emitter.AppendLine($"typedef struct {RecordTypeOverloads[recordDeclaration].First().GetStandardIdentifier(this)} {RecordTypeOverloads[recordDeclaration].First().GetStandardIdentifier(this)}_t;");
+            }
         }
     }
 }
@@ -47,6 +53,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     partial class RecordDeclaration
     {
+#pragma warning disable CS8604 // Possible null reference argument.
+        public bool EmitMultipleCStructs => properties.Any((property) => property.Type.TypeParameterAffectsCodegen);
+#pragma warning restore CS8604 // Possible null reference argument.
+
         partial class RecordProperty
         {
             public override void EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource) => propertyContainer.EmitGetProperty(irProgram, emitter, valueCSource, Name);
@@ -77,13 +87,31 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclareType(IRProgram irProgram, StatementEmitter emitter) 
+        public void ForwardDeclareType(IRProgram irProgram, StatementEmitter emitter)
         {
             if (!irProgram.RecordTypeOverloads.ContainsKey(this))
                 return;
 
-            foreach (RecordType recordType in irProgram.RecordTypeOverloads[this])
-                recordType.EmitCStruct(irProgram, emitter);
+            if (EmitMultipleCStructs)
+            {
+                foreach (RecordType recordType in irProgram.RecordTypeOverloads[this])
+                    recordType.EmitCStruct(irProgram, emitter);
+            }
+            else
+            {
+                foreach (RecordType recordType in irProgram.RecordTypeOverloads[this])
+                {
+                    if (recordType == irProgram.RecordTypeOverloads[this].First())
+                    {
+                        if (!irProgram.DeclareCompiledType(emitter, recordType))
+                            return;
+
+                        recordType.EmitCStructImmediatley(irProgram, emitter);
+                    }
+                    else
+                        irProgram.DeclareCompiledType(emitter, recordType);
+                }
+            }
         }
 
         public void ForwardDeclare(IRProgram irProgram, StatementEmitter emitter)
@@ -91,18 +119,39 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (!irProgram.RecordTypeOverloads.ContainsKey(this))
                 return;
 
-            foreach (RecordType recordType in irProgram.RecordTypeOverloads[this]) 
+            if (EmitMultipleCStructs)
             {
-                recordType.EmitConstructorCHeader(irProgram, emitter);
-                emitter.AppendLine(";");
+                foreach (RecordType recordType in irProgram.RecordTypeOverloads[this])
+                {
+                    recordType.EmitConstructorCHeader(irProgram, emitter);
+                    emitter.AppendLine(";");
 
-                emitter.AppendLine($"void free_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} child_agent);");
-                emitter.AppendLine($"{recordType.GetCName(irProgram)} borrow_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, void* responsible_destroyer);");
+                    emitter.AppendLine($"void free_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} child_agent);");
+                    emitter.AppendLine($"{recordType.GetCName(irProgram)} borrow_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, void* responsible_destroyer);");
 
-                if (!recordType.HasCopier)
-                    emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} parent_record);");
+                    if (!recordType.HasCopier)
+                        emitter.AppendLine($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} parent_record);");
+                    if (!irProgram.EmitExpressionStatements)
+                        emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src, void* child_agent);");
+                }
+            }
+            else
+            {
+                RecordType genericRecordType = irProgram.RecordTypeOverloads[this].First();
+
+                emitter.AppendLine($"void free_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} child_agent);");
+                emitter.AppendLine($"{genericRecordType.GetCName(irProgram)} borrow_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record, void* responsible_destroyer);");
+
+                if (!genericRecordType.HasCopier)
+                    emitter.AppendLine($"{genericRecordType.GetCName(irProgram)} copy_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} parent_record);");
                 if (!irProgram.EmitExpressionStatements)
-                    emitter.AppendLine($"{recordType.GetCName(irProgram)} move_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)}* dest, {recordType.GetCName(irProgram)} src, void* child_agent);");
+                    emitter.AppendLine($"{genericRecordType.GetCName(irProgram)} move_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)}* dest, {genericRecordType.GetCName(irProgram)} src, void* child_agent);");
+
+                foreach(RecordType recordType in irProgram.RecordTypeOverloads[this])
+                {
+                    recordType.EmitConstructorCHeader(irProgram, emitter);
+                    emitter.AppendLine(";");
+                }
             }
         }
 
@@ -111,13 +160,27 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (!irProgram.RecordTypeOverloads.ContainsKey(this))
                 return;
 
-            foreach (RecordType recordType in irProgram.RecordTypeOverloads[this])
+            if (EmitMultipleCStructs)
             {
-                recordType.EmitConstructor(irProgram, emitter);
-                recordType.EmitDestructor(irProgram, emitter);
-                recordType.EmitCopier(irProgram, emitter);
-                recordType.EmitMover(irProgram, emitter);
-                recordType.EmitBorrower(irProgram, emitter);
+                foreach (RecordType recordType in irProgram.RecordTypeOverloads[this])
+                {
+                    recordType.EmitConstructor(irProgram, emitter);
+                    recordType.EmitDestructor(irProgram, emitter);
+                    recordType.EmitCopier(irProgram, emitter);
+                    recordType.EmitMover(irProgram, emitter);
+                    recordType.EmitBorrower(irProgram, emitter);
+                }
+            }
+            else
+            {
+                RecordType genericRecordType = irProgram.RecordTypeOverloads[this].First();
+                genericRecordType.EmitDestructor(irProgram, emitter);
+                genericRecordType.EmitCopier(irProgram, emitter);
+                genericRecordType.EmitMover(irProgram, emitter);
+                genericRecordType.EmitBorrower(irProgram, emitter);
+
+                foreach (RecordType recordType in irProgram.RecordTypeOverloads[this])
+                    recordType.EmitConstructor(irProgram, emitter);
             }
         }
     }
@@ -131,11 +194,13 @@ namespace NoHoPython.Typing
 
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
+        public bool TypeParameterAffectsCodegen => properties.Value.Any((property) => property.Type.TypeParameterAffectsCodegen);
 
         public bool HasDestructor => HasProperty("__del__");
         public bool HasCopier => HasProperty("__copy__");
 
-        public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
+        public string GetStandardIdentifier(IRProgram irProgram) => RecordPrototype.EmitMultipleCStructs ? GetStandardIdentifier(irProgram) : $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}";
+        public string GetOriginalStandardIdentifer(IRProgram irProgram) => $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t*";
         public string GetCHeapSizer(IRProgram irProgram) => $"sizeof({GetStandardIdentifier(irProgram)}_t)";
@@ -184,7 +249,18 @@ namespace NoHoPython.Typing
             if (!irProgram.DeclareCompiledType(emitter, this))
                 return;
 
-            emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
+            if (!RecordPrototype.EmitMultipleCStructs)
+            {
+                RecordPrototype.ForwardDeclareType(irProgram, emitter);
+                return;
+            }
+
+            EmitCStructImmediatley(irProgram, emitter);
+        }
+        
+        public void EmitCStructImmediatley(IRProgram irProgram, StatementEmitter emitter)
+        {
+            emitter.AppendLine($"struct {GetStandardIdentifier(irProgram)} {{");
             emitter.AppendLine("\tint _nhp_ref_count;");
             emitter.AppendLine("\tint _nhp_master_count;");
             emitter.AppendLine("\tint _nhp_lock;");
@@ -198,7 +274,7 @@ namespace NoHoPython.Typing
         {
             ProcedureType constructorType = (ProcedureType)FindProperty("__init__").Type;
 
-            emitter.Append($"{GetCName(irProgram)} construct_{GetStandardIdentifier(irProgram)}(");
+            emitter.Append($"{GetCName(irProgram)} construct_{GetOriginalStandardIdentifer(irProgram)}(");
             for (int i = 0; i < constructorType.ParameterTypes.Count; i++)
                 emitter.Append($"{constructorType.ParameterTypes[i].GetCName(irProgram)} param{i}, ");
             emitter.Append($"{StandardRecordMask} parent_record)");

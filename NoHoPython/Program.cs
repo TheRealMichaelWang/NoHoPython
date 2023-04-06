@@ -88,10 +88,10 @@ public static class Program
         {
             compilerError.Print();
         }
-        //catch (CodegenError codegenError)
-        //{
-        //    codegenError.Print();
-        //}
+        catch (CodegenError codegenError)
+        {
+            codegenError.Print();
+        }
         catch (FileNotFoundException f)
         {
             Console.WriteLine($"File not found: {f.Message}");

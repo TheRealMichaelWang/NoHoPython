@@ -9,6 +9,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType { get; }
         public bool RequiresDisposal { get; }
         public bool MustSetResponsibleDestroyer { get; }
+        public bool TypeParameterAffectsCodegen { get; }
 
         public string TypeName { get; }
         public string Identifier { get; }

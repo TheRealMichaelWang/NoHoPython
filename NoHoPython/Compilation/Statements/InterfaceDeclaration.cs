@@ -2,7 +2,6 @@ using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
-using System.Text;
 
 namespace NoHoPython.Syntax
 {
@@ -33,13 +32,20 @@ namespace NoHoPython.IntermediateRepresentation
 {
     partial class IRProgram
     {
-        private List<InterfaceType> usedInterfaceTypes;
         public readonly Dictionary<InterfaceDeclaration, List<InterfaceType>> InterfaceTypeOverloads;
         
         public void ForwardDeclareInterfaceTypes(StatementEmitter emitter)
         {
-            foreach (InterfaceType usedInterface in usedInterfaceTypes)
-                emitter.AppendLine($"typedef struct {usedInterface.GetStandardIdentifier(this)} {usedInterface.GetCName(this)};");
+            foreach(InterfaceDeclaration interfaceDeclaration in InterfaceTypeOverloads.Keys)
+            {
+                if(interfaceDeclaration.EmitMultipleCStructs)
+                {
+                    foreach(InterfaceType interfaceType in InterfaceTypeOverloads[interfaceDeclaration])
+                        emitter.AppendLine($"typedef struct {interfaceType.GetStandardIdentifier(this)} {interfaceType.GetCName(this)};");
+                }
+                else
+                    emitter.AppendLine($"typedef struct {InterfaceTypeOverloads[interfaceDeclaration].First().GetStandardIdentifier(this)} {InterfaceTypeOverloads[interfaceDeclaration].First().GetCName(this)};");
+            }
         }
     }
 }
@@ -53,6 +59,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             public override void EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource) => propertyContainer.EmitGetProperty(irProgram, emitter, valueCSource, Name);
         }
 
+#pragma warning disable CS8604 // Possible null reference argument.
+        public bool EmitMultipleCStructs => requiredImplementedProperties.Any((property) => property.Type.TypeParameterAffectsCodegen);
+#pragma warning restore CS8604 // Possible null reference argument.
+
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
         public void ForwardDeclareType(IRProgram irProgram, StatementEmitter emitter)
@@ -60,8 +70,26 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (!irProgram.InterfaceTypeOverloads.ContainsKey(this))
                 return;
 
-            foreach (InterfaceType interfaceType in irProgram.InterfaceTypeOverloads[this])
-                interfaceType.EmitCStruct(irProgram, emitter);
+            if (EmitMultipleCStructs)
+            {
+                foreach (InterfaceType interfaceType in irProgram.InterfaceTypeOverloads[this])
+                    interfaceType.EmitCStruct(irProgram, emitter);
+            }
+            else
+            {
+                foreach (InterfaceType interfaceType in irProgram.InterfaceTypeOverloads[this])
+                {
+                    if (interfaceType == irProgram.InterfaceTypeOverloads[this].First())
+                    {
+                        if (!irProgram.DeclareCompiledType(emitter, interfaceType))
+                            return;
+
+                        interfaceType.EmitCStructImmediatley(irProgram, emitter);
+                    }
+                    else
+                        irProgram.DeclareCompiledType(emitter, interfaceType);
+                }
+            }
         }
 
         public void ForwardDeclare(IRProgram irProgram, StatementEmitter emitter)
@@ -81,6 +109,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
                 if (!irProgram.EmitExpressionStatements)
                     emitter.AppendLine($"{interfaceType.GetCName(irProgram)} move_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)}* dest, {interfaceType.GetCName(irProgram)} src, void* child_agent);");
+
+                if (!EmitMultipleCStructs)
+                    return;
             }
         }
 
@@ -95,6 +126,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 interfaceType.EmitDestructor(irProgram, emitter);
                 interfaceType.EmitCopier(irProgram, emitter);
                 interfaceType.EmitMover(irProgram, emitter);
+
+                if (!EmitMultipleCStructs)
+                    return;
             }
         }
     }
@@ -106,9 +140,10 @@ namespace NoHoPython.Typing
     {
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
-        public bool MustSetResponsibleDestroyer => !requiredImplementedProperties.Value.TrueForAll((property) => !property.Type.MustSetResponsibleDestroyer);
+        public bool MustSetResponsibleDestroyer => requiredImplementedProperties.Value.Any((property) => property.Type.MustSetResponsibleDestroyer);
+        public bool TypeParameterAffectsCodegen => requiredImplementedProperties.Value.Any((property) => property.Type.TypeParameterAffectsCodegen);
 
-        public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
+        public string GetStandardIdentifier(IRProgram irProgram) => InterfaceDeclaration.EmitMultipleCStructs ? $"_nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_" : $"_nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}";
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
@@ -150,6 +185,17 @@ namespace NoHoPython.Typing
             if (!irProgram.DeclareCompiledType(emitter, this))
                 return;
 
+            if (InterfaceDeclaration.EmitMultipleCStructs)
+            {
+                InterfaceDeclaration.ForwardDeclareType(irProgram, emitter);
+                return;
+            }
+
+            EmitCStructImmediatley(irProgram, emitter);
+        }
+
+        public void EmitCStructImmediatley(IRProgram irProgram, StatementEmitter emitter)
+        {
             emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
             foreach (var property in requiredImplementedProperties.Value)
                 emitter.AppendLine($"\t{property.Type.GetCName(irProgram)} {property.Name};");

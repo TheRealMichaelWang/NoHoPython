@@ -1,5 +1,5 @@
 cinclude "<errno.h>"
-include "mem.nhp"
+cinclude "<string.h>"
 include "io.nhp"
 
 mod io:
@@ -9,15 +9,30 @@ mod io:
 		def __init__(array<char> path, array<char> mode):
 			cdef fopen(handle, handle) handle
 			cdef strerror(int) handle
-			cdef puts(handle) None
+			cdef strlen(handle) int
 			cdef errno int
-			cdef NULL
+			cdef NULL handle
 			self.ptr = fopen(cpath=cinterop::sanitizeCStr(path), cmode=cinterop::sanitizeCStr(mode))
+			
 			if self.ptr == NULL:
-				puts(strerror(errno))
-				abort "Failed to open file; see above reason."
+				errhandle = strerror(errno)
+				errmsg = marshal char[strlen(errhandle)](errhandle);
+				abort "Failed to open file; {errormsg}"
+
 		def __copy__() file:
 			abort "Cannot safley copy file"
 		def __del__():
 			cdef fclose(handle) None
 			fclose(self.ptr)
+
+	def canOpen(array<char> path, array<char> mode) bool:
+		cdef fopen(handle, handle) handle
+		cdef fclose(handle) None
+		cdef NULL handle
+
+		ptr = fopen(cpath=cinterop::sanitizeCStr(path), cmode=cinterop::sanitizeCStr(mode))
+		if ptr == NULL:
+			return false
+		else:
+			fclose(ptr)
+			return true

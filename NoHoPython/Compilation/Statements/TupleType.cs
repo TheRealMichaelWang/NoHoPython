@@ -79,6 +79,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => true;
         public bool RequiresDisposal => ValueTypes.Keys.Any((type) => type.RequiresDisposal);
         public bool MustSetResponsibleDestroyer => ValueTypes.Keys.Any((type) => type.MustSetResponsibleDestroyer);
+        public bool TypeParameterAffectsCodegen => ValueTypes.Keys.Any((type) => type.TypeParameterAffectsCodegen);
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_tuple_{Identifier}";
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";

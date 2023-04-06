@@ -29,7 +29,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ParentContainer = parentContainer;
         }
 
-        public List<IType> GetOptions(EnumType enumType)
+        public Dictionary<IType, int> GetOptions(EnumType enumType)
         {
             if (enumType.EnumDeclaration != this)
                 throw new InvalidOperationException();
@@ -40,9 +40,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             for (int i = 0; i < TypeParameters.Count; i++)
                 typeargs.Add(TypeParameters[i], enumType.TypeArguments[i]);
 
-            List<IType> typeOptions = new(options.Count);
-            foreach (IType option in options)
-                typeOptions.Add(option.SubstituteWithTypearg(typeargs));
+            Dictionary<IType, int> typeOptions = new(options.Count, new ITypeComparer());
+            for (int i = 0; i < options.Count; i++)
+                typeOptions.Add(options[i].SubstituteWithTypearg(typeargs), i);
 
             return typeOptions;
         }
@@ -215,7 +215,7 @@ namespace NoHoPython.Typing
         public EnumDeclaration EnumDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;
 
-        private Lazy<List<IType>> options;
+        private Lazy<Dictionary<IType, int>> options;
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
 
@@ -229,16 +229,16 @@ namespace NoHoPython.Typing
             EnumDeclaration = enumDeclaration;
             TypeArguments = typeArguments;
 
-            options = new Lazy<List<IType>>(() => enumDeclaration.GetOptions(this));
+            options = new Lazy<Dictionary<IType, int>>(() => enumDeclaration.GetOptions(this));
 
             if (globalSupportedProperties.ContainsKey(this))
                 return;
 
             globalSupportedProperties[this] = new(() =>
             {
-                if (!options.Value.TrueForAll((option) => option is IPropertyContainer))
+                if (!options.Value.Keys.All((option) => option is IPropertyContainer))
                     return new();
-                IPropertyContainer firstType = (IPropertyContainer)options.Value[0];
+                IPropertyContainer firstType = (IPropertyContainer)options.Value.Keys.First();
 
                 List<Property> firstTypeProperties = firstType.GetProperties();
                 Dictionary<string, Property> propertyIdMap = new(firstTypeProperties.Count);
@@ -247,7 +247,7 @@ namespace NoHoPython.Typing
                     bool foundFlag = true;
                     for (int i = 1; i < options.Value.Count; i++)
                     {
-                        IPropertyContainer optionContainer = (IPropertyContainer)options.Value[i];
+                        IPropertyContainer optionContainer = (IPropertyContainer)options.Value.Keys.First();
                         if (!optionContainer.HasProperty(property.Name))
                         {
                             foundFlag = false;
@@ -267,7 +267,7 @@ namespace NoHoPython.Typing
             });
         }
 
-        public List<IType> GetOptions() => options.Value;
+        public List<IType> GetOptions() => options.Value.Keys.ToList();
 
         public List<Property> GetProperties() => globalSupportedProperties[this].Value.Values.ToList();
 
@@ -275,13 +275,7 @@ namespace NoHoPython.Typing
 
         public bool HasProperty(string identifier) => globalSupportedProperties[this].Value.ContainsKey(identifier);
 
-        public bool SupportsType(IType type)
-        {
-            foreach (IType option in options.Value)
-                if (option.IsCompatibleWith(type))
-                    return true;
-            return false;
-        }
+        public bool SupportsType(IType type) => options.Value.Keys.Any((option) => option.IsCompatibleWith(type));
 
         public bool IsCompatibleWith(IType type)
         {

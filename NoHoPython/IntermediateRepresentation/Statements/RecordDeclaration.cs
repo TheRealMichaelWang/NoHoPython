@@ -9,9 +9,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public sealed class CannotMutateReadonlyPropertyException : IRGenerationError
     {
-        public Property Property { get; private set; }
+        public RecordDeclaration.RecordProperty Property { get; private set; }
 
-        public CannotMutateReadonlyPropertyException(Property property, Syntax.IAstElement astElement) : base(astElement, $"Cannot mutate read-only property {property.Name}.")
+        public CannotMutateReadonlyPropertyException(RecordDeclaration.RecordProperty property, Syntax.IAstElement astElement) : base(astElement, $"Cannot mutate read-only property {property.Name}.")
         {
             Property = property;
             Debug.Assert(Property.IsReadOnly);
@@ -39,8 +39,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     public abstract partial class Property
     {
-        public abstract bool IsReadOnly { get; }
-
         public string Name { get; private set; }
         public IType Type { get; private set; }
 
@@ -53,41 +51,30 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     public sealed partial class RecordDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
-        public sealed partial class RecordProperty : Property, IComparable
+        public sealed partial class RecordProperty : Property, IComparable<RecordProperty>
         {
-            public override bool IsReadOnly => isReadOnly;
+            public bool IsReadOnly { get; private set; }
+            private RecordDeclaration RecordDeclaration;
 
-            public IRValue? DefaultValue => defaultValue ?? parentProperty?.DefaultValue; 
-
-            private RecordProperty? parentProperty;
-            private IRValue? defaultValue = null;
-            private bool isReadOnly;
-
-            private RecordProperty(string name, IType type, bool isReadOnly, RecordProperty? parentProperty, IRValue? defaultValue) : base(name, type)
+            public RecordProperty(string name, IType type, bool isReadOnly, RecordDeclaration recordDeclaration) : base(name, type)
             {
-                this.isReadOnly = isReadOnly;
-                this.parentProperty = parentProperty;
-                if(defaultValue != null)
-                    this.defaultValue = ArithmeticCast.CastTo(defaultValue, Type);
+                IsReadOnly = isReadOnly;
+                RecordDeclaration = recordDeclaration;
+                DefaultValue = null;
             }
 
-            public RecordProperty(string name, IType type, bool isReadOnly, RecordProperty? parentProperty = null) : this(name, type, isReadOnly, parentProperty, null) { }
-
-            public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), isReadOnly, parentProperty ?? this, defaultValue?.SubstituteWithTypearg(typeargs));
+            public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), IsReadOnly, RecordDeclaration);
 
             public void DelayedLinkSetDefaultValue(IRValue defaultValue)
             {
-                if (this.defaultValue != null)
-                    throw new InvalidOperationException();
-                this.defaultValue = ArithmeticCast.CastTo(defaultValue, Type);
+                Debug.Assert(!HasDefaultValue);
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                Debug.Assert(RecordDeclaration.properties.Contains(this));
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+                RecordDeclaration.defaultValues[Name] = ArithmeticCast.CastTo(defaultValue, Type);
             }
 
-            public int CompareTo(object? obj)
-            {
-                if (obj is Property property)
-                    return Name.CompareTo(property.Name);
-                throw new InvalidOperationException();
-            }
+            public int CompareTo(RecordProperty? recordProperty) => Name.CompareTo(recordProperty?.Name);
         }
 
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
@@ -101,16 +88,30 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public readonly List<TypeParameter> TypeParameters;
 
         private List<RecordProperty>? properties;
-        private List<ProcedureDeclaration>? messageRecievers;
+        private Dictionary<string, IRValue> defaultValues;
+        private HashSet<string>? propertyNames;
 
+        public ProcedureDeclaration Constructor { get; private set; }
+        public ProcedureDeclaration? Destructor { get; private set; }
+        public ProcedureDeclaration? Copier { get; private set; }
+        public List<IType> ConstructorParameterTypes { get; private set; }
+
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public RecordDeclaration(string name, List<TypeParameter> typeParameters, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement) : base()
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             Name = name;
             TypeParameters = typeParameters;
             ErrorReportedElement = errorReportedElement;
             ParentContainer = parentContainer;
             properties = null;
-            messageRecievers = null;
+            propertyNames = null;
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+            Constructor = null;
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+            Destructor = null;
+            Copier = null;
+            defaultValues = new();
         }
 
         public List<RecordProperty> GetRecordProperties(RecordType recordType)
@@ -133,23 +134,35 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void DelayedLinkSetProperties(List<RecordProperty> properties)
         {
-            if (this.properties != null)
-                throw new InvalidOperationException();
+            Debug.Assert(this.properties == null);
             this.properties = properties;
             IPropertyContainer.SanitizePropertyNames(properties.ConvertAll((prop) => (Property)prop), ErrorReportedElement);
+
+            propertyNames = new();
+            foreach (RecordProperty property in properties)
+                propertyNames.Add(property.Name);
         }
 
-        public void DelayedLinkSetMessageRecievers(List<ProcedureDeclaration> messageRecievers)
+        public void DelayedLinkSetConstructor(ProcedureDeclaration constructor, ProcedureDeclaration? destructor, ProcedureDeclaration? copier)
         {
-            if (this.messageRecievers != null)
-                throw new InvalidOperationException();
-            this.messageRecievers = messageRecievers;
+            Debug.Assert(Constructor == null);
+            Debug.Assert(Destructor == null);
+            Debug.Assert(Copier == null);
+            Constructor = constructor;
+            Destructor = destructor;
+            Copier = copier;
+        }
+
+        public void DelayedLinkSetConstructorParameterTypes(List<IType> constructorParameters)
+        {
+            Debug.Assert(ConstructorParameterTypes == null);
+            ConstructorParameterTypes = constructorParameters;
         }
 
         public void AnalyzePropertyInitialization(ProcedureDeclaration constructor)
         {
 #pragma warning disable CS8602 // Only called during IR generation, following linking
-            SortedSet<RecordProperty> initializedProperties = new(properties.FindAll((property) => property.DefaultValue != null));
+            SortedSet<RecordProperty> initializedProperties = new(properties.FindAll((property) => property.HasDefaultValue));
             constructor.CodeBlockAnalyzePropertyInitialization(initializedProperties, this);
             foreach (RecordProperty property in properties)
                 if (!initializedProperties.Contains(property))
@@ -160,6 +173,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 #pragma warning disable CS8602 // Only called during IR generation, following linking
         public bool AllPropertiesInitialized(SortedSet<RecordProperty> initializedProperties) => properties.TrueForAll(property => initializedProperties.Contains(property));
 #pragma warning restore CS8602
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+        public bool HasProperty(string name) => propertyNames.Contains(name);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
     }
 }
 
@@ -177,6 +194,8 @@ namespace NoHoPython.Typing
 
         private Lazy<List<RecordDeclaration.RecordProperty>> properties;
         private Lazy<Dictionary<string, RecordDeclaration.RecordProperty>> identifierPropertyMap;
+        private Lazy<Dictionary<TypeParameter, IType>> typeargMap;
+        private Lazy<List<IType>> constructorParameterTypes;
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
 
@@ -185,27 +204,41 @@ namespace NoHoPython.Typing
 
         }
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         private RecordType(RecordDeclaration recordPrototype, List<IType> typeArguments)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             RecordPrototype = recordPrototype;
             TypeArguments = typeArguments;
 
-            properties = new Lazy<List<RecordDeclaration.RecordProperty>>(() => recordPrototype.GetRecordProperties(this));
+            properties = new(() => recordPrototype.GetRecordProperties(this));
 
-            identifierPropertyMap = new Lazy<Dictionary<string, RecordDeclaration.RecordProperty>>(() =>
+            identifierPropertyMap = new(() =>
             {
                 var toret = new Dictionary<string, RecordDeclaration.RecordProperty>(properties.Value.Count);
                 foreach (RecordDeclaration.RecordProperty property in properties.Value)
                     toret.Add(property.Name, property);
                 return toret;
             });
+
+            typeargMap = new(() =>
+            {
+                Dictionary<TypeParameter, IType> typeargs = new(RecordPrototype.TypeParameters.Count);
+                for (int i = 0; i < RecordPrototype.TypeParameters.Count; i++)
+                    typeargs.Add(RecordPrototype.TypeParameters[i], TypeArguments[i]);
+                return typeargs;
+            });
+
+            constructorParameterTypes = new(() => recordPrototype.ConstructorParameterTypes.Select((parameter) => parameter.SubstituteWithTypearg(typeargMap.Value)).ToList());
         }
 
-        public bool HasProperty(string identifier) => identifierPropertyMap.Value.ContainsKey(identifier);
+        public bool HasProperty(string identifier) => RecordPrototype.HasProperty(identifier);
 
         public Property FindProperty(string identifier) => identifierPropertyMap.Value[identifier];
 
         public List<Property> GetProperties() => properties.Value.ConvertAll((RecordDeclaration.RecordProperty property) => (Property)property);
+
+        public List<IType> GetConstructorParameterTypes() => constructorParameterTypes.Value;
 
         public bool IsCompatibleWith(IType type)
         {
@@ -254,15 +287,20 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
             irBuilder.ScopeToRecord(IRRecordDeclaration);
 
-            IRProperties = Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder, this), property.IsReadOnly));
+            IRProperties = Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder, this), property.IsReadOnly, IRRecordDeclaration));
             messageRecieverPropertyMap = new(MessageRecievers.Count);
 
             foreach (ProcedureDeclaration messageReciever in MessageRecievers)
             {
                 messageReciever.ForwardDeclare(irBuilder);
-                var recordProperty = messageReciever.GenerateProperty();
-                IRProperties.Add(recordProperty);
-                messageRecieverPropertyMap.Add(messageReciever, recordProperty);
+                if (messageReciever.Name == "__init__")
+                    IRRecordDeclaration.DelayedLinkSetConstructorParameterTypes(messageReciever.Parameters.ConvertAll((parameter) => parameter.Type.ToIRType(irBuilder, messageReciever)));
+                else if (messageReciever.Name != "__copy__" && messageReciever.Name != "__del__")
+                {
+                    var recordProperty = messageReciever.GenerateProperty(irBuilder);
+                    IRProperties.Add(recordProperty);
+                    messageRecieverPropertyMap.Add(messageReciever, recordProperty);
+                }
             }
 
             //link property definitions
@@ -287,9 +325,8 @@ namespace NoHoPython.Syntax.Statements
             IntermediateRepresentation.Statements.ProcedureDeclaration? Constructor = null;
             IntermediateRepresentation.Statements.ProcedureDeclaration? Destructor = null;
             IntermediateRepresentation.Statements.ProcedureDeclaration? Copier = null;
-            IRRecordDeclaration.DelayedLinkSetMessageRecievers(MessageRecievers.ConvertAll((ProcedureDeclaration reciever) => {
+            MessageRecievers.ForEach((ProcedureDeclaration reciever) => {
                 var irProcedure = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
-                messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, false, this, null));
 
                 if (reciever.Name == "__init__")
                     Constructor = irProcedure;
@@ -297,9 +334,9 @@ namespace NoHoPython.Syntax.Statements
                     Destructor = irProcedure;
                 else if (reciever.Name == "__copy__")
                     Copier = irProcedure;
-
-                return irProcedure;
-            }));
+                else
+                    messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, false, this, null));
+            });
 
             if (Constructor == null)
                 throw new RecordMustDefineConstructorError(IRRecordDeclaration);
@@ -309,7 +346,7 @@ namespace NoHoPython.Syntax.Statements
 #pragma warning restore CS8604
             if (Destructor != null) 
             {
-#pragma warning disable CS8604 // return type already linked
+#pragma warning disable CS8604 // return ty  pe already linked
                 if (Destructor.ReturnType is not NothingType)
                     throw new UnexpectedTypeException(Destructor.ReturnType, Primitive.Nothing, Destructor.ErrorReportedElement);
 #pragma warning restore CS8604
@@ -320,6 +357,7 @@ namespace NoHoPython.Syntax.Statements
                 else if (Copier == null)
                     throw new RecordMustDefineCopierError(IRRecordDeclaration);
             }
+            IRRecordDeclaration.DelayedLinkSetConstructor(Constructor, Destructor, Copier);
 
             IType selfType = IRRecordDeclaration.GetSelfType(irBuilder);
             if(Copier != null)

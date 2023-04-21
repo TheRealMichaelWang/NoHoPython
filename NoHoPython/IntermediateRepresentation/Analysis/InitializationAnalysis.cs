@@ -210,6 +210,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    partial class OptimizedRecordMessageCall
+    {
+        public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
+        {
+            if(Record is VariableReference variableReference && variableReference.Variable.IsRecordSelf && !recordDeclaration.AllPropertiesInitialized(initializedProperties))
+                throw new CannotUseUninitializedSelf(ErrorReportedElement);
+
+            base.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
+        }
+    }
+
     partial class LinkedProcedureCall
     {
         public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
@@ -305,7 +316,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if(Record is VariableReference variableReference && variableReference.Variable.IsRecordSelf)
             {
                 RecordDeclaration.RecordProperty recordProperty = (RecordDeclaration.RecordProperty)Property;
-                if (recordProperty.DefaultValue == null && !initializedProperties.Contains(recordProperty))
+                if (!recordProperty.HasDefaultValue && !initializedProperties.Contains(recordProperty))
                     throw new CannotUseUninitializedProperty(Property, ErrorReportedElement);
             }
         }
@@ -320,7 +331,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Record.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
             Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
 
-            if (Property.DefaultValue == null && Record is VariableReference variableReference && variableReference.Variable.IsRecordSelf)
+            if (!Property.HasDefaultValue && Record is VariableReference variableReference && variableReference.Variable.IsRecordSelf)
             {
                 initializedProperties.Add(Property);
                 IsInitializingProperty = true;

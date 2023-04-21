@@ -1,5 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
@@ -23,6 +24,16 @@ namespace NoHoPython.Syntax
             typeDependencyTree.Add(recordType, new HashSet<IType>(recordType.GetProperties().ConvertAll((prop) => prop.Type).Where((type) => type is not RecordType), new ITypeComparer()));
 
             return true;
+        }
+
+        public RecordType? FindSimilarRecordType(RecordType current)
+        {
+            RecordType toret;
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+            if (usedRecordTypes.TryGetValue(current, out toret))
+                return toret;
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+            return null;
         }
     }
 }
@@ -59,7 +70,51 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         partial class RecordProperty
         {
-            public override void EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource) => propertyContainer.EmitGetProperty(irProgram, emitter, valueCSource, Name);
+            public override bool RequiresDisposal => OptimizeMessageReciever;
+
+            public bool OptimizeMessageReciever => Type is ProcedureType && HasDefaultValue && RecordDeclaration.defaultValues[Name] is AnonymizeProcedure && IsReadOnly;
+            public bool HasDefaultValue => RecordDeclaration.defaultValues.ContainsKey(Name);
+
+            public IRValue? DefaultValue { get; private set; }
+
+            public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder, Dictionary<TypeParameter, IType> typeargs)
+            {
+                Type.ScopeForUsedTypes(irBuilder);
+                if(!OptimizeMessageReciever && HasDefaultValue)
+                {
+                    DefaultValue = RecordDeclaration.defaultValues[Name].SubstituteWithTypearg(typeargs);
+                    DefaultValue.ScopeForUsedTypes(new(), irBuilder);
+                }
+            }
+
+            public override void ScopeForUse(bool optimizedMessageRecieverCall, Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+            {
+                if (!OptimizeMessageReciever)
+                    return;
+
+                DefaultValue = RecordDeclaration.defaultValues[Name].SubstituteWithTypearg(typeargs);
+                if(!optimizedMessageRecieverCall)
+                    DefaultValue.ScopeForUsedTypes(new(), irBuilder);
+            }
+
+            public override bool EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource, string responsibleDestroyer)
+            {
+                if (OptimizeMessageReciever)
+                {
+#pragma warning disable CS8600 //DefaultValue != null is a precondition for OptimizeMessageReciever
+#pragma warning disable CS8602
+                    AnonymizeProcedure anonymizeProcedure = (AnonymizeProcedure)DefaultValue;
+                    anonymizeProcedure.EmitForPropertyGet(irProgram, emitter, typeargs, valueCSource, responsibleDestroyer);
+#pragma warning restore CS8602
+#pragma warning restore CS8600
+                    return true;
+                }
+                else
+                {
+                    emitter.Append($"{valueCSource}->{Name}");
+                    return false;
+                }
+            }
         }
 
         public static void EmitRecordMaskProto(StatementEmitter emitter)
@@ -71,6 +126,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine("\tint _nhp_lock;");
             emitter.AppendLine($"\t{RecordType.StandardRecordMask} parent_record;");
             emitter.AppendLine("} _nhp_std_record_mask;");
+            emitter.AppendLine("typedef void (*_nhp_custom_destructor)(void* to_destroy);");
         }
 
         public static void EmitRecordChildFinder(StatementEmitter emitter)
@@ -139,7 +195,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 RecordType genericRecordType = irProgram.RecordTypeOverloads[this].First();
 
-                emitter.AppendLine($"void free_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} child_agent);");
+                emitter.AppendLine($"void free_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} child_agent");
+                if (Destructor != null)
+                    emitter.Append(", _nhp_custom_destructor destructor");
+                emitter.AppendLine(");");
+
                 emitter.AppendLine($"{genericRecordType.GetCName(irProgram)} borrow_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record, void* responsible_destroyer);");
 
                 if (!genericRecordType.HasCopier)
@@ -190,32 +250,52 @@ namespace NoHoPython.Typing
 {
     partial class RecordType
     {
+        public bool HasCopier => copierCall != null;
+
+        private ProcedureReference constructorCall;
+        private ProcedureReference? destructorCall = null;
+        private ProcedureReference? copierCall = null;
+
+        public Dictionary<TypeParameter, IType> TypeargMap => typeargMap.Value;
+
         public static string StandardRecordMask => "_nhp_std_record_mask_t*";
 
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
         public bool TypeParameterAffectsCodegen => properties.Value.Any((property) => property.Type.TypeParameterAffectsCodegen);
 
-        public bool HasDestructor => HasProperty("__del__");
-        public bool HasCopier => HasProperty("__copy__");
-
-        public string GetStandardIdentifier(IRProgram irProgram) => RecordPrototype.EmitMultipleCStructs ? GetStandardIdentifier(irProgram) : $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}";
+        public string GetStandardIdentifier(IRProgram irProgram) => RecordPrototype.EmitMultipleCStructs ? GetOriginalStandardIdentifer(irProgram) : $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}";
         public string GetOriginalStandardIdentifer(IRProgram irProgram) => $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t*";
         public string GetCHeapSizer(IRProgram irProgram) => $"sizeof({GetStandardIdentifier(irProgram)}_t)";
 
-        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) => emitter.Append($"free_record{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){childAgent});");
+        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
+        {
+            emitter.Append($"free_record{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){childAgent}");
+            if (destructorCall == null) 
+            {
+                ITypeComparer comparer = new();
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                destructorCall = irProgram.RecordTypeOverloads[RecordPrototype].Find((type) => comparer.Equals(type, this)).destructorCall;
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+            }
+            if (!RecordPrototype.EmitMultipleCStructs && destructorCall != null)
+                emitter.Append($", (_nhp_custom_destructor)&{destructorCall.GetStandardIdentifier(irProgram)}");
+            emitter.Append(");");
+        }
 
         public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer)
         {
-            if (HasCopier)
+            if (copierCall == null)
             {
-                ProcedureType copierType = (ProcedureType)FindProperty("__copy__").Type;
-                emitter.Append("((");
-                emitter.Append(copierType.GetStandardIdentifier(irProgram));
-                emitter.Append($"_t){valueCSource}->__copy__->_nhp_this_anon)({valueCSource}->__copy__, {responsibleDestroyer})");
+                ITypeComparer comparer = new();
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                copierCall = irProgram.RecordTypeOverloads[RecordPrototype].Find((type) => comparer.Equals(type, this)).copierCall;
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
             }
+            if (copierCall != null)
+                emitter.Append($"{copierCall.GetStandardIdentifier(irProgram)}({valueCSource}, {responsibleDestroyer})");
             else
                 emitter.Append($"copy_record{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){responsibleDestroyer})");
         }
@@ -231,17 +311,21 @@ namespace NoHoPython.Typing
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => emitter.Append($"borrow_record{GetStandardIdentifier(irProgram)}({valueCSource}, ({StandardRecordMask}){responsibleDestroyer})");
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
 
-        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier) => emitter.Append($"{valueCSource}->{propertyIdentifier}");
-
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
-            if (irBuilder.DeclareUsedRecordType(this)) 
-                foreach (var property in properties.Value)
-                {
-                    property.Type.ScopeForUsedTypes(irBuilder);
-                    if (property.DefaultValue != null)
-                        property.DefaultValue.ScopeForUsedTypes(new Dictionary<TypeParameter, IType>(), irBuilder);
-                }
+            if (!irBuilder.DeclareUsedRecordType(this)) 
+                return;
+
+            constructorCall = new ProcedureReference(typeargMap.Value, RecordPrototype.Constructor, false, RecordPrototype.Constructor.ErrorReportedElement);
+            if (RecordPrototype.Destructor != null)
+                destructorCall = new ProcedureReference(typeargMap.Value, RecordPrototype.Destructor, false, RecordPrototype.Destructor.ErrorReportedElement);
+            if(RecordPrototype.Copier != null)
+                copierCall = new ProcedureReference(typeargMap.Value, RecordPrototype.Copier, false, RecordPrototype.Copier.ErrorReportedElement);
+
+            constructorCall = constructorCall.ScopeForUsedTypes(irBuilder);
+            destructorCall = destructorCall?.ScopeForUsedTypes(irBuilder);
+            copierCall = copierCall?.ScopeForUsedTypes(irBuilder);
+            properties.Value.ForEach((property) => property.ScopeForUsedTypes(irBuilder, typeargMap.Value));
         }
 
         public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter)
@@ -265,24 +349,26 @@ namespace NoHoPython.Typing
             emitter.AppendLine("\tint _nhp_master_count;");
             emitter.AppendLine("\tint _nhp_lock;");
             emitter.AppendLine($"\t{StandardRecordMask} parent_record;");
+
             foreach (var property in properties.Value)
-                emitter.AppendLine($"\t{property.Type.GetCName(irProgram)} {property.Name};");
+            {
+                if(!property.OptimizeMessageReciever)
+                    emitter.AppendLine($"\t{property.Type.GetCName(irProgram)} {property.Name};");
+            }
+
             emitter.AppendLine("};");
         }
 
         public void EmitConstructorCHeader(IRProgram irProgram, StatementEmitter emitter)
         {
-            ProcedureType constructorType = (ProcedureType)FindProperty("__init__").Type;
-
             emitter.Append($"{GetCName(irProgram)} construct_{GetOriginalStandardIdentifer(irProgram)}(");
-            for (int i = 0; i < constructorType.ParameterTypes.Count; i++)
-                emitter.Append($"{constructorType.ParameterTypes[i].GetCName(irProgram)} param{i}, ");
+            for (int i = 0; i < constructorParameterTypes.Value.Count; i++)
+                emitter.Append($"{constructorParameterTypes.Value[i].GetCName(irProgram)} param{i}, ");
             emitter.Append($"{StandardRecordMask} parent_record)");
         }
 
         public void EmitConstructor(IRProgram irProgram, StatementEmitter emitter)
         {
-            ProcedureType constructorType = (ProcedureType)FindProperty("__init__").Type;
             EmitConstructorCHeader(irProgram, emitter);
             emitter.AppendLine(" {"); 
             
@@ -293,20 +379,22 @@ namespace NoHoPython.Typing
             emitter.AppendLine("\t_nhp_self->parent_record = parent_record;");
             
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
-                if (recordProperty.DefaultValue != null)
+                if (recordProperty.HasDefaultValue && !recordProperty.OptimizeMessageReciever)
                 {
                     emitter.Append($"\t_nhp_self->{recordProperty.Name} = ");
-                    if (recordProperty.DefaultValue.RequiresDisposal(new Dictionary<TypeParameter, IType>()))
-                        recordProperty.DefaultValue.Emit(irProgram, emitter, new Dictionary<TypeParameter, IType>(), "_nhp_self");
+#pragma warning disable CS8602 //recordProperty.HasDefaultValue guarentees DefaultValue is not null 
+                    if (recordProperty.DefaultValue.RequiresDisposal(new()))
+                        recordProperty.DefaultValue.Emit(irProgram, emitter, new(), "_nhp_self");
                     else
                         recordProperty.Type.EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(recordProperty.DefaultValue, irProgram, new(), "NULL"), "_nhp_self");
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
                     emitter.AppendLine(";");
                 }
 
-            emitter.Append($"\t(({constructorType.GetStandardIdentifier(irProgram)}_t)_nhp_self->__init__->_nhp_this_anon)(_nhp_self->__init__");
-            for (int i = 0; i < constructorType.ParameterTypes.Count; i++)
-                emitter.Append($", param{i}");
-            emitter.AppendLine(");");
+            emitter.Append($"\t{constructorCall.GetStandardIdentifier(irProgram)}(");
+            for (int i = 0; i < constructorParameterTypes.Value.Count; i++)
+                emitter.Append($"param{i}, ");
+            emitter.AppendLine("_nhp_self);");
             
             emitter.AppendLine("\treturn _nhp_self;");
             emitter.AppendLine("}");
@@ -314,7 +402,10 @@ namespace NoHoPython.Typing
 
         public void EmitDestructor(IRProgram irProgram, StatementEmitter emitter)
         {
-            emitter.AppendLine($"void free_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, {StandardRecordMask} child_agent) {{");
+            emitter.Append($"void free_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, {StandardRecordMask} child_agent");
+            if (!RecordPrototype.EmitMultipleCStructs && destructorCall != null)
+                emitter.Append(", _nhp_custom_destructor destructor");
+            emitter.AppendLine(") {");
 
             emitter.AppendLine($"\tif(record->_nhp_lock || _nhp_record_has_child(({StandardRecordMask})record, child_agent))");
             emitter.AppendLine("\t\treturn;");
@@ -331,14 +422,11 @@ namespace NoHoPython.Typing
             emitter.AppendLine("\t}");
             
             emitter.AppendLine("\trecord->_nhp_lock = 1;");
-            if (HasDestructor)
-            {
-                ProcedureType destructorType = (ProcedureType)FindProperty("__del__").Type;
-                emitter.AppendLine($"\t(({destructorType.GetStandardIdentifier(irProgram)}_t)record->__del__->_nhp_this_anon)(record->__del__);");
-            }
+            if (destructorCall != null)
+                emitter.AppendLine("\tdestructor(record);");
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
             {
-                if (recordProperty.Type.RequiresDisposal)
+                if (recordProperty.Type.RequiresDisposal && !recordProperty.OptimizeMessageReciever)
                 {
                     emitter.Append('\t');
                     recordProperty.Type.EmitFreeValue(irProgram, emitter, $"record->{recordProperty.Name}", "record");
@@ -351,7 +439,7 @@ namespace NoHoPython.Typing
 
         public void EmitCopier(IRProgram irProgram, StatementEmitter emitter)
         {
-            if (HasCopier)
+            if (copierCall != null)
                 return;
 
             emitter.AppendLine($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, {StandardRecordMask} parent_record) {{");
@@ -363,9 +451,12 @@ namespace NoHoPython.Typing
 
             foreach (RecordDeclaration.RecordProperty property in properties.Value)
             {
-                emitter.Append($"\tcopied_record->{property.Name} = ");
-                property.Type.EmitRecordCopyValue(irProgram, emitter, $"record->{property.Name}", "copied_record");
-                emitter.AppendLine(";");
+                if (!property.OptimizeMessageReciever)
+                {
+                    emitter.Append($"\tcopied_record->{property.Name} = ");
+                    property.Type.EmitRecordCopyValue(irProgram, emitter, $"record->{property.Name}", "copied_record");
+                    emitter.AppendLine(";");
+                }
             }
 
             emitter.AppendLine("\treturn copied_record;");

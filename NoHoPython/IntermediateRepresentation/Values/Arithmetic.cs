@@ -64,7 +64,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return value;
             else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to_{typeTarget.Identifier}"))
             {
-                IRValue call = new AnonymousProcedureCall(new GetPropertyValue(value, $"to_{typeTarget.Identifier}", value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
+                IRValue call = AnonymousProcedureCall.ComposeCall(new GetPropertyValue(value, $"to_{typeTarget.Identifier}", value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
                 if (!call.Type.IsCompatibleWith(typeTarget))
                     throw new UnexpectedTypeException(typeTarget, call.Type, value.ErrorReportedElement);
                 return call;
@@ -164,16 +164,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement)
         {
             return left.Type is IPropertyContainer leftContainer && leftContainer.HasProperty(operatorOverloadIdentifiers[operation])
-                ? new AnonymousProcedureCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation], errorReportedElement), new List<IRValue>()
+                ? AnonymousProcedureCall.ComposeCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation], errorReportedElement), new List<IRValue>()
                 {
                     right
                 }, errorReportedElement)
                 : OperationIsCommunicative(operation) && right.Type is IPropertyContainer rightContainer && rightContainer.HasProperty(operatorOverloadIdentifiers[operation])
-                ? new AnonymousProcedureCall(new GetPropertyValue(right, operatorOverloadIdentifiers[operation], errorReportedElement), new List<IRValue>()
+                ? AnonymousProcedureCall.ComposeCall(new GetPropertyValue(right, operatorOverloadIdentifiers[operation], errorReportedElement), new List<IRValue>()
                 {
                     left
                 }, errorReportedElement)
-                : (IRValue)new ArithmeticOperator(operation, left, right, errorReportedElement);
+                : new ArithmeticOperator(operation, left, right, errorReportedElement);
         }
 
         public ArithmeticOperation Operation { get; private set; }

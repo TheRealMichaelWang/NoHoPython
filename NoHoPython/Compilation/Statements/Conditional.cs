@@ -272,6 +272,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             MatchValue.Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
             foreach (MatchHandler handler in MatchHandlers)
                 handler.ToExecute.ScopeForUsedTypes(typeargs, irBuilder);
+            if (DefaultHandler != null)
+                DefaultHandler.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
         public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)

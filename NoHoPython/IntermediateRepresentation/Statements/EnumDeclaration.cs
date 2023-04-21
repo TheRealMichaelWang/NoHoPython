@@ -205,7 +205,20 @@ namespace NoHoPython.Typing
 
     public sealed partial class EnumType : IType, IPropertyContainer
     {
-        private static Dictionary<EnumType, Lazy<Dictionary<string, Property>>> globalSupportedProperties = new(new ITypeComparer());
+        public sealed partial class EnumProperty : Property
+        {
+            public EnumType EnumType { get; private set; }
+
+            public EnumProperty(string name, IType type, EnumType enumType) : base(name, type)
+            {
+                EnumType = enumType;
+            }
+
+            public override bool Equals(object? obj) => obj is EnumProperty enumProperty ? enumProperty.Type.IsCompatibleWith(Type) && enumProperty.Name == Name : false;
+            public override int GetHashCode() => Type.Identifier.GetHashCode() ^ Name.GetHashCode();
+        }
+
+        private static Dictionary<EnumType, Lazy<Dictionary<string, EnumProperty>>> globalSupportedProperties = new(new ITypeComparer());
 
         public bool IsNativeCType => false;
         public string TypeName => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
@@ -241,7 +254,7 @@ namespace NoHoPython.Typing
                 IPropertyContainer firstType = (IPropertyContainer)options.Value.Keys.First();
 
                 List<Property> firstTypeProperties = firstType.GetProperties();
-                Dictionary<string, Property> propertyIdMap = new(firstTypeProperties.Count);
+                Dictionary<string, EnumProperty> propertyIdMap = new(firstTypeProperties.Count);
                 foreach (Property property in firstTypeProperties)
                 {
                     bool foundFlag = true;
@@ -261,7 +274,7 @@ namespace NoHoPython.Typing
                         }
                     }
                     if (foundFlag)
-                        propertyIdMap.Add(property.Name, property);
+                        propertyIdMap.Add(property.Name, new EnumProperty(property.Name, property.Type, this));
                 };
                 return propertyIdMap;
             });
@@ -269,7 +282,7 @@ namespace NoHoPython.Typing
 
         public List<IType> GetOptions() => options.Value.Keys.ToList();
 
-        public List<Property> GetProperties() => globalSupportedProperties[this].Value.Values.ToList();
+        public List<Property> GetProperties() => globalSupportedProperties[this].Value.Values.Select((property) => property as Property).ToList();
 
         public Property FindProperty(string identifier) => globalSupportedProperties[this].Value[identifier];
 

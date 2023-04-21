@@ -3,7 +3,7 @@ using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
-using System.Text;
+using System.Diagnostics;
 
 namespace NoHoPython.Syntax
 {
@@ -185,9 +185,67 @@ namespace NoHoPython.Typing
 
     partial class EnumType
     {
+        partial class EnumProperty
+        {
+            public override bool RequiresDisposal => EnumType.propertyRequiresDisposal[this];
+            
+            public bool IsUsed
+            {
+                get
+                {
+                    if(EnumType.EnumDeclaration.EmitMultipleCStructs)
+                    {
+                        if (typePropertyInUse.ContainsKey(EnumType))
+                            return typePropertyInUse[EnumType].Contains(this);
+                    }
+                    else if(declarationPropertyInUse.ContainsKey(EnumType.EnumDeclaration))
+                        return declarationPropertyInUse[EnumType.EnumDeclaration].Contains(this);
+                    return false;
+                }
+            }
+
+            public override void ScopeForUse(bool optimizedMessageRecieverCall, Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+            {
+                Debug.Assert(!optimizedMessageRecieverCall);
+
+                EnumType enumType = (EnumType)EnumType.SubstituteWithTypearg(typeargs);
+
+                foreach(IType type in enumType.options.Value.Keys)
+                {
+                    Property accessProperty = ((IPropertyContainer)type).FindProperty(Name);
+                    accessProperty.ScopeForUse(false, typeargs, irBuilder);
+                }
+
+                if (!declarationPropertyInUse.ContainsKey(enumType.EnumDeclaration))
+                    declarationPropertyInUse.Add(enumType.EnumDeclaration, new());
+                declarationPropertyInUse[enumType.EnumDeclaration].Add(this);
+
+                if (!typePropertyInUse.ContainsKey(enumType))
+                    typePropertyInUse.Add(enumType, new());
+                typePropertyInUse[enumType].Add(this);
+            }
+
+            public override bool EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource, string responsibleDestroyer)
+            {
+                Debug.Assert(propertyContainer is EnumType enumType && EnumType.IsCompatibleWith(enumType));
+
+                emitter.Append($"get_{Name}{EnumType.GetStandardIdentifier(irProgram)}({valueCSource}");
+                if (RequiresDisposal)
+                    emitter.Append($", {responsibleDestroyer}");
+                emitter.Append(')');
+
+                return false;
+            }
+        }
+
+        private static Dictionary<EnumDeclaration, HashSet<EnumProperty>> declarationPropertyInUse = new();
+        private static Dictionary<EnumType, HashSet<EnumProperty>> typePropertyInUse = new(new ITypeComparer());
+
         public bool RequiresDisposal => options.Value.Keys.Any((option) => option.RequiresDisposal);
         public bool MustSetResponsibleDestroyer => options.Value.Keys.Any((option) => option.MustSetResponsibleDestroyer);
         public bool TypeParameterAffectsCodegen => options.Value.Keys.Any((option) => option.TypeParameterAffectsCodegen);
+
+        private Dictionary<EnumProperty, bool> propertyRequiresDisposal = new();
 
         public string GetStandardIdentifier(IRProgram irProgram) => EnumDeclaration.EmitMultipleCStructs ? $"_nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}" : $"_nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}";
 
@@ -227,8 +285,6 @@ namespace NoHoPython.Typing
                 emitter.Append($"({destC} = {valueCSource})");
         }
 
-        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier) => emitter.Append($"get_{propertyIdentifier}{GetStandardIdentifier(irProgram)}({valueCSource})");
-
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
 
@@ -259,7 +315,7 @@ namespace NoHoPython.Typing
         public void EmitCStructImmediatley(IRProgram irProgram, StatementEmitter emitter)
         {
             emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
-            emitter.AppendLine($"\t{GetStandardIdentifier(irProgram)}_options_t option;");
+            emitter.AppendLine($"\t_nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_options_t option;");
 
             emitter.AppendLine($"\tunion {GetStandardIdentifier(irProgram)}_data {{");
             foreach (IType option in options.Value.Keys)
@@ -274,8 +330,11 @@ namespace NoHoPython.Typing
 
         public void EmitPropertyGetHeaders(IRProgram irProgram, StatementEmitter emitter)
         {
-            foreach (Property property in globalSupportedProperties[this].Value.Values)
-                emitter.AppendLine($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum);");
+            foreach (EnumProperty property in globalSupportedProperties[this].Value.Values)
+            {
+                if(property.IsUsed)
+                    emitter.AppendLine($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum);");
+            }
         }
 
         public void EmitPropertyGetters(IRProgram irProgram, StatementEmitter emitter)
@@ -284,20 +343,42 @@ namespace NoHoPython.Typing
             for (int i = 0; i < TypeArguments.Count; i++)
                 typeargs.Add(EnumDeclaration.TypeParameters[i], TypeArguments[i]);
 
-            foreach (Property property in globalSupportedProperties[this].Value.Values)
+            foreach (EnumProperty property in globalSupportedProperties[this].Value.Values)
             {
-                emitter.AppendLine($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum) {{");
-                emitter.AppendLine("\tswitch(_nhp_enum.option) {");
-                foreach (KeyValuePair<IType, int> option in options.Value)
+                if (property.IsUsed)
                 {
-                    emitter.AppendLine($"\tcase {EnumDeclaration.GetCEnumOptionForType(irProgram, option.Value)}:");
-                    emitter.Append("\t\treturn ");
-                    IPropertyContainer propertyContainer = (IPropertyContainer)option.Key;
-                    property.EmitGet(irProgram, emitter, typeargs, propertyContainer, $"_nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set");
-                    emitter.AppendLine(";");
+                    bool requiresDisposal = options.Value.Any((option) => ((IPropertyContainer)option.Key).FindProperty(property.Name).RequiresDisposal);
+                    propertyRequiresDisposal.Add(property, requiresDisposal);
+
+                    emitter.Append($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum");
+                    if (requiresDisposal)
+                        emitter.Append(", void* responsible_destroyer");
+                    emitter.AppendLine(") {");
+
+                    emitter.AppendLine("\tswitch(_nhp_enum.option) {");
+                    foreach (KeyValuePair<IType, int> option in options.Value)
+                    {
+                        emitter.AppendLine($"\tcase {EnumDeclaration.GetCEnumOptionForType(irProgram, option.Value)}:");
+                        emitter.Append("\t\treturn ");
+
+                        IPropertyContainer propertyContainer = (IPropertyContainer)option.Key;
+                        Property accessProperty = propertyContainer.FindProperty(property.Name);
+
+                        if (!accessProperty.RequiresDisposal && requiresDisposal)
+                        {
+                            BufferedEmitter propertyGet = new();
+                            accessProperty.EmitGet(irProgram, propertyGet, typeargs, propertyContainer, $"_nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set", "NULL");
+                            property.Type.EmitCopyValue(irProgram, emitter, propertyGet.ToString(), "responsible_destroyer");
+                        }
+                        else
+                        {
+                            accessProperty.EmitGet(irProgram, emitter, typeargs, propertyContainer, $"_nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set", "responsible_destroyer");
+                        }
+                        emitter.AppendLine(";");
+                    }
+                    emitter.AppendLine("\t}");
+                    emitter.AppendLine("}");
                 }
-                emitter.AppendLine("\t}");
-                emitter.AppendLine("}");
             }
         }
 

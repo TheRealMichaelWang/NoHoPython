@@ -96,9 +96,10 @@ public static class Program
         {
             Console.WriteLine($"File not found: {f.Message}");
         }
-        catch(InvalidOperationException e)
+        catch (InvalidOperationException e)
         {
             Console.WriteLine("An internal compiler error has occured; please report the following stack trace to https://github.com/TheRealMichaelWang/NoHoPython/issues/new.");
+            Console.WriteLine(e.Message);
             Console.WriteLine(e.StackTrace);
         }
 

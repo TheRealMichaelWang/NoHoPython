@@ -68,11 +68,18 @@ namespace NoHoPython.Typing
     {
         partial class TupleProperty
         {
-            public override void EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource)
+            public override bool RequiresDisposal => false;
+
+            public override bool EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource, string responsibleDestroyer)
             {
+                Debug.Assert(propertyContainer is TupleType);
+
                 IType realPropertyType = Type.SubstituteWithTypearg(typeargs);
                 Debug.Assert(realPropertyType is not TypeParameterReference);
-                propertyContainer.EmitGetProperty(irProgram, emitter, valueCSource, $"{realPropertyType.Identifier}{TypeNumber}");
+
+                emitter.Append($"{valueCSource}.{realPropertyType.Identifier}{TypeNumber}");
+
+                return false;
             }
         }
 
@@ -140,8 +147,6 @@ namespace NoHoPython.Typing
 
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
-
-        public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier) => emitter.Append($"{valueCSource}.{propertyIdentifier}");
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {

@@ -4,6 +4,7 @@ using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.Syntax
 {
@@ -230,7 +231,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             this.errorReportedElement = errorReportedElement;
         }
 
-        private ProcedureReference(Dictionary<Typing.TypeParameter, IType> typeArguments, ProcedureDeclaration procedureDeclaration, bool isAnonymous, IAstElement errorReportedElement)
+        public ProcedureReference(Dictionary<Typing.TypeParameter, IType> typeArguments, ProcedureDeclaration procedureDeclaration, bool isAnonymous, IAstElement errorReportedElement)
         {
             ProcedureDeclaration = procedureDeclaration;
             IsAnonymous = isAnonymous;
@@ -257,6 +258,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     newTypeargs.Add(typearg.Key, typearg.Value);
             return new ProcedureReference(newTypeargs, ProcedureDeclaration, IsAnonymous, errorReportedElement);
         }
+
+        public ProcedureReference CreateRegularReference() => new ProcedureReference(typeArguments, ProcedureDeclaration, false, errorReportedElement);
 
         public bool IsCompatibleWith(ProcedureReference procedureReference)
         {
@@ -337,13 +340,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsFalsey => false;
 
         public readonly List<IRValue> Arguments;
-        private bool assignResponsibleDestroyer;
 
-        public ProcedureCall(List<IType> expectedParameters, List<IRValue> arguments, bool assignResponsibleDestroyer, IAstElement errorReportedElement)
+        public ProcedureCall(List<IType> expectedParameters, List<IRValue> arguments, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
             Arguments = arguments;
-            this.assignResponsibleDestroyer = assignResponsibleDestroyer;
 
             if (expectedParameters.Count != arguments.Count)
                 throw new UnexpectedTypeArgumentsException(expectedParameters.Count, arguments.Count, errorReportedElement);
@@ -366,7 +367,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         }
 
-        private LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments, ProcedureDeclaration? parentProcedure, IAstElement errorReportedElement) : base(procedure.ParameterTypes, arguments, true, errorReportedElement)
+        private LinkedProcedureCall(ProcedureReference procedure, List<IRValue> arguments, ProcedureDeclaration? parentProcedure, IAstElement errorReportedElement) : base(procedure.ParameterTypes, arguments, errorReportedElement)
         {
             Procedure = procedure;
             this.parentProcedure = parentProcedure;
@@ -380,18 +381,57 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class AnonymousProcedureCall : ProcedureCall
     {
+        public static IRValue ComposeCall(IRValue procedureValue, List<IRValue> arguments, IAstElement errorReportedElement)
+        {
+            if (procedureValue is GetPropertyValue getProperty && getProperty.Property is RecordDeclaration.RecordProperty property && property.OptimizeMessageReciever)
+                return new OptimizedRecordMessageCall(property, getProperty.Record, arguments, errorReportedElement);
+            return new AnonymousProcedureCall(procedureValue, arguments, errorReportedElement);
+        }
+
         public override IType Type => ProcedureType.ReturnType;
 
         public IRValue ProcedureValue { get; private set; }
         public ProcedureType ProcedureType { get; private set; }
 
-        public AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments, IAstElement errorReportedElement) : base((procedureValue.Type is ProcedureType procedureType ? procedureType : throw new UnexpectedTypeException(procedureValue.Type, errorReportedElement)).ParameterTypes, arguments, true, errorReportedElement)
+        private AnonymousProcedureCall(IRValue procedureValue, List<IRValue> arguments, IAstElement errorReportedElement) : base((procedureValue.Type is ProcedureType procedureType ? procedureType : throw new UnexpectedTypeException(procedureValue.Type, errorReportedElement)).ParameterTypes, arguments, errorReportedElement)
         {
             ProcedureValue = procedureValue;
             ProcedureType = procedureType;
         }
 
         public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymousProcedureCall(ProcedureValue.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
+    }
+
+    public sealed partial class OptimizedRecordMessageCall : ProcedureCall
+    {
+        public override IType Type => ((ProcedureType)Property.Type).ReturnType;
+
+        //public ProcedureReference Procedure { get; private set; }
+
+        public RecordDeclaration.RecordProperty Property { get; private set; }
+        public IRValue Record { get; private set; }
+
+        public OptimizedRecordMessageCall(RecordDeclaration.RecordProperty property, IRValue record, List<IRValue> arguments, IAstElement errorReportedElement) : base(property.Type is ProcedureType procedureType ? procedureType.ParameterTypes : throw new UnexpectedTypeException(property.Type, errorReportedElement), arguments, errorReportedElement)
+        {
+            Debug.Assert(property.OptimizeMessageReciever);
+
+            Property = property;
+            Record = record;
+
+//#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+//            AnonymizeProcedure anonymizeProcedure = (AnonymizeProcedure)property.defaultValue;
+//            RecordType recordType = (RecordType)Record.Type;
+//#pragma warning disable CS8602 // Dereference of a possibly null reference.
+//            Procedure = new ProcedureReference(anonymizeProcedure.Procedure.ProcedureDeclaration, false, errorReportedElement);
+//            Dictionary<Typing.TypeParameter, IType> typeargs = new();
+//            for (int i = 0; i < recordType.RecordPrototype.TypeParameters.Count; i++)
+//                typeargs.Add(recordType.RecordPrototype.TypeParameters[i], recordType.TypeArguments[i]);
+//            Procedure = Procedure.SubstituteWithTypearg(typeargs);
+//#pragma warning restore CS8602 
+//#pragma warning restore CS8600 
+        }
+
+        public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new OptimizedRecordMessageCall(Property.SubstituteWithTypearg(typeargs), Record.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
     }
 
     public sealed partial class AnonymizeProcedure : IRValue
@@ -404,7 +444,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public ProcedureReference Procedure { get; private set; }
         public bool GetFunctionHandle { get; private set; }
         private ProcedureDeclaration? parentProcedure;
-
 
         private AnonymizeProcedure(ProcedureReference procedure, bool getFunctionHandle, ProcedureDeclaration? parentProcedure, IAstElement errorReportedElement)
         {
@@ -434,7 +473,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public ForeignCProcedureDeclaration ForeignCProcedure { get; private set; }
 
-        public ForeignFunctionCall(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, IAstElement errorReportedElement) : base(foreignCProcedure.ParameterTypes, arguments, true, errorReportedElement)
+        public ForeignFunctionCall(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, IAstElement errorReportedElement) : base(foreignCProcedure.ParameterTypes, arguments, errorReportedElement)
         {
             ForeignCProcedure = foreignCProcedure;
         }
@@ -508,7 +547,7 @@ namespace NoHoPython.Syntax.Statements
 
 #pragma warning disable CS8602 // Only called after ForwardDeclare, when parameter is initialized
 #pragma warning disable CS8604 // Return type linked after initialization
-        public IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty GenerateProperty() => new(Name, new ProcedureType(IRProcedureDeclaration.ReturnType, IRProcedureDeclaration.Parameters.ConvertAll((param) => param.Type)), true);
+        public IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty GenerateProperty(AstIRProgramBuilder irBuilder) => new(Name, new ProcedureType(IRProcedureDeclaration.ReturnType, IRProcedureDeclaration.Parameters.ConvertAll((param) => param.Type)), true, irBuilder.ScopedRecordDeclaration);
 #pragma warning restore CS8604
 #pragma warning restore CS8602
 
@@ -571,7 +610,7 @@ namespace NoHoPython.Syntax.Values
             return procedureSymbol is ProcedureDeclaration procedureDeclaration
                 ? (IRValue)new LinkedProcedureCall(procedureDeclaration, GenerateArguments(irBuilder, Arguments, procedureDeclaration.Parameters.ConvertAll((parameter) => parameter.Type), false), irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedType, this)
                 : procedureSymbol is Variable variable
-                ? new AnonymousProcedureCall(new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
+                ? AnonymousProcedureCall.ComposeCall(new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
                 : procedureSymbol is ForeignCProcedureDeclaration foreignFunction
                 ? new ForeignFunctionCall(foreignFunction, GenerateArguments(irBuilder, Arguments, foreignFunction.ParameterTypes, willRevaluate), this)
                 : throw new NotAProcedureException(procedureSymbol, this);
@@ -589,7 +628,7 @@ namespace NoHoPython.Syntax.Values
 
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
-            return new AnonymousProcedureCall(ProcedureValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this);
+            return AnonymousProcedureCall.ComposeCall(ProcedureValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this);
         }
     }
 

@@ -4,6 +4,7 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.Syntax
 {
@@ -26,24 +27,24 @@ namespace NoHoPython.Syntax
             typeDependencyTree.Add(procedureType, new HashSet<IType>(dependencies.Where((type) => type is not RecordType && type is not ProcedureType), new ITypeComparer()));
         }
 
-        public bool DeclareUsedProcedureReference(ProcedureReference procedureReference)
+        public ProcedureReference? DeclareUsedProcedureReference(ProcedureReference procedureReference)
         {
             foreach (ProcedureReference usedReference in usedProcedureReferences)
                 if (usedReference.IsCompatibleWith(procedureReference))
-                    return false;
+                    return usedReference;
 
             usedProcedureReferences.Add(procedureReference);
             if (!procedureOverloads.ContainsKey(procedureReference.ProcedureDeclaration))
                 procedureOverloads.Add(procedureReference.ProcedureDeclaration, new List<ProcedureReference>());
             procedureOverloads[procedureReference.ProcedureDeclaration].Add(procedureReference);
 
-            return true;
+            return procedureReference;
         }
 
         public void ScopeForAllSecondaryProcedures()
         {
             for (int i = 0; i < usedProcedureReferences.Count; i++)
-                usedProcedureReferences[i].ScopeForUsedTypes(this);
+                usedProcedureReferences[i] = usedProcedureReferences[i].ScopeForUsedTypes(this);
         }
     }
 }
@@ -250,7 +251,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (!IsCompileHead)
                 throw new InvalidOperationException();
 
-            irBuilder.DeclareUsedProcedureReference(new ProcedureReference(this, false, ErrorReportedElement));
+            ProcedureReference procedureReference = new ProcedureReference(this, false, ErrorReportedElement);
+            procedureReference.ScopeForUsedTypes(irBuilder);
         }
 
         public override void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
@@ -310,7 +312,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         private ProcedureReference? complementaryProcedureReference = null;
         private bool emittedCapturedContextStruct = false;
 
-        public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
+        public ProcedureReference ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
             ReturnType.ScopeForUsedTypes(irBuilder);
             foreach (IType type in ParameterTypes)
@@ -321,7 +323,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (IsAnonymous)
                 anonProcedureType.ScopeForUsedTypes(irBuilder);
 
-            irBuilder.DeclareUsedProcedureReference(this);
+            ProcedureReference? procedureReference = irBuilder.DeclareUsedProcedureReference(this);
+            return procedureReference != null ? procedureReference : this;
         }
 
         private void EmitCFunctionHeader(IRProgram irProgram, StatementEmitter emitter)
@@ -828,6 +831,50 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    partial class OptimizedRecordMessageCall
+    {
+        ProcedureReference? toCall = null;
+
+        public override void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            Record.ScopeForUsedTypes(typeargs, irBuilder);
+            Property.ScopeForUse(true, typeargs, irBuilder);
+            base.ScopeForUsedTypes(typeargs, irBuilder);
+
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            RecordType recordType = (RecordType)Record.Type.SubstituteWithTypearg(typeargs);
+            toCall = ((AnonymizeProcedure)Property.DefaultValue).Procedure.SubstituteWithTypearg(recordType.TypeargMap).SubstituteWithTypearg(typeargs).CreateRegularReference();
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+            toCall = toCall.ScopeForUsedTypes(irBuilder);
+        }
+
+        public override void EmitCall(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int currentNestedCall, string responsibleDestroyer)
+        {
+            if (!Record.IsPure)
+                throw new CannotEnsureOrderOfEvaluation(this);
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            emitter.Append($"{toCall.GetStandardIdentifier(irProgram)}(");
+            EmitArguments(irProgram, emitter, typeargs, bufferedArguments, currentNestedCall);
+            
+            if(Arguments.Count > 0 && (toCall.ReturnType.MustSetResponsibleDestroyer || toCall.ProcedureDeclaration.CapturedVariables.Count > 0))
+                emitter.Append(", ");
+
+            if (toCall.ProcedureDeclaration.CapturedVariables.Count > 0)
+            {
+                IRValue.EmitMemorySafe(Record, irProgram, emitter, typeargs);
+                if(toCall.ReturnType.MustSetResponsibleDestroyer)
+                    emitter.Append($", {responsibleDestroyer}");
+            }
+            else
+                emitter.Append(responsibleDestroyer);
+            emitter.Append(')');
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+        }
+    }
+
     partial class AnonymizeProcedure
     {
         ProcedureReference? toAnonymize = null;
@@ -837,7 +884,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
             toAnonymize = Procedure.SubstituteWithTypearg(typeargs);
-            toAnonymize.ScopeForUsedTypes(irBuilder);
+            toAnonymize = toAnonymize.ScopeForUsedTypes(irBuilder);
         }
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
@@ -857,6 +904,22 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     emitter.Append(", ");
                 }
                 emitter.Append($"{responsibleDestroyer}, &{toAnonymize.GetStandardIdentifier(irProgram)})");
+            }
+            else
+                emitter.Append($"capture_anon_proc(&{Procedure.GetStandardIdentifier(irProgram)})");
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+        }
+
+        public void EmitForPropertyGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string recordCSource, string responsibleDestroyer)
+        {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            Debug.Assert(!GetFunctionHandle);
+            Debug.Assert(toAnonymize.ProcedureDeclaration.CapturedVariables.Count <= 1);
+
+            if(toAnonymize.ProcedureDeclaration.CapturedVariables.Count == 1)
+            {
+                Debug.Assert(toAnonymize.ProcedureDeclaration.CapturedVariables[0].IsRecordSelf);
+                emitter.Append($"capture_{toAnonymize.GetComplementaryIdentifier(irProgram)}({recordCSource}, {responsibleDestroyer}, &{Procedure.GetStandardIdentifier(irProgram)})");
             }
             else
                 emitter.Append($"capture_anon_proc(&{Procedure.GetStandardIdentifier(irProgram)})");

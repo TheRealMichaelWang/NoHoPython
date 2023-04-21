@@ -51,7 +51,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (left.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("compare"))
             {
-                Left = ArithmeticCast.CastTo(new AnonymousProcedureCall(new GetPropertyValue(left, "compare", errorReportedElement), new List<IRValue>()
+                Left = ArithmeticCast.CastTo(AnonymousProcedureCall.ComposeCall(new GetPropertyValue(left, "compare", errorReportedElement), new List<IRValue>()
                 {
                     right
                 }, errorReportedElement), Primitive.Integer);
@@ -113,7 +113,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public static IRValue ComposeGetValueAtIndex(IRValue array, IRValue index, IType? expectedType, IAstElement errorReportedElement)
         {
             return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("getAtIndex")
-                ? new AnonymousProcedureCall(new GetPropertyValue(array, "getAtIndex", errorReportedElement), new List<IRValue>()
+                ? AnonymousProcedureCall.ComposeCall(new GetPropertyValue(array, "getAtIndex", errorReportedElement), new List<IRValue>()
                 {
                     index
                 }, array.ErrorReportedElement)
@@ -150,7 +150,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public static IRValue ComposeSetValueAtIndex(IRValue array, IRValue index, IRValue value, IAstElement errorReportedElement)
         {
             return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("setAtIndex")
-                ? new AnonymousProcedureCall(new GetPropertyValue(array, "setAtIndex", errorReportedElement), new List<IRValue>()
+                ? AnonymousProcedureCall.ComposeCall(new GetPropertyValue(array, "setAtIndex", errorReportedElement), new List<IRValue>()
                 {
                     index,
                     value

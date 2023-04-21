@@ -139,7 +139,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;
-        public bool TypeParameterAffectsCodegen => ElementType.TypeParameterAffectsCodegen;
+        public bool TypeParameterAffectsCodegen => true;
 
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
         {

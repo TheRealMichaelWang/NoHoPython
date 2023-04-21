@@ -233,7 +233,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public RecordType RecordPrototype { get; private set; }
 
-        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, IAstElement errorReportedElement) : base(((ProcedureType)recordPrototype.FindProperty("__init__").Type).ParameterTypes, constructorArguments, false, errorReportedElement)
+        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, IAstElement errorReportedElement) : base(recordPrototype.GetConstructorParameterTypes(), constructorArguments, errorReportedElement)
         {
             RecordPrototype = recordPrototype;
         }

@@ -9,8 +9,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public sealed partial class InterfaceProperty : Property
         {
-            public override bool IsReadOnly => true;
-
             public InterfaceProperty(string name, IType type) : base(name, type) { }
 
             public bool SatisfiesRequirement(Property property) => property.Name == Name && Type.IsCompatibleWith(property.Type);

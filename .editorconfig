@@ -2,3 +2,6 @@
 
 # IDE0044: Add readonly modifier
 dotnet_diagnostic.IDE0044.severity = silent
+
+# IDE0022: Use block body for methods
+csharp_style_expression_bodied_methods = false

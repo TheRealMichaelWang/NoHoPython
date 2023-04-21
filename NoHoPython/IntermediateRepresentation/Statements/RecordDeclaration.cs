@@ -54,16 +54,19 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public sealed partial class RecordProperty : Property, IComparable<RecordProperty>
         {
             public bool IsReadOnly { get; private set; }
-            private RecordDeclaration RecordDeclaration;
 
-            public RecordProperty(string name, IType type, bool isReadOnly, RecordDeclaration recordDeclaration) : base(name, type)
+            private RecordDeclaration RecordDeclaration;
+            private RecordType RecordType;
+
+            public RecordProperty(string name, IType type, bool isReadOnly, RecordType recordType, RecordDeclaration recordDeclaration) : base(name, type)
             {
                 IsReadOnly = isReadOnly;
                 RecordDeclaration = recordDeclaration;
+                RecordType = recordType;
                 DefaultValue = null;
             }
 
-            public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), IsReadOnly, RecordDeclaration);
+            public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), IsReadOnly, (RecordType)RecordType.SubstituteWithTypearg(typeargs), RecordDeclaration);
 
             public void DelayedLinkSetDefaultValue(IRValue defaultValue)
             {
@@ -287,7 +290,8 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
             irBuilder.ScopeToRecord(IRRecordDeclaration);
 
-            IRProperties = Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder, this), property.IsReadOnly, IRRecordDeclaration));
+            RecordType selfType = IRRecordDeclaration.GetSelfType(irBuilder);
+            IRProperties = Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder, this), property.IsReadOnly, selfType, IRRecordDeclaration));
             messageRecieverPropertyMap = new(MessageRecievers.Count);
 
             foreach (ProcedureDeclaration messageReciever in MessageRecievers)
@@ -297,7 +301,7 @@ namespace NoHoPython.Syntax.Statements
                     IRRecordDeclaration.DelayedLinkSetConstructorParameterTypes(messageReciever.Parameters.ConvertAll((parameter) => parameter.Type.ToIRType(irBuilder, messageReciever)));
                 else if (messageReciever.Name != "__copy__" && messageReciever.Name != "__del__")
                 {
-                    var recordProperty = messageReciever.GenerateProperty(irBuilder);
+                    var recordProperty = messageReciever.GenerateProperty(irBuilder, selfType);
                     IRProperties.Add(recordProperty);
                     messageRecieverPropertyMap.Add(messageReciever, recordProperty);
                 }
@@ -359,7 +363,7 @@ namespace NoHoPython.Syntax.Statements
             }
             IRRecordDeclaration.DelayedLinkSetConstructor(Constructor, Destructor, Copier);
 
-            IType selfType = IRRecordDeclaration.GetSelfType(irBuilder);
+            RecordType selfType = IRRecordDeclaration.GetSelfType(irBuilder);
             if(Copier != null)
             {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.

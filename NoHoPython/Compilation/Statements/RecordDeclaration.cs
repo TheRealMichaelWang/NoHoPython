@@ -77,12 +77,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             public IRValue? DefaultValue { get; private set; }
 
-            public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder, Dictionary<TypeParameter, IType> typeargs)
+            public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
             {
                 Type.ScopeForUsedTypes(irBuilder);
                 if(!OptimizeMessageReciever && HasDefaultValue)
                 {
-                    DefaultValue = RecordDeclaration.defaultValues[Name].SubstituteWithTypearg(typeargs);
+                    DefaultValue = RecordDeclaration.defaultValues[Name].SubstituteWithTypearg(RecordType.TypeargMap);
                     DefaultValue.ScopeForUsedTypes(new(), irBuilder);
                 }
             }
@@ -92,9 +92,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (!OptimizeMessageReciever)
                     return;
 
-                DefaultValue = RecordDeclaration.defaultValues[Name].SubstituteWithTypearg(typeargs);
+                DefaultValue = RecordDeclaration.defaultValues[Name].SubstituteWithTypearg(RecordType.TypeargMap);
                 if(!optimizedMessageRecieverCall)
-                    DefaultValue.ScopeForUsedTypes(new(), irBuilder);
+                    DefaultValue.ScopeForUsedTypes(typeargs, irBuilder);
             }
 
             public override bool EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource, string responsibleDestroyer)
@@ -195,7 +195,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 RecordType genericRecordType = irProgram.RecordTypeOverloads[this].First();
 
-                emitter.AppendLine($"void free_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} child_agent");
+                emitter.Append($"void free_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} child_agent");
                 if (Destructor != null)
                     emitter.Append(", _nhp_custom_destructor destructor");
                 emitter.AppendLine(");");
@@ -325,7 +325,7 @@ namespace NoHoPython.Typing
             constructorCall = constructorCall.ScopeForUsedTypes(irBuilder);
             destructorCall = destructorCall?.ScopeForUsedTypes(irBuilder);
             copierCall = copierCall?.ScopeForUsedTypes(irBuilder);
-            properties.Value.ForEach((property) => property.ScopeForUsedTypes(irBuilder, typeargMap.Value));
+            properties.Value.ForEach((property) => property.ScopeForUsedTypes(irBuilder));
         }
 
         public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter)

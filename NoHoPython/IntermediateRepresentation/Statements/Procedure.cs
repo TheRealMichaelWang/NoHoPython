@@ -547,7 +547,7 @@ namespace NoHoPython.Syntax.Statements
 
 #pragma warning disable CS8602 // Only called after ForwardDeclare, when parameter is initialized
 #pragma warning disable CS8604 // Return type linked after initialization
-        public IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty GenerateProperty(AstIRProgramBuilder irBuilder) => new(Name, new ProcedureType(IRProcedureDeclaration.ReturnType, IRProcedureDeclaration.Parameters.ConvertAll((param) => param.Type)), true, irBuilder.ScopedRecordDeclaration);
+        public IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty GenerateProperty(AstIRProgramBuilder irBuilder, RecordType selfType) => new(Name, new ProcedureType(IRProcedureDeclaration.ReturnType, IRProcedureDeclaration.Parameters.ConvertAll((param) => param.Type)), true, selfType, irBuilder.ScopedRecordDeclaration);
 #pragma warning restore CS8604
 #pragma warning restore CS8602
 

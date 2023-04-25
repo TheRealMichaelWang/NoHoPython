@@ -397,6 +397,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             ProcedureValue = procedureValue;
             ProcedureType = procedureType;
+            arguments.Insert(0, ProcedureValue);
         }
 
         public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymousProcedureCall(ProcedureValue.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);

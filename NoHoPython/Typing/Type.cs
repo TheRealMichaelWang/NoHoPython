@@ -9,11 +9,12 @@ namespace NoHoPython.Typing
         public bool IsNativeCType { get; }
         public bool RequiresDisposal { get; }
         public bool MustSetResponsibleDestroyer { get; }
-        public bool TypeParameterAffectsCodegen { get; }
 
         public string TypeName { get; }
         public string Identifier { get; }
         public bool IsEmpty { get; }
+
+        public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInformation);
 
         public string GetCName(IRProgram irProgram);
         public string GetStandardIdentifier(IRProgram irProgram);

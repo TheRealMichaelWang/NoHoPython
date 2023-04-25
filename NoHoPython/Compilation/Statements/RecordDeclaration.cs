@@ -65,7 +65,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     partial class RecordDeclaration
     {
 #pragma warning disable CS8604 // Possible null reference argument.
-        public bool EmitMultipleCStructs => properties.Any((property) => property.Type.TypeParameterAffectsCodegen);
+        public bool EmitMultipleCStructs => properties.Any((property) => property.Type.TypeParameterAffectsCodegen(new(new ITypeComparer())));
 #pragma warning restore CS8604 // Possible null reference argument.
 
         partial class RecordProperty
@@ -262,7 +262,15 @@ namespace NoHoPython.Typing
 
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
-        public bool TypeParameterAffectsCodegen => properties.Value.Any((property) => property.Type.TypeParameterAffectsCodegen);
+
+        public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo)
+        {
+            if (effectInfo.ContainsKey(this))
+                return effectInfo[this];
+
+            effectInfo.Add(this, false);
+            return effectInfo[this] = properties.Value.Any((property) => property.Type.TypeParameterAffectsCodegen(effectInfo));
+        }
 
         public string GetStandardIdentifier(IRProgram irProgram) => RecordPrototype.EmitMultipleCStructs ? GetOriginalStandardIdentifer(irProgram) : $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}";
         public string GetOriginalStandardIdentifer(IRProgram irProgram) => $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";

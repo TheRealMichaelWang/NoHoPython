@@ -219,6 +219,7 @@ namespace NoHoPython.Typing
         }
 
         private static Dictionary<EnumType, Lazy<Dictionary<string, EnumProperty>>> globalSupportedProperties = new(new ITypeComparer());
+        private static Dictionary<EnumType, Lazy<Dictionary<IType, int>>> globalSupportedOptions = new(new ITypeComparer());
 
         public bool IsNativeCType => false;
         public string TypeName => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
@@ -227,8 +228,6 @@ namespace NoHoPython.Typing
 
         public EnumDeclaration EnumDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;
-
-        private Lazy<Dictionary<IType, int>> options;
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
 
@@ -242,25 +241,27 @@ namespace NoHoPython.Typing
             EnumDeclaration = enumDeclaration;
             TypeArguments = typeArguments;
 
-            options = new Lazy<Dictionary<IType, int>>(() => enumDeclaration.GetOptions(this));
-
             if (globalSupportedProperties.ContainsKey(this))
                 return;
 
+            if(!globalSupportedOptions.ContainsKey(this))
+                globalSupportedOptions[this] = new(() => EnumDeclaration.GetOptions(this));
+
             globalSupportedProperties[this] = new(() =>
             {
-                if (!options.Value.Keys.All((option) => option is IPropertyContainer))
+                if (!globalSupportedOptions[this].Value.Keys.All((option) => option is IPropertyContainer))
                     return new();
-                IPropertyContainer firstType = (IPropertyContainer)options.Value.Keys.First();
+                IPropertyContainer firstType = (IPropertyContainer)globalSupportedOptions[this].Value.Keys.First();
 
                 List<Property> firstTypeProperties = firstType.GetProperties();
                 Dictionary<string, EnumProperty> propertyIdMap = new(firstTypeProperties.Count);
+
+                List<IPropertyContainer> propertyContainers = globalSupportedOptions[this].Value.Keys.ToList().GetRange(1, globalSupportedOptions[this].Value.Count - 1).ConvertAll((option) => (IPropertyContainer)option);
                 foreach (Property property in firstTypeProperties)
                 {
                     bool foundFlag = true;
-                    for (int i = 1; i < options.Value.Count; i++)
+                    foreach(IPropertyContainer optionContainer in propertyContainers)
                     {
-                        IPropertyContainer optionContainer = (IPropertyContainer)options.Value.Keys.First();
                         if (!optionContainer.HasProperty(property.Name))
                         {
                             foundFlag = false;
@@ -280,7 +281,7 @@ namespace NoHoPython.Typing
             });
         }
 
-        public List<IType> GetOptions() => options.Value.Keys.ToList();
+        public List<IType> GetOptions() => globalSupportedOptions[this].Value.Keys.ToList();
 
         public List<Property> GetProperties() => globalSupportedProperties[this].Value.Values.Select((property) => property as Property).ToList();
 
@@ -288,7 +289,7 @@ namespace NoHoPython.Typing
 
         public bool HasProperty(string identifier) => globalSupportedProperties[this].Value.ContainsKey(identifier);
 
-        public bool SupportsType(IType type) => options.Value.Keys.Any((option) => option.IsCompatibleWith(type));
+        public bool SupportsType(IType type) => globalSupportedOptions[this].Value.Keys.Any((option) => option.IsCompatibleWith(type));
 
         public bool IsCompatibleWith(IType type)
         {

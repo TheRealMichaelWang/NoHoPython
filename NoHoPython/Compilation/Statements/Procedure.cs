@@ -210,7 +210,8 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
-        public bool TypeParameterAffectsCodegen => false;
+
+        public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
 
         public string GetStandardIdentifier(IRProgram irProgram) => irProgram.GetAnonProcedureStandardIdentifier(this);
 
@@ -686,26 +687,29 @@ namespace NoHoPython.IntermediateRepresentation.Values
             irProgram.ExpressionDepth--;
         }
 
-        protected void EmitArguments(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int currentNestedCall)
+        protected void EmitArgument(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int i, int currentNestedCall)
         {
-            bool cannotGuarenteeEvaluationOrder = !IRValue.EvaluationOrderGuarenteed(Arguments);
-
-            for (int i = 0; i < Arguments.Count; i++)
+            if (bufferedArguments.Contains(i))
+                emitter.Append($"_nhp_argbuf_{i}{currentNestedCall}");
+            else
             {
-                if (i > 0)
+                if (Arguments[i].RequiresDisposal(typeargs))
+                    throw new CannotEmitDestructorError(Arguments[i]);
+                else if (!IRValue.EvaluationOrderGuarenteed(Arguments) && (!Arguments[i].IsPure || !Arguments[i].IsConstant))
+                    throw new CannotEnsureOrderOfEvaluation(this);
+                else
+                    Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
+            }
+        }
+
+        protected void EmitArguments(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int currentNestedCall, int startArg = 0)
+        {
+            for (int i = startArg; i < Arguments.Count; i++)
+            {
+                if (i > startArg)
                     emitter.Append(", ");
 
-                if (bufferedArguments.Contains(i))
-                    emitter.Append($"_nhp_argbuf_{i}{currentNestedCall}");
-                else
-                {
-                    if (Arguments[i].RequiresDisposal(typeargs))
-                        throw new CannotEmitDestructorError(Arguments[i]);
-                    else if (cannotGuarenteeEvaluationOrder && (!Arguments[i].IsPure || !Arguments[i].IsConstant))
-                        throw new CannotEnsureOrderOfEvaluation(this);
-                    else
-                        Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
-                }
+                EmitArgument(irProgram, emitter, typeargs, bufferedArguments, i, currentNestedCall);
             }
         }
 
@@ -804,24 +808,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class AnonymousProcedureCall
     {
-        public override void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
-        {
-            ProcedureValue.ScopeForUsedTypes(typeargs, irBuilder);
-            base.ScopeForUsedTypes(typeargs, irBuilder);
-        }
-
         public override void EmitCall(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int currentNestedCall, string responsibleDestroyer)
         {
             if (!ProcedureValue.IsPure)
                 throw new CannotEnsureOrderOfEvaluation(this);
 
             emitter.Append($"(({ProcedureType.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_t)");
-            IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
+            EmitArgument(irProgram, emitter, typeargs, bufferedArguments, 0, currentNestedCall);
             emitter.Append("->_nhp_this_anon)(");
-            
-            IRValue.EmitMemorySafe(ProcedureValue, irProgram, emitter, typeargs);
-            if(Arguments.Count > 0)
-                emitter.Append(", ");
+
             EmitArguments(irProgram, emitter, typeargs, bufferedArguments, currentNestedCall);
 
             if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer)

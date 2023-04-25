@@ -68,7 +68,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
 
 #pragma warning disable CS8604 // Possible null reference argument.
-        public bool EmitMultipleCStructs => requiredImplementedProperties.Any((property) => property.Type.TypeParameterAffectsCodegen);
+        public bool EmitMultipleCStructs => requiredImplementedProperties.Any((property) => property.Type.TypeParameterAffectsCodegen(new(new ITypeComparer())));
 #pragma warning restore CS8604 // Possible null reference argument.
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
@@ -152,7 +152,8 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => requiredImplementedProperties.Value.Any((property) => property.Type.MustSetResponsibleDestroyer);
-        public bool TypeParameterAffectsCodegen => requiredImplementedProperties.Value.Any((property) => property.Type.TypeParameterAffectsCodegen);
+
+        public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => requiredImplementedProperties.Value.Any((property) => property.Type.TypeParameterAffectsCodegen(effectInfo));
 
         public string GetStandardIdentifier(IRProgram irProgram) => InterfaceDeclaration.EmitMultipleCStructs ? $"_nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_" : $"_nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}";
 
@@ -336,7 +337,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (!accessProperty.EmitGet(irProgram, getPropertyEmitter, typeargs, propertyContainer, valueEmitter, responsibleDestroyer))
                 {
                     BufferedEmitter copyProperty = new();
-                    property.Type.EmitCopyValue(irProgram, emitter, getPropertyEmitter.ToString(), responsibleDestroyer);
+                    property.Type.EmitCopyValue(irProgram, copyProperty, getPropertyEmitter.ToString(), responsibleDestroyer);
+                    emittedValues.Add(copyProperty.ToString());
                 }
                 else
                     emittedValues.Add(getPropertyEmitter.ToString());

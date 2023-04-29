@@ -101,7 +101,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => Length.IsPure && ProtoValue.IsPure;
         public bool IsConstant => Length.IsConstant && ProtoValue.IsConstant;
 
-        public IRValue GetPostEvalPure() => new AllocArray(ErrorReportedElement, ElementType, Length.GetPostEvalPure(), ProtoValue.GetPostEvalPure());
+        public IRValue GetPostEvalPure() => new AllocArray(ElementType, Length.GetPostEvalPure(), ProtoValue.GetPostEvalPure(), ErrorReportedElement);
+    }
+
+    partial class AllocMemorySpan
+    {
+        public bool IsPure => ProtoValue.IsPure;
+        public bool IsConstant => ProtoValue.IsConstant;
+
+        public IRValue GetPostEvalPure() => new AllocMemorySpan(ElementType, Length, ProtoValue.GetPostEvalPure(), ErrorReportedElement);
     }
 
     partial class ProcedureCall

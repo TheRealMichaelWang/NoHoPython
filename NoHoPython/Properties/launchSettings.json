@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "\"E:\\calcgod2\\src\\main.nhp\"\r\nout.c\r\n-noassert\r\n-nobounds"
+      "commandLineArgs": "tests/bare-hello-world.nhp\r\nout.c"
     }
   }
 }

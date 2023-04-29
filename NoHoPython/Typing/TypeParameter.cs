@@ -376,7 +376,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class AllocArray
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AllocArray(ErrorReportedElement, ElementType.SubstituteWithTypearg(typeargs), Length.SubstituteWithTypearg(typeargs), ProtoValue.SubstituteWithTypearg(typeargs));
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AllocArray(ElementType.SubstituteWithTypearg(typeargs), Length.SubstituteWithTypearg(typeargs), ProtoValue.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
+    partial class AllocMemorySpan
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AllocMemorySpan(ElementType.SubstituteWithTypearg(typeargs), Length, ProtoValue.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class AllocRecord

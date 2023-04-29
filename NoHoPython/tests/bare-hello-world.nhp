@@ -1,0 +1,6 @@
+﻿#this is a barebones implementation of hello world
+
+def main():
+	cdef puts(handle) None
+
+	arr = new int[100]

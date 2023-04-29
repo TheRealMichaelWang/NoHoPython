@@ -1,5 +1,4 @@
 using NoHoPython.Typing;
-using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
@@ -117,7 +116,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if(ArrayValue.RequiresDisposal(typeargs))
             {
-                if (!irProgram.EmitExpressionStatements || Operation == ArrayOperation.GetArrayHandle)
+                if (!irProgram.EmitExpressionStatements || Operation == ArrayOperation.GetArrayHandle || Operation == ArrayOperation.GetSpanHandle)
                     throw new CannotEmitDestructorError(ArrayValue);
 
                 emitter.Append($"({{{ArrayValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_buffer = ");

@@ -161,6 +161,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    partial class AllocMemorySpan
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ProtoValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration);
+    }
+
     partial class ArrayLiteral
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Elements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties, recordDeclaration));

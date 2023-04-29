@@ -1,7 +1,6 @@
 ﻿using NoHoPython.Compilation;
 using NoHoPython.IntermediateRepresentation;
 using NoHoPython.Typing;
-using System.Diagnostics;
 
 namespace NoHoPython.Syntax
 {
@@ -22,7 +21,7 @@ namespace NoHoPython.Syntax
 
         public void ScopeForUsedBufferType(IType bufferType)
         {
-            if (bufferTypes.Contains(bufferType) || !bufferType.RequiresDisposal)
+            if (bufferTypes.Contains(bufferType))
                 return;
 
             bufferTypes.Add(bufferType);
@@ -113,18 +112,41 @@ namespace NoHoPython.IntermediateRepresentation
         {
             foreach(IType elementType in bufferTypes)
             {
-                Debug.Assert(elementType.RequiresDisposal);
-                emitter.Append($"{elementType.GetCName(this)}* buffer_copy_{elementType.GetStandardIdentifier(this)}({elementType.GetCName(this)}* src, int len");
-                if (elementType.MustSetResponsibleDestroyer)
+                if (elementType.RequiresDisposal)
+                {
+                    emitter.Append($"{elementType.GetCName(this)}* buffer_copy_{elementType.GetStandardIdentifier(this)}({elementType.GetCName(this)}* src, int len");
+                    if (elementType.MustSetResponsibleDestroyer)
+                        emitter.Append(", void* responsible_destroyer");
+                    emitter.AppendLine(") {");
+
+                    emitter.AppendLine($"\t{elementType.GetCName(this)}* buf = {MemoryAnalyzer.Allocate($"sizeof({elementType.GetCName(this)}) * len")};");
+                    emitter.AppendLine("\tfor(int i = 0; i < len; i++) {");
+                    emitter.Append("\t\tbuf[i] = ");
+                    elementType.EmitCopyValue(this, emitter, "src[i]", "responsible_destroyer");
+                    emitter.AppendLine(";");
+                    emitter.AppendLine("\t}");
+                    emitter.AppendLine("\treturn buf;");
+                    emitter.AppendLine("}");
+                }
+                
+                emitter.Append($"{elementType.GetCName(this)}* buffer_alloc_{elementType.GetStandardIdentifier(this)}({elementType.GetCName(this)} proto, int count");
+                if(elementType.MustSetResponsibleDestroyer)
                     emitter.Append(", void* responsible_destroyer");
                 emitter.AppendLine(") {");
-
-                emitter.AppendLine($"\t{elementType.GetCName(this)}* buf = {MemoryAnalyzer.Allocate($"sizeof({elementType.GetCName(this)}) * len")};");
-                emitter.AppendLine("\tfor(int i = 0; i < len; i++) {");
+                emitter.AppendLine($"\t{elementType.GetCName(this)}* buf = {MemoryAnalyzer.Allocate($"count * sizeof({elementType.GetCName(this)})")};");
+                emitter.AppendLine("\tfor(int i = 0; i < count; i++) {");
                 emitter.Append("\t\tbuf[i] = ");
-                elementType.EmitCopyValue(this, emitter, "src[i]", "responsible_destroyer");
+                elementType.EmitCopyValue(this, emitter, "proto", "responsible_destroyer");
                 emitter.AppendLine(";");
                 emitter.AppendLine("\t}");
+
+                if (elementType.RequiresDisposal)
+                {
+                    emitter.Append('\t');
+                    elementType.EmitFreeValue(this, emitter, "proto", "NULL");
+                    emitter.AppendLine();
+                }
+
                 emitter.AppendLine("\treturn buf;");
                 emitter.AppendLine("}");
             }
@@ -242,20 +264,12 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine(") {");
             emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
-            emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocate($"length * sizeof({ElementType.GetCName(irProgram)})")};");
-
-            emitter.AppendLine($"\tfor(int i = 0; i < length; i++)");
-            emitter.Append("\t\tto_alloc.buffer[i] = ");
-            ElementType.EmitCopyValue(irProgram, emitter, "proto", "responsible_destroyer");
-            emitter.AppendLine(";");
-
-            if (ElementType.RequiresDisposal)
-            {
-                emitter.Append('\t');
-                ElementType.EmitFreeValue(irProgram, emitter, "proto", "NULL");
-                emitter.AppendLine();
-            }
             
+            emitter.Append($"\tto_alloc.buffer = buffer_alloc_{ElementType.GetStandardIdentifier(irProgram)}(proto, length");
+            if (MustSetResponsibleDestroyer)
+                emitter.Append(", responsible_destroyer");
+            emitter.AppendLine(");");
+
             emitter.AppendLine("\tto_alloc.length = length;");
             emitter.AppendLine("\treturn to_alloc;");
             emitter.AppendLine("}");

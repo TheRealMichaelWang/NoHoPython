@@ -218,12 +218,32 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Length { get; private set; }
         public IRValue ProtoValue { get; private set; }
 
-        public AllocArray(IAstElement errorReportedElement, IType elementType, IRValue length, IRValue protoValue)
+        public AllocArray(IType elementType, IRValue length, IRValue protoValue, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
             ElementType = elementType;
             Length = ArithmeticCast.CastTo(length, Primitive.Integer);
             ProtoValue = ArithmeticCast.CastTo(protoValue, ElementType);
+        }
+    }
+
+    public sealed partial class AllocMemorySpan : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public IType Type { get => new MemorySpan(ElementType, Length); }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public IType ElementType { get; private set; }
+        public int Length { get; private set; }
+        public IRValue ProtoValue { get; private set; }
+
+        public AllocMemorySpan(IType elementType, int length, IRValue protoValue, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            ElementType = elementType;
+            Length = length;
+            ProtoValue = protoValue;
         }
     }
 
@@ -320,7 +340,12 @@ namespace NoHoPython.Syntax.Values
                 ? expectedArrayType.ElementType
                 : throw new UnexpectedTypeException(expectedType ?? Primitive.Nothing, this);
 
-            return new IntermediateRepresentation.Values.AllocArray(this, elementType, Length.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), ProtoValue == null ? elementType.GetDefaultValue(this) : ProtoValue.GenerateIntermediateRepresentationForValue(irBuilder, elementType, willRevaluate));
+            IRValue protoIRValue = ProtoValue == null ? elementType.GetDefaultValue(this) : ProtoValue.GenerateIntermediateRepresentationForValue(irBuilder, elementType, willRevaluate);
+
+            if (Length is IntegerLiteral integerLiteral)
+                return new IntermediateRepresentation.Values.AllocMemorySpan(elementType, (int)integerLiteral.Number, protoIRValue, this);
+
+            return new IntermediateRepresentation.Values.AllocArray(elementType, Length.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), protoIRValue, this);
         }
     }
 

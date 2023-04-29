@@ -15,6 +15,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue? GetResponsibleDestroyer() => null;
     }
 
+    partial class AllocMemorySpan
+    {
+        public IRValue? GetResponsibleDestroyer() => null;
+    }
+
     partial class ArrayLiteral
     {
         public IRValue? GetResponsibleDestroyer() => null;

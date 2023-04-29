@@ -231,6 +231,33 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    partial class AllocMemorySpan
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            ProtoValue.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        {
+            emitter.Append($"buffer_alloc_{ElementType.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
+            
+            if (ProtoValue.RequiresDisposal(typeargs))
+                ProtoValue.Emit(irProgram, emitter, typeargs, "NULL");
+            else
+                ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(ProtoValue, irProgram, typeargs, "NULL"), "NULL");
+            emitter.Append($", {Length}");
+
+            if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer)
+                emitter.Append($", {responsibleDestroyer})");
+            else
+                emitter.Append(')');
+        }
+    }
+
     partial class AllocRecord
     {
         public override void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)

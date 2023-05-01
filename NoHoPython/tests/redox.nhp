@@ -1,0 +1,78 @@
+﻿#REDOX Calculator
+
+include "std.nhp"
+include "list.nhp"
+
+#describes the properties of generic chemical species
+interface chemicalTraits
+	fn<option<int>> getKnownOxidationNum
+	fn<None, data::list<tuple<int, int>>, int> computeElemOxidationNums
+
+#a generic type that describes any chemical species
+enum chemical: chemicalTraits:
+	compound
+	ion
+	element
+
+#multiple chemical species put together
+class compound:
+	array<tuple<chemical, int>> elems
+
+	def __init__(array<tuple<chemical, int>> elems):
+		self.elems = elems
+
+	def getKnownOxidationNum() option<int>:
+		return None
+
+	def computeElemOxidationNums(data::list<tuple<int, int>> result, int parentOxidationNum):
+		unkown = -1
+		totalOxidationNums = 0
+
+		for i from 0 within self.elems:
+			res = self.elems[i].chemical0.getKnownOxidationNum()
+			match res:
+				int oxidationNum:
+					totalOxidationNums = totalOxidationNums + oxidationNum
+				None:
+					assert unkown == -1
+					unkown = i
+		if unkown == -1
+			return
+
+		self.elems[unkown].chemical0.computeElemOxidationNums(result, (parentOxidationNum - totalOxidationNums) / self.elems[unkown].int0)
+
+class ion:
+	chemical elem
+	int charge
+
+	def __init__(chemical elem, int charge):
+		self.elem = elem
+		self.charge = charge
+
+	def getKnownOxidationNum() option<int>:
+		return self.charge
+
+	def computeElemOxidationNums(data::list<tuple<int, int>> result, int parentOxidationNum):
+		self.elem.computeElemOxidationNums(result, self.charge)
+
+class element:
+	int periodicNumber
+
+	def __init__(int periodicNumber):
+		assert periodicNumber >= 1 and periodicNumber <= 118
+		self.periodicNumber = periodicNumber
+
+	def getKnownOxidationNum() option<int>:
+		if self.periodicNumber == 1: #Hydrogen
+			return 1
+		elif self.periodicNumber == 9: #Flourine
+			reuturn -1
+		elif self.periodicNumber == 8: #Oxygen
+			return -2
+		return None
+
+	def computeElemOxidationNums(data::list<tuple<int, int>> result, int parentOxidationNum):
+		result.pushBack((self.periodicNumber, parentOxidationNum))
+
+def main():
+		

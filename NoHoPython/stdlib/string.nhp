@@ -1,0 +1,210 @@
+﻿include "list.nhp"
+
+mod std:
+	class stringBuilder:
+		handle cstr
+		int length = 0
+		int capacity
+
+		def __init__(int capacity):
+			cdef malloc(int) handle
+			cdef NULL handle
+
+			self.capacity = capacity
+			self.cstr = malloc(capacity)
+			assert self.cstr != NULL
+
+		def __copy__() stringBuilder:
+			cdef memcpy(handle, handle, int) None
+
+			copiedBuilder = new stringBuilder(self.length)
+			memcpy(copiedBuilder.cstr, self.cstr, self.length)
+			copiedBuilder.length = self.length
+
+		def __del__():
+			cdef free(handle) None
+			free(self.cstr)
+
+		def to_string() string:
+			cdef malloc(int) handle
+			cdef NULL handle
+			cdef memcpy(handle, handle, int) None
+
+			newCStr = malloc(self.length + 1)
+			assert newCStr != NULL
+
+			memcpy(newCStr, self.cstr, self.length)
+			newCStr[self.length] = 0 as char
+
+			return enw string(newCStr, false)
+
+		def ensureCapacity(int newCapacity):
+			cdef realloc(handle, int) handle
+			cdef NULL handle
+
+			if newCapacity <= self.capacity:
+				return
+
+			self.capacity = newCapacity
+			self.cstr = realloc(self.cstr, self.capacity)
+			assert self.cstr != NULL
+
+		def appendChar(char c):
+			ensureCapacity(self.length + 1)
+			self.cstr[self.length] = c
+			self.length = self.length + 1
+
+		def appendCPtr(handle str, int length):
+			cdef memcpy(handle, handle, int) None
+
+			if length == 0:
+				return
+
+			ensureCapacity(length + self.capacity)
+
+			memcpy(self.cstr as int + self.length, str, length)
+			self.length = self.length + length
+
+		def appendCStr(handle cstr):
+			cdef strlen(handle) int
+			appendCPtr(cstr, strlen(cstr))
+
+		def appendArray(array<char> str):
+			appendCPtr(str as handle, str as int)
+
+		def append(string str):
+			appendCPtr(str.cstr, str.length)
+
+	def makeString(array<char> buf) string:
+		cdef malloc(int) handle
+		cdef NULL handle
+
+		cstr = malloc(buf as int + 1)
+		assert cstr != NULL
+
+		return new string(cstr, false)
+
+class string:
+	handle cstr
+	bool isStatic
+	
+	int length
+	
+	def __init__(handle cstr, bool isStatic):
+		cdef strlen(handle) int
+		
+		self.cstr = cstr
+		self.isStatic = isStatic
+		self.length = strlen(cstr)
+		
+	def __copy__():
+		cdef NULL handle
+		cdef malloc(int) handle
+		cdef strcpy(handle, handle)
+		
+		newCStr = malloc(self.length + 1)
+		assert newCStr != NULL
+		
+		strcpy(newCStr, self.cstr)
+		
+		return new string(newCStr, false)
+		
+	def __free__():
+		cdef free(handle) None
+		if self.isStatic == False:
+			free(self.cstr)
+			
+	def to_array_char() array<char>:
+		return marshal char[self.length](self.cstr)
+
+	def to_int() int:
+		cdef atol(handle) int
+		return atol(self.cstr)
+
+	def to_dec() dec:
+		cdef atof(handle) dec
+		return atof(self.cstr)
+	
+	def compare(string s) int:
+		cdef strcmp(handle, handle) int
+		return strcmp(self.cstr, s.cstr)
+	
+	def getAtIndex(int i) char:
+		assert i >= 0 and i < self.length
+		return self.cstr[i] as char
+		
+	def add(string str) string:
+		cdef NULL handle
+		cdef malloc(int) handle
+		cdef memcpy(handle, handle, int)
+		
+		concatCStr = malloc(self.length + str.length + 1)
+		assert concatCStr != NULL
+		
+		memcpy(concatCStr, self.cstr, self.length)
+		memcpy((concatCStr as int + self.length), str.cstr, str.length)
+		concatCStr[self.length + str.length] = 0 as char
+		
+		return new string(concatCStr, false)
+		
+	def substring(int i, int length)
+		cdef NULL handle
+		cdef malloc(int) handle
+		cdef memcpy(handle, handle, int)
+		
+		assert i >= 0 and i < self.length
+		assert i + length <= self.length
+		
+		destCStr = malloc(length + 1)
+		assert destCStr != NULL
+		
+		memcpy(destCStr, (self.cstr as int + i), length)
+		destCStr[length] = 0 as char
+		
+		return new string(destCStr, false)
+		
+	def find(string substr, int startIndex) int:
+		def match(int offset):
+			for i from 0 within substr.length:
+				if self.cstr[i + offset] as char != substr.cstr[i] as char:
+					return false
+			return true
+			
+		for i from startIndex within self.length - substr.length:
+			if match(i):
+				return i
+		return -1
+		
+	def contains(string substr) bool:
+		return find(substr, 0) != -1
+		
+	def replace(string findStr, string replaceStr) string:
+		builder = new std::stringBuilder(self.length)
+		
+		i = 0
+		while True:
+			end = find(findStr, i)
+			if end == -1:
+				builder.appendCPtr(self.cstr as int + i, self.length - i)
+				return builder
+			else:
+				builder.appendCPtr(self.cstr as int + i, end - i)
+				builder.append(replaceStr)
+				i = end + findStr.length
+				
+	def split(string delim, bool includeEmpty) array<string>:
+		parts = new data::list<string>(10)
+		
+		i = 0
+		while True:
+			end = find(findStr, i)
+			if end == -1:
+				if i != self.length:
+					parts.pushBack(substring(i, self.length - i))
+				
+				return parts.toArray()
+			else:
+				if end != i:
+					parts.pushBack(substring(i, end - i))
+				
+				i = end + delim.length

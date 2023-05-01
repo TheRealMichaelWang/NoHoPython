@@ -1,0 +1,72 @@
+﻿include "stream.nhp"
+include "string.nhp"
+cinclude "<ctype.h>"
+
+mod std:
+	class textReader:
+		peekableStream input
+
+		def __init__(peekableStream input):
+			self.input = input
+
+		def readLine() string:
+			buf = stream::readLine(self.input)
+			return makeString(buf)
+
+		def readWhile(fn<bool, char> readCond) string:
+			bufferWriter = new bufferWriter(64)
+
+			while True:
+				c = self.input.peek()
+
+				if c == EOF or readCond(c) == False
+					return makeString(bufferReader)
+					
+				bufferWriter.write(self.input.readByte())
+
+		def consumeWhile(fn<bool, char> consumeCond):
+			while True:
+				c = self.input.peek()
+
+				if c == EOF or consumeCond(c) == False:
+					return
+
+				self.input.readByte()
+
+		def consumeWhitespace():
+			cdef isspace(char) bool
+
+			while True:
+				c = self.input.peek()
+
+				if c == EOF or isspace(c) == False:
+					return
+
+				self.input.readByte()
+
+		def readAlphanumeric():
+			cdef isalnum(char) bool
+
+			bufferWriter = new bufferWriter(64)
+
+			while True:
+				c = self.input.peek()
+
+				if c == EOF or  == False
+					return makeString(bufferReader)
+					
+				bufferWriter.write(self.input.readByte())
+
+	class textWriter:
+		outputStream output
+
+		def __init__(outputStream output):
+			self.output = output
+
+		def write(string str):
+			for i from 0 within str.length:
+				self.output.writeByte(str[i])
+
+		def writeLine(string str):
+			write(str)
+			self.output.writeByte('\n')

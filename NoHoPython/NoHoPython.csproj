@@ -14,10 +14,26 @@
 
   <ItemGroup>
     <None Remove="stdlib\io.nhp" />
+    <None Remove="stdlib\std.nhp" />
+    <None Remove="stdlib\stream.nhp" />
+    <None Remove="stdlib\string.nhp" />
+    <None Remove="stdlib\textstream.nhp" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="stdlib\io.nhp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="stdlib\std.nhp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="stdlib\stream.nhp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="stdlib\string.nhp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="stdlib\textstream.nhp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
@@ -76,9 +92,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="stdlib\ndarray.nhp">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="stdlib\std.nhp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="stdlib\csv.nhp">

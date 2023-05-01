@@ -1,16 +1,12 @@
 cinclude "<stdlib.h>"
 cinclude "<math.h>"
 
-enum nullable<T>:
+def pair<A, B> tuple<A, B>
+def triple<A, B, C> tuple<A, B, C>
+
+enum option<T>:
 	T
 	None
-
-class pair<A, B>:
-	A first
-	B second
-	def __init__(A first, B second):
-		self.first = first
-		self.second = second
 
 enum numerical:
 	dec

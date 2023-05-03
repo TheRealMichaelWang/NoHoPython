@@ -44,7 +44,7 @@ mod std:
 
 				self.input.readByte()
 
-		def readAlphanumeric():
+		def readAlphanumeric() string:
 			cdef isalnum(char) bool
 
 			bufferWriter = new bufferWriter(64)
@@ -52,9 +52,42 @@ mod std:
 			while True:
 				c = self.input.peek()
 
-				if c == EOF or  == False
+				if c == EOF or isalnum(c) == False
 					return makeString(bufferReader)
 					
+				bufferWriter.write(self.input.readByte())
+
+		def readAlpha() string:
+			cdef isalpha(char) bool
+			
+			bufferWriter = new bufferWriter(64)
+
+			while True:
+				c = self.input.peek()
+
+				if c == EOF or isalpha(c) == False
+					return makeString(bufferReader)
+					
+				bufferWriter.write(self.input.readByte())
+
+		def readNumerical(bool includeDot) string:
+			cdef isdigit(char) bool
+
+			bufferWriter = new bufferWriter(64)
+
+			bool dotSeen = False
+			while True:
+				c = self.input.peek()
+					
+				if c == '.':
+					if dotSeen or includeDot == False:
+						return makeString(bufferReader)
+					
+					dotSeen = True
+
+				elif c == EOF or isdigit(c) == False
+					return makeString(bufferReader)
+
 				bufferWriter.write(self.input.readByte())
 
 	class textWriter:
@@ -63,10 +96,14 @@ mod std:
 		def __init__(outputStream output):
 			self.output = output
 
+		def __del__():
+			self.output.flush()
+
 		def write(string str):
-			for i from 0 within str.length:
-				self.output.writeByte(str[i])
+			buffer = str as array<char>
+			self.output.writeBuffer(buffer)
 
 		def writeLine(string str):
 			write(str)
 			self.output.writeByte('\n')
+			self.output.flush()

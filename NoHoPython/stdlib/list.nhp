@@ -1,6 +1,3 @@
-cinclude "<stdlib.h>"
-cinclude "<string.h>"
-
 mod data:
 	def convertList<T, X>(list<T> input, fn<X, T> convert) list<X>:
 		converted = new list<X>(input.count)

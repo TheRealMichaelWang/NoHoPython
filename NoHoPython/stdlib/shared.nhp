@@ -1,0 +1,33 @@
+﻿mod std:
+	class shared:
+		handle ptr
+
+		handle counterPtr
+		fn<None, handle> destructor
+
+		def __init__(handle ptr, handle counterPtr, fn<None, handle> destructor):
+			self.ptr = ptr
+			self.counterPtr = counterPtr
+			self.destructor = destroyer
+
+		def __copy__() shared:
+			self.counterPtr[0] = (self.counterPtr[0] as int) + 1
+			return new shared(self.ptr, self.counterPtr, self.destroyer)
+			
+		def __del__():
+			cdef free(handle) None
+			if self.counterPtr[0] as int == 0:
+				self.destructor(self.ptr)
+				free(self.counterPtr)
+			else:
+				self.counterPtr[0] = (self.counterPtr[0] as int) - 1
+				
+	def makeShared(handle ptr, fn<None, handle> destructor) shared:
+		cdef malloc(int) handle
+		cdef NULL handle
+		
+		counterPtr = malloc(sizeof(int))
+		assert counterPtr != NULL
+		counterPtr[0] = 0
+		
+		return new shared(ptr, counterPtr, destructor)

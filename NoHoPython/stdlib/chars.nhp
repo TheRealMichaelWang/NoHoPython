@@ -1,9 +1,0 @@
-cinclude "<ctype.h>"
-
-mod characters:
-	def isAlpha(char c) bool:
-		cdef isalpha(char) bool
-		return isalpha(c)
-	def isDigit(char c) bool:
-		cdef isdigit(char) bool
-		return isdigit(c)

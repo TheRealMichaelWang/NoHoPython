@@ -77,10 +77,14 @@ mod std:
 
 	def makeString(array<char> buf) string:
 		cdef malloc(int) handle
+		cdef memcpy(handle, handle, int)
 		cdef NULL handle
 
 		cstr = malloc(buf as int + 1)
 		assert cstr != NULL
+
+		memcpy(cstr, buf, buf)
+		cstr[buf as int] = 0 as char
 
 		return new string(cstr, false)
 

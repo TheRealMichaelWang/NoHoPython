@@ -1,37 +1,39 @@
-﻿include "std.nhp"
+﻿mod std:
+	def computeNDIndex(array<int> indicies, array<int> _indexFactors) int:
+		assert indicies as int == _indexFactors as int
+		i = 0
+		a = 0
+		while i < indicies as int:
+			a = a + indicies[i] * _indexFactors[i]
+			i = i + 1
+		return a
 
-def computeNDIndex(array<int> indicies, array<int> _indexFactors) int:
-	assert indicies as int == _indexFactors as int
-	i = 0
-	a = 0
-	while i < indicies as int:
-		a = a + indicies[i] * _indexFactors[i]
-		i = i + 1
-	return a
-
-class ndarray<T>:
-	array<T> buffer
-	array<int> dims
-	array<int> _indexFactors
+	class ndarray<T>:
+		array<T> buffer
+		array<int> dims
+		array<int> indexFactors
 	
-	def __init__(array<int> dims, T defaultValue):
-		assert dims as int >= 1
-		self.dims = dims
+		def __init__(array<int> dims, T defaultValue):
+			assert dims as int >= 1
+			self.dims = dims
 		
-		#compute index offset factors
-		self._indexFactors = new int[dims as int]
-		self._indexFactors[dims as int - 1] = 1
-		i = dims as int - 2
-		while i >= 0:
-			self._indexFactors[i] = self.dims[i + 1] * self._indexFactors[i + 1]
-			i = i - 1
+			#compute index offset factors
+			self.indexFactors = new int[dims as int]
+			self.indexFactors[dims as int - 1] = 1
 		
-		#initialize buffer
-		len = std::reduce(self.dims, lambda int a, int b: a * b)
-		self.buffer = new T[len](defaultValue)
+			for i from 2 to dims as int:
+				self.indexFactors[dims as int - i] = self.dims[dims as int - i + 1] * self.indexFactors[dims as int - i + 1]
 
-	def get(array<int> indicies) T:
-		return self.buffer[computeNDIndex(indicies, self._indexFactors)]
+			#initialize buffer
+			len = 1
+			for i from 0 within dims:
+				len = len * dims[i]
+				assert dims[i] != 0
+
+			self.buffer = new T[len](defaultValue)
+
+		def getAtIndex(array<int> indicies) T:
+			return self.buffer[computeNDIndex(indicies, self._indexFactors)]
 	
-	def set(array<int> indicies, T elem) T:
-		return self.buffer[computeNDIndex(indicies, self._indexFactors)] = elem
+		def setAtIndex(array<int> indicies, T elem) T:
+			return self.buffer[computeNDIndex(indicies, self._indexFactors)] = elem

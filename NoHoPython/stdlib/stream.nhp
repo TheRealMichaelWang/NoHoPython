@@ -1,11 +1,10 @@
-include "shared.nhp"
-
 mod std:
 	cdef EOF char
 	cdef NULL handle
 
 	interface outputStream:
 		fn<None, char> writeByte
+		fn<int, array<char>> writeBuffer
 		fn<None> flush
 		
 	interface inputStream:
@@ -15,7 +14,7 @@ mod std:
 		fn<char> readByte
 		fn<char> peek
 	
-	class bufferWriter:
+	class memoryWriter:
 		handle buffer
 		
 		int capacity
@@ -33,10 +32,10 @@ mod std:
 			cdef free(handle) None
 			free(self.buffer)
 			
-		def __copy__() bufferWriter:
+		def __copy__() memoryWriter:
 			cdef memcpy(handle, handle, int) handle
 			
-			copied = new bufferWriter(self.length)
+			copied = new memoryWriter(self.length)
 			memcpy(copied.buffer, self.buffer, self.length)
 			copied.length = self.length
 			
@@ -45,18 +44,33 @@ mod std:
 		def to_array_char() array<char>:
 			return marshal char[self.length](self.buffer)
 			
-		def writeByte(char byte):
+		def ensureCapacity(int minCap):
 			cdef realloc(handle, int) handle
-		
-			if self.length == self.capacity:
-				self.capacity = self.capacity + 32
-				self.buffer = realloc(self.buffer, self.capacity)
-				assert self.buffer = NULL
-				
+			cdef NULL handle
+
+			if self.capacity < minCap:
+				self.capacity = minCap
+				self.buffer = realloc(self.buffer, minCap)
+				assert self.buffer != NULL
+
+		def writeByte(char byte):
+			ensureCapacity(self.length + 1)
+
 			self.buffer[self.length] = byte
 			self.length = self.length + 1
+
+		def writeBuffer(array<char> buffer):
+			cdef memcpy(handle, handle, int)
+
+			ensureCapacity(self.length + buffer as int)
+			memcpy(self.buffer as int + self.length, buffer, buffer)
+
+			return buffer as int
+
+		def flush():
+			return
 	
-	class bufferReader:
+	class memoryReader:
 		handle buffer
 		int position = 0
 		int length
@@ -76,34 +90,38 @@ mod std:
 			if self.position == self.length:
 				return EOF
 			return self.buffer[self.position]
-			
-	class ioOutputStream:
-		shared filePtr
-		
-		def __init__(shared filePtr):
-			self.filePtr = filePtr
-			
+
+	class bufferedWriter:
+		memoryWriter buffer
+		int capacity
+
+		outputStream innerWriter
+
+		def __init__(outputStream innerWriter, int capacity):
+			self.capacity = capacity
+			self.buffer = new memoryWriter(capacity)
+
+		def ensureFlushed():
+			if self.buffer.length >= self.capacity:
+				flush()
+
 		def writeByte(char byte):
-			cdef fputc(char, handle) None
-			fputc(byte, self.filePtr.ptr)
-			
-	class ioInputStream:
-		shared filePtr
-		
-		def __init__(shared filePtr)
-			self.filePtr = filePtr
-			
-		def readByte() char:
-			cdef getc(handle) char
-			return getc(self.filePtr.ptr)
-			
-		def peek() char:
-			cdef getc(handle) char
-			cdef ungetc(char, handle) None
-			
-			lastChar = getc(self.filePtr.ptr)
-			ungetc(lastChar, self.filePtr.ptr)
-			return lastChar
+			self.buffer.writeByte(byte)
+			ensureFlushed()
+
+		def writeBuffer(array<char> buffer)
+			self.buffer.writeBuffer(buffer)
+			ensureFlushed()
+
+		def flush():
+			if currentBuf.length == 0:
+				return
+
+			currentBuf = self.buffer as array<char>
+			self.innerWriter.writeBuffer(currentBuf)
+			self.innerWriter.flush()
+
+			currentBuf.length = 0
 
 	mod stream:
 		def read(inputStream input, array<char> dest, int offset, int length) int:
@@ -143,5 +161,9 @@ mod std:
 					bufferWriter.writeByte(c)
 
 		def write(outputStream output, array<char> src, int offset, int length):
+			writeBuf = new char[length]
+
 			for i from 0 within length:
-				output.writeByte(src[offset + i])
+				writeBuf[i] = src[offset + i]
+
+			output.writeBuffer(writeBuf)

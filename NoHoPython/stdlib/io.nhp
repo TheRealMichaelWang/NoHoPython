@@ -1,151 +1,97 @@
-cinclude "<stdio.h>"
-include "list.nhp"
-include "chars.nhp"
+include "shared.nhp"
+include "stream.nhp"
+include "string.nhp"
 
-mod io:
-	interface stringableObj:
-		fn<array<char>> toString
-	interface writeableObj:
-		fn<None, writer> writeBack
-	
-	enum writable:
-		stringableObj
-		writeableObj
-		array<char>
-		char
-		int
-		dec
-		bool
-		None
-	
-	mod cinterop:
-		#ensures that string ends with a C-style NULL terminator
-		def sanitizeCStr(array<char> str) array<char>:
-			if str[str as int - 1] == '\0':
-				return str
-			else:
-				cdef memcpy(handle, handle, int) handle
-				buf = new char[str as int + 1]
-				memcpy(buf, str, str as int)
-				buf[str as int] = '\0'
-				return buf
-	
-	cdef EOF
-	
-	class writer:
-		handle ptr
+mod std:
+	mod io:
+		class handleOutputStream:
+			handle ptr
 		
-		def __init__(handle ptr):
-			self.ptr = ptr
+			def __init__(handle ptr):
+				self.ptr = ptr
+			
+			def writeByte(char byte):
+				cdef fputc(char, handle) None
+				fputc(byte, self.ptr)
+
+			def writeBuffer(array<char> buffer) int:
+				cdef fwrite(handle, int, int, handle) int
+				return fwrite(buffer, 1, buffer as int, self.ptr)
+
+			def flush()
+				cdef fflush(handle) None
+				fflush(self.ptr)
+			
+		class handleInputStream:
+			handle ptr
 		
-		def write(writable towrite):
-			cdef fwrite(handle, int, int, handle) None
-			cdef fputc(char, handle) None
-			match towrite:
-				stringableObj obj:
-					fwrite(msg=obj.toString(), 1, msg, self.ptr)
-				writeableObj obj:
-					obj.writeBack(self)
-				array<char> msg:
-					fwrite(msg, 1, msg, self.ptr)
-				char c:
-					fputc(c, self.ptr)
-				int i:
-					cdef fprintf(handle, handle, int) None
-					fprintf(self.ptr, fmt="%li\0", i)
-				dec d:
-					cdef fprintf(handle, handle, dec) None
-					fprintf(self.ptr, fmt="%f\0", d)
-				bool b:
-					if b:
-						fwrite(msg="True", 1, 4, self.ptr)
-					else:
-						fwrite(msg="False", 1, 5, self.ptr)
-				None:
-					fwrite(msg="None", 1, 4, self.ptr)
-		
-		def writeLine(writable towrite):
-			cdef fputc(char, handle) None
-			write(towrite)
-			fputc('\n', self.ptr)
-		
-		def writeChar(char b):
-			cdef fputc(char, handle) None
-			fputc(b, self.ptr)
-	class reader:
-		handle ptr
-		
-		def __init__(handle ptr):
-			self.ptr = ptr
-		
-		def peek() char:
-			cdef fgetc(handle) char
-			cdef ungetc(char, handle) None
-			c = fgetc(self.ptr)
-			ungetc(c, self.ptr)
-			return c
-		
-		def readWhile(fn<bool, char> continueCond) array<char>:
-			cdef fgetc(handle) char
-			cdef ungetc(char, handle) None
-			buffer = new data::list<char>(10)
-			while ((c = fgetc(self.ptr)) != EOF) and continueCond(c):
-				buffer.pushBack(c)
-			ungetc(c, self.ptr)
-			return buffer.toArray()
-		def readTill(fn<bool, char> stopCond) array<char>:
-			return readWhile(lambda char c: stopCond(c) == False)
-		def readWhileConsumeFront(fn<bool, char> continueCond) array<char>:
-			readTill(continueCond)
-			return readWhile(continueCond)
-		def readInt() int:
-			cdef atol(handle) int
-			return atol(buf = cinterop::sanitizeCStr(readWhileConsumeFront(lambda char c: characters::isDigit(c) or c == '-')))
-		def readDec() dec:
-			cdef atof(handle) dec
-			return atof(buf = cinterop::sanitizeCStr(readWhileConsumeFront(lambda char c: characters::isDigit(c) or c == '.' or c == '-')))
-		def readChar() char:
-			cdef fgetc(handle) char
-			return fgetc(self.ptr)
-		def consumeWhitespace() char:
-			cdef isspace(char) bool
-			consumed = readWhile(lambda char c: isspace(c) or c == '\n')
-			if consumed as int == 0:
-				return 0
-			return consumed[consumed as int - 1]
-		def consumeTillPhrase(array<char> phrase) bool:
-			cdef fgetc(handle) char
-			if phrase as int == 0:
-				return True
-			matchedChar = 0
-			while (c = fgetc(self.ptr)) != EOF:
-				#cdef putchar(char) None
-				#putchar(c)
-				if c == phrase[matchedChar]:
-					matchedChar = matchedChar + 1
-					if matchedChar == phrase as int:
-						return True
-				else:
-					matchedChar = 0
-			return False
-		
-		def readLine() array<char>:
-			cdef fgetc(handle) char
-			buffer = new data::list<char>(10)
-			while ((c = fgetc(self.ptr)) != EOF) and (c != '\n'):
-				buffer.pushBack(c)
-			return buffer.toArray()
-		
-		def readAll() array<char>:
-			cdef fgetc(handle) char
-			buffer = new data::list<char>(10)
-			while (c = fgetc(self.ptr)) != EOF:
-				buffer.pushBack(c)
-			return buffer.toArray()
-	
-	def output() writer:
-		cdef stdout handle
-		return new writer(stdout)
-	def input() reader:
-		cdef stdin handle
-		return new reader(stdin)
+			def __init__(handle ptr)
+				self.ptr = ptr
+			
+			def readByte() char:
+				cdef getc(handle) char
+				return getc(self.ptr)
+			
+			def peek() char:
+				cdef getc(handle) char
+				cdef ungetc(char, handle) None
+			
+				lastChar = getc(self.ptr)
+				ungetc(lastChar, self.ptr)
+				return lastChar
+
+		class fileOutputStream:
+			shared ptr
+			handleOutputStream output
+
+			def __init__(shared ptr):
+				self.ptr = ptr
+				self.output = new(ptr.ptr)
+
+			def writeByte(char byte):
+				self.output.writeByte(byte)
+
+			def writeBuffer(array<char> buffer) int:
+				return self.output.writeBuffer(buffer)
+
+			def flush():
+				self.output.flush()
+
+		class fileInputStream:
+			shared ptr
+			handleInputStream input
+
+			def __init__(shared ptr):
+				self.ptr = ptr
+				self.input = new(ptr.ptr)
+
+			def readByte() char:
+				return self.input.readByte()
+
+			def peek() char:
+				return self.input.peek()
+
+		def fopen(string path, string mode) shared:
+			cdef fopen(handle, handle) handle
+			cdef fclose(handle) None
+			cdef NULL handle
+
+			ptr = fopen(path.cstr, mode.cstr)
+			assert ptr != NULL
+
+			return makeShared(ptr, lambda handle toFree: fclose(toFree))
+
+def input() string:
+	cdef stdin handle
+
+	inputStream = new io::handleInputStream(stdin)
+	buf = stream::readLine(inputStream)
+	return std::makeString(buf)
+
+def print(string msg) None
+	cdef stdout
+
+	outputStream = new io::handleOutputStream(stdout)
+	for i from 0 within msg.length:
+		outputStream.writeByte(msg[i])
+	outputStream.writeByte('\n')

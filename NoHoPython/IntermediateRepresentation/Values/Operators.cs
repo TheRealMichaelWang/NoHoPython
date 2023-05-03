@@ -119,7 +119,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 }, array.ErrorReportedElement)
                 : array.Type is HandleType
                 ? new MemoryGet(expectedType ?? throw new UnexpectedTypeException(Primitive.Nothing, errorReportedElement), array, index, errorReportedElement)
-                : (IRValue)new GetValueAtIndex(array, index, errorReportedElement);
+                : new GetValueAtIndex(array, index, errorReportedElement);
         }
 
         public IAstElement ErrorReportedElement { get; private set; }

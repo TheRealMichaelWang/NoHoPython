@@ -1,11 +1,8 @@
 ﻿include "io.nhp"
 
 def main():
-	out = io::output()
-	out.writeLine("Hello world!")
+	print("Hello world!")
 	
-	input = io::input()
-	name = input.readLine()
+	name = input()
 	
-	out.write("Your name is: ")
-	out.writeLine(name)
+	print($"Your name is {name}!")

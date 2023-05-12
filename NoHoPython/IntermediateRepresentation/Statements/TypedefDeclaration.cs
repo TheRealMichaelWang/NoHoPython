@@ -33,6 +33,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void ScopeForUsedTypes(Dictionary<Typing.TypeParameter, IType> typeargs, AstIRProgramBuilder irBuilder) { }
 
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
+
+        public void NonConstructorPropertyAnalysis() { }
     }
 }
 

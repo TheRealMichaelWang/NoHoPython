@@ -31,7 +31,12 @@ namespace NoHoPython.IntermediateRepresentation
 
         public BufferedEmitter()
         {
-            this.builder = new();
+            builder = new();
+        }
+
+        public BufferedEmitter(int capacity)
+        {
+            builder = new(capacity);
         }
 
         public void Append(string str)

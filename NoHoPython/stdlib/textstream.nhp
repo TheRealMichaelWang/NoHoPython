@@ -1,48 +1,46 @@
-﻿include "stream.nhp"
-include "string.nhp"
-cinclude "<ctype.h>"
+﻿cinclude "<ctype.h>"
 
 mod std:
 	class textReader:
-		peekableStream input
+		peekableStream inp
 
-		def __init__(peekableStream input):
-			self.input = input
+		def __init__(peekableStream inp):
+			self.inp = inp
 
 		def readLine() string:
-			buf = stream::readLine(self.input)
+			buf = stream::readLine(self.inp)
 			return makeString(buf)
 
 		def readWhile(fn<bool, char> readCond) string:
 			bufferWriter = new bufferWriter(64)
 
 			while True:
-				c = self.input.peek()
+				c = self.inp.peek()
 
 				if c == EOF or readCond(c) == False
 					return makeString(bufferReader)
 					
-				bufferWriter.write(self.input.readByte())
+				bufferWriter.write(self.inp.readByte())
 
 		def consumeWhile(fn<bool, char> consumeCond):
 			while True:
-				c = self.input.peek()
+				c = self.inp.peek()
 
 				if c == EOF or consumeCond(c) == False:
 					return
 
-				self.input.readByte()
+				self.inp.readByte()
 
 		def consumeWhitespace():
 			cdef isspace(char) bool
 
 			while True:
-				c = self.input.peek()
+				c = self.inp.peek()
 
 				if c == EOF or isspace(c) == False:
 					return
 
-				self.input.readByte()
+				self.inp.readByte()
 
 		def readAlphanumeric() string:
 			cdef isalnum(char) bool
@@ -50,12 +48,12 @@ mod std:
 			bufferWriter = new bufferWriter(64)
 
 			while True:
-				c = self.input.peek()
+				c = self.inp.peek()
 
 				if c == EOF or isalnum(c) == False
 					return makeString(bufferReader)
 					
-				bufferWriter.write(self.input.readByte())
+				bufferWriter.write(self.inp.readByte())
 
 		def readAlpha() string:
 			cdef isalpha(char) bool
@@ -63,21 +61,24 @@ mod std:
 			bufferWriter = new bufferWriter(64)
 
 			while True:
-				c = self.input.peek()
+				c = self.inp.peek()
 
 				if c == EOF or isalpha(c) == False
 					return makeString(bufferReader)
 					
-				bufferWriter.write(self.input.readByte())
+				bufferWriter.write(self.inp.readByte())
 
-		def readNumerical(bool includeDot) string:
+		def readNumerical(bool includeNegate, bool includeDot) string:
 			cdef isdigit(char) bool
 
 			bufferWriter = new bufferWriter(64)
 
+			if includeNegate and self.inp.peek() == '-':
+				bufferWriter.write(self.inp.readByte())
+
 			bool dotSeen = False
 			while True:
-				c = self.input.peek()
+				c = self.inp.peek()
 					
 				if c == '.':
 					if dotSeen or includeDot == False:
@@ -88,7 +89,15 @@ mod std:
 				elif c == EOF or isdigit(c) == False
 					return makeString(bufferReader)
 
-				bufferWriter.write(self.input.readByte())
+				bufferWriter.write(self.inp.readByte())
+
+		def peekedIsAlpha() bool:
+			cdef isalpha(char) bool
+			return isalpha(self.inp.readByte())
+
+		def peekedIsAlphanumeric() bool:
+			cdef isalnum(char) bool
+			return isalnum(self.inp.readByte())
 
 	class textWriter:
 		outputStream output

@@ -267,7 +267,7 @@ namespace NoHoPython.Syntax.Parsing
                             }
                         case TokenType.StringLiteral:
                             {
-                                ArrayLiteral stringLiteral = new(scanner.LastToken.Identifier, location);
+                                StringLiteral stringLiteral = new(scanner.LastToken.Identifier, location);
                                 scanner.ScanToken();
                                 return stringLiteral;
                             }
@@ -422,6 +422,7 @@ namespace NoHoPython.Syntax.Parsing
         public List<IAstStatement> ParseAll()
         {
             List<IAstStatement> topLevelStatements = new();
+
             while (true)
             {
                 skipIndentCounting = false;

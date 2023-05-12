@@ -14,6 +14,13 @@ namespace NoHoPython.Typing
         public static readonly HandleType Handle = new();
         public static readonly NothingType Nothing = new(); //not a primitive but also commonly used
 
+        public static RecordType GetStringType(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        {
+            if (irBuilder.SymbolMarshaller.FindSymbol("string", errorReportedElement) is IntermediateRepresentation.Statements.RecordDeclaration recordDeclaration)
+                return new RecordType(recordDeclaration, new(), errorReportedElement);
+            throw new UnexpectedStringSymbolException(errorReportedElement);
+        }
+
         public abstract string TypeName { get; }
         public string Identifier => TypeName;
         public bool IsEmpty => false;

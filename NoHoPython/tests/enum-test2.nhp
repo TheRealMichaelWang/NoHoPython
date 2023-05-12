@@ -1,56 +1,43 @@
-﻿#Note this example is not up to date, and won't work with the latest version
-
-include "io.nhp"
+﻿include "io.nhp"
 
 class student:
-	array<char> name
+	string name
 	int age
 	int grade
 	
-	def __init__(array<char> name, int age, int grade):
+	def __init__(string name, int age, int grade):
 		self.name = name
 		self.age = age
 		self.grade = grade
-	def to_array_char() array<char>:
+	
+	def to_string() string:
 		return self.name
 
 class faculty:
-	array<char> name
+	string name
 	int age
 	int payment
 	
-	def __init__(array<char> name, int age, int payment):
+	def __init__(string name, int age, int payment):
 		self.name = name
 		self.age = age
 		self.payment = payment
-	def to_array_char() array<char>:
+
+	def to_string() string:
 		return self.name
 
 interface person:
-	array<char> name
+	string name
 	int age
 	
-	fn<array<char>> to_array_char
+	fn<string> to_string
 
-enum schoolperson: #io::stringableObj:
+enum schoolperson:
 	student
 	faculty
 	int
 	char
 
-def writeSchoolPerson(io::writer writer, schoolperson sp):
-	match sp:
-		student s:
-			writer.write("student: ")
-		faculty f:
-			writer.write("faculty: ")
-		default:
-			writer.write($"{sp}")
-
-	writer.write(sp)
-
 def main():
-	out = io::output()
-	writeSchoolPerson(out, new student("michael", 17, 11))
-	writeSchoolPerson(out, new faculty("maine", 40, 140))
-	writeSchoolPerson(out, 100)
+	print(new student("michael", 17, 11))
+	print(new faculty("maine", 40, 140))

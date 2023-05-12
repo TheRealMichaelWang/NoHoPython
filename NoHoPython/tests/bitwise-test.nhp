@@ -1,13 +1,12 @@
 ﻿include "io.nhp"
 
 def main():
-	out = io::output()
-	input = io::input()
+	outWriter = std::io::handleOutputStream(stdout)
 
-	out.writeLine("give a number...")
-	N = input.readInt()
+	outWriter.writeLine("give a number...")
+	N = input() as int
 
 	for i from 0 to 1 lshift N:
 		for j from 0 within N:
-			out.write('*' if i & (1 lshift j) else ' ')
-		out.write('\n')
+			out.writeByte('*' if i & (1 lshift j) else ' ')
+		out.writeByte('\n')

@@ -48,41 +48,44 @@ namespace NoHoPython.Syntax.Values
         public override string ToString() => $"\'{Character}\'";
     }
 
+    public sealed partial class StringLiteral : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public string String { get; private set; }
+
+        public StringLiteral(string @string, SourceLocation sourceLocation)
+        {
+            String = @string;
+            SourceLocation = sourceLocation;
+        }
+
+        public override string ToString()
+        {
+            BufferedEmitter emitter = new(String.Length);
+            emitter.Append('\"');
+            foreach (char c in String)
+                IntermediateRepresentation.Values.CharacterLiteral.EmitCChar(emitter, c, false);
+            emitter.Append('\"');
+            return emitter.ToString();
+        }
+    }
+
     public sealed partial class ArrayLiteral : IAstValue
     {
         public SourceLocation SourceLocation { get; private set; }
 
         public AstType? AnnotatedElementType { get; private set; }
         public readonly List<IAstValue> Elements;
-        private bool IsStringLiteral;
 
         public ArrayLiteral(List<IAstValue> elements, AstType? annotatedElementType, SourceLocation sourceLocation)
         {
             Elements = elements;
             AnnotatedElementType = annotatedElementType;
             SourceLocation = sourceLocation;
-            IsStringLiteral = false;
         }
 
-        public ArrayLiteral(string stringLiteral, SourceLocation sourceLocation) : this(stringLiteral.ToList().ConvertAll((char c) => (IAstValue)new CharacterLiteral(c, sourceLocation)), null, sourceLocation)
-        {
-            IsStringLiteral = true;
-        }
-
-        public override string ToString()
-        {
-            if (IsStringLiteral)
-            {
-                BufferedEmitter builder = new();
-                builder.Append('\"');
-                foreach (IAstValue value in Elements)
-                    IntermediateRepresentation.Values.CharacterLiteral.EmitCChar(builder, ((CharacterLiteral)value).Character, false);
-                builder.Append('\"');
-                return builder.ToString();
-            }
-            else
-                return $"[{(AnnotatedElementType != null ? $"<{AnnotatedElementType}>" : string.Empty)}{string.Join(", ", Elements)}]";
-        }
+        public override string ToString() => $"[{(AnnotatedElementType != null ? $"<{AnnotatedElementType}>" : string.Empty)}{string.Join(", ", Elements)}]";
     }
 
     public sealed partial class TupleLiteral : IAstValue

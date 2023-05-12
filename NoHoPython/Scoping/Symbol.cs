@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using NoHoPython.Syntax;
+using System.Diagnostics;
 using System.Text;
 
 namespace NoHoPython.Scoping
@@ -8,6 +9,7 @@ namespace NoHoPython.Scoping
         public string Name { get; }
 
         public SymbolContainer ParentContainer { get; }
+        public IAstElement ErrorReportedElement { get; }
 
         public static string GetAbsolouteName(IScopeSymbol scopeSymbol, IScopeSymbol? masterScope = null)
         {

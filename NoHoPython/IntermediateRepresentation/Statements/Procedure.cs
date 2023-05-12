@@ -3,6 +3,7 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Syntax;
+using NoHoPython.Syntax.Values;
 using NoHoPython.Typing;
 using System.Diagnostics;
 
@@ -299,7 +300,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public AbortStatement(IRValue? abortMessage, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
-            AbortMessage = abortMessage == null ? null : ArithmeticCast.CastTo(abortMessage, new ArrayType(Primitive.Character));
+            AbortMessage = abortMessage;
         }
     }
 
@@ -407,8 +408,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public override IType Type => ((ProcedureType)Property.Type).ReturnType;
 
-        //public ProcedureReference Procedure { get; private set; }
-
         public RecordDeclaration.RecordProperty Property { get; private set; }
         public IRValue Record { get; private set; }
 
@@ -418,18 +417,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             Property = property;
             Record = record;
-
-//#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
-//            AnonymizeProcedure anonymizeProcedure = (AnonymizeProcedure)property.defaultValue;
-//            RecordType recordType = (RecordType)Record.Type;
-//#pragma warning disable CS8602 // Dereference of a possibly null reference.
-//            Procedure = new ProcedureReference(anonymizeProcedure.Procedure.ProcedureDeclaration, false, errorReportedElement);
-//            Dictionary<Typing.TypeParameter, IType> typeargs = new();
-//            for (int i = 0; i < recordType.RecordPrototype.TypeParameters.Count; i++)
-//                typeargs.Add(recordType.RecordPrototype.TypeParameters[i], recordType.TypeArguments[i]);
-//            Procedure = Procedure.SubstituteWithTypearg(typeargs);
-//#pragma warning restore CS8602 
-//#pragma warning restore CS8600 
         }
 
         public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new OptimizedRecordMessageCall(Property.SubstituteWithTypearg(typeargs), Record.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
@@ -503,7 +490,29 @@ namespace NoHoPython.Syntax.Statements
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.AbortStatement(AbortMessage?.GenerateIntermediateRepresentationForValue(irBuilder, new ArrayType(Primitive.Character), false), this);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        {
+            RecordType stringRecordType = Primitive.GetStringType(irBuilder, this);
+
+            IRValue? abortMessage = null;
+            if(AbortMessage != null)
+            {
+                if (AbortMessage is StringLiteral)
+                    return new IntermediateRepresentation.Statements.AbortStatement(AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Handle, false), this);
+
+                abortMessage = ArithmeticCast.CastTo(AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, stringRecordType, false), stringRecordType);
+                try
+                {
+                    abortMessage = ArithmeticCast.CastTo(abortMessage, new ArrayType(Primitive.Character));
+                }
+                catch
+                {
+                    abortMessage = ArithmeticCast.CastTo(abortMessage, Primitive.Handle);
+                }
+            }
+            
+            return new IntermediateRepresentation.Statements.AbortStatement(abortMessage, this);
+        }
     }
 
     partial class ProcedureDeclaration
@@ -528,12 +537,12 @@ namespace NoHoPython.Syntax.Statements
                 irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
             IRProcedureDeclaration.DelayedLinkSetReturnType(AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this));
 
-            List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, IRProcedureDeclaration, false));
+            List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, IRProcedureDeclaration, false, this));
             IRProcedureDeclaration.DelayedLinkSetParameters(parameters);
 
             if (oldScope is IntermediateRepresentation.Statements.RecordDeclaration parentRecord)
             {
-                Variable selfVariable = new(parentRecord.GetSelfType(irBuilder), "self", IRProcedureDeclaration, true);
+                Variable selfVariable = new(parentRecord.GetSelfType(irBuilder), "self", IRProcedureDeclaration, true, this);
                 irBuilder.SymbolMarshaller.DeclareSymbol(selfVariable, this);
                 IRProcedureDeclaration.CapturedVariables.Add(selfVariable);
             }
@@ -552,7 +561,7 @@ namespace NoHoPython.Syntax.Statements
 #pragma warning restore CS8604
 #pragma warning restore CS8602
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        public IRStatement ConstructorGenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
             irBuilder.ScopedProcedures.Push(IRProcedureDeclaration);
@@ -565,7 +574,15 @@ namespace NoHoPython.Syntax.Statements
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopedProcedures.Pop();
+
             return IRProcedureDeclaration;
+        }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        {
+            IRStatement toret = ConstructorGenerateIntermediateRepresentationForStatement(irBuilder);
+            IRProcedureDeclaration.NonConstructorPropertyAnalysis();
+            return toret;
         }
     }
 
@@ -638,7 +655,7 @@ namespace NoHoPython.Syntax.Values
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
             ProcedureDeclaration lamdaDeclaration = new($"lambdaNo{irBuilder.GetLambdaId()}", new(), null, irBuilder.SymbolMarshaller.CurrentScope, (IScopeSymbol)irBuilder.CurrentMasterScope, this);
-            List<Variable> parameters = Parameters.ConvertAll((parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, lamdaDeclaration, false));
+            List<Variable> parameters = Parameters.ConvertAll((parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, lamdaDeclaration, false, this));
             lamdaDeclaration.DelayedLinkSetParameters(parameters);
             
             irBuilder.SymbolMarshaller.NavigateToScope(lamdaDeclaration);

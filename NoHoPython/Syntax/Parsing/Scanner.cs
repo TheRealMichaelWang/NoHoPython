@@ -115,6 +115,9 @@ namespace NoHoPython.Syntax.Parsing
             visitedFiles = new SortedSet<string>();
 
             IncludeFile(firstFileToVisit);
+            IncludeFile("std.nhp");
+            IncludeFile("string.nhp");
+            IncludeFile("list.nhp");
             ScanToken();
         }
 

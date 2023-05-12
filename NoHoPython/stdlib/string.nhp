@@ -1,6 +1,10 @@
-﻿include "list.nhp"
+﻿#North Hollywood Python Standard Library
+
+#string.nhp
+#This file contains the standard library definiton of the string class, which is the usual type of all string literals. Do not modify or remove this file.
 
 mod std:
+	#like c-sharp StringBuilder, stringBuilder in nhp can construct variable length strings performantly
 	class stringBuilder:
 		handle cstr
 		int length = 0
@@ -8,7 +12,6 @@ mod std:
 
 		def __init__(int capacity):
 			cdef malloc(int) handle
-			cdef NULL handle
 
 			self.capacity = capacity
 			self.cstr = malloc(capacity)
@@ -21,13 +24,14 @@ mod std:
 			memcpy(copiedBuilder.cstr, self.cstr, self.length)
 			copiedBuilder.length = self.length
 
+			return copiedBuilder
+
 		def __del__():
 			cdef free(handle) None
 			free(self.cstr)
 
 		def to_string() string:
 			cdef malloc(int) handle
-			cdef NULL handle
 			cdef memcpy(handle, handle, int) None
 
 			newCStr = malloc(self.length + 1)
@@ -36,11 +40,10 @@ mod std:
 			memcpy(newCStr, self.cstr, self.length)
 			newCStr[self.length] = 0 as char
 
-			return enw string(newCStr, false)
+			return new string(newCStr, false)
 
 		def ensureCapacity(int newCapacity):
 			cdef realloc(handle, int) handle
-			cdef NULL handle
 
 			if newCapacity <= self.capacity:
 				return
@@ -77,8 +80,7 @@ mod std:
 
 	def makeString(array<char> buf) string:
 		cdef malloc(int) handle
-		cdef memcpy(handle, handle, int)
-		cdef NULL handle
+		cdef memcpy(handle, handle, int) None
 
 		cstr = malloc(buf as int + 1)
 		assert cstr != NULL
@@ -88,11 +90,29 @@ mod std:
 
 		return new string(cstr, false)
 
+	def strcmp(string a, string b) int:
+		return a.compare(b)
+
+	def fastStrcmp(string a, string b) int:
+		return a.hash - b.hash
+
+	#dj2b is a simple hashing algorithm
+	def dj2b(handle str, int length) int:
+		hash = 5381
+
+		for i from 0 within length:
+			#hash = hash * 33 + c
+			hash = ((hash lshift 5) + hash) + (str[i] as char)
+
+		return hash
+
+#default definition of a string. This is not a built in class per say, but all string literals are turned into the class defined below. DO NOT MODIFY
 class string:
 	handle cstr
 	bool isStatic
 	
 	int length
+	int hash
 	
 	def __init__(handle cstr, bool isStatic):
 		cdef strlen(handle) int
@@ -100,11 +120,11 @@ class string:
 		self.cstr = cstr
 		self.isStatic = isStatic
 		self.length = strlen(cstr)
+		self.hash = std::dj2b(cstr, self.length)
 		
-	def __copy__():
-		cdef NULL handle
+	def __copy__() string:
 		cdef malloc(int) handle
-		cdef strcpy(handle, handle)
+		cdef strcpy(handle, handle) None
 		
 		newCStr = malloc(self.length + 1)
 		assert newCStr != NULL
@@ -113,7 +133,7 @@ class string:
 		
 		return new string(newCStr, false)
 		
-	def __free__():
+	def __del__():
 		cdef free(handle) None
 		if self.isStatic == False:
 			free(self.cstr)
@@ -138,9 +158,8 @@ class string:
 		return self.cstr[i] as char
 		
 	def add(string str) string:
-		cdef NULL handle
 		cdef malloc(int) handle
-		cdef memcpy(handle, handle, int)
+		cdef memcpy(handle, handle, int) None
 		
 		concatCStr = malloc(self.length + str.length + 1)
 		assert concatCStr != NULL
@@ -151,10 +170,9 @@ class string:
 		
 		return new string(concatCStr, false)
 		
-	def substring(int i, int length)
-		cdef NULL handle
+	def substring(int i, int length) string:
 		cdef malloc(int) handle
-		cdef memcpy(handle, handle, int)
+		cdef memcpy(handle, handle, int) None
 		
 		assert i >= 0 and i < self.length
 		assert i + length <= self.length
@@ -168,14 +186,14 @@ class string:
 		return new string(destCStr, false)
 		
 	def find(string substr, int startIndex) int:
-		def match(int offset):
+		def matchPattern(int offset) bool:
 			for i from 0 within substr.length:
 				if self.cstr[i + offset] as char != substr.cstr[i] as char:
 					return false
 			return true
 			
 		for i from startIndex within self.length - substr.length:
-			if match(i):
+			if matchPattern(i):
 				return i
 		return -1
 		
@@ -198,10 +216,10 @@ class string:
 				
 	def split(string delim, bool includeEmpty) array<string>:
 		parts = new data::list<string>(10)
-		
+
 		i = 0
 		while True:
-			end = find(findStr, i)
+			end = find(delim, i)
 			if end == -1:
 				if i != self.length:
 					parts.pushBack(substring(i, self.length - i))

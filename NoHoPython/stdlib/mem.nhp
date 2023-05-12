@@ -3,8 +3,8 @@
 	def report():
 		cdef memoryReport() None
 		memoryReport()
+
 	def leaksan(fn<None> todo):
-		cdef printf(handle, int, int) None
 		cdef active_allocs int
 		cdef active_memory_usage int
 

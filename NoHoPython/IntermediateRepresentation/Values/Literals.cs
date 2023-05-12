@@ -72,9 +72,26 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsTruey => false;
         public bool IsFalsey => true;
 
-        public FalseLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
-
         public IType Type => Primitive.Boolean;
+
+        public FalseLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
+    }
+
+    public sealed partial class StaticCStringLiteral : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public IType Type => Primitive.Handle;
+        
+        public string String { get; private set; }
+
+        public StaticCStringLiteral(string @string, IAstElement errorReportedElement)
+        {
+            String = @string;
+            ErrorReportedElement = errorReportedElement;
+        }
     }
 
     public sealed partial class EmptyTypeLiteral : IRValue
@@ -172,30 +189,26 @@ namespace NoHoPython.IntermediateRepresentation.Values
     public sealed partial class InterpolatedString : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
-        public IType Type { get => new ArrayType(Primitive.Character); }
+
+        public IType Type => TargetArrayChar ? new ArrayType(Primitive.Character) : Primitive.Handle;
+
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
         public readonly List<object> InterpolatedValues; //all objects are either IRValue or string
 
-        public InterpolatedString(List<object> interpolatedValues, IAstElement errorReportedElement)
+        private bool TargetArrayChar;
+
+        public InterpolatedString(List<object> interpolatedValues, bool targetArrayChar, IAstElement errorReportedElement)
         {
             InterpolatedValues = new(interpolatedValues.Count);
             ErrorReportedElement = errorReportedElement;
+            TargetArrayChar = targetArrayChar;
 
             for (int i = 0; i < interpolatedValues.Count; i++)
             {
                 if (interpolatedValues[i] is IRValue irValue)
-                {
-                    try
-                    {
-                        InterpolatedValues.Add(ArithmeticCast.CastTo(irValue, new ArrayType(Primitive.Character)));
-                    }
-                    catch //values without a format specifier are cast to strings
-                    {
-                        InterpolatedValues.Add(irValue);
-                    }
-                }
+                    InterpolatedValues.Add(irValue);
                 else if (interpolatedValues[i] is string str)
                 {
                     if (str != string.Empty)
@@ -296,9 +309,7 @@ namespace NoHoPython.Syntax.Values
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
-            IType? inferedElementType = IsStringLiteral
-                ? Primitive.Character
-                : AnnotatedElementType != null
+            IType? inferedElementType = AnnotatedElementType != null
                 ? AnnotatedElementType.ToIRType(irBuilder, this)
                 : expectedType != null && expectedType is ArrayType arrayType
                 ? arrayType.ElementType
@@ -312,21 +323,60 @@ namespace NoHoPython.Syntax.Values
         }
     }
 
+    partial class StringLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
+        {
+            if(expectedType is ArrayType arrayType && arrayType.ElementType is CharacterType) //return array of string
+            {
+                return new IntermediateRepresentation.Values.ArrayLiteral(Primitive.Character, String.ToList().ConvertAll((c) => (IRValue)new IntermediateRepresentation.Values.CharacterLiteral(c, this)), this);
+            }
+            else if(expectedType is HandleType)
+            {
+                return new IntermediateRepresentation.Values.StaticCStringLiteral(String, this);
+            }
+
+            return new IntermediateRepresentation.Values.AllocRecord(Primitive.GetStringType(irBuilder, this), new List<IRValue>() { new IntermediateRepresentation.Values.StaticCStringLiteral(String, this), new IntermediateRepresentation.Values.TrueLiteral(this) }, this);
+        }
+    }
+
     partial class InterpolatedString
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
             List<object> IRInterpolatedValues = new();
-            foreach(object value in InterpolatedValues)
+
+            RecordType stringType = Primitive.GetStringType(irBuilder, this);
+            foreach (object value in InterpolatedValues)
             {
                 if (value is IAstValue astValue)
-                    IRInterpolatedValues.Add(astValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate));
+                {
+                    IRValue irValue = astValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate);
+
+                    if (!irValue.Type.HasFormatSpecifier)
+                    {
+                        try
+                        {
+                            irValue = IntermediateRepresentation.Values.ArithmeticCast.CastTo(irValue, stringType);
+                        }
+                        catch
+                        {
+                            irValue = IntermediateRepresentation.Values.ArithmeticCast.CastTo(irValue, new ArrayType(Primitive.Character));
+                        }
+                    }
+
+                    IRInterpolatedValues.Add(irValue);
+                }
                 else
 #pragma warning disable CS8604 // Possible null reference argument.
                     IRInterpolatedValues.Add(value as string);
 #pragma warning restore CS8604 // Possible null reference argument.
             }
-            return new IntermediateRepresentation.Values.InterpolatedString(IRInterpolatedValues, this);
+
+            if (expectedType is ArrayType arrayType && arrayType.ElementType is CharacterType)
+                return new IntermediateRepresentation.Values.InterpolatedString(IRInterpolatedValues, true, this);
+
+            return new IntermediateRepresentation.Values.AllocRecord(Primitive.GetStringType(irBuilder, this), new List<IRValue>() { new IntermediateRepresentation.Values.InterpolatedString(IRInterpolatedValues, false, this), new IntermediateRepresentation.Values.FalseLiteral(this) }, this);
         }
     }
 

@@ -1,8 +1,5 @@
 ﻿#Note this example is not up to date, and won't work with the latest version
 
-cinclude "<stdlib.h>"
-cinclude "<stdio.h>"
-
 mod memutils:
 	def memcpy<T>(array<T> src, array<T> dest, int srcOffset, int destOffset, int length):
 		i = 0
@@ -13,6 +10,7 @@ mod memutils:
 class list<T>:
 	array<T> buffer
 	int count = 0
+
 	def __init__(int allocLength, T default):
 		self.buffer = new T[allocLength](default)
 	def getAtIndex(int index) T:

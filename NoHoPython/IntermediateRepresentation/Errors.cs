@@ -9,6 +9,16 @@ namespace NoHoPython.IntermediateRepresentation
 {
     public abstract class IRGenerationError : Exception
     {
+        protected static void PrintIAstElement(IAstElement element)
+        {
+            Console.WriteLine($"\nIn {element.SourceLocation}:\n");
+
+            if (element is IAstValue astValue)
+                Console.WriteLine($"\t{astValue}");
+            else if (element is IAstStatement astStatement)
+                Console.WriteLine(astStatement.ToString(1));
+        }
+
         public IAstElement ErrorReportedElement { get;private set; }
 
         public IRGenerationError(IAstElement errorReportedElement, string message) : base(message)
@@ -16,18 +26,10 @@ namespace NoHoPython.IntermediateRepresentation
             ErrorReportedElement = errorReportedElement;
         }
 
-        public void Print()
+        public virtual void Print()
         {
             Console.WriteLine($"IR Generation Error: {Message}");
-
-            Console.WriteLine($"\nIn {ErrorReportedElement.SourceLocation}:\n");
-
-            if (ErrorReportedElement is IAstValue astValue)
-            {
-                Console.WriteLine($"\t{astValue}");
-            }
-            else if (ErrorReportedElement is IAstStatement astStatement)
-                Console.WriteLine(astStatement.ToString(0));
+            PrintIAstElement(ErrorReportedElement);
         }
     }
 
@@ -229,6 +231,14 @@ namespace NoHoPython.IntermediateRepresentation
 
         }
     }
+
+    public sealed class UnexpectedStringSymbolException : IRGenerationError
+    {
+        public UnexpectedStringSymbolException(IAstElement errorReportedElement) : base(errorReportedElement, "The string symbol is not a class declaration. Don't mess around with string.nhp. It's a really bad idea.")
+        {
+
+        }
+    }
 }
 
 namespace NoHoPython.Scoping
@@ -252,6 +262,14 @@ namespace NoHoPython.Scoping
         public SymbolAlreadyExistsException(IScopeSymbol existingSymbol, IAstElement astElement) : base(astElement, $"Symbol {existingSymbol.Name} already exists.")
         {
             ExistingSymbol = existingSymbol;
+        }
+
+        public override void Print()
+        {
+            base.Print();
+
+            Console.WriteLine($"\n\nSymbol {ExistingSymbol.Name} declared at:");
+            PrintIAstElement(ExistingSymbol.ErrorReportedElement);
         }
     }
 

@@ -2,7 +2,6 @@
 using NoHoPython.IntermediateRepresentation;
 using NoHoPython.Syntax;
 using NoHoPython.Syntax.Parsing;
-using System.Text;
 
 public static class Program
 {
@@ -26,9 +25,8 @@ public static class Program
         {
             DateTime compileStart = DateTime.Now;
 
-            AstParser parser = new(new Scanner(args[0], $"{Environment.CurrentDirectory}/stdlib"));
-
-            List<IAstStatement> statements = parser.ParseAll();
+            AstParser sourceParser = new AstParser(new Scanner(args[0], $"{Environment.CurrentDirectory}/stdlib"));
+            List<IAstStatement> statements = sourceParser.ParseAll();
 
             List<string> flags = new();
             MemoryAnalyzer.AnalysisMode requestedAnalysisMode()
@@ -56,8 +54,8 @@ public static class Program
             for (int i = 2; i < args.Length; i++)
                 flags.Add(args[i]);
             AstIRProgramBuilder astIRProgramBuilder = new(statements, flags);
-            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), args.Contains("-namert"), args.Contains("-linedir") || args.Contains("-ggdb"), memoryAnalyzer);
-            parser.IncludeCFiles(program);
+            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), args.Contains("-namert"), args.Contains("-linedir") || args.Contains("-ggdb"), args.Contains("-main"), memoryAnalyzer);
+            sourceParser.IncludeCFiles(program);
 
             string outputFile;
             if (args.Length >= 2)
@@ -88,10 +86,10 @@ public static class Program
         {
             compilerError.Print();
         }
-        //catch (CodegenError codegenError)
-        //{
-        //    codegenError.Print();
-        //}
+        catch (CodegenError codegenError)
+        {
+            codegenError.Print();
+        }
         catch (FileNotFoundException f)
         {
             Console.WriteLine($"File not found: {f.Message}");

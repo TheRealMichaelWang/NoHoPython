@@ -1,8 +1,7 @@
 ﻿include "io.nhp"
 
 def main():
-	out = io::output()
 	for i from 1 to 10:
-		out.writeLine(i)
-	for i from 1 within 15:
-		out.writeLine(i)
+		print($"{i}")
+	for i from 0 within 15:
+		print($"{i}")

@@ -330,16 +330,14 @@ namespace NoHoPython.Syntax.Statements
             IntermediateRepresentation.Statements.ProcedureDeclaration? Destructor = null;
             IntermediateRepresentation.Statements.ProcedureDeclaration? Copier = null;
             MessageRecievers.ForEach((ProcedureDeclaration reciever) => {
-                var irProcedure = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
-
                 if (reciever.Name == "__init__")
-                    Constructor = irProcedure;
+                    Constructor = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.ConstructorGenerateIntermediateRepresentationForStatement(irBuilder);
                 else if (reciever.Name == "__del__")
-                    Destructor = irProcedure;
+                    Destructor = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
                 else if (reciever.Name == "__copy__")
-                    Copier = irProcedure;
+                    Copier = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
                 else
-                    messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure(irProcedure, false, this, null));
+                    messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure((IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder), false, this, null));
             });
 
             if (Constructor == null)

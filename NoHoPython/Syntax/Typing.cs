@@ -21,12 +21,12 @@ namespace NoHoPython.Syntax
         public Typing.TypeParameter ToIRTypeParameter(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             if (RequiredImplementedType == null)
-                return new(Identifier, null, irBuilder.CurrentMasterScope);
+                return new(Identifier, null, irBuilder.CurrentMasterScope, errorReportedElement);
             else
             {
                 IType type = RequiredImplementedType.ToIRType(irBuilder, errorReportedElement);
                 if (type is InterfaceType interfaceType)
-                    return new(Identifier, interfaceType, irBuilder.CurrentMasterScope);
+                    return new(Identifier, interfaceType, irBuilder.CurrentMasterScope, errorReportedElement);
                 else
                     throw new UnexpectedTypeException(type, errorReportedElement);
             }

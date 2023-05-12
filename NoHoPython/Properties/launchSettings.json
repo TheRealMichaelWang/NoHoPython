@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "tests/bare-hello-world.nhp\r\nout.c"
+      "commandLineArgs": "tests/interpolation-test.nhp\r\nout.c\r\n-meman2\r\n-main"
     }
   }
 }

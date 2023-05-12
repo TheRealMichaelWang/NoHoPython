@@ -1,6 +1,5 @@
 ﻿#REDOX Calculator
 
-include "std.nhp"
 include "list.nhp"
 
 #describes the properties of generic chemical species

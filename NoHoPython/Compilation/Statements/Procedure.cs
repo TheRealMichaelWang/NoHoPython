@@ -593,16 +593,28 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             CodeBlock.CIndent(emitter, indent + 1);
             if (AbortMessage != null)
             {
-                emitter.Append($"{AbortMessage.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_abort_msg = ");
-                AbortMessage.Emit(irProgram, emitter, typeargs, "NULL");
-                emitter.AppendLine(";");
+                if (AbortMessage.Type is HandleType) {
+                    emitter.Append("printf(\"AbortError: %s\\n\", ");
+                    AbortMessage.Emit(irProgram, emitter, typeargs, "NULL");
+                    emitter.AppendLine(");");
+                } 
+                else
+                {
+                    emitter.Append($"{AbortMessage.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_abort_msg = ");
+                    AbortMessage.Emit(irProgram, emitter, typeargs, "NULL");
+                    emitter.AppendLine(";");
 
-                CodeBlock.CIndent(emitter, indent + 1);
-                emitter.AppendLine("printf(\"AbortError: %.*s\\n\", _nhp_abort_msg.length, _nhp_abort_msg.buffer);");
+                    CodeBlock.CIndent(emitter, indent + 1);
+                    emitter.Append("printf(\"AbortError: ");
+                    if (AbortMessage.Type is ArrayType)
+                        emitter.AppendLine("%.*s\\n\", _nhp_abort_msg.length, _nhp_abort_msg.buffer);");
+                    else
+                        emitter.AppendLine("%s\\n\", _nhp_abort_msg->cstr);");
 
-                CodeBlock.CIndent(emitter, indent + 1);
-                AbortMessage.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_abort_msg", "NULL");
-                emitter.AppendLine();
+                    CodeBlock.CIndent(emitter, indent + 1);
+                    AbortMessage.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_abort_msg", "NULL");
+                    emitter.AppendLine();
+                }
             }
             else
                 emitter.Append("puts(\"AbortError: No message given.\");");
@@ -829,12 +841,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class OptimizedRecordMessageCall
     {
         ProcedureReference? toCall = null;
+        private bool scoped = false;
 
         public override void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            Record.ScopeForUsedTypes(typeargs, irBuilder);
+            if (scoped)
+                return;
+            scoped = true;
+
             Property.ScopeForUse(true, typeargs, irBuilder);
-            base.ScopeForUsedTypes(typeargs, irBuilder);
 
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
@@ -843,28 +858,41 @@ namespace NoHoPython.IntermediateRepresentation.Values
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
             toCall = toCall.ScopeForUsedTypes(irBuilder);
+
+            if (toCall.ProcedureDeclaration.CapturedVariables.Count > 0)
+                Arguments.Add(Record);
+
+            base.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
         public override void EmitCall(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int currentNestedCall, string responsibleDestroyer)
         {
-            if (!Record.IsPure)
-                throw new CannotEnsureOrderOfEvaluation(this);
-
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             emitter.Append($"{toCall.GetStandardIdentifier(irProgram)}(");
             EmitArguments(irProgram, emitter, typeargs, bufferedArguments, currentNestedCall);
-            
-            if(Arguments.Count > 0 && (toCall.ReturnType.MustSetResponsibleDestroyer || toCall.ProcedureDeclaration.CapturedVariables.Count > 0))
-                emitter.Append(", ");
 
             if (toCall.ProcedureDeclaration.CapturedVariables.Count > 0)
+                Debug.Assert(Arguments.Last() == Record);
+
+            if (toCall.ReturnType.MustSetResponsibleDestroyer)
             {
-                IRValue.EmitMemorySafe(Record, irProgram, emitter, typeargs);
-                if(toCall.ReturnType.MustSetResponsibleDestroyer)
-                    emitter.Append($", {responsibleDestroyer}");
-            }
-            else
+                if (Arguments.Count > 0)
+                    emitter.Append(", ");
                 emitter.Append(responsibleDestroyer);
+            }
+
+            //if(Arguments.Count > 0 && (toCall.ReturnType.MustSetResponsibleDestroyer || toCall.ProcedureDeclaration.CapturedVariables.Count > 0))
+            //    emitter.Append(", ");
+
+            //if (toCall.ProcedureDeclaration.CapturedVariables.Count > 0)
+            //{
+            //    IRValue.EmitMemorySafe(Record, irProgram, emitter, typeargs);
+            //    if(toCall.ReturnType.MustSetResponsibleDestroyer)
+            //        emitter.Append($", {responsibleDestroyer}");
+            //}
+            //else
+            //    emitter.Append(responsibleDestroyer);
+
             emitter.Append(')');
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
         }

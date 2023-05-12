@@ -108,6 +108,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append('0');
     }
 
+    partial class StaticCStringLiteral
+    {
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
+
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        {
+            emitter.Append('\"');
+            foreach (char c in String)
+                CharacterLiteral.EmitCChar(emitter, c, false);
+            emitter.Append('\"');
+        }
+    }
+
     partial class EmptyTypeLiteral
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
@@ -133,12 +148,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (Elements.Count == 0)
                 emitter.Append("NULL");
-            else if(Elements.TrueForAll((IRValue element) => element is CharacterLiteral)) //is string literal
-            {
-                emitter.Append('\"');
-                Elements.ForEach((element) => CharacterLiteral.EmitCChar(emitter, ((CharacterLiteral)element).Character, false));
-                emitter.Append('\"');
-            }
+            //else if(Elements.TrueForAll((IRValue element) => element is CharacterLiteral)) //is string literal
+            //{
+            //    emitter.Append('\"');
+            //    Elements.ForEach((element) => CharacterLiteral.EmitCChar(emitter, ((CharacterLiteral)element).Character, false));
+            //    emitter.Append('\"');
+            //}
             else
             {
                 emitter.Append($"({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)}[])");

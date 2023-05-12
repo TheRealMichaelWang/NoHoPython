@@ -3,4 +3,4 @@
 
 def main():
 	cdef puts(handle) None
-	puts(msg = $"{fib(45)}")
+	puts((msg=$"{fib(45)}").cstr)

@@ -61,12 +61,18 @@ namespace NoHoPython.Syntax
         public void AddEnumDeclaration(EnumDeclaration enumDeclaration) => EnumDeclarations.Add(enumDeclaration);
         public void AddProcDeclaration(ProcedureDeclaration procedureDeclaration) => ProcedureDeclarations.Add(procedureDeclaration);
 
-        public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, MemoryAnalyzer memoryAnalyzer)
+        public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, bool mainEntryPoint, MemoryAnalyzer memoryAnalyzer)
         {
             List<ProcedureDeclaration> compileHeads = new();
             foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
-                if (procedureDeclaration.IsCompileHead)
+                if (mainEntryPoint)
+                {
+                    if(procedureDeclaration.IsCompileHead && procedureDeclaration.Name == "main")
+                        compileHeads.Add(procedureDeclaration);
+                }
+                else if (procedureDeclaration.IsCompileHead)
                     compileHeads.Add(procedureDeclaration);
+
             foreach (ProcedureDeclaration procedureDeclaration in compileHeads)
                 procedureDeclaration.ScopeAsCompileHead(this);
             ScopeForAllSecondaryProcedures();

@@ -1,6 +1,5 @@
 include "shared.nhp"
 include "stream.nhp"
-include "string.nhp"
 
 mod std:
 	mod io:
@@ -18,14 +17,14 @@ mod std:
 				cdef fwrite(handle, int, int, handle) int
 				return fwrite(buffer, 1, buffer as int, self.ptr)
 
-			def flush()
+			def flush():
 				cdef fflush(handle) None
 				fflush(self.ptr)
 			
 		class handleInputStream:
 			handle ptr
 		
-			def __init__(handle ptr)
+			def __init__(handle ptr):
 				self.ptr = ptr
 			
 			def readByte() char:
@@ -46,7 +45,7 @@ mod std:
 
 			def __init__(shared ptr):
 				self.ptr = ptr
-				self.output = new(ptr.ptr)
+				self.output = new handleOutputStream(ptr.ptr)
 
 			def writeByte(char byte):
 				self.output.writeByte(byte)
@@ -63,7 +62,7 @@ mod std:
 
 			def __init__(shared ptr):
 				self.ptr = ptr
-				self.input = new(ptr.ptr)
+				self.input = new handleInputStream(ptr.ptr)
 
 			def readByte() char:
 				return self.input.readByte()
@@ -71,10 +70,9 @@ mod std:
 			def peek() char:
 				return self.input.peek()
 
-		def fopen(string path, string mode) shared:
+		def openFile(string path, string mode) shared:
 			cdef fopen(handle, handle) handle
 			cdef fclose(handle) None
-			cdef NULL handle
 
 			ptr = fopen(path.cstr, mode.cstr)
 			assert ptr != NULL
@@ -84,14 +82,14 @@ mod std:
 def input() string:
 	cdef stdin handle
 
-	inputStream = new io::handleInputStream(stdin)
-	buf = stream::readLine(inputStream)
+	inStream = new std::io::handleInputStream(stdin)
+	buf = std::stream::readLine(inStream)
 	return std::makeString(buf)
 
-def print(string msg) None
-	cdef stdout
+def print(string msg) None:
+	cdef stdout handle
 
-	outputStream = new io::handleOutputStream(stdout)
+	outStream = new std::io::handleOutputStream(stdout)
 	for i from 0 within msg.length:
-		outputStream.writeByte(msg[i])
-	outputStream.writeByte('\n')
+		outStream.writeByte(msg[i])
+	outStream.writeByte('\n')

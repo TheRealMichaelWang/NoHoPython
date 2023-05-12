@@ -66,6 +66,7 @@ namespace NoHoPython.Scoping
             public bool AllCodePathsReturn() => throw new InvalidOperationException();
 
             public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
+            public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
             public bool SomeCodePathsBreak() => throw new InvalidOperationException();
         }
 

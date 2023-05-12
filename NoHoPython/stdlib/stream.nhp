@@ -1,6 +1,5 @@
 mod std:
 	cdef EOF char
-	cdef NULL handle
 
 	interface outputStream:
 		fn<None, char> writeByte
@@ -46,7 +45,6 @@ mod std:
 			
 		def ensureCapacity(int minCap):
 			cdef realloc(handle, int) handle
-			cdef NULL handle
 
 			if self.capacity < minCap:
 				self.capacity = minCap
@@ -59,8 +57,8 @@ mod std:
 			self.buffer[self.length] = byte
 			self.length = self.length + 1
 
-		def writeBuffer(array<char> buffer):
-			cdef memcpy(handle, handle, int)
+		def writeBuffer(array<char> buffer) int:
+			cdef memcpy(handle, handle, int) None
 
 			ensureCapacity(self.length + buffer as int)
 			memcpy(self.buffer as int + self.length, buffer, buffer)
@@ -98,7 +96,9 @@ mod std:
 		outputStream innerWriter
 
 		def __init__(outputStream innerWriter, int capacity):
+			self.innerWriter = innerWriter
 			self.capacity = capacity
+
 			self.buffer = new memoryWriter(capacity)
 
 		def ensureFlushed():
@@ -109,23 +109,23 @@ mod std:
 			self.buffer.writeByte(byte)
 			ensureFlushed()
 
-		def writeBuffer(array<char> buffer)
+		def writeBuffer(array<char> buffer):
 			self.buffer.writeBuffer(buffer)
 			ensureFlushed()
 
 		def flush():
-			if currentBuf.length == 0:
+			if self.buffer.length == 0:
 				return
 
 			currentBuf = self.buffer as array<char>
 			self.innerWriter.writeBuffer(currentBuf)
 			self.innerWriter.flush()
 
-			currentBuf.length = 0
+			self.buffer.length = 0
 
 	mod stream:
 		def read(inputStream input, array<char> dest, int offset, int length) int:
-			read = 0
+			readBytes = 0
 			
 			for i from 0 within length:
 				byte = input.readByte()
@@ -134,31 +134,31 @@ mod std:
 					break
 
 				dest[offset + i] = byte
-				read = read + 1
+				readBytes = readBytes + 1
 			
-			return read
+			return readBytes
 
 		def readLine(inputStream input) array<char>:
-			bufferWriter = new bufferWriter(64)
+			writer = new memoryWriter(64)
 
 			while True:
 				c = input.readByte()
 
 				if c == '\n' or c == EOF:
-					return bufferWriter
+					return writer
 				else:
-					bufferWriter.writeByte(c)
+					writer.writeByte(c)
 
 		def readToEnd(inputStream input) array<char>:
-			bufferedWriter = new bufferedWriter(64)
+			writer = new memoryWriter(64)
 
 			while True:
 				c = input.readByte()
 
 				if c == EOF:
-					return bufferWriter
+					return writer
 				else:
-					bufferWriter.writeByte(c)
+					writer.writeByte(c)
 
 		def write(outputStream output, array<char> src, int offset, int length):
 			writeBuf = new char[length]

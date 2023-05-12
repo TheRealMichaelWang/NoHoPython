@@ -29,12 +29,14 @@ namespace NoHoPython.Typing
         public InterfaceType? RequiredImplementedInterface { get; private set; }
 
         public SymbolContainer ParentContainer { get; private set; }
+        public Syntax.IAstElement ErrorReportedElement { get; private set; }
 
-        public TypeParameter(string name, InterfaceType? requiredImplementedInterface, SymbolContainer parentContainer)
+        public TypeParameter(string name, InterfaceType? requiredImplementedInterface, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement)
         {
             Name = name;
             RequiredImplementedInterface = requiredImplementedInterface;
             ParentContainer = parentContainer;
+            ErrorReportedElement = errorReportedElement;
         }
 
         public bool SupportsType(IType type) => RequiredImplementedInterface == null || RequiredImplementedInterface.IsCompatibleWith(type);
@@ -349,6 +351,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new FalseLiteral(ErrorReportedElement);
     }
 
+    partial class StaticCStringLiteral
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new StaticCStringLiteral(String, ErrorReportedElement);
+    }
+
     partial class EmptyTypeLiteral
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new EmptyTypeLiteral(Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
@@ -371,7 +378,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class InterpolatedString
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new InterpolatedString(InterpolatedValues.ConvertAll((value) => value is IRValue irValue ? irValue.SubstituteWithTypearg(typeargs) : value), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new InterpolatedString(InterpolatedValues.ConvertAll((value) => value is IRValue irValue ? irValue.SubstituteWithTypearg(typeargs) : value), TargetArrayChar, ErrorReportedElement);
     }
 
     partial class AllocArray

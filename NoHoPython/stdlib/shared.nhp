@@ -8,11 +8,11 @@
 		def __init__(handle ptr, handle counterPtr, fn<None, handle> destructor):
 			self.ptr = ptr
 			self.counterPtr = counterPtr
-			self.destructor = destroyer
+			self.destructor = destructor
 
 		def __copy__() shared:
 			self.counterPtr[0] = (self.counterPtr[0] as int) + 1
-			return new shared(self.ptr, self.counterPtr, self.destroyer)
+			return new shared(self.ptr, self.counterPtr, self.destructor)
 			
 		def __del__():
 			cdef free(handle) None
@@ -24,7 +24,6 @@
 				
 	def makeShared(handle ptr, fn<None, handle> destructor) shared:
 		cdef malloc(int) handle
-		cdef NULL handle
 		
 		counterPtr = malloc(sizeof(int))
 		assert counterPtr != NULL

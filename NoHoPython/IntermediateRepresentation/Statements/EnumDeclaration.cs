@@ -178,6 +178,7 @@ namespace NoHoPython.Typing
     {
         public SymbolContainer ParentContainer => EnumDeclaration;
         public EnumDeclaration EnumDeclaration { get; private set; }
+        public Syntax.IAstElement ErrorReportedElement { get; private set; }
 
         public string Name { get; private set; }
 
@@ -187,10 +188,11 @@ namespace NoHoPython.Typing
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => new EmptyTypeLiteral(this, errorReportedElement);
 
-        public EmptyEnumOption(string name, EnumDeclaration enumDeclaration)
+        public EmptyEnumOption(string name, EnumDeclaration enumDeclaration, Syntax.IAstElement errorReportedElement)
         {
             Name = name;
             EnumDeclaration = enumDeclaration;
+            ErrorReportedElement = errorReportedElement;
         }
 
         public bool IsCompatibleWith(IType type)
@@ -346,7 +348,7 @@ namespace NoHoPython.Syntax.Statements
                 catch (SymbolNotFoundException)
                 {
                     option.MatchTypeArgCount(0, this);
-                    EmptyEnumOption enumOption = new(option.Identifier, IREnumDeclaration);
+                    EmptyEnumOption enumOption = new(option.Identifier, IREnumDeclaration, this);
                     irBuilder.SymbolMarshaller.DeclareSymbol(enumOption, this);
                     return enumOption;
                 }

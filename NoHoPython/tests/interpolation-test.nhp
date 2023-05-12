@@ -9,28 +9,27 @@ class person:
 		self.name = name
 		self.age = age
 
-	def to_array_char() array<char>:
+	def to_string() string:
 		return $"Name: {self.name}, Age: {self.age}"
 
 def interpol_str_test():
-	input = io::input()
-	output = io::output()
+	print($"{{I}} like string interpolation!")
 
-	output.writeLine($"{{I}} like string interpolation!")
+	name = input()
 
-	name = input.readLine()
-	output.writeLine($"Hello there, {name}! You are a bold one!")
+	print($"Hello there, {name}! You are a bold one!")
 
-	age = input.readInt()
-	output.writeLine($"Nice, you're {age} year(s) old!")
+	age = input() as int
+	print($"Nice, you're {age} year(s) old!")
 
 	#test two interpolated values
-	output.writeLine($"You're name is {name}, and you're {age} year(s) old!")
-	output.writeLine($"I love {$"nested string interpolation, {name}!"}. You're {age} right?")
+	print($"You're name is {name}, and you're {age} year(s) old!")
+	print($"I love {$"nested string interpolation, {name}!"}. You're {age} right?")
 
 	you = new person(name, age)
-	output.writeLine(you)
-	output.writeLine($"You're {you}!")
+
+	print(you)
+	print($"You're {you}!")
 
 	#abort $"Yo, {name}, interpolated strings make aborts way easier!"
 

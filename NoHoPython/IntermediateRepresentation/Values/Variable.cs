@@ -16,30 +16,34 @@ namespace NoHoPython.Scoping
 
         public ProcedureDeclaration ParentProcedure;
         public SymbolContainer ParentContainer => ParentProcedure;
+        public IAstElement ErrorReportedElement { get; private set; }
 
         public string GetStandardIdentifier() => $"_nhp_var_{Name}";
 
-        public Variable(IType type, string name, ProcedureDeclaration parentProcedure, bool isRecordSelf)
+        public Variable(IType type, string name, ProcedureDeclaration parentProcedure, bool isRecordSelf, IAstElement errorReportedElement)
         {
             Type = type;
             Name = name;
             ParentProcedure = parentProcedure;
             IsRecordSelf = isRecordSelf;
+            ErrorReportedElement = errorReportedElement;
         }
     }
 
     public sealed class CSymbol : IScopeSymbol
     {
         public SymbolContainer ParentContainer { get; private set; }
+        public IAstElement ErrorReportedElement { get; private set; }
 
         public IType Type { get; private set; }
         public string Name { get; private set; }
 
-        public CSymbol(IType type, string name, SymbolContainer parentContainer)
+        public CSymbol(IType type, string name, SymbolContainer parentContainer, IAstElement errorReportedElement)
         {
             Type = type;
             Name = name;
             ParentContainer = parentContainer;
+            ErrorReportedElement = errorReportedElement;
         }
     }
 
@@ -102,7 +106,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public VariableDeclaration(string name, IRValue setValue, bool willRevaluate, AstIRProgramBuilder irBuilder, IAstElement errorReportedELement)
         {
-            irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false), errorReportedELement);
+            irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false, errorReportedELement), errorReportedELement);
             irBuilder.SymbolMarshaller.CurrentCodeBlock.AddVariableDeclaration(this);
             InitialValue = setValue;
             WillRevaluate = willRevaluate;
@@ -220,7 +224,7 @@ namespace NoHoPython.Syntax.Values
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) 
         {
             IType type = Type == null ? Primitive.Integer : Type.ToIRType(irBuilder, this);
-            irBuilder.SymbolMarshaller.DeclareSymbol(CSymbol = new CSymbol(type, Name, irBuilder.SymbolMarshaller.CurrentScope), this);
+            irBuilder.SymbolMarshaller.DeclareSymbol(CSymbol = new CSymbol(type, Name, irBuilder.SymbolMarshaller.CurrentScope, this), this);
         }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.CSymbolDeclaration(CSymbol, this);

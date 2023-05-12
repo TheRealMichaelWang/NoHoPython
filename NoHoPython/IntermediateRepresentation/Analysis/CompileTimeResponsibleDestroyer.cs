@@ -197,6 +197,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue? GetResponsibleDestroyer() => null;
     }
 
+    partial class StaticCStringLiteral
+    {
+        public IRValue? GetResponsibleDestroyer() => null;
+    }
+
     partial class EmptyTypeLiteral
     {
         public IRValue? GetResponsibleDestroyer() => null;

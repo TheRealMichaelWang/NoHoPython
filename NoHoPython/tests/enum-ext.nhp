@@ -20,17 +20,14 @@ def getDayOfWeek(int dayNo) result<dayOfWeek>:
 	return days[dayNo]
 
 def main():
-	input = io::input()
-	out = io::output()
-
-	out.writeLine("Day?>")
-	dayNo = input.readInt()
+	print("Day?>")
+	dayNo = input() as int
 
 	day = getDayOfWeek(dayNo) as dayOfWeek
 	match day:
 		dayOfWeek::Sunday:
-			out.writeLine("sun")
+			print("sun")
 		dayOfWeek::Saturday:
-			out.writeLine("Sat")
+			print("Sat")
 		default:
-			out.writeLine("Fuck")
+			print("Fuck")

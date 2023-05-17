@@ -9,7 +9,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class IfElseValue
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -27,7 +27,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             if (Condition.IsTruey)
                 IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs);
@@ -253,7 +253,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             CodeBlock.CIndent(emitter, indent + 1);
             emitter.Append($"long _nhp_upper_{IteratorVariableDeclaration.Variable.Name} = ");
-            UpperBound.Emit(irProgram, emitter, typeargs, "NULL");
+            UpperBound.Emit(irProgram, emitter, typeargs, "NULL", true);
             emitter.AppendLine(";");
             
             CodeBlock.CIndent(emitter, indent + 1);

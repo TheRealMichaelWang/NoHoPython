@@ -177,9 +177,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     irValue.ScopeForUsedTypes(new(), irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => TargetArrayChar;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => TargetArrayChar;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             if (!irProgram.EmitExpressionStatements)
                 throw new CannotEmitInterpolatedString(this);
@@ -204,7 +204,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 if (value is IRValue irValue)
                 {
-                    if (!irValue.IsPure || irValue.RequiresDisposal(typeargs))
+                    if (!irValue.IsPure || irValue.RequiresDisposal(typeargs, true))
                         bufferedArguments.Add(arguments.Count);
 
                     formatBuilder.Append(irValue.Type.GetFormatSpecifier(irProgram));
@@ -220,7 +220,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             foreach (int bufferedArg in bufferedArguments)
             {
                 emitter.Append($"{arguments[bufferedArg].Type.GetCName(irProgram)} intpd_buffered_arg{bufferedArg}{irProgram.ExpressionDepth} = ");
-                arguments[bufferedArg].Emit(irProgram, emitter, typeargs, "NULL");
+                arguments[bufferedArg].Emit(irProgram, emitter, typeargs, "NULL", true);
                 emitter.Append(';');
             }
 
@@ -240,7 +240,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             emitter.Append(");");
 
             foreach (int bufferedArg in bufferedArguments)
-                if (arguments[bufferedArg].RequiresDisposal(typeargs))
+                if (arguments[bufferedArg].RequiresDisposal(typeargs, true))
                     arguments[bufferedArg].Type.EmitFreeValue(irProgram, emitter, $"intpd_buffered_arg{bufferedArg}{irProgram.ExpressionDepth}", "NULL");
 
             emitter.Append($"intpd_str{irProgram.ExpressionDepth};}})");

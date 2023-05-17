@@ -31,32 +31,32 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Right.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             BufferedEmitter leftBuilder = new();
             BufferedEmitter rightBuilder = new();
 
             if((!ShortCircuit && !IRValue.EvaluationOrderGuarenteed(Left, Right))
-                || Left.RequiresDisposal(typeargs) || Right.RequiresDisposal(typeargs))
+                || Left.RequiresDisposal(typeargs, true) || Right.RequiresDisposal(typeargs, true))
             {
                 if (!irProgram.EmitExpressionStatements)
                     throw new CannotEnsureOrderOfEvaluation(this);
 
                 irProgram.ExpressionDepth++;
 
-                Left.Emit(irProgram, leftBuilder, typeargs, "NULL");
-                Right.Emit(irProgram, rightBuilder, typeargs, "NULL");
+                Left.Emit(irProgram, leftBuilder, typeargs, "NULL", true);
+                Right.Emit(irProgram, rightBuilder, typeargs, "NULL", true);
 
                 emitter.Append($"({{{Left.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} lhs{irProgram.ExpressionDepth} = {leftBuilder}; {Right.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} rhs{irProgram.ExpressionDepth} = {rightBuilder}; {Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} res{irProgram.ExpressionDepth} = ");
                 EmitExpression(irProgram, emitter, typeargs, $"lhs{irProgram.ExpressionDepth}", $"rhs{irProgram.ExpressionDepth}");
                 emitter.Append("; ");
 
-                if (Left.RequiresDisposal(typeargs))
+                if (Left.RequiresDisposal(typeargs, true))
                     Left.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"lhs{irProgram.ExpressionDepth}", "NULL");
 
-                if(Right.RequiresDisposal(typeargs))
+                if(Right.RequiresDisposal(typeargs, true))
                     Right.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"rhs{irProgram.ExpressionDepth}", "NULL");
                 
                 emitter.Append($"res{irProgram.ExpressionDepth};}})");
@@ -157,9 +157,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Index.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             if (!IRValue.EvaluationOrderGuarenteed(Array, Index))
             {
@@ -212,9 +212,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             string arrayResponsibleDestroyer = ArrayType.GetResponsibleDestroyer(irProgram, typeargs, Array);
             if (!IRValue.EvaluationOrderGuarenteed(Array, Index, Value))
@@ -235,8 +235,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 emitter.Append(';');
                 BufferedEmitter valueBuilder = new();
-                if (Value.RequiresDisposal(typeargs))
-                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer);
+                if (Value.RequiresDisposal(typeargs, false))
+                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer, false);
                 else
                     Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), arrayResponsibleDestroyer);
 
@@ -260,8 +260,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 destBuilder.Append(']');
 
                 BufferedEmitter valueBuilder = new();
-                if (Value.RequiresDisposal(typeargs))
-                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer);
+                if (Value.RequiresDisposal(typeargs, false))
+                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer, false);
                 else
                     Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), arrayResponsibleDestroyer);
 
@@ -292,8 +292,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.AppendLine(";");
 
                 BufferedEmitter valueBuilder = new();
-                if (Value.RequiresDisposal(typeargs))
-                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer);
+                if (Value.RequiresDisposal(typeargs, false))
+                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer, false);
                 else
                     Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), arrayResponsibleDestroyer);
 
@@ -305,7 +305,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             else
             {
-                Emit(irProgram, emitter, typeargs, "NULL");
+                Emit(irProgram, emitter, typeargs, "NULL", false);
                 emitter.AppendLine(";");
             }
         }
@@ -320,9 +320,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Record.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => Property.RequiresDisposal;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Property.RequiresDisposal;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             if (Record.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
                 Property.EmitGet(irProgram, emitter, typeargs, propertyContainer, BufferedEmitter.EmittedBufferedMemorySafe(Record, irProgram, typeargs), responsibleDestroyer);
@@ -340,9 +340,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             if (!IRValue.EvaluationOrderGuarenteed(Record, Value))
             {
@@ -352,8 +352,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 IRValue.EmitMemorySafe(Record, irProgram, emitter, typeargs);
                 emitter.Append($"; {Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} value{irProgram.ExpressionDepth} = ");
 
-                if (Value.RequiresDisposal(typeargs))
-                    Value.Emit(irProgram, emitter, typeargs, $"record{irProgram.ExpressionDepth}");
+                if (Value.RequiresDisposal(typeargs, false))
+                    Value.Emit(irProgram, emitter, typeargs, $"record{irProgram.ExpressionDepth}", false);
                 else
                     Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), $"record{irProgram.ExpressionDepth}");
 
@@ -376,8 +376,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (IsInitializingProperty)
                 {
                     emitter.Append($"({recordCSource}->{Property.Name} = ");
-                    if (Value.RequiresDisposal(typeargs))
-                        Value.Emit(irProgram, emitter, typeargs, recordResponsibleDestroyer);
+                    if (Value.RequiresDisposal(typeargs, false))
+                        Value.Emit(irProgram, emitter, typeargs, recordResponsibleDestroyer, false);
                     else
                         Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), recordResponsibleDestroyer.ToString());
                     emitter.Append(')');
@@ -385,8 +385,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 else
                 {
                     BufferedEmitter toCopyBuilder = new();
-                    if (Value.RequiresDisposal(typeargs))
-                        Value.Emit(irProgram, toCopyBuilder, typeargs, recordResponsibleDestroyer.ToString());
+                    if (Value.RequiresDisposal(typeargs, false))
+                        Value.Emit(irProgram, toCopyBuilder, typeargs, recordResponsibleDestroyer.ToString(), false);
                     else
                         Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, toCopyBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), recordResponsibleDestroyer.ToString());
                     Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"{recordCSource}->{Property.Name}", toCopyBuilder.ToString(), recordCSource);
@@ -408,8 +408,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 CodeBlock.CIndent(emitter, indent + 1);
                 emitter.Append($"{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} value = ");
-                if (Value.RequiresDisposal(typeargs))
-                    Value.Emit(irProgram, emitter, typeargs, "record");
+                if (Value.RequiresDisposal(typeargs, false))
+                    Value.Emit(irProgram, emitter, typeargs, "record", false);
                 else
                     Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), "record");
                 emitter.AppendLine(";");
@@ -427,7 +427,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             else
             {
-                Emit(irProgram, emitter, typeargs, "NULL");
+                Emit(irProgram, emitter, typeargs, "NULL", false);
                 emitter.AppendLine(";");
             }
         }
@@ -467,7 +467,7 @@ namespace NoHoPython.Typing
             else
             {
                 BufferedEmitter bufferedEmitter = new();
-                responsibleDestroyer.Emit(irProgram, bufferedEmitter, typeargs, "NULL");
+                responsibleDestroyer.Emit(irProgram, bufferedEmitter, typeargs, "NULL", false);
                 return bufferedEmitter.ToString();
             }
         }

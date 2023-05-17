@@ -391,8 +391,8 @@ namespace NoHoPython.Typing
                 {
                     emitter.Append($"\t_nhp_self->{recordProperty.Name} = ");
 #pragma warning disable CS8602 //recordProperty.HasDefaultValue guarentees DefaultValue is not null 
-                    if (recordProperty.DefaultValue.RequiresDisposal(new()))
-                        recordProperty.DefaultValue.Emit(irProgram, emitter, new(), "_nhp_self");
+                    if (recordProperty.DefaultValue.RequiresDisposal(new(), false))
+                        recordProperty.DefaultValue.Emit(irProgram, emitter, new(), "_nhp_self", false);
                     else
                         recordProperty.Type.EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(recordProperty.DefaultValue, irProgram, new(), "NULL"), "_nhp_self");
 #pragma warning restore CS8602 // Dereference of a possibly null reference.

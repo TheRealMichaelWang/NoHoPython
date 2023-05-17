@@ -4,7 +4,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class ArithmeticCast
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) 
         {
@@ -12,7 +12,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Input.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             void EmitCCast(string castTo)
             {
@@ -91,7 +91,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ArrayOperator
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -99,7 +99,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ArrayValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             void EmitOp()
             {
@@ -114,13 +114,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 }
             }
 
-            if(ArrayValue.RequiresDisposal(typeargs))
+            if(ArrayValue.RequiresDisposal(typeargs, false))
             {
                 if (!irProgram.EmitExpressionStatements || Operation == ArrayOperation.GetArrayHandle || Operation == ArrayOperation.GetSpanHandle)
                     throw new CannotEmitDestructorError(ArrayValue);
 
                 emitter.Append($"({{{ArrayValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_buffer = ");
-                ArrayValue.Emit(irProgram, emitter, typeargs, "NULL");
+                ArrayValue.Emit(irProgram, emitter, typeargs, "NULL", false);
                 emitter.Append($"; {Type.GetCName(irProgram)} _nhp_res = _nhp_buffer");
                 EmitOp();
                 emitter.Append("; ");
@@ -129,7 +129,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             else
             {
-                ArrayValue.Emit(irProgram, emitter, typeargs, "NULL");
+                ArrayValue.Emit(irProgram, emitter, typeargs, "NULL", false);
                 EmitOp();
             }
         }

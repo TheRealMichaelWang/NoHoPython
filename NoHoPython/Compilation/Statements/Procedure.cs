@@ -182,9 +182,9 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public static void EmitMemorySafe(IRValue value, IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeArgs)
         {
-            if (value.RequiresDisposal(typeArgs))
+            if (value.RequiresDisposal(typeArgs, true))
                 throw new CannotEmitDestructorError(value);
-            value.Emit(irProgram, emitter, typeArgs, "NULL");
+            value.Emit(irProgram, emitter, typeArgs, "NULL", true);
         }
     }
 }
@@ -544,8 +544,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     localToReturn = variableReference.Variable;
                     emitter.Append(localToReturn.GetStandardIdentifier());
                 }
-                else if (ToReturn.RequiresDisposal(typeargs))
-                    ToReturn.Emit(irProgram, emitter, typeargs, "ret_responsible_dest");
+                else if (ToReturn.RequiresDisposal(typeargs, false))
+                    ToReturn.Emit(irProgram, emitter, typeargs, "ret_responsible_dest", false);
                 else
                     ToReturn.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(ToReturn, irProgram, typeargs, "NULL"), "ret_responsible_dest");
 
@@ -595,13 +595,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 if (AbortMessage.Type is HandleType) {
                     emitter.Append("printf(\"AbortError: %s\\n\", ");
-                    AbortMessage.Emit(irProgram, emitter, typeargs, "NULL");
+                    AbortMessage.Emit(irProgram, emitter, typeargs, "NULL", true);
                     emitter.AppendLine(");");
                 } 
                 else
                 {
                     emitter.Append($"{AbortMessage.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_abort_msg = ");
-                    AbortMessage.Emit(irProgram, emitter, typeargs, "NULL");
+                    AbortMessage.Emit(irProgram, emitter, typeargs, "NULL", true);
                     emitter.AppendLine(";");
 
                     CodeBlock.CIndent(emitter, indent + 1);
@@ -611,9 +611,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     else
                         emitter.AppendLine("%s\\n\", _nhp_abort_msg->cstr);");
 
-                    CodeBlock.CIndent(emitter, indent + 1);
-                    AbortMessage.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_abort_msg", "NULL");
-                    emitter.AppendLine();
+                    if (AbortMessage.RequiresDisposal(typeargs, true))
+                    {
+                        CodeBlock.CIndent(emitter, indent + 1);
+                        AbortMessage.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_abort_msg", "NULL");
+                        emitter.AppendLine();
+                    }
                 }
             }
             else
@@ -639,7 +642,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class ProcedureCall
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => Type.SubstituteWithTypearg(typeargs).RequiresDisposal;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Type.SubstituteWithTypearg(typeargs).RequiresDisposal;
 
         public virtual void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -649,7 +652,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public abstract void EmitCall(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int currentNestedCall, string responsibleDestroyer);
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             irProgram.ExpressionDepth++;
             if (irProgram.DoCallStack)
@@ -661,7 +664,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"{Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_callrep_res{irProgram.ExpressionDepth} = ");
             }
 
-            if ((irProgram.EmitExpressionStatements && Arguments.Any((arg) => arg.RequiresDisposal(typeargs))) 
+            if ((irProgram.EmitExpressionStatements && Arguments.Any((arg) => arg.RequiresDisposal(typeargs, true))) 
                 || !IRValue.EvaluationOrderGuarenteed(Arguments))
             {
                 if (!irProgram.EmitExpressionStatements)
@@ -670,10 +673,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append("({");
                 SortedSet<int> bufferedArguments = new();
                 for (int i = 0; i < Arguments.Count; i++)
-                    if (Arguments[i].RequiresDisposal(typeargs) || !Arguments[i].IsConstant || !Arguments[i].IsPure)
+                    if (Arguments[i].RequiresDisposal(typeargs, true) || !Arguments[i].IsConstant || !Arguments[i].IsPure)
                     {
                         emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_argbuf_{i}{irProgram.ExpressionDepth} = ");
-                        Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
+                        Arguments[i].Emit(irProgram, emitter, typeargs, "NULL", true);
                         emitter.Append(";");
                         bufferedArguments.Add(i);
                     }
@@ -682,7 +685,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append(';');
 
                 foreach (int i in bufferedArguments)
-                    if (Arguments[i].RequiresDisposal(typeargs))
+                    if (Arguments[i].RequiresDisposal(typeargs, true))
                         Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_argbuf_{i}{irProgram.ExpressionDepth}", "NULL");
                 emitter.Append($"_nhp_res{irProgram.ExpressionDepth};}})");
             }
@@ -705,12 +708,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"_nhp_argbuf_{i}{currentNestedCall}");
             else
             {
-                if (Arguments[i].RequiresDisposal(typeargs))
+                if (Arguments[i].RequiresDisposal(typeargs, true))
                     throw new CannotEmitDestructorError(Arguments[i]);
                 else if (!IRValue.EvaluationOrderGuarenteed(Arguments) && (!Arguments[i].IsPure || !Arguments[i].IsConstant))
                     throw new CannotEnsureOrderOfEvaluation(this);
                 else
-                    Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
+                    Arguments[i].Emit(irProgram, emitter, typeargs, "NULL", true);
             }
         }
 
@@ -729,7 +732,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             void emitAndDestroyCall(SortedSet<int> bufferedArguments, int indent)
             {
-                if (RequiresDisposal(typeargs))
+                if (RequiresDisposal(typeargs, true))
                 {
                     emitter.AppendLine("{");
                     CodeBlock.CIndent(emitter, indent + 1);
@@ -754,16 +757,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             CodeBlock.CIndent(emitter, indent);
 
-            if (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs)) || !IRValue.EvaluationOrderGuarenteed(Arguments))
+            if (!Arguments.TrueForAll((arg) => !arg.RequiresDisposal(typeargs, true)) || !IRValue.EvaluationOrderGuarenteed(Arguments))
             {
                 SortedSet<int> bufferedArguments = new();
                 emitter.AppendLine("{");
                 for (int i = 0; i < Arguments.Count; i++)
-                    if (Arguments[i].RequiresDisposal(typeargs) || !Arguments[i].IsConstant || !Arguments[i].IsPure)
+                    if (Arguments[i].RequiresDisposal(typeargs, true) || !Arguments[i].IsConstant || !Arguments[i].IsPure)
                     {
                         CodeBlock.CIndent(emitter, indent + 1);
                         emitter.Append($"{Arguments[i].Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_argbuf_{i}0 = ");
-                        Arguments[i].Emit(irProgram, emitter, typeargs, "NULL");
+                        Arguments[i].Emit(irProgram, emitter, typeargs, "NULL", true);
                         emitter.AppendLine(";");
                         bufferedArguments.Add(i);
                     }
@@ -772,7 +775,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitAndDestroyCall(bufferedArguments, indent + 1);
 
                 foreach (int i in bufferedArguments)
-                    if (Arguments[i].RequiresDisposal(typeargs))
+                    if (Arguments[i].RequiresDisposal(typeargs, true))
                     {
                         CodeBlock.CIndent(emitter, indent + 1);
                         Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_argbuf_{i}0", "NULL");
@@ -806,7 +809,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (i > 0 || Arguments.Count > 0)
                     emitter.Append(", ");
                 VariableReference variableReference = new(Procedure.ProcedureDeclaration.CapturedVariables[i], true, ErrorReportedElement);
-                variableReference.Emit(irProgram, emitter, typeargs, "NULL");
+                variableReference.Emit(irProgram, emitter, typeargs, "NULL", true);
             }
             if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer)
             {
@@ -902,7 +905,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         ProcedureReference? toAnonymize = null;
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -910,7 +913,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             toAnonymize = toAnonymize.ScopeForUsedTypes(irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             if (GetFunctionHandle)

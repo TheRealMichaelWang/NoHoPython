@@ -283,7 +283,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         IPropertyContainer? propertyContainer = null;
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -297,18 +297,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 propertyContainer.FindProperty(property.Name).ScopeForUse(false, typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             InterfaceType realPrototype = (InterfaceType)TargetType.SubstituteWithTypearg(typeargs);
 
-            if (Value.RequiresDisposal(typeargs))
+            if (Value.RequiresDisposal(typeargs, true))
             {
                 if (!irProgram.EmitExpressionStatements)
                     throw new CannotEmitDestructorError(Value);
                 
                 irProgram.ExpressionDepth++;
                 emitter.Append($"({{{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_marshal_buf{irProgram.ExpressionDepth} = ");
-                Value.Emit(irProgram, emitter, typeargs, "NULL");
+                Value.Emit(irProgram, emitter, typeargs, "NULL", true);
                 emitter.Append(';');
             }
 
@@ -319,7 +319,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             foreach (Property property in properties)
             {
                 string valueEmitter;
-                if (Value.RequiresDisposal(typeargs))
+                if (Value.RequiresDisposal(typeargs, true))
                     valueEmitter = $"_nhp_marshal_buf{irProgram.ExpressionDepth}";
                 else if (firstEmit)
                     valueEmitter = BufferedEmitter.EmittedBufferedMemorySafe(Value, irProgram, typeargs);
@@ -328,7 +328,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     valueEmitter = BufferedEmitter.EmittedBufferedMemorySafe(Value.GetPostEvalPure(), irProgram, typeargs);
                     firstEmit = false;
                 }
-
 
                 BufferedEmitter getPropertyEmitter = new();
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
@@ -344,7 +343,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     emittedValues.Add(getPropertyEmitter.ToString());
             }
 
-            if (Value.RequiresDisposal(typeargs))
+            if (Value.RequiresDisposal(typeargs, true))
             {
                 emitter.Append($"{realPrototype.GetCName(irProgram)} _nhp_int_res{irProgram.ExpressionDepth} = ");
                 emitter.Append($"({realPrototype.GetCName(irProgram)}){{");

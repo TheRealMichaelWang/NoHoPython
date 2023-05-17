@@ -7,9 +7,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => TypeToMeasure.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append($"sizeof({TypeToMeasure.SubstituteWithTypearg(typeargs).GetCName(irProgram)})");
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval) => emitter.Append($"sizeof({TypeToMeasure.SubstituteWithTypearg(typeargs).GetCName(irProgram)})");
     }
 
     partial class MemoryGet
@@ -27,9 +27,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             if (!IRValue.EvaluationOrderGuarenteed(Address, Index, Value))
                 throw new CannotEnsureOrderOfEvaluation(this);
@@ -42,8 +42,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             string heapResponsibleDestroyer = ArrayType.GetResponsibleDestroyer(irProgram, typeargs, Address);
 
-            if (Value.RequiresDisposal(typeargs))
-                Value.Emit(irProgram, emitter, typeargs, heapResponsibleDestroyer);
+            if (Value.RequiresDisposal(typeargs, false))
+                Value.Emit(irProgram, emitter, typeargs, heapResponsibleDestroyer, false);
             else
                 Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), heapResponsibleDestroyer);
             emitter.Append(')');
@@ -52,7 +52,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
             CodeBlock.CIndent(emitter, indent);
-            Emit(irProgram, emitter, typeargs, "NULL");
+            Emit(irProgram, emitter, typeargs, "NULL", false);
             emitter.AppendLine(";");
         }
     }
@@ -66,9 +66,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Address.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             if (!IRValue.EvaluationOrderGuarenteed(Address, Length))
                 throw new CannotEnsureOrderOfEvaluation(this);
@@ -98,17 +98,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Span.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             ArrayType type = new(ElementType.SubstituteWithTypearg(typeargs));
             MemorySpan memorySpan = (MemorySpan)Span.Type.SubstituteWithTypearg(typeargs);
 
-            if (Span.RequiresDisposal(typeargs))
+            if (Span.RequiresDisposal(typeargs, false))
             {
                 emitter.Append($"(({type.GetCName(irProgram)}){{ .buffer = ");
-                Span.Emit(irProgram, emitter, typeargs, responsibleDestroyer);
+                Span.Emit(irProgram, emitter, typeargs, responsibleDestroyer, false);
                 emitter.Append($", .length = {memorySpan.Length}}})");
             }
             else
@@ -118,7 +118,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 else
                     emitter.Append($"marshal{type.GetStandardIdentifier(irProgram)}(");
 
-                Span.Emit(irProgram, emitter, typeargs, "NULL");
+                Span.Emit(irProgram, emitter, typeargs, "NULL", false);
                 emitter.Append($", {memorySpan.Length}");
 
                 if (type.MustSetResponsibleDestroyer)
@@ -137,13 +137,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => TargetType.SubstituteWithTypearg(typeargs).RequiresDisposal;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => TargetType.SubstituteWithTypearg(typeargs).RequiresDisposal;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             List<Property> targetProperties = ((TupleType)TargetType.SubstituteWithTypearg(typeargs)).GetProperties();
 
-            if (Value.IsPure && !Value.RequiresDisposal(typeargs))
+            if (Value.IsPure && !Value.RequiresDisposal(typeargs, true))
             {
                 emitter.Append($"({TargetType.GetCName(irProgram)}){{");
                 foreach(Property property in targetProperties)
@@ -167,10 +167,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 irProgram.ExpressionDepth++;
                 emitter.Append($"({{{Value.Type.GetCName(irProgram)} higher_tuple{irProgram.ExpressionDepth} = ");
-                Value.Emit(irProgram, emitter, typeargs, "NULL");
+                Value.Emit(irProgram, emitter, typeargs, "NULL", true);
                 emitter.Append(';');
 
-                if (Value.RequiresDisposal(typeargs))
+                if (Value.RequiresDisposal(typeargs, true))
                     emitter.Append($"{TargetType.GetCName(irProgram)} res{irProgram.ExpressionDepth} = ");
                 
                 emitter.Append($"({TargetType.GetCName(irProgram)}){{");
@@ -180,7 +180,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         emitter.Append(", ");
 
                     emitter.Append($".{property.Name} = ");
-                    if (Value.RequiresDisposal(typeargs))
+                    if (Value.RequiresDisposal(typeargs, true))
                         emitter.Append($"higher_tuple{irProgram.ExpressionDepth}.{property.Name};");
                     else
                     {
@@ -190,7 +190,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 }
                 emitter.Append("};");
 
-                if (Value.RequiresDisposal(typeargs))
+                if (Value.RequiresDisposal(typeargs, true))
                 {
                     TupleType targetTupleType = (TupleType)TargetType.SubstituteWithTypearg(typeargs);
                     foreach (KeyValuePair<IType, int> valueType in ((TupleType)Value.Type.SubstituteWithTypearg(typeargs)).ValueTypes)

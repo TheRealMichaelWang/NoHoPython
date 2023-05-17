@@ -102,7 +102,7 @@ namespace NoHoPython.IntermediateRepresentation
 
     public partial interface IRValue : IRElement
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs);
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval);
 
         public IType Type { get; }
         public bool IsTruey { get; }
@@ -112,7 +112,7 @@ namespace NoHoPython.IntermediateRepresentation
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
 
         //emit corresponding C code
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer);
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval);
     }
 
     public partial interface IRStatement : IRElement

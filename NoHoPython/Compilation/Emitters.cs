@@ -16,7 +16,7 @@ namespace NoHoPython.IntermediateRepresentation
         public static string EmitBufferedValue(IRValue value, IRProgram irProgram, Dictionary<Typing.TypeParameter, IType> typeArgs, string responsibleDestroyer)
         {
             BufferedEmitter bufferedEmitter = new();
-            value.Emit(irProgram, bufferedEmitter, typeArgs, responsibleDestroyer);
+            value.Emit(irProgram, bufferedEmitter, typeArgs, responsibleDestroyer, false);
             return bufferedEmitter.ToString();
         }
 

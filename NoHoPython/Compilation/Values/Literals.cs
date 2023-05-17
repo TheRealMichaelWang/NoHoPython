@@ -6,25 +6,25 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class IntegerLiteral
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append(Number.ToString());
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval) => emitter.Append(Number.ToString());
     }
 
     partial class DecimalLiteral
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append(Number.ToString());
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval) => emitter.Append(Number.ToString());
     }
 
     partial class CharacterLiteral
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public static void EmitCChar(IEmitter emitter, char c, bool formatChar)
         {
@@ -84,7 +84,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             emitter.Append('\'');
             EmitCChar(emitter, Character, false);
@@ -94,27 +94,27 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class TrueLiteral
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append('1');
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval) => emitter.Append('1');
     }
 
     partial class FalseLiteral
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) => emitter.Append('0');
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval) => emitter.Append('0');
     }
 
     partial class StaticCStringLiteral
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             emitter.Append('\"');
             foreach (char c in String)
@@ -125,10 +125,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class EmptyTypeLiteral
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer) { }
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval) { }
     }
 
     partial class ArrayLiteral
@@ -139,34 +139,38 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Elements.ForEach((element) => element.ScopeForUsedTypes(typeargs, irBuilder));
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => !(isTemporaryEval && Elements.All((elem) => !elem.RequiresDisposal(typeargs, true)));
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
+            void EmitStatic()
+            {
+                emitter.Append($"({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)}[])");
+                emitter.Append('{');
+
+                for (int i = 0; i < Elements.Count; i++)
+                {
+                    if (i > 0)
+                        emitter.Append(", ");
+                    Elements[i].Emit(irProgram, emitter, typeargs, responsibleDestroyer, isTemporaryEval);
+                }
+                emitter.Append('}');
+            }
+
+            if(!RequiresDisposal(typeargs, isTemporaryEval))
+            {
+                EmitStatic();
+                return;
+            }
+
             string sizeCSource = $"{Elements.Count} * sizeof({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)})";
             emitter.Append($"memcpy({irProgram.MemoryAnalyzer.Allocate(sizeCSource)}, ");
 
             if (Elements.Count == 0)
                 emitter.Append("NULL");
-            //else if(Elements.TrueForAll((IRValue element) => element is CharacterLiteral)) //is string literal
-            //{
-            //    emitter.Append('\"');
-            //    Elements.ForEach((element) => CharacterLiteral.EmitCChar(emitter, ((CharacterLiteral)element).Character, false));
-            //    emitter.Append('\"');
-            //}
             else
-            {
-                emitter.Append($"({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)}[])");
-                emitter.Append('{');
+                EmitStatic();
 
-                for(int i = 0; i < Elements.Count; i++)
-                {
-                    if (i > 0)
-                        emitter.Append(", ");
-                    Elements[i].Emit(irProgram, emitter, typeargs, responsibleDestroyer);
-                }
-                emitter.Append('}');
-            }
             emitter.Append($", {sizeCSource})");
         }
     }
@@ -179,7 +183,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             TupleElements.ForEach((element) => element.ScopeForUsedTypes(typeargs, irBuilder));
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs)
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval)
         {
             foreach (IType valueType in TupleType.ValueTypes.Keys)
                 if (valueType.SubstituteWithTypearg(typeargs).RequiresDisposal)
@@ -187,7 +191,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             return false;
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             if (!IRValue.EvaluationOrderGuarenteed(TupleElements))
                 throw new CannotEnsureOrderOfEvaluation(this);
@@ -204,8 +208,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     emitter.Append(", ");
 
                 emitter.Append($".{initializeProperties[i].Name} = ");
-                if (TupleElements[i].RequiresDisposal(typeargs))
-                    TupleElements[i].Emit(irProgram, emitter, typeargs, responsibleDestroyer);
+                if (TupleElements[i].RequiresDisposal(typeargs, false))
+                    TupleElements[i].Emit(irProgram, emitter, typeargs, responsibleDestroyer, false);
                 else
                     initializeProperties[i].Type.EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(TupleElements[i], irProgram, typeargs, "NULL"), responsibleDestroyer);
             }
@@ -223,19 +227,19 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ProtoValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             if (!IRValue.EvaluationOrderGuarenteed(Length, ProtoValue))
                 throw new CannotEnsureOrderOfEvaluation(this);
             
             emitter.Append($"marshal_proto{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
-            Length.Emit(irProgram, emitter, typeargs, "NULL");
+            Length.Emit(irProgram, emitter, typeargs, "NULL", true);
             emitter.Append(", ");
 
-            if (ProtoValue.RequiresDisposal(typeargs))
-                ProtoValue.Emit(irProgram, emitter, typeargs, "NULL");
+            if (ProtoValue.RequiresDisposal(typeargs, false))
+                ProtoValue.Emit(irProgram, emitter, typeargs, "NULL", false);
             else
                 ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(ProtoValue, irProgram, typeargs, "NULL"), "NULL");
 
@@ -254,14 +258,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ProtoValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => true;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             emitter.Append($"buffer_alloc_{ElementType.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}(");
             
-            if (ProtoValue.RequiresDisposal(typeargs))
-                ProtoValue.Emit(irProgram, emitter, typeargs, "NULL");
+            if (ProtoValue.RequiresDisposal(typeargs, false))
+                ProtoValue.Emit(irProgram, emitter, typeargs, "NULL", false);
             else
                 ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(ProtoValue, irProgram, typeargs, "NULL"), "NULL");
             emitter.Append($", {Length}");

@@ -467,7 +467,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class MarshalIntoEnum
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => TargetType.SubstituteWithTypearg(typeargs).RequiresDisposal;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => TargetType.SubstituteWithTypearg(typeargs).RequiresDisposal;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -475,7 +475,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             EnumType realPrototype = (EnumType)TargetType.SubstituteWithTypearg(typeargs);
 
@@ -487,8 +487,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 emitter.Append($"(({realPrototype.GetCName(irProgram)}) {{.option = {realPrototype.GetCEnumOptionForType(irProgram, Value.Type.SubstituteWithTypearg(typeargs))}, .data = {{ .{Value.Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set = ");
 
-                if (Value.RequiresDisposal(typeargs))
-                    Value.Emit(irProgram, emitter, typeargs, responsibleDestroyer);
+                if (Value.RequiresDisposal(typeargs, false))
+                    Value.Emit(irProgram, emitter, typeargs, responsibleDestroyer, false);
                 else
                     Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), responsibleDestroyer);
                 emitter.Append("}})");
@@ -498,7 +498,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class UnwrapEnumValue
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => Type.SubstituteWithTypearg(typeargs).RequiresDisposal;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Type.SubstituteWithTypearg(typeargs).RequiresDisposal;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -506,17 +506,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
             EnumValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             if (!irProgram.EmitExpressionStatements)
-                throw new InvalidOperationException();
+                throw new CannotEmitDestructorError(this);
 
             irProgram.ExpressionDepth++;
 
             EnumType enumType = (EnumType)EnumValue.Type.SubstituteWithTypearg(typeargs);
 
             emitter.Append($"({{{enumType.GetCName(irProgram)} enum{irProgram.ExpressionDepth} = ");
-            EnumValue.Emit(irProgram, emitter, typeargs, "NULL");
+            EnumValue.Emit(irProgram, emitter, typeargs, "NULL", true);
             
             emitter.Append($"; if(enum{irProgram.ExpressionDepth}.option != {enumType.GetCEnumOptionForType(irProgram, Type.SubstituteWithTypearg(typeargs))}) {{");
             if (irProgram.DoCallStack)
@@ -553,10 +553,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     emitter.Append("\");");
                 }
             }
-            emitter.Append("abort();}");
+            emitter.Append($"abort();}} {Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} res{irProgram.ExpressionDepth} = ");
+            
 
             Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, $"enum{irProgram.ExpressionDepth}.data.{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set", responsibleDestroyer);
-            emitter.Append(";})");
+            emitter.Append(";");
+
+            if (EnumValue.RequiresDisposal(typeargs, true))
+                EnumValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"enum{irProgram.ExpressionDepth}", "NULL");
 
             irProgram.ExpressionDepth--;
         }
@@ -564,7 +568,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class CheckEnumOption
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -572,7 +576,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             EnumValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer)
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             EnumType enumType = (EnumType)EnumValue.Type.SubstituteWithTypearg(typeargs);
 

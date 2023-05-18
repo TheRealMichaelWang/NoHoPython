@@ -98,12 +98,20 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Span.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => !(isTemporaryEval && !Span.RequiresDisposal(typeargs, true));
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             ArrayType type = new(ElementType.SubstituteWithTypearg(typeargs));
             MemorySpan memorySpan = (MemorySpan)Span.Type.SubstituteWithTypearg(typeargs);
+
+            if(!RequiresDisposal(typeargs, isTemporaryEval))
+            {
+                emitter.Append($"(({type.GetCName(irProgram)}){{ .buffer = ");
+                Span.Emit(irProgram, emitter, typeargs, responsibleDestroyer, true);
+                emitter.Append($", .length = {memorySpan.Length}}})");
+                return;
+            }
 
             if (Span.RequiresDisposal(typeargs, false))
             {

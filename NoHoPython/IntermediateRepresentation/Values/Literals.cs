@@ -327,14 +327,12 @@ namespace NoHoPython.Syntax.Values
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
-            if(expectedType is ArrayType arrayType && arrayType.ElementType is CharacterType) //return array of string
+            if((expectedType is ArrayType arrayType && arrayType.ElementType is CharacterType) || (expectedType is MemorySpan spanType && spanType.ElementType is CharacterType)) //return array of string
             {
                 return new IntermediateRepresentation.Values.ArrayLiteral(Primitive.Character, String.ToList().ConvertAll((c) => (IRValue)new IntermediateRepresentation.Values.CharacterLiteral(c, this)), this);
             }
             else if(expectedType is HandleType)
-            {
                 return new IntermediateRepresentation.Values.StaticCStringLiteral(String, this);
-            }
 
             return new IntermediateRepresentation.Values.AllocRecord(Primitive.GetStringType(irBuilder, this), new List<IRValue>() { new IntermediateRepresentation.Values.StaticCStringLiteral(String, this), new IntermediateRepresentation.Values.TrueLiteral(this) }, this);
         }

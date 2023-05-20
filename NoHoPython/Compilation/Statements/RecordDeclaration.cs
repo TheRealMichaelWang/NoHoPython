@@ -125,7 +125,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine("\tint _nhp_master_count;");
             emitter.AppendLine("\tint _nhp_lock;");
             emitter.AppendLine($"\t{RecordType.StandardRecordMask} parent_record;");
-            emitter.AppendLine("} _nhp_std_record_mask;");
+            emitter.AppendLine("};");
             emitter.AppendLine("typedef void (*_nhp_custom_destructor)(void* to_destroy);");
         }
 

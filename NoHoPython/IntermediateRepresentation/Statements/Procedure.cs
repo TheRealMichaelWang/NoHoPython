@@ -149,14 +149,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             irBuilder.ScopedProcedures.Pop();
         }
 
-        public Tuple<Variable, bool> SanitizeVariable(Variable variable, bool willStet, IAstElement errorReportedElement)
+        public Tuple<Variable, bool> SanitizeVariable(Variable variable, bool willSet, IAstElement errorReportedElement)
         {
             if (variable.ParentProcedure == this)
             {
 #pragma warning disable CS8602 // Parameters linked after initialization
                 if (Parameters.Contains(variable))
                 {
-                    if (willStet)
+                    if (willSet)
                         throw new CannotMutateVaraible(variable, errorReportedElement);
                     else
                         return new Tuple<Variable, bool>(variable, variable.Type is not RecordType); //records can still be captured and have their properties mutated
@@ -166,7 +166,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             else if (!CapturedVariables.Contains(variable))
             {
                 CapturedVariables.Add(variable);
-                if (willStet)
+                if (willSet)
                     throw new CannotMutateVaraible(variable, errorReportedElement);
                 else
                     return new Tuple<Variable, bool>(variable, variable.Type is not RecordType);//records can still be captured and have their properties mutated

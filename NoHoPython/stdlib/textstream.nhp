@@ -1,4 +1,4 @@
-﻿cinclude "<ctype.h>"
+﻿﻿cinclude "<ctype.h>"
 
 mod std:
 	class textReader:
@@ -12,15 +12,15 @@ mod std:
 			return makeString(buf)
 
 		def readWhile(fn<bool, char> readCond) string:
-			bufferWriter = new bufferWriter(64)
+			bufferWriter = new memoryWriter(64)
 
 			while True:
 				c = self.inp.peek()
 
-				if c == EOF or readCond(c) == False
-					return makeString(bufferReader)
+				if c == EOF or readCond(c) == False:
+					return makeString(bufferWriter)
 					
-				bufferWriter.write(self.inp.readByte())
+				bufferWriter.writeByte(self.inp.readByte())
 
 		def consumeWhile(fn<bool, char> consumeCond):
 			while True:
@@ -45,51 +45,51 @@ mod std:
 		def readAlphanumeric() string:
 			cdef isalnum(char) bool
 
-			bufferWriter = new bufferWriter(64)
+			bufferWriter = new memoryWriter(64)
 
 			while True:
 				c = self.inp.peek()
 
-				if c == EOF or isalnum(c) == False
-					return makeString(bufferReader)
+				if c == EOF or isalnum(c) == False:
+					return makeString(bufferWriter)
 					
-				bufferWriter.write(self.inp.readByte())
+				bufferWriter.writeByte(self.inp.readByte())
 
 		def readAlpha() string:
 			cdef isalpha(char) bool
 			
-			bufferWriter = new bufferWriter(64)
+			bufferWriter = new memoryWriter(64)
 
 			while True:
 				c = self.inp.peek()
 
-				if c == EOF or isalpha(c) == False
-					return makeString(bufferReader)
+				if c == EOF or isalpha(c) == False:
+					return makeString(bufferWriter)
 					
-				bufferWriter.write(self.inp.readByte())
+				bufferWriter.writeByte(self.inp.readByte())
 
 		def readNumerical(bool includeNegate, bool includeDot) string:
 			cdef isdigit(char) bool
 
-			bufferWriter = new bufferWriter(64)
+			bufferWriter = new memoryWriter(64)
 
 			if includeNegate and self.inp.peek() == '-':
-				bufferWriter.write(self.inp.readByte())
+				bufferWriter.writeByte(self.inp.readByte())
 
-			bool dotSeen = False
+			dotSeen = False
 			while True:
 				c = self.inp.peek()
 					
 				if c == '.':
 					if dotSeen or includeDot == False:
-						return makeString(bufferReader)
+						return makeString(bufferWriter)
 					
 					dotSeen = True
 
-				elif c == EOF or isdigit(c) == False
-					return makeString(bufferReader)
+				elif c == EOF or isdigit(c) == False:
+					return makeString(bufferWriter)
 
-				bufferWriter.write(self.inp.readByte())
+				bufferWriter.writeByte(self.inp.readByte())
 
 		def peekedIsAlpha() bool:
 			cdef isalpha(char) bool
@@ -104,6 +104,9 @@ mod std:
 
 		def __init__(outputStream output):
 			self.output = output
+
+		def __copy__() textWriter:
+			return new textWriter(self.output)
 
 		def __del__():
 			self.output.flush()

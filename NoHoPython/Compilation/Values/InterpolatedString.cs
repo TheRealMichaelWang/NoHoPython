@@ -108,7 +108,7 @@ namespace NoHoPython.Typing
         public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource)
         {
             if (HasFormatSpecifier)
-                emitter.Append($"{valueCSource}->cstr");
+                emitter.Append($"(char*){valueCSource}->cstr");
             else
                 throw new InvalidOperationException();
         }

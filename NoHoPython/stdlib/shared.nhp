@@ -1,32 +1,32 @@
 ﻿mod std:
-	class shared:
-		handle ptr
+	class shared<T>:
+		T resource
 
-		handle counterPtr
-		fn<None, handle> destructor
+		handle<int> counterPtr
+		fn<None, T> destructor
 
-		def __init__(handle ptr, handle counterPtr, fn<None, handle> destructor):
-			self.ptr = ptr
+		def __init__(T resource, handle<int> counterPtr, fn<None, T> destructor):
+			self.resource = resource
 			self.counterPtr = counterPtr
 			self.destructor = destructor
 
-		def __copy__() shared:
-			self.counterPtr[0] = (self.counterPtr[0] as int) + 1
-			return new shared(self.ptr, self.counterPtr, self.destructor)
+		def __copy__() shared<T>:
+			self.counterPtr[0] = self.counterPtr[0] + 1
+			return new shared<T>(self.resource, self.counterPtr, self.destructor)
 			
 		def __del__():
-			cdef free(handle) None
-			if self.counterPtr[0] as int == 0:
-				self.destructor(self.ptr)
+			cdef free(handle<int>) None
+			if self.counterPtr[0] == 0:
+				self.destructor(self.resource)
 				free(self.counterPtr)
 			else:
-				self.counterPtr[0] = (self.counterPtr[0] as int) - 1
+				self.counterPtr[0] = self.counterPtr[0] - 1
 				
-	def makeShared(handle ptr, fn<None, handle> destructor) shared:
-		cdef malloc(int) handle
+	def makeShared<T>(T resource, fn<None, T> destructor) shared<T>:
+		cdef malloc(int) handle<int>
 		
 		counterPtr = malloc(sizeof(int))
-		assert counterPtr != NULL
+		assert counterPtr != None
 		counterPtr[0] = 0
 		
-		return new shared(ptr, counterPtr, destructor)
+		return new shared<T>(resource, counterPtr, destructor)

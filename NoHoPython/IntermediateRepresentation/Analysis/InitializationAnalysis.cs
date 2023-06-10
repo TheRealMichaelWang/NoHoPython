@@ -179,17 +179,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class MemoryDestroy
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
-        {
-            Address.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            Index?.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-        }
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Address.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis()
-        {
-            Address.NonConstructorPropertyAnalysis();
-            Index?.NonConstructorPropertyAnalysis();
-        }
+        public void NonConstructorPropertyAnalysis() => Address.NonConstructorPropertyAnalysis();
     }
 }
 
@@ -577,6 +569,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
     }
 
     partial class FalseLiteral
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+
+        public void NonConstructorPropertyAnalysis() { }
+    }
+
+    partial class NullPointerLiteral
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 

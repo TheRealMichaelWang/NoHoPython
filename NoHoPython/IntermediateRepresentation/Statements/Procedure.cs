@@ -311,16 +311,18 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public string Name { get; private set; }
 
+        public readonly List<Typing.TypeParameter> TypeParameters;
         public readonly List<IType> ParameterTypes;
         public IType ReturnType { get; private set; }
 
-        public ForeignCProcedureDeclaration(string name, List<IType> parameterTypes, IType returnType, IAstElement errorReportedElement, SymbolContainer parentContainer)
+        public ForeignCProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, List<IType> parameterTypes, IType returnType, IAstElement errorReportedElement, SymbolContainer parentContainer)
         {
             Name = name;
-            ErrorReportedElement = errorReportedElement;
             ParentContainer = parentContainer;
+            TypeParameters = typeParameters;
             ParameterTypes = parameterTypes;
             ReturnType = returnType;
+            ErrorReportedElement = errorReportedElement;
 
             foreach (IType parameterType in parameterTypes)
                 if (!parameterType.IsNativeCType)
@@ -498,7 +500,7 @@ namespace NoHoPython.Syntax.Statements
             if(AbortMessage != null)
             {
                 if (AbortMessage is StringLiteral)
-                    return new IntermediateRepresentation.Statements.AbortStatement(AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Handle, false), this);
+                    return new IntermediateRepresentation.Statements.AbortStatement(AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.CString, false), this);
 
                 abortMessage = ArithmeticCast.CastTo(AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, stringRecordType, false), stringRecordType);
                 try
@@ -507,7 +509,7 @@ namespace NoHoPython.Syntax.Statements
                 }
                 catch
                 {
-                    abortMessage = ArithmeticCast.CastTo(abortMessage, Primitive.Handle);
+                    abortMessage = ArithmeticCast.CastTo(abortMessage, Primitive.CString);
                 }
             }
             

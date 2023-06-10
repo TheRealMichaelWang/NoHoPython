@@ -56,6 +56,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue GetPostEvalPure() => new FalseLiteral(ErrorReportedElement);
     }
 
+    partial class NullPointerLiteral
+    {
+        public bool IsPure => true;
+        public bool IsConstant => true;
+
+        public IRValue GetPostEvalPure() => new NullPointerLiteral(HandleType, ErrorReportedElement);
+    }
+
     partial class StaticCStringLiteral
     {
         public bool IsPure => true;
@@ -160,6 +168,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class ArithmeticOperator
     {
         public override IRValue GetPostEvalPure() => new ArithmeticOperator(Operation, Left.GetPostEvalPure(), Right.GetPostEvalPure(), ErrorReportedElement);
+    }
+
+    partial class PointerAddOperator
+    {
+        public override IRValue GetPostEvalPure() => new PointerAddOperator(Address.GetPostEvalPure(), Left.GetPostEvalPure(), ErrorReportedElement);
     }
 
     partial class GetValueAtIndex

@@ -20,26 +20,26 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         private static Dictionary<ArithmeticCastOperation, IType> outputTypes = new()
         {
-            {ArithmeticCastOperation.DecimalToInt, new IntegerType() },
-            {ArithmeticCastOperation.CharToInt, new IntegerType() },
-            {ArithmeticCastOperation.BooleanToInt, new IntegerType() },
-            {ArithmeticCastOperation.HandleToInt, new IntegerType() },
-            {ArithmeticCastOperation.IntToDecimal, new DecimalType() },
-            {ArithmeticCastOperation.IntToChar, new CharacterType() },
-            {ArithmeticCastOperation.IntToBoolean, new CharacterType() },
-            {ArithmeticCastOperation.IntToHandle, new HandleType() }
+            {ArithmeticCastOperation.DecimalToInt, Primitive.Integer },
+            {ArithmeticCastOperation.CharToInt, Primitive.Integer },
+            {ArithmeticCastOperation.BooleanToInt, Primitive.Integer },
+            {ArithmeticCastOperation.HandleToInt, Primitive.Integer },
+            {ArithmeticCastOperation.IntToDecimal, Primitive.Decimal },
+            {ArithmeticCastOperation.IntToChar, Primitive.Character },
+            {ArithmeticCastOperation.IntToBoolean, Primitive.Boolean },
+            {ArithmeticCastOperation.IntToHandle, Primitive.Handle }
         };
 
         private static Dictionary<ArithmeticCastOperation, IType> inputTypes = new()
         {
-            {ArithmeticCastOperation.IntToDecimal, new IntegerType() },
-            {ArithmeticCastOperation.IntToChar, new IntegerType() },
-            {ArithmeticCastOperation.IntToBoolean, new IntegerType() },
-            {ArithmeticCastOperation.IntToHandle, new IntegerType() },
-            {ArithmeticCastOperation.DecimalToInt, new DecimalType() },
-            {ArithmeticCastOperation.CharToInt, new CharacterType() },
-            {ArithmeticCastOperation.BooleanToInt, new BooleanType() },
-            {ArithmeticCastOperation.HandleToInt, new HandleType() }
+            {ArithmeticCastOperation.DecimalToInt, Primitive.Decimal },
+            {ArithmeticCastOperation.CharToInt, Primitive.Character },
+            {ArithmeticCastOperation.BooleanToInt, Primitive.Boolean },
+            {ArithmeticCastOperation.HandleToInt, Primitive.Handle },
+            {ArithmeticCastOperation.IntToDecimal, Primitive.Integer },
+            {ArithmeticCastOperation.IntToChar, Primitive.Integer },
+            {ArithmeticCastOperation.IntToBoolean, Primitive.Integer },
+            {ArithmeticCastOperation.IntToHandle, Primitive.Integer }
         };
 
         private static ArithmeticCastOperation[] toIntOperation = new ArithmeticCastOperation[]
@@ -126,12 +126,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         private ArithmeticCast(ArithmeticCastOperation operation, IRValue input, IAstElement errorReportedElement)
         {
+            if (!inputTypes[operation].IsCompatibleWith(input.Type))
+                throw new UnexpectedTypeException(inputTypes[operation], input.Type, errorReportedElement);
+
             Operation = operation;
             Input = input;
             ErrorReportedElement = errorReportedElement;
-
-            if (!inputTypes[Operation].IsCompatibleWith(input.Type))
-                throw new UnexpectedTypeException(inputTypes[Operation], input.Type, errorReportedElement);
         }
     }
 
@@ -173,6 +173,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 {
                     left
                 }, errorReportedElement)
+                : (left.Type is HandleType && operation == ArithmeticOperation.Add)
+                ? new PointerAddOperator(left, right, errorReportedElement)
+                : (right.Type is HandleType && operation == ArithmeticOperation.Add)
+                ? new PointerAddOperator(right, left, errorReportedElement)
                 : new ArithmeticOperator(operation, left, right, errorReportedElement);
         }
 
@@ -208,6 +212,20 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    public sealed partial class PointerAddOperator : BinaryOperator
+    {
+        public override IType Type => Address.Type;
+
+        public IRValue Address => Left;
+        public IRValue Offset => Right;
+
+        public PointerAddOperator(IRValue address, IRValue offset, IAstElement errorReportedElement) : base(address, ArithmeticCast.CastTo(offset, Primitive.Integer), false, errorReportedElement)
+        {
+            if (address.Type is not HandleType)
+                throw new UnexpectedTypeException(address.Type, errorReportedElement);
+        }
+    }
+
     public sealed partial class ArrayOperator : IRValue
     {
         public enum ArrayOperation
@@ -220,7 +238,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IAstElement ErrorReportedElement { get; private set; }
 
         public ArrayOperation Operation { get; private set; }
-        public IType Type => Operation == ArrayOperation.GetArrayLength ? new IntegerType() : new HandleType();
+
+#pragma warning disable CS8524 //All possible ArrayOperation values are covered. 
+        public IType Type => Operation switch
+        {
+            ArrayOperation.GetArrayLength => Primitive.Integer,
+            ArrayOperation.GetArrayHandle => new HandleType(((ArrayType)ArrayValue.Type).ElementType),
+            ArrayOperation.GetSpanHandle => new HandleType(((MemorySpan)ArrayValue.Type).ElementType)
+        };
+#pragma warning restore CS8524
+
         public bool IsTruey => false;
         public bool IsFalsey => false;
 

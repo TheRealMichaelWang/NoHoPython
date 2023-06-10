@@ -6,19 +6,19 @@
 mod std:
 	#like c-sharp StringBuilder, stringBuilder in nhp can construct variable length strings performantly
 	class stringBuilder:
-		handle cstr
+		handle<char> cstr
 		int length = 0
 		int capacity
 
 		def __init__(int capacity):
-			cdef malloc(int) handle
+			cdef malloc(int) handle<char>
 
 			self.capacity = capacity
 			self.cstr = malloc(capacity)
-			assert self.cstr != NULL
+			assert self.cstr != None
 
 		def __copy__() stringBuilder:
-			cdef memcpy(handle, handle, int) None
+			cdef memcpy(handle<char>, handle<char>, int) None
 
 			copiedBuilder = new stringBuilder(self.length)
 			memcpy(copiedBuilder.cstr, self.cstr, self.length)
@@ -27,15 +27,15 @@ mod std:
 			return copiedBuilder
 
 		def __del__():
-			cdef free(handle) None
+			cdef free(handle<char>) None
 			free(self.cstr)
 
 		def to_string() string:
-			cdef malloc(int) handle
-			cdef memcpy(handle, handle, int) None
+			cdef malloc(int) handle<char>
+			cdef memcpy(handle<char>, handle<char>, int) None
 
 			newCStr = malloc(self.length + 1)
-			assert newCStr != NULL
+			assert newCStr != None
 
 			memcpy(newCStr, self.cstr, self.length)
 			newCStr[self.length] = 0 as char
@@ -43,47 +43,47 @@ mod std:
 			return new string(newCStr, false)
 
 		def ensureCapacity(int newCapacity):
-			cdef realloc(handle, int) handle
+			cdef realloc(handle<char>, int) handle<char>
 
 			if newCapacity <= self.capacity:
 				return
 
 			self.capacity = newCapacity
 			self.cstr = realloc(self.cstr, self.capacity)
-			assert self.cstr != NULL
+			assert self.cstr != None
 
 		def appendChar(char c):
 			ensureCapacity(self.length + 1)
 			self.cstr[self.length] = c
 			self.length = self.length + 1
 
-		def appendCPtr(handle str, int length):
-			cdef memcpy(handle, handle, int) None
+		def appendCPtr(handle<char> str, int length):
+			cdef memcpy(handle<char>, handle<char>, int) None
 
 			if length == 0:
 				return
 
 			ensureCapacity(length + self.capacity)
 
-			memcpy(self.cstr as int + self.length, str, length)
+			memcpy(self.cstr + self.length, str, length)
 			self.length = self.length + length
 
-		def appendCStr(handle cstr):
-			cdef strlen(handle) int
+		def appendCStr(handle<char> cstr):
+			cdef strlen(handle<char>) int
 			appendCPtr(cstr, strlen(cstr))
 
 		def appendArray(array<char> str):
-			appendCPtr(str as handle, str as int)
+			appendCPtr(str as handle<char>, str as int)
 
 		def append(string str):
 			appendCPtr(str.cstr, str.length)
 
 	def makeString(array<char> buf) string:
-		cdef malloc(int) handle
-		cdef memcpy(handle, handle, int) None
+		cdef malloc(int) handle<char>
+		cdef memcpy(handle<char>, handle<char>, int) None
 
 		cstr = malloc(buf as int + 1)
-		assert cstr != NULL
+		assert cstr != None
 
 		memcpy(cstr, buf, buf)
 		cstr[buf as int] = 0 as char
@@ -97,25 +97,25 @@ mod std:
 		return a.hash - b.hash
 
 	#dj2b is a simple hashing algorithm
-	def dj2b(handle str, int length) int:
+	def dj2b(handle<char> str, int length) int:
 		hash = 5381
 
 		for i from 0 within length:
 			#hash = hash * 33 + c
-			hash = ((hash lshift 5) + hash) + (str[i] as char)
+			hash = ((hash lshift 5) + hash) + str[i]
 
 		return hash
 
 #default definition of a string. This is not a built in class per say, but all string literals are turned into the class defined below. DO NOT MODIFY
 class string:
-	handle cstr
+	handle<char> cstr
 	bool isStatic
 	
 	int length
 	int hash
 	
-	def __init__(handle cstr, bool isStatic):
-		cdef strlen(handle) int
+	def __init__(handle<char> cstr, bool isStatic):
+		cdef strlen(handle<char>) int
 		
 		self.cstr = cstr
 		self.isStatic = isStatic
@@ -123,18 +123,18 @@ class string:
 		self.hash = std::dj2b(cstr, self.length)
 		
 	def __copy__() string:
-		cdef malloc(int) handle
-		cdef strcpy(handle, handle) None
+		cdef malloc(int) handle<char>
+		cdef strcpy(handle<char>, handle<char>) None
 		
 		newCStr = malloc(self.length + 1)
-		assert newCStr != NULL
+		assert newCStr != None
 		
 		strcpy(newCStr, self.cstr)
 		
 		return new string(newCStr, false)
 		
 	def __del__():
-		cdef free(handle) None
+		cdef free(handle<char>) None
 		if self.isStatic == False:
 			free(self.cstr)
 			
@@ -142,45 +142,45 @@ class string:
 		return marshal char[self.length](self.cstr)
 
 	def to_int() int:
-		cdef atol(handle) int
+		cdef atol(handle<char>) int
 		return atol(self.cstr)
 
 	def to_dec() dec:
-		cdef atof(handle) dec
+		cdef atof(handle<char>) dec
 		return atof(self.cstr)
 	
 	def compare(string s) int:
-		cdef strcmp(handle, handle) int
+		cdef strcmp(handle<char>, handle<char>) int
 		return strcmp(self.cstr, s.cstr)
 	
 	def getAtIndex(int i) char:
 		assert i >= 0 and i < self.length
-		return self.cstr[i] as char
+		return self.cstr[i]
 		
 	def add(string str) string:
-		cdef malloc(int) handle
-		cdef memcpy(handle, handle, int) None
+		cdef malloc(int) handle<char>
+		cdef memcpy(handle<char>, handle<char>, int) None
 		
 		concatCStr = malloc(self.length + str.length + 1)
-		assert concatCStr != NULL
+		assert concatCStr != None
 		
 		memcpy(concatCStr, self.cstr, self.length)
-		memcpy((concatCStr as int + self.length), str.cstr, str.length)
+		memcpy(concatCStr + self.length, str.cstr, str.length)
 		concatCStr[self.length + str.length] = 0 as char
 		
 		return new string(concatCStr, false)
 		
 	def substring(int i, int length) string:
-		cdef malloc(int) handle
-		cdef memcpy(handle, handle, int) None
+		cdef malloc(int) handle<char>
+		cdef memcpy(handle<char>, handle<char>, int) None
 		
 		assert i >= 0 and i < self.length
 		assert i + length <= self.length
 		
 		destCStr = malloc(length + 1)
-		assert destCStr != NULL
+		assert destCStr != None
 		
-		memcpy(destCStr, (self.cstr as int + i), length)
+		memcpy(destCStr, self.cstr + i, length)
 		destCStr[length] = 0 as char
 		
 		return new string(destCStr, false)
@@ -207,10 +207,10 @@ class string:
 		while True:
 			end = find(findStr, i)
 			if end == -1:
-				builder.appendCPtr(self.cstr as int + i, self.length - i)
+				builder.appendCPtr(self.cstr + i, self.length - i)
 				return builder
 			else:
-				builder.appendCPtr(self.cstr as int + i, end - i)
+				builder.appendCPtr(self.cstr + i, end - i)
 				builder.append(replaceStr)
 				i = end + findStr.length
 				

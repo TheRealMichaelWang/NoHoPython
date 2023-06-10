@@ -9,9 +9,9 @@ mod data:
 		fn<bool, K> has
 	
 	class hashmap<K, V>:
-		handle keyBuckets
-		handle valueBuckets
-		handle bucketStates
+		handle<int> keyBuckets
+		handle<V> valueBuckets
+		handle<bool> bucketStates
 		int bucketCount
 		
 		fn<int, K> hasher
@@ -20,27 +20,31 @@ mod data:
 			self.bucketCount = bucketCount
 			self.hasher = hasher
 			
-			cdef NULL
-			cdef malloc(int) handle
-			cdef calloc(int, int) handle
+			cdef malloc(int) handle<T>
+			cdef calloc(int, int) handle<bool>
+			
 			self.keyBuckets = malloc(bucketCount * sizeof(int))
 			self.valueBuckets = malloc(bucketCount * sizeof(V))
 			self.bucketStates = calloc(bucketCount, sizeof(bool))
+			
 			assert self.keyBuckets != NULL
 			assert self.valueBuckets != NULL
 			assert self.bucketStates != NULL
+
 		def __copy__() hashmap<K, V>:
 			copied = new hashmap<K, V>(self.hasher, self.bucketCount)
 			for i from 0 within self.bucketCount:
 				if self.bucketStates[i] as bool:
-					copied.keyBuckets[i] = self.keyBuckets[i] as int
-					copied.valueBuckets[i] = self.valueBuckets[i] as V
+					copied.keyBuckets[i] = self.keyBuckets[i]
+					copied.valueBuckets[i] = self.valueBuckets[i]
 					copied.bucketStates[i] = True
 			return copied
+
 		def __del__():
 			for i from 0 within self.bucketCount:
 				if self.bucketStates[i] as bool:
-					destroy V[i]self.valueBuckets
+					destroy self.valueBuckets + i
+
 			cdef free(handle) None
 			free(self.keyBuckets)
 			free(self.valueBuckets)
@@ -78,7 +82,6 @@ mod data:
 				oldBucketStates = self.bucketStates
 				oldBucketCount = self.bucketCount
 				
-				cdef NULL
 				cdef malloc(int) handle
 				cdef calloc(int, int) handle
 				cdef free(handle) None

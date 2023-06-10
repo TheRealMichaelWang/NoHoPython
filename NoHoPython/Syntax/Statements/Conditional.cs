@@ -178,19 +178,15 @@ namespace NoHoPython.Syntax.Statements
     {
         public SourceLocation SourceLocation { get; private set; }
         
-        public AstType Type { get; private set; }
         public IAstValue Address { get; private set; }
-        public IAstValue? Index { get; private set; }
 
-        public DestroyStatement(AstType type, IAstValue address, IAstValue? index, SourceLocation sourceLocation)
+        public DestroyStatement(IAstValue address, SourceLocation sourceLocation)
         {
-            Type = type;
             SourceLocation = sourceLocation;
             Address = address;
-            Index = index;
         }
 
-        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}destroy {Type} {Address}{(Index == null ? string.Empty : $"[{Index}]")}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}destroy {Address}";
     }
 }
 

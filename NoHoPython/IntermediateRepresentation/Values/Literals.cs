@@ -77,13 +77,29 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public FalseLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
     }
 
+    public sealed partial class NullPointerLiteral : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public bool IsTruey => false;
+        public bool IsFalsey => true;
+
+        public IType Type => HandleType;
+        public HandleType HandleType { get; private set; }
+
+        public NullPointerLiteral(HandleType expectedHandleType, IAstElement errorReportedElement)
+        {
+            HandleType = expectedHandleType;
+            ErrorReportedElement = errorReportedElement;
+        }
+    }
+
     public sealed partial class StaticCStringLiteral : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
-        public IType Type => Primitive.Handle;
+        public IType Type => Primitive.CString;
         
         public string String { get; private set; }
 
@@ -302,7 +318,7 @@ namespace NoHoPython.Syntax.Values
 
     partial class NothingLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.EmptyTypeLiteral(Primitive.Nothing, this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => expectedType is HandleType handleType ? new IntermediateRepresentation.Values.NullPointerLiteral(handleType, this) : new IntermediateRepresentation.Values.EmptyTypeLiteral(Primitive.Nothing, this);
     }
 
     partial class ArrayLiteral

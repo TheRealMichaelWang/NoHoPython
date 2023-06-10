@@ -14,7 +14,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class MemoryGet
     {
-        public override void EmitExpression(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource) => emitter.Append($"(({Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}*){leftCSource})[{rightCSource}]");
+        public override void EmitExpression(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource)
+        {
+            HandleType handleType = (HandleType)Left.Type;
+
+            if (handleType.ValueType is NothingType)
+                emitter.Append($"(({Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}*){leftCSource})");
+            else
+                emitter.Append(leftCSource);
+
+            emitter.Append($"[{rightCSource}]");
+        }
     }
 
     partial class MemorySet
@@ -34,9 +44,19 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (!IRValue.EvaluationOrderGuarenteed(Address, Index, Value))
                 throw new CannotEnsureOrderOfEvaluation(this);
 
-            emitter.Append($"((({Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}*)");
-            IRValue.EmitMemorySafe(Address, irProgram, emitter, typeargs);
-            emitter.Append(")[");
+            HandleType handleType = (HandleType)Address.Type;
+
+            emitter.Append('(');
+            if (handleType.ValueType is NothingType)
+            {
+                emitter.Append($"(({Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}*)");
+                IRValue.EmitMemorySafe(Address, irProgram, emitter, typeargs);
+                emitter.Append(')');
+            }
+            else
+                IRValue.EmitMemorySafe(Address, irProgram, emitter, typeargs);
+
+            emitter.Append('[');
             IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
             emitter.Append("] = ");
 
@@ -234,28 +254,26 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
-            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            AddressType.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
             Address.ScopeForUsedTypes(typeargs, irBuilder);
-            if (Index != null)
-                Index.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
         public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
-            if (Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+            if (AddressType.ValueType.SubstituteWithTypearg(typeargs).RequiresDisposal)
             {
                 CodeBlock.CIndent(emitter, indent);
-                
-                BufferedEmitter valueBuilder = new();
-                valueBuilder.Append($"(*(({Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)}*)");
-                IRValue.EmitMemorySafe(Address, irProgram, valueBuilder, typeargs);
-                if (Index != null)
-                {
-                    valueBuilder.Append(" + ");
-                    IRValue.EmitMemorySafe(Index, irProgram, valueBuilder, typeargs);
-                }
-                valueBuilder.Append("))");
-                Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valueBuilder.ToString(), "NULL");
+
+                string addressCSrc = BufferedEmitter.EmittedBufferedMemorySafe(Address, irProgram, typeargs);
+                string valueCSrc;
+                if (addressCSrc.StartsWith('&'))
+                    valueCSrc = addressCSrc.Substring(1);
+                else
+                    valueCSrc = $"*{addressCSrc}";
+
+                IRValue? responsibleDestroyer = Address.GetResponsibleDestroyer();
+                AddressType.ValueType.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valueCSrc, responsibleDestroyer == null ? "NULL" : BufferedEmitter.EmittedBufferedMemorySafe(responsibleDestroyer, irProgram, typeargs));
+
                 emitter.AppendLine();
             }
         }

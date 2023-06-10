@@ -89,6 +89,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    partial class PointerAddOperator
+    {
+        public override void EmitExpression(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource) => emitter.Append($"&{leftCSource}[{rightCSource}]");
+    }
+
     partial class ArrayOperator
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;

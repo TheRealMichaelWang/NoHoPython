@@ -40,12 +40,12 @@ mod std:
 				return lastChar
 
 		class fileOutputStream:
-			shared ptr
+			shared<handle> ptr
 			handleOutputStream output
 
-			def __init__(shared ptr):
+			def __init__(shared<handle> ptr):
 				self.ptr = ptr
-				self.output = new handleOutputStream(ptr.ptr)
+				self.output = new handleOutputStream(ptr.resource)
 
 			def writeByte(char byte):
 				self.output.writeByte(byte)
@@ -57,12 +57,12 @@ mod std:
 				self.output.flush()
 
 		class fileInputStream:
-			shared ptr
+			shared<handle> ptr
 			handleInputStream input
 
-			def __init__(shared ptr):
+			def __init__(shared<handle> ptr):
 				self.ptr = ptr
-				self.input = new handleInputStream(ptr.ptr)
+				self.input = new handleInputStream(ptr.resource)
 
 			def readByte() char:
 				return self.input.readByte()
@@ -70,12 +70,12 @@ mod std:
 			def peek() char:
 				return self.input.peek()
 
-		def openFile(string path, string mode) shared:
-			cdef fopen(handle, handle) handle
+		def openFile(string path, string mode) shared<handle>:
+			cdef fopen(handle<char>, handle<char>) handle
 			cdef fclose(handle) None
 
 			ptr = fopen(path.cstr, mode.cstr)
-			assert ptr != NULL
+			assert ptr != None
 
 			return makeShared(ptr, lambda handle toFree: fclose(toFree))
 

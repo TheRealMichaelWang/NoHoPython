@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.Syntax;
 
 namespace NoHoPython.Typing
 {
@@ -21,10 +22,10 @@ namespace NoHoPython.Typing
         public bool RequiresDisposal => false;
         public bool MustSetResponsibleDestroyer => false;
 
-        public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
+        public virtual bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
 
         public abstract string GetCName(IRProgram irProgram);
-        public string GetStandardIdentifier(IRProgram irProgram) => TypeName;
+        public virtual string GetStandardIdentifier(IRProgram irProgram) => TypeName;
 
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) { }
         public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => emitter.Append(valueCSource);
@@ -34,7 +35,7 @@ namespace NoHoPython.Typing
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
 
-        public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }
+        public virtual void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }
     }
 
     partial class IntegerType
@@ -59,7 +60,13 @@ namespace NoHoPython.Typing
 
     partial class HandleType
     {
-        public override string GetCName(IRProgram irProgram) => "void*";
+        public override bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => ValueType.TypeParameterAffectsCodegen(effectInfo);
+
+        public override void ScopeForUsedTypes(AstIRProgramBuilder irBuilder) => ValueType.ScopeForUsedTypes(irBuilder);
+
+        public override string GetStandardIdentifier(IRProgram irProgram) => $"handle_{ValueType.GetCName(irProgram)}";
+
+        public override string GetCName(IRProgram irProgram) => ValueType is NothingType ? "void*" : $"{ValueType.GetCName(irProgram)}*";
     }
 
     partial class NothingType

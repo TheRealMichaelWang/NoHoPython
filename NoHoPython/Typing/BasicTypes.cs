@@ -11,7 +11,8 @@ namespace NoHoPython.Typing
         public static readonly CharacterType Character = new();
         public static readonly BooleanType Boolean = new();
 
-        public static readonly HandleType Handle = new();
+        public static readonly HandleType Handle = new(new NothingType());
+        public static readonly HandleType CString = new(new CharacterType());
         public static readonly NothingType Nothing = new(); //not a primitive but also commonly used
 
         public static RecordType GetStringType(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
@@ -98,14 +99,19 @@ namespace NoHoPython.Typing
 
     public sealed partial class HandleType : Primitive
     {
-        public override string TypeName => "handle";
+        public override string TypeName => $"handle<{ValueType.TypeName}>";
         public override int Id => 4;
 
         public override IRValue GetDefaultValue(IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
 
-        public override bool IsCompatibleWith(IType type) => type is HandleType;
+        public IType ValueType { get; private set; }
 
-        public override string ToString() => TypeName;
+        public HandleType(IType valueType)
+        {
+            ValueType = valueType;
+        }
+
+        public override bool IsCompatibleWith(IType type) => type is HandleType handleType && ValueType.IsCompatibleWith(handleType.ValueType);
     }
 
     public sealed partial class NothingType : IType

@@ -81,15 +81,18 @@ namespace NoHoPython.Syntax
                     return typeArguments.Count < 2
                         ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
                         : new TupleType(typeArguments);
-                case "handle":
-                case "ptr":
-                case "pointer":
-                    MatchTypeArgCount(0, errorReportedElement);
-                    return new HandleType();
                 case "nothing":
                 case "void":
                     MatchTypeArgCount(0, errorReportedElement);
                     return new NothingType();
+                case "handle":
+                case "ptr":
+                case "pointer":
+                    if (typeArguments.Count == 0)
+                        return Primitive.Handle;
+
+                    MatchTypeArgCount(1, errorReportedElement);
+                    return new HandleType(typeArguments[0]);
                 case "fn":
                 case "proc":
                     return typeArguments.Count < 1

@@ -108,6 +108,20 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval) => emitter.Append('0');
     }
 
+    partial class NullPointerLiteral
+    {
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
+
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
+        
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        {
+            if (HandleType.ValueType is not NothingType)
+                emitter.Append($"({HandleType.SubstituteWithTypearg(typeargs).GetCName(irProgram)})");
+            emitter.Append("NULL");
+        }
+    }
+
     partial class StaticCStringLiteral
     {
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;

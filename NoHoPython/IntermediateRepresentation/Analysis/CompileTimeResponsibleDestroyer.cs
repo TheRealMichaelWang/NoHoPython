@@ -146,8 +146,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (ifTrueResponsibleDestroyer == null && ifFalseResponsibleDestroyer == null)
                     return null;
 
-                IRValue nullPtr = ArithmeticCast.CastTo(new IntegerLiteral(0, ErrorReportedElement), Primitive.Handle);
-                return new IfElseValue(Condition.GetPostEvalPure(), ifTrueResponsibleDestroyer ?? nullPtr, ifFalseResponsibleDestroyer ?? nullPtr, ErrorReportedElement);
+                return new IfElseValue(Condition.GetPostEvalPure(), ifTrueResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ifFalseResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ErrorReportedElement);
             }
         }
     }
@@ -193,6 +192,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     }
 
     partial class FalseLiteral
+    {
+        public IRValue? GetResponsibleDestroyer() => null;
+    }
+
+    partial class NullPointerLiteral
     {
         public IRValue? GetResponsibleDestroyer() => null;
     }

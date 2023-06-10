@@ -170,7 +170,7 @@ namespace NoHoPython.Typing
 
     partial class HandleType
     {
-        public override IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleType();
+        public override IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleType(ValueType.SubstituteWithTypearg(typeargs));
     }
 
     partial class NothingType
@@ -351,6 +351,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new FalseLiteral(ErrorReportedElement);
     }
 
+    partial class NullPointerLiteral
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NullPointerLiteral((HandleType)HandleType.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
     partial class StaticCStringLiteral
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new StaticCStringLiteral(String, ErrorReportedElement);
@@ -409,6 +414,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class ArithmeticOperator
     {
         public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
+    partial class PointerAddOperator
+    {
+        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new PointerAddOperator(Address.SubstituteWithTypearg(typeargs), Offset.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class ArrayOperator

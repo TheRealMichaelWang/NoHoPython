@@ -117,8 +117,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 {
                     index
                 }, array.ErrorReportedElement)
-                : array.Type is HandleType
-                ? new MemoryGet(expectedType ?? throw new UnexpectedTypeException(Primitive.Nothing, errorReportedElement), array, index, errorReportedElement)
+                : array.Type is HandleType handleType
+                ? new MemoryGet(handleType.ValueType is not NothingType ? handleType.ValueType : expectedType ?? throw new UnexpectedTypeException(Primitive.Nothing, errorReportedElement), array, index, errorReportedElement)
                 : new GetValueAtIndex(array, index, errorReportedElement);
         }
 
@@ -155,9 +155,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     index,
                     value
                 }, array.ErrorReportedElement)
-                : array.Type is HandleType
-                ? new MemorySet(value.Type, array, index, value, errorReportedElement)
-                : (IRValue)new SetValueAtIndex(array, index, value, errorReportedElement);
+                : array.Type is HandleType handleType
+                ? new MemorySet(handleType.ValueType is NothingType ? value.Type : handleType.ValueType, array, index, handleType.ValueType is NothingType ? value : ArithmeticCast.CastTo(value, handleType.ValueType), errorReportedElement)
+                : new SetValueAtIndex(array, index, value, errorReportedElement);
         }
 
         public IAstElement ErrorReportedElement { get; private set; }
@@ -286,14 +286,16 @@ namespace NoHoPython.Syntax.Values
 
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
+            IRValue lhs = Left.GenerateIntermediateRepresentationForValue(irBuilder, LogicalTokens.ContainsKey(Operator) ? Primitive.Boolean : BitwiseTokens.ContainsKey(Operator) ? Primitive.Integer : null, willRevaluate);
+
             return ArithmeticTokens.ContainsKey(Operator)
-                ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Right.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this)
+                ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, lhs.Type, willRevaluate), this)
                 : ComparativeTokens.ContainsKey(Operator)
-                ? new ComparativeOperator(ComparativeTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Right.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this)
+                ? new ComparativeOperator(ComparativeTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, lhs.Type, willRevaluate), this)
                 : LogicalTokens.ContainsKey(Operator)
-                ? new LogicalOperator(LogicalTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), this)
+                ? new LogicalOperator(LogicalTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), this)
                 : BitwiseTokens.ContainsKey(Operator)
-                ? new BitwiseOperator(BitwiseTokens[Operator], Left.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), this)
+                ? new BitwiseOperator(BitwiseTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), this)
                 : throw new InvalidOperationException();
         }
     }

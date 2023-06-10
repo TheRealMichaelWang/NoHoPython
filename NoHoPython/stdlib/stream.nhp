@@ -14,7 +14,7 @@ mod std:
 		fn<char> peek
 	
 	class memoryWriter:
-		handle buffer
+		handle<char> buffer
 		
 		int capacity
 		int length
@@ -23,16 +23,16 @@ mod std:
 			self.capacity = capacity
 			self.length = 0
 			
-			cdef malloc(int) handle
+			cdef malloc(int) handle<char>
 			self.buffer = malloc(capacity)
-			assert self.buffer != NULL
+			assert self.buffer != None
 			
 		def __del__():
-			cdef free(handle) None
+			cdef free(handle<char>) None
 			free(self.buffer)
 			
 		def __copy__() memoryWriter:
-			cdef memcpy(handle, handle, int) handle
+			cdef memcpy(handle<char>, handle<char>, int) handle<char>
 			
 			copied = new memoryWriter(self.length)
 			memcpy(copied.buffer, self.buffer, self.length)
@@ -44,12 +44,12 @@ mod std:
 			return marshal char[self.length](self.buffer)
 			
 		def ensureCapacity(int minCap):
-			cdef realloc(handle, int) handle
+			cdef realloc(handle<char>, int) handle<char>
 
 			if self.capacity < minCap:
 				self.capacity = minCap
 				self.buffer = realloc(self.buffer, minCap)
-				assert self.buffer != NULL
+				assert self.buffer != None
 
 		def writeByte(char byte):
 			ensureCapacity(self.length + 1)
@@ -58,10 +58,10 @@ mod std:
 			self.length = self.length + 1
 
 		def writeBuffer(array<char> buffer) int:
-			cdef memcpy(handle, handle, int) None
+			cdef memcpy(handle<char>, handle<char>, int) None
 
 			ensureCapacity(self.length + buffer as int)
-			memcpy(self.buffer as int + self.length, buffer, buffer)
+			memcpy(self.buffer + self.length, buffer, buffer)
 
 			return buffer as int
 
@@ -69,19 +69,19 @@ mod std:
 			return
 	
 	class memoryReader:
-		handle buffer
+		handle<char> buffer
 		int position = 0
 		int length
 		
-		def __init__(handle buffer, int length):
+		def __init__(handle<char> buffer, int length):
 			self.buffer = buffer
 			self.length = length
 			
 		def readByte() char:
 			if self.position == self.length:
 				return EOF
-			toret = self.buffer[self.position] as char
-			self.position = self.position
+			toret = self.buffer[self.position]
+			self.position = self.position + 1
 			return toret
 
 		def peek() char:

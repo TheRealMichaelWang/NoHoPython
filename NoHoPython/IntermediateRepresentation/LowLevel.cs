@@ -28,9 +28,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public override IType Type { get; }
 
-        public MemoryGet(IType type, IRValue address, IRValue index, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(address, Primitive.Handle), ArithmeticCast.CastTo(index, Primitive.Integer), false, errorReportedElement)
+        public MemoryGet(IType type, IRValue address, IRValue index, IAstElement errorReportedElement) : base(address, ArithmeticCast.CastTo(index, Primitive.Integer), false, errorReportedElement)
         {
             Type = type;
+
+            if (address.Type is not HandleType handleType || handleType.ValueType is NothingType)
+                throw new UnexpectedTypeException(address.Type, errorReportedElement);
         }
     }
 
@@ -49,9 +52,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public MemorySet(IType type, IRValue address, IRValue index, IRValue value, IAstElement errorReportedElement)
         {
             Type = type;
-            Address = ArithmeticCast.CastTo(address, Primitive.Handle);
+            Address = address;
             Index = ArithmeticCast.CastTo(index, Primitive.Integer);
             Value = ArithmeticCast.CastTo(value, type);
+
+            if (address.Type is not HandleType handleType || handleType.ValueType is NothingType)
+                throw new UnexpectedTypeException(address.Type, errorReportedElement);
+
             ErrorReportedElement = errorReportedElement;
         }
     }
@@ -72,7 +79,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public MarshalHandleIntoArray(IType elementType, IRValue length, IRValue address, IAstElement errorReportedElement)
         {
             ElementType = elementType;
-            Address = ArithmeticCast.CastTo(address, Primitive.Handle);
+            Address = ArithmeticCast.CastTo(address, new HandleType(elementType));
             Length = ArithmeticCast.CastTo(length, Primitive.Integer);
             ErrorReportedElement = errorReportedElement;
         }
@@ -108,15 +115,20 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public IAstElement ErrorReportedElement { get; private set; }
 
-        public IType Type { get; private set; }
         public IRValue Address { get; private set; }
-        public IRValue? Index { get; private set; }
 
-        public MemoryDestroy(IType type, IRValue address, IRValue? index, IAstElement errorReportedElement)
+        private HandleType AddressType;
+
+        public MemoryDestroy(IRValue address, IAstElement errorReportedElement)
         {
-            Type = type;
-            Address = ArithmeticCast.CastTo(address, Primitive.Handle);
-            Index = index == null ? null : ArithmeticCast.CastTo(index, Primitive.Integer);
+            if (address.Type is HandleType handleType && handleType.ValueType is not NothingType)
+            {
+                AddressType = handleType;
+                Address = address;
+            }
+            else
+                throw new UnexpectedTypeException(address.Type, errorReportedElement);
+
             ErrorReportedElement = errorReportedElement;
         }
     }
@@ -129,10 +141,7 @@ namespace NoHoPython.Syntax.Values
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
-        {
-            return new IntermediateRepresentation.Values.MarshalHandleIntoArray(ElementType.ToIRType(irBuilder, this), Length.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), Address.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Handle, willRevaluate), this);
-        }
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new MarshalHandleIntoArray(ElementType.ToIRType(irBuilder, this), Length.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), Address.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Handle, willRevaluate), this);
     }
 }
 
@@ -143,6 +152,10 @@ namespace NoHoPython.Syntax.Statements
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.MemoryDestroy(Type.ToIRType(irBuilder, this), Address.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Handle, false), Index == null ? null : Index.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, false), this);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        {
+            IRValue address = Address.GenerateIntermediateRepresentationForValue(irBuilder, null, false);
+            return new IntermediateRepresentation.Statements.MemoryDestroy(address, this);
+        }
     }
 }

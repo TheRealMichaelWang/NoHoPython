@@ -1,5 +1,3 @@
-cdef NULL handle
-
 def pair<A, B> tuple<A, B>
 def triple<A, B, C> tuple<A, B, C>
 

@@ -33,13 +33,13 @@ namespace NoHoPython.Typing
         public abstract bool IsCompatibleWith(IType type);
         public abstract IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeArgs);
 
-        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, IAstElement errorReportedElement)
+        public virtual void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, IAstElement errorReportedElement)
         {
             if (!IsCompatibleWith(argument))
                 throw new UnexpectedTypeException(this, errorReportedElement);
         }
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
+        public virtual IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
 
         public override string ToString() => TypeName;
         public override int GetHashCode() => Id;

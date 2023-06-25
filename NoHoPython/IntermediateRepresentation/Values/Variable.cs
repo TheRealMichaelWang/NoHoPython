@@ -106,11 +106,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public VariableDeclaration(string name, IRValue setValue, bool willRevaluate, AstIRProgramBuilder irBuilder, IAstElement errorReportedELement)
         {
-            irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false, errorReportedELement), errorReportedELement);
-            irBuilder.SymbolMarshaller.CurrentCodeBlock.AddVariableDeclaration(this);
+            Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false, errorReportedELement);
             InitialValue = setValue;
             WillRevaluate = willRevaluate;
             ErrorReportedElement = errorReportedELement;
+
+            irBuilder.SymbolMarshaller.DeclareSymbol(Variable, errorReportedELement);
+            irBuilder.SymbolMarshaller.CurrentCodeBlock.AddVariableDeclaration(this);
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => throw new InvalidOperationException();

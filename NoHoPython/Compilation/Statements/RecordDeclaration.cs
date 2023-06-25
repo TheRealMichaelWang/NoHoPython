@@ -70,7 +70,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         partial class RecordProperty
         {
-            public override bool RequiresDisposal => OptimizeMessageReciever;
+            public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => OptimizeMessageReciever;
 
             public bool OptimizeMessageReciever => Type is ProcedureType && HasDefaultValue && RecordDeclaration.defaultValues[Name] is AnonymizeProcedure && IsReadOnly;
             public bool HasDefaultValue => RecordDeclaration.defaultValues.ContainsKey(Name);

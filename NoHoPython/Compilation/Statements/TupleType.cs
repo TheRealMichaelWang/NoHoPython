@@ -55,6 +55,9 @@ namespace NoHoPython.IntermediateRepresentation
         {
             foreach (TupleType usedTupleType in usedTupleTypes)
             {
+                if (!usedTupleType.RequiresDisposal)
+                    continue;
+
                 usedTupleType.EmitDestructor(this, emitter);
                 usedTupleType.EmitMover(this, emitter);
             }
@@ -68,7 +71,7 @@ namespace NoHoPython.Typing
     {
         partial class TupleProperty
         {
-            public override bool RequiresDisposal => false;
+            public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
             public override bool EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource, string responsibleDestroyer)
             {

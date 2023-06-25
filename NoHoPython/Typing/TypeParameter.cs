@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
@@ -39,11 +40,30 @@ namespace NoHoPython.Typing
             ErrorReportedElement = errorReportedElement;
         }
 
-        public bool SupportsType(IType type) => RequiredImplementedInterface == null || RequiredImplementedInterface.IsCompatibleWith(type);
+        public bool SupportsType(IType type)
+        {
+            if (RequiredImplementedInterface == null)
+                return true;
+
+            if(type is IPropertyContainer propertyContainer)
+                return RequiredImplementedInterface.SupportsProperties(propertyContainer.GetProperties());
+
+            return false;
+        }
     }
 
-    public sealed partial class TypeParameterReference : IType
+    public sealed partial class TypeParameterReference : IType, IPropertyContainer
     {
+        sealed partial class TypeParameterProperty : Property
+        {
+            public TypeParameter TypeParameter { get; private set; }
+
+            public TypeParameterProperty(TypeParameter typeParameter, Property interfaceProperty) : base(interfaceProperty.Name, interfaceProperty.Type)
+            {
+                TypeParameter = typeParameter;
+            }
+        }
+
         public string TypeName => TypeParameter.Name;
         public string Identifier => TypeName;
         public bool IsEmpty => false;
@@ -59,6 +79,14 @@ namespace NoHoPython.Typing
         {
             return type is TypeParameterReference typeParameterReference && TypeParameter == typeParameterReference.TypeParameter;
         }
+
+        public bool HasProperty(string property) => TypeParameter.RequiredImplementedInterface != null && TypeParameter.RequiredImplementedInterface.HasProperty(property);
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+        public Property FindProperty(string property) => new TypeParameterProperty(TypeParameter, TypeParameter.RequiredImplementedInterface.FindProperty(property));
+#pragma warning restore CS8602 
+
+        public List<Property> GetProperties() => TypeParameter.RequiredImplementedInterface == null ? new() : TypeParameter.RequiredImplementedInterface.GetProperties().ConvertAll((prop) => (Property)new TypeParameterProperty(TypeParameter, prop));
 
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs)
         {
@@ -97,6 +125,30 @@ namespace NoHoPython.Typing
                 typeargs.Add(TypeParameter, newArgument.Type);
                 return newArgument;
             }
+        }
+    }
+
+    partial class HandleType
+    {
+        public override IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleType(ValueType.SubstituteWithTypearg(typeargs));
+
+        public override void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
+        {
+            if (argument is HandleType handleType)
+                ValueType.MatchTypeArgumentWithType(typeargs, handleType.ValueType, errorReportedElement);
+            else
+                throw new UnexpectedTypeException(argument, errorReportedElement);
+        }
+
+        public override IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        {
+            if (argument.Type is HandleType handleType)
+            {
+                ValueType.MatchTypeArgumentWithType(typeargs, handleType.ValueType, argument.ErrorReportedElement);
+                return argument;
+            }
+            else
+                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs)));
         }
     }
 
@@ -166,11 +218,6 @@ namespace NoHoPython.Typing
     partial class IntegerType
     {
         public override IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new IntegerType();
-    }
-
-    partial class HandleType
-    {
-        public override IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleType(ValueType.SubstituteWithTypearg(typeargs));
     }
 
     partial class NothingType
@@ -409,6 +456,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class ArithmeticCast
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticCast(Operation, Input.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
+    partial class HandleCast
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleCast((HandleType)TargetHandleType.SubstituteWithTypearg(typeargs), Input.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class ArithmeticOperator

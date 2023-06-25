@@ -198,8 +198,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             Dictionary<Typing.TypeParameter, IType> typeArguments = new();
 
-            if (procedureDeclaration.Parameters == null)
-                throw new InvalidOperationException();
+            Debug.Assert(procedureDeclaration.Parameters != null);
             if (arguments.Count != procedureDeclaration.Parameters.Count)
                 throw new UnexpectedArgumentsException(arguments.ConvertAll((arg) => arg.Type), procedureDeclaration.Parameters, errorReportedElement);
 
@@ -222,6 +221,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             return typeArguments;
         }
 
+        public static Dictionary<Typing.TypeParameter, IType> SubstituteTypeargsWithTypeargs(Dictionary<Typing.TypeParameter, IType> toSubstitute, Dictionary<Typing.TypeParameter, IType> typeargs)
+        {
+            Dictionary<Typing.TypeParameter, IType> newTypeargs = new(toSubstitute.Count + typeargs.Count);
+            foreach (KeyValuePair<Typing.TypeParameter, IType> typearg in toSubstitute)
+                newTypeargs.Add(typearg.Key, typearg.Value.SubstituteWithTypearg(typeargs));
+            foreach (KeyValuePair<Typing.TypeParameter, IType> typearg in typeargs)
+                if (!toSubstitute.ContainsKey(typearg.Key))
+                    newTypeargs.Add(typearg.Key, typearg.Value);
+            return newTypeargs;
+        }
+
         public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments, IType? returnType, bool isAnonymous, IAstElement errorReportedElement) : this(MatchTypeArguments(procedureDeclaration, arguments, returnType, errorReportedElement), procedureDeclaration, isAnonymous, errorReportedElement)
         {
 
@@ -239,6 +249,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             this.typeArguments = typeArguments;
             this.errorReportedElement = errorReportedElement;
 
+            if (this.typeArguments.Count < ProcedureDeclaration.TypeParameters.Count)
+                throw new UnexpectedTypeArgumentsException(ProcedureDeclaration.TypeParameters.Count, this.typeArguments.Count, errorReportedElement);
+
 #pragma warning disable CS8604 // Panic should happen at runtime. Parameters might (but shouldn't unless bug) be null b/c of linking.
             ParameterTypes = procedureDeclaration.Parameters.Select((Variable param) => param.Type.SubstituteWithTypearg(typeArguments)).ToList();
 #pragma warning restore CS8604
@@ -249,16 +262,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             anonProcedureType = new ProcedureType(ReturnType, ParameterTypes);
         }
 
-        public ProcedureReference SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs)
-        {
-            Dictionary<Typing.TypeParameter, IType> newTypeargs = new(typeArguments.Count + typeargs.Count);
-            foreach (KeyValuePair<Typing.TypeParameter, IType> typearg in typeArguments)
-                newTypeargs.Add(typearg.Key, typearg.Value.SubstituteWithTypearg(typeargs));
-            foreach (KeyValuePair<Typing.TypeParameter, IType> typearg in typeargs)
-                if (!typeArguments.ContainsKey(typearg.Key))
-                    newTypeargs.Add(typearg.Key, typearg.Value);
-            return new ProcedureReference(newTypeargs, ProcedureDeclaration, IsAnonymous, errorReportedElement);
-        }
+        public ProcedureReference SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new ProcedureReference(SubstituteTypeargsWithTypeargs(typeArguments, typeargs), ProcedureDeclaration, IsAnonymous, errorReportedElement);
 
         public ProcedureReference CreateRegularReference() => new ProcedureReference(typeArguments, ProcedureDeclaration, false, errorReportedElement);
 
@@ -304,31 +308,47 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
     }
 
-    public sealed partial class ForeignCProcedureDeclaration : IRStatement, IScopeSymbol
+    public sealed partial class ForeignCProcedureDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
+        public override bool IsGloballyNavigable => false;
+
         public SymbolContainer ParentContainer { get; private set; }
         public IAstElement ErrorReportedElement { get; private set; }
 
         public string Name { get; private set; }
 
-        public readonly List<Typing.TypeParameter> TypeParameters;
-        public readonly List<IType> ParameterTypes;
-        public IType ReturnType { get; private set; }
+        public List<Typing.TypeParameter>? TypeParameters { get; private set; }
+        public List<IType>? ParameterTypes { get; private set; }
+        public IType? ReturnType { get; private set; }
 
-        public ForeignCProcedureDeclaration(string name, List<Typing.TypeParameter> typeParameters, List<IType> parameterTypes, IType returnType, IAstElement errorReportedElement, SymbolContainer parentContainer)
+        public ForeignCProcedureDeclaration(string name, IAstElement errorReportedElement, SymbolContainer parentContainer)
         {
             Name = name;
             ParentContainer = parentContainer;
+            ErrorReportedElement = errorReportedElement;
+        }
+
+        public void DelayedLinkSetTypeParameters(List<Typing.TypeParameter> typeParameters)
+        {
+            Debug.Assert(TypeParameters == null);
             TypeParameters = typeParameters;
+        }
+
+        public void DelayedLinkSetParameters(List<IType> parameterTypes, IType returnType)
+        {
+            void CheckType(IType type)
+            {
+                if (!type.IsNativeCType)
+                    throw new UnexpectedTypeException(type, ErrorReportedElement);
+            }
+
+            Debug.Assert(ParameterTypes == null);
+            Debug.Assert(ReturnType == null);
             ParameterTypes = parameterTypes;
             ReturnType = returnType;
-            ErrorReportedElement = errorReportedElement;
 
-            foreach (IType parameterType in parameterTypes)
-                if (!parameterType.IsNativeCType)
-                    throw new UnexpectedTypeException(parameterType, errorReportedElement);
-            if (!ReturnType.IsNativeCType)
-                throw new UnexpectedTypeException(ReturnType, errorReportedElement);
+            ParameterTypes.ForEach((parameter) => CheckType(parameter));
+            CheckType(ReturnType);
         }
     }
 }
@@ -350,7 +370,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Arguments = arguments;
 
             if (expectedParameters.Count != arguments.Count)
-                throw new UnexpectedTypeArgumentsException(expectedParameters.Count, arguments.Count, errorReportedElement);
+                throw new UnexpectedArgumentsException(arguments.Select((arg) => arg.Type).ToList(), expectedParameters, errorReportedElement);
             for(int i = 0; i < expectedParameters.Count; i++)
                 Arguments[i] = ArithmeticCast.CastTo(Arguments[i], expectedParameters[i]);
         }
@@ -459,16 +479,62 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class ForeignFunctionCall : ProcedureCall
     {
-        public override IType Type => ForeignCProcedure.ReturnType;
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+        public override IType Type => ForeignCProcedure.ReturnType.SubstituteWithTypearg(typeArguments);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
         public ForeignCProcedureDeclaration ForeignCProcedure { get; private set; }
+        private Dictionary<Typing.TypeParameter, IType> typeArguments;
 
-        public ForeignFunctionCall(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, IAstElement errorReportedElement) : base(foreignCProcedure.ParameterTypes, arguments, errorReportedElement)
+        private static Dictionary<Typing.TypeParameter, IType> MatchTypeArguments(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, IType? returnType, IAstElement errorReportedElement)
         {
-            ForeignCProcedure = foreignCProcedure;
+            Dictionary<Typing.TypeParameter, IType> typeArguments = new();
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            if (foreignCProcedure.TypeParameters.Count > 0)
+            {
+                for (int i = 0; i < foreignCProcedure.ParameterTypes.Count; i++)
+                    arguments[i] = foreignCProcedure.ParameterTypes[i].MatchTypeArgumentWithValue(typeArguments, arguments[i]);
+
+                if (returnType != null)
+#pragma warning disable CS8602 // Return types may be linked in after initialization
+                    foreignCProcedure.ReturnType.MatchTypeArgumentWithType(typeArguments, returnType, errorReportedElement);
+#pragma warning restore CS8602
+            }
+            else
+            {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                for (int i = 0; i < foreignCProcedure.ParameterTypes.Count; i++)
+                    arguments[i] = ArithmeticCast.CastTo(arguments[i], foreignCProcedure.ParameterTypes[i]);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+            }
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+
+            return typeArguments;
         }
 
-        public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new ForeignFunctionCall(ForeignCProcedure, Arguments.ConvertAll((argument) => argument.SubstituteWithTypearg(typeargs)), ErrorReportedElement);
+#pragma warning disable CS8604 // Possible null reference argument.
+        public ForeignFunctionCall(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, IType? expectedArgument, IAstElement errorReportedElement) : base(foreignCProcedure.ParameterTypes.Select((parameter) => parameter.SubstituteWithTypearg(MatchTypeArguments(foreignCProcedure, arguments, expectedArgument, errorReportedElement))).ToList(), arguments, errorReportedElement)
+#pragma warning restore CS8604 // Possible null reference argument.
+        {
+            ForeignCProcedure = foreignCProcedure;
+            typeArguments = MatchTypeArguments(foreignCProcedure, arguments, expectedArgument, errorReportedElement);
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            if (typeArguments.Count != ForeignCProcedure.TypeParameters.Count)
+                throw new UnexpectedTypeArgumentsException(ForeignCProcedure.TypeParameters.Count, typeArguments.Count, errorReportedElement);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+        }
+
+#pragma warning disable CS8604 // Possible null reference argument.
+        private ForeignFunctionCall(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, Dictionary<Typing.TypeParameter, IType> typeArguments, IAstElement errorReportedElement) : base(foreignCProcedure.ParameterTypes.Select((parameter) => parameter.SubstituteWithTypearg(typeArguments)).ToList(), arguments, errorReportedElement)
+#pragma warning restore CS8604 // Possible null reference argument.
+        {
+            ForeignCProcedure = foreignCProcedure;
+            this.typeArguments = typeArguments;
+        }
+
+        public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new ForeignFunctionCall(ForeignCProcedure, Arguments.ConvertAll((argument) => argument.SubstituteWithTypearg(typeargs)), ProcedureReference.SubstituteTypeargsWithTypeargs(typeArguments, typeargs), ErrorReportedElement);
     }
 }
 
@@ -596,7 +662,19 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            IRForeignDeclaration = new IntermediateRepresentation.Statements.ForeignCProcedureDeclaration(Identifier, ParameterTypes.ConvertAll((type) => type.ToIRType(irBuilder, this)), ReturnType.ToIRType(irBuilder, this), this, irBuilder.SymbolMarshaller.CurrentScope);
+            IRForeignDeclaration = new IntermediateRepresentation.Statements.ForeignCProcedureDeclaration(Identifier, this, irBuilder.SymbolMarshaller.CurrentScope);
+
+            irBuilder.SymbolMarshaller.NavigateToScope(IRForeignDeclaration);
+
+            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
+            foreach (Typing.TypeParameter typeParameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(typeParameter, this);
+
+            IRForeignDeclaration.DelayedLinkSetTypeParameters(typeParameters);
+            IRForeignDeclaration.DelayedLinkSetParameters(ParameterTypes.ConvertAll((type) => type.ToIRType(irBuilder, this)), ReturnType.ToIRType(irBuilder, this));
+
+            irBuilder.SymbolMarshaller.GoBack();
+
             irBuilder.SymbolMarshaller.DeclareSymbol(IRForeignDeclaration, this);
         }
 
@@ -627,14 +705,16 @@ namespace NoHoPython.Syntax.Values
         {
             IScopeSymbol procedureSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
 #pragma warning disable CS8602 // Many items aren't linked immediatley
+#pragma warning disable CS8604 // Possible null reference argument.
             return procedureSymbol is ProcedureDeclaration procedureDeclaration
                 ? (IRValue)new LinkedProcedureCall(procedureDeclaration, GenerateArguments(irBuilder, Arguments, procedureDeclaration.Parameters.ConvertAll((parameter) => parameter.Type), false), irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedType, this)
                 : procedureSymbol is Variable variable
                 ? AnonymousProcedureCall.ComposeCall(new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
                 : procedureSymbol is ForeignCProcedureDeclaration foreignFunction
-                ? new ForeignFunctionCall(foreignFunction, GenerateArguments(irBuilder, Arguments, foreignFunction.ParameterTypes, willRevaluate), this)
+                ? new ForeignFunctionCall(foreignFunction, GenerateArguments(irBuilder, Arguments, foreignFunction.ParameterTypes, willRevaluate), expectedType, this)
                 : throw new NotAProcedureException(procedureSymbol, this);
-#pragma warning restore CS8602 
+#pragma warning restore CS8604 // Possible null reference argument.
+#pragma warning restore CS8602
         }
     }
 

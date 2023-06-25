@@ -55,6 +55,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue? GetResponsibleDestroyer() => null;
     }
 
+    partial class HandleCast
+    {
+        public IRValue? GetResponsibleDestroyer() => null;
+    }
+
     partial class ArrayOperator
     {
         public IRValue? GetResponsibleDestroyer() => Operation == ArrayOperation.GetArrayHandle ? ArrayValue.GetResponsibleDestroyer() : null;

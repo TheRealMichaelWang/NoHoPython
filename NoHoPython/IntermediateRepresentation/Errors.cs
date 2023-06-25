@@ -68,12 +68,15 @@ namespace NoHoPython.IntermediateRepresentation
     public sealed class UnexpectedArgumentsException : IRGenerationError
     {
         public readonly List<IType> ArgumentTypes;
-        public readonly List<Variable> Parameters;
 
-        public UnexpectedArgumentsException(List<IType> argumentTypes, List<Variable> parameters, IAstElement astElement) : base(astElement, $"Procedure expected ({string.Join(", ", parameters.Select((Variable param) => param.Type.TypeName + " " + param.Name))}), but got ({string.Join(", ", argumentTypes.Select((IType argument) => argument.TypeName))}) instead.")
+        public UnexpectedArgumentsException(List<IType> argumentTypes, List<Variable> parameters, IAstElement errorReportedElement) : base(errorReportedElement, $"Procedure expected ({string.Join(", ", parameters.Select((Variable param) => $"{param.Type.TypeName} {param.Name}"))}), but got ({string.Join(", ", argumentTypes.Select((IType argument) => argument.TypeName))}) instead.")
         {
             ArgumentTypes = argumentTypes;
-            Parameters = parameters;
+        }
+
+        public UnexpectedArgumentsException(List<IType> argumentTypes, List<IType> parameterTypes, IAstElement errorReportedElement) : base(errorReportedElement, $"Procedure expected ({string.Join(", ", parameterTypes.Select((param) => param.TypeName))}) ({string.Join(", ", argumentTypes.Select((IType argument) => argument.TypeName))}) instead.")
+        {
+            ArgumentTypes = argumentTypes;
         }
     }
 

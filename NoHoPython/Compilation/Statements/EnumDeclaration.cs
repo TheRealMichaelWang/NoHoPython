@@ -188,7 +188,7 @@ namespace NoHoPython.Typing
     {
         partial class EnumProperty
         {
-            public override bool RequiresDisposal => EnumType.GetOptions().Any((option) => ((IPropertyContainer)option).FindProperty(Name).RequiresDisposal);
+            public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => EnumType.GetOptions().Any((option) => ((IPropertyContainer)option).FindProperty(Name).RequiresDisposal(typeargs));
             
             public bool IsUsed
             {
@@ -231,7 +231,7 @@ namespace NoHoPython.Typing
                 Debug.Assert(propertyContainer is EnumType enumType && EnumType.IsCompatibleWith(enumType));
 
                 emitter.Append($"get_{Name}{EnumType.GetStandardIdentifier(irProgram)}({valueCSource}");
-                if (RequiresDisposal)
+                if (RequiresDisposal(typeargs))
                     emitter.Append($", {responsibleDestroyer}");
                 emitter.Append(')');
 
@@ -335,7 +335,7 @@ namespace NoHoPython.Typing
                 if (property.IsUsed)
                 {
                     emitter.Append($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum");
-                    if (property.RequiresDisposal)
+                    if (property.RequiresDisposal(typeargMap.Value))
                         emitter.Append(", void* responsible_destroyer");
                     emitter.AppendLine(");");
                 }
@@ -344,16 +344,12 @@ namespace NoHoPython.Typing
 
         public void EmitPropertyGetters(IRProgram irProgram, StatementEmitter emitter)
         {
-            Dictionary<TypeParameter, IType> typeargs = new(TypeArguments.Count);
-            for (int i = 0; i < TypeArguments.Count; i++)
-                typeargs.Add(EnumDeclaration.TypeParameters[i], TypeArguments[i]);
-
             foreach (EnumProperty property in globalSupportedProperties[this].Value.Values)
             {
                 if (property.IsUsed)
                 {
                     emitter.Append($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} _nhp_enum");
-                    if (property.RequiresDisposal)
+                    if (property.RequiresDisposal(typeargMap.Value))
                         emitter.Append(", void* responsible_destroyer");
                     emitter.AppendLine(") {");
 
@@ -366,15 +362,15 @@ namespace NoHoPython.Typing
                         IPropertyContainer propertyContainer = (IPropertyContainer)option.Key;
                         Property accessProperty = propertyContainer.FindProperty(property.Name);
 
-                        if (!accessProperty.RequiresDisposal && property.RequiresDisposal)
+                        if (!accessProperty.RequiresDisposal(typeargMap.Value) && property.RequiresDisposal(typeargMap.Value))
                         {
                             BufferedEmitter propertyGet = new();
-                            accessProperty.EmitGet(irProgram, propertyGet, typeargs, propertyContainer, $"_nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set", "NULL");
+                            accessProperty.EmitGet(irProgram, propertyGet, typeargMap.Value, propertyContainer, $"_nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set", "NULL");
                             property.Type.EmitCopyValue(irProgram, emitter, propertyGet.ToString(), "responsible_destroyer");
                         }
                         else
                         {
-                            accessProperty.EmitGet(irProgram, emitter, typeargs, propertyContainer, $"_nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set", "responsible_destroyer");
+                            accessProperty.EmitGet(irProgram, emitter, typeargMap.Value, propertyContainer, $"_nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set", "responsible_destroyer");
                         }
                         emitter.AppendLine(";");
                     }

@@ -11,18 +11,14 @@ mod data:
 		int capacity
 		
 		def __init__(int capacity):
-			cdef malloc(int) handle<T>
-
 			self.capacity = capacity
-			self.buffer = malloc(capacity * sizeof(T))
+			self.buffer = std::malloc(capacity)
 			assert self.buffer != None
 		
 		def __del__():
-			cdef free(handle<T>) None
-			
 			for i from 0 within self.count:
 				destroy self.buffer + i
-			free(self.buffer)
+			cstd::free(self.buffer)
 		
 		def __copy__() list<T>:
 			copied = new list<T>(self.count)
@@ -44,7 +40,7 @@ mod data:
 		def setAtIndex(int i, T elem) T:
 			if i < 0 or i >= self.count:
 				abort "Index out of range."
-			destroy self.buffer + 1
+			destroy self.buffer + i
 			return self.buffer[i] = elem
 		
 		def add(list<T> toadd) list<T>:
@@ -54,20 +50,16 @@ mod data:
 			return res
 		
 		def ensureCapacity(int capacity):
-			cdef realloc(handle<T>, int) handle<T>
-			
 			if self.capacity >= capacity:
 				return
 			
 			self.capacity = capacity + 10
-			self.buffer = realloc(self.buffer, self.capacity * sizeof(T))
+			self.buffer = std::realloc(self.buffer, self.capacity)
 			assert self.buffer != None
 		
 		def pushFront(T elem):
-			cdef memcpy(handle<T>, handle<T>, int) handle<T>
-
 			ensureCapacity(self.count + 1)
-			memcpy(self.buffer + sizeof(T), self.buffer, self.count * sizeof(T))
+			std::memcpy(self.buffer + 1, self.buffer, self.count)
 			self.buffer[0] = elem
 			self.count = self.count + 1
 		
@@ -77,10 +69,8 @@ mod data:
 			self.count = self.count + 1
 		
 		def insert(int index, T elem):
-			cdef memcpy(handle<T>, handle<T>, int) handle<T>
-
 			ensureCapacity(self.count + 1)
-			memcpy(self.buffer + ((index + 1) * sizeof(T)), self.buffer + (index * sizeof(T)), (self.count - index) * sizeof(T))
+			std::memcpy(self.buffer + (index + 1), self.buffer + index, self.count - index)
 			self.buffer[index] = elem
 			self.count = self.count + 1
 		
@@ -99,20 +89,17 @@ mod data:
 		def remove(fn<bool, T> compare) bool:
 			for i from 0 within self.count:
 				if compare(self.buffer[i] as T):
-					cdef memcpy(handle<T>, handle<T>, int) handle<T>
-					
 					destroy self.buffer + i
-					memcpy(self.buffer + (i * sizeof(T)), self.buffer + ((i + 1) * sizeof(T)), (self.count - (i + 1)) * sizeof(T))
+					std::memcpy(self.buffer + i, self.buffer + i + 1, self.count - (i + 1))
 					self.count = self.count - 1
 					return True
 			return False
 
 		def popFront() T:
-			cdef memcpy(handle<T>, handle<T>, int) handle
-		
 			popped = getAtIndex(0)
 			destroy self.buffer
-			memcpy(self.buffer, self.buffer + sizeof(T), self.count = self.count - 1)
+			self.count = self.count - 1
+			std::memcpy(self.buffer, self.buffer + 1, self.count)
 			return popped
 		
 		def popBack() T:
@@ -126,26 +113,26 @@ mod data:
 		
 		def forall(fn<None, T> todo):
 			for i from 0 within self.count:
-				todo(self.buffer[i] as T)
+				todo(self.buffer[i])
+
+		def forallWithIndex(fn<None, T, int> todo):
+			for i from 0 within self.count:
+				todo(self.buffer[i], i)
 		
 		def sort(fn<int, T, T> compare):
-			cdef malloc(int) handle<T>
-			cdef free(handle<T>) None
-			cdef memcpy(handle<T>, handle<T>, int) handle<T>
-		
 			sorted = False
-			tempBuf = malloc(sizeof(T))
+			tempBuf = std::malloc(1) as handle<T>
 			while sorted == False:
 				sorted = True
 				for i from 1 within self.count:
-					if compare(self.buffer[i] as T, self.buffer[i - 1] as T) < 0:
+					if compare(self.buffer[i], self.buffer[i - 1]) < 0:
 						larger = self.buffer + ((i - 1) * sizeof(T))
 						smaller = self.buffer + (i * sizeof(T))
-						memcpy(tempBuf, larger, sizeof(T))
-						memcpy(larger, smaller, sizeof(T))
-						memcpy(smaller, tempBuf, sizeof(T))
+						std::memcpy(tempBuf, larger, 1)
+						std::memcpy(larger, smaller, 1)
+						std::memcpy(smaller, tempBuf, 1)
 						sorted = False
-			free(tempBuf)
+			cstd::free(tempBuf)
 		
 		def map(fn<T, T> transform) list<T>:
 			mapped = new list<T>(self.count)

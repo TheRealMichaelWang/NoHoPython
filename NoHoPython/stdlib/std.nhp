@@ -4,3 +4,30 @@ def triple<A, B, C> tuple<A, B, C>
 enum option<T>:
 	T
 	None
+
+mod cstd:
+	cdef malloc<T>(int) handle<T>
+	cdef calloc<T>(int, int) handle<T>
+	cdef free<T>(handle<T>) None
+	cdef realloc<T>(handle<T>, int) handle<T>
+
+	cdef memcpy<T>(handle<T>, handle<T>, int) handle<T>
+
+mod std:
+	def malloc<T>(int num) handle<T>:
+		ptr = cstd::malloc(num * sizeof(T)) as handle<T>
+		assert ptr != None
+		return ptr
+
+	def calloc<T>(int num) handle<T>:
+		ptr = cstd::calloc(num, sizeof(T)) as handle<T>
+		assert ptr != None
+		return ptr
+
+	def realloc<T>(handle<T> oldPtr, int newCapacity) handle<T>:
+		ptr = cstd::realloc(oldPtr, newCapacity * sizeof(T)) as handle<T>
+		assert ptr != None
+		return ptr
+
+	def memcpy<T>(handle<T> dest, handle<T> src, int nums) handle<T>:
+		return cstd::memcpy(dest, src, nums * sizeof(T)) as handle<T>

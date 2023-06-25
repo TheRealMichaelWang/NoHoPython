@@ -15,17 +15,14 @@
 			return new shared<T>(self.resource, self.counterPtr, self.destructor)
 			
 		def __del__():
-			cdef free(handle<int>) None
 			if self.counterPtr[0] == 0:
 				self.destructor(self.resource)
-				free(self.counterPtr)
+				cstd::free(self.counterPtr)
 			else:
 				self.counterPtr[0] = self.counterPtr[0] - 1
 				
 	def makeShared<T>(T resource, fn<None, T> destructor) shared<T>:
-		cdef malloc(int) handle<int>
-		
-		counterPtr = malloc(sizeof(int))
+		counterPtr = std::malloc(1) as handle<int>
 		assert counterPtr != None
 		counterPtr[0] = 0
 		

@@ -79,15 +79,17 @@ namespace NoHoPython.Syntax.Statements
         public SourceLocation SourceLocation { get; private set; }
         
         public string Identifier { get; private set; }
+        public readonly List<TypeParameter> TypeParameters;
         public readonly List<AstType> ParameterTypes;
         public readonly AstType ReturnType;
 
 #pragma warning disable CS8618 //IR Foreign set during forward declaration
-        public ForeignCProcedureDeclaration(string identifier, List<AstType> parameterTypes, AstType returnType, SourceLocation sourceLocation)
+        public ForeignCProcedureDeclaration(string identifier, List<TypeParameter> typeParameters, List<AstType> parameterTypes, AstType returnType, SourceLocation sourceLocation)
 #pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
             Identifier = identifier;
+            TypeParameters = typeParameters;
             ParameterTypes = parameterTypes;
             ReturnType = returnType;
         }
@@ -217,7 +219,9 @@ namespace NoHoPython.Syntax.Parsing
             string identifier = scanner.LastToken.Identifier;
             scanner.ScanToken();
 
-            if (scanner.LastToken.Type == TokenType.OpenParen)
+            List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? ParseTypeParameters() : new List<TypeParameter>();
+
+            if (typeParameters.Count > 0 || scanner.LastToken.Type == TokenType.OpenParen)
             {
                 MatchAndScanToken(TokenType.OpenParen);
                 List<AstType> parameters = new();
@@ -228,7 +232,7 @@ namespace NoHoPython.Syntax.Parsing
                         MatchAndScanToken(TokenType.Comma);
                 }
                 scanner.ScanToken();
-                return new ForeignCProcedureDeclaration(identifier, parameters, ParseType(), location);
+                return new ForeignCProcedureDeclaration(identifier, typeParameters, parameters, ParseType(), location);
             }
             else
             {

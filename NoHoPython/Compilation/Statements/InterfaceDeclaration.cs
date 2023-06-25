@@ -57,7 +57,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         partial class InterfaceProperty
         {
-            public override bool RequiresDisposal => false;
+            public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
             public override bool EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource, string responsibleDestroyer)
             {

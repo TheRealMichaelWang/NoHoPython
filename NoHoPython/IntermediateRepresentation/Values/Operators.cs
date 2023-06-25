@@ -199,10 +199,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Record = record;
             Property = record.Type is IPropertyContainer propertyContainer
 				? (propertyContainer.HasProperty(propertyName) ? propertyContainer.FindProperty(propertyName) : throw new UnexpectedTypeException(record.Type, errorReportedElement))
-                : record.Type is TypeParameterReference typeParameter
-                ? typeParameter.TypeParameter.RequiredImplementedInterface == null 
-                ? throw new UnexpectedTypeException(record.Type, errorReportedElement)
-                : (typeParameter.TypeParameter.RequiredImplementedInterface.HasProperty(propertyName) ?typeParameter.TypeParameter.RequiredImplementedInterface.FindProperty(propertyName) : throw new UnexpectedTypeException(record.Type, errorReportedElement))
+                //: record.Type is TypeParameterReference typeParameter
+                //? typeParameter.TypeParameter.RequiredImplementedInterface == null 
+                //? throw new UnexpectedTypeException(record.Type, errorReportedElement)
+                //: (typeParameter.TypeParameter.RequiredImplementedInterface.HasProperty(propertyName) ?typeParameter.TypeParameter.RequiredImplementedInterface.FindProperty(propertyName) : throw new UnexpectedTypeException(record.Type, errorReportedElement))
                 : throw new UnexpectedTypeException(record.Type, errorReportedElement);
             ErrorReportedElement = errorReportedElement;
         }
@@ -327,6 +327,14 @@ namespace NoHoPython.Syntax.Values
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null, false);
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.SetPropertyValue(Record.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Property, Value.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
+        {
+            IType? hintType = null;
+            IRValue record = Record.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate);
+            if (record.Type is RecordType recordType && recordType.HasProperty(Property))
+                hintType = recordType.FindProperty(Property).Type;
+
+            return new IntermediateRepresentation.Values.SetPropertyValue(record, Property, Value.GenerateIntermediateRepresentationForValue(irBuilder, hintType, willRevaluate), this);
+        }
     }
 }

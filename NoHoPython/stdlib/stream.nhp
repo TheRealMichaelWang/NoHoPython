@@ -22,20 +22,16 @@ mod std:
 		def __init__(int capacity):
 			self.capacity = capacity
 			self.length = 0
-			
-			cdef malloc(int) handle<char>
-			self.buffer = malloc(capacity)
+
+			self.buffer = cstd::malloc(capacity) as handle<char>
 			assert self.buffer != None
 			
 		def __del__():
-			cdef free(handle<char>) None
-			free(self.buffer)
+			cstd::free(self.buffer)
 			
 		def __copy__() memoryWriter:
-			cdef memcpy(handle<char>, handle<char>, int) handle<char>
-			
 			copied = new memoryWriter(self.length)
-			memcpy(copied.buffer, self.buffer, self.length)
+			cstd::memcpy(copied.buffer, self.buffer, self.length)
 			copied.length = self.length
 			
 			return copied
@@ -44,11 +40,9 @@ mod std:
 			return marshal char[self.length](self.buffer)
 			
 		def ensureCapacity(int minCap):
-			cdef realloc(handle<char>, int) handle<char>
-
 			if self.capacity < minCap:
 				self.capacity = minCap
-				self.buffer = realloc(self.buffer, minCap)
+				self.buffer = std::realloc(self.buffer, minCap)
 				assert self.buffer != None
 
 		def writeByte(char byte):
@@ -58,10 +52,8 @@ mod std:
 			self.length = self.length + 1
 
 		def writeBuffer(array<char> buffer) int:
-			cdef memcpy(handle<char>, handle<char>, int) None
-
 			ensureCapacity(self.length + buffer as int)
-			memcpy(self.buffer + self.length, buffer, buffer)
+			cstd::memcpy(self.buffer + self.length, buffer, buffer)
 
 			return buffer as int
 

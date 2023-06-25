@@ -58,7 +58,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ArithmeticCastOperation.IntToHandle
         };
 
-        public static IRValue CastTo(IRValue value, IType typeTarget)
+        public static IRValue CastTo(IRValue value, IType typeTarget, bool explicitCast=false)
         {
             if (typeTarget.IsCompatibleWith(value.Type))
                 return value;
@@ -72,6 +72,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
             else if (value.Type is EnumType valueEnumType && valueEnumType.SupportsType(typeTarget))
                 return new UnwrapEnumValue(value, typeTarget, value.ErrorReportedElement);
             else if (typeTarget is HandleType handleType)
+            {
+                if (explicitCast && value.Type is HandleType)
+                    return new HandleCast(handleType, value, value.ErrorReportedElement);
+
                 return value.Type is ArrayType
                     ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement)
                     : value.Type is MemorySpan
@@ -79,6 +83,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     : value.Type is Primitive
                     ? PrimitiveCast(value, handleType)
                     : throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
+            }
             else if (typeTarget is TupleType tupleTarget && value.Type is TupleType)
                 return new MarshalIntoLowerTuple(tupleTarget, value, value.ErrorReportedElement);
             else if (typeTarget is ArrayType && value.Type is MemorySpan)
@@ -130,6 +135,25 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 throw new UnexpectedTypeException(inputTypes[operation], input.Type, errorReportedElement);
 
             Operation = operation;
+            Input = input;
+            ErrorReportedElement = errorReportedElement;
+        }
+    }
+
+    public sealed partial class HandleCast : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public IType Type => TargetHandleType;
+        public bool IsTruey => Input.IsTruey;
+        public bool IsFalsey => Input.IsFalsey;
+
+        public HandleType TargetHandleType { get; private set; }
+        public IRValue Input { get; private set; }
+
+        public HandleCast(HandleType targetHandleType, IRValue input, IAstElement errorReportedElement)
+        {
+            TargetHandleType = targetHandleType;
             Input = input;
             ErrorReportedElement = errorReportedElement;
         }

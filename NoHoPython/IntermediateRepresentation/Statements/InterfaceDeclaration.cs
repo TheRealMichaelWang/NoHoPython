@@ -83,16 +83,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value = value;
             ErrorReportedElement = errorReportedElement;
 
-            if (value.Type is TypeParameterReference typeParameterReference)
-            {
-                if (typeParameterReference.TypeParameter.RequiredImplementedInterface is not null && typeParameterReference.TypeParameter.RequiredImplementedInterface is IPropertyContainer requiredContainer)
-                {
-                    if (!TargetType.SupportsProperties(requiredContainer.GetProperties()))
-                        throw new UnexpectedTypeException(typeParameterReference, errorReportedElement);
-                }
-                else
-                    throw new UnexpectedTypeException(typeParameterReference, errorReportedElement);
-            }
             if (value.Type is IPropertyContainer propertyContainer)
             {
                 if (!TargetType.SupportsProperties(propertyContainer.GetProperties()))

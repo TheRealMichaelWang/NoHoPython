@@ -8,7 +8,7 @@ namespace NoHoPython.Typing
 {
     public sealed partial class TupleType : IType, IPropertyContainer
     {
-        public sealed partial class TupleProperty : Property
+        sealed partial class TupleProperty : Property
         {
             public int TypeNumber { get; private set; }
 

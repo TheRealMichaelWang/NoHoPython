@@ -87,8 +87,8 @@ namespace NoHoPython.IntermediateRepresentation
                        type is ProcedureType ||
                        type is HandleType)
                         emitter.Append("void*");
-                    else if (type is TypeParameterReference)
-                        throw new InvalidOperationException();
+                    else if (type is TypeParameterReference typeParameterReference)
+                        throw new UnexpectedTypeParameterError(typeParameterReference.TypeParameter, null);
                     else
                         emitter.Append(type.GetCName(irProgram));
                 }
@@ -955,15 +955,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ForeignFunctionCall
     {
-        public override void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
-        {
-            base.ScopeForUsedTypes(typeargs, irBuilder);
-        }
+        public override void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => base.ScopeForUsedTypes(ProcedureReference.SubstituteTypeargsWithTypeargs(typeArguments, typeargs), irBuilder);
 
         public override void EmitCall(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int currentNestedCall, string responsibleDestroyer)
         {
             emitter.Append($"{ForeignCProcedure.Name}(");
-            EmitArguments(irProgram, emitter, typeargs, bufferedArguments, currentNestedCall);
+            EmitArguments(irProgram, emitter, ProcedureReference.SubstituteTypeargsWithTypeargs(typeArguments, typeargs), bufferedArguments, currentNestedCall);
             emitter.Append(')');
 
             if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer && responsibleDestroyer != "NULL")

@@ -31,10 +31,7 @@ mod std:
 			free(self.cstr)
 
 		def to_string() string:
-			cdef malloc(int) handle<char>
-			cdef memcpy(handle<char>, handle<char>, int) None
-
-			newCStr = malloc(self.length + 1)
+			newCStr = std::malloc(self.length + 1) as handle<char>
 			assert newCStr != None
 
 			memcpy(newCStr, self.cstr, self.length)
@@ -79,10 +76,7 @@ mod std:
 			appendCPtr(str.cstr, str.length)
 
 	def makeString(array<char> buf) string:
-		cdef malloc(int) handle<char>
-		cdef memcpy(handle<char>, handle<char>, int) None
-
-		cstr = malloc(buf as int + 1)
+		cstr = std::malloc(buf as int + 1) as handle<char>
 		assert cstr != None
 
 		memcpy(cstr, buf, buf)
@@ -123,10 +117,9 @@ class string:
 		self.hash = std::dj2b(cstr, self.length)
 		
 	def __copy__() string:
-		cdef malloc(int) handle<char>
 		cdef strcpy(handle<char>, handle<char>) None
 		
-		newCStr = malloc(self.length + 1)
+		newCStr = std::malloc(self.length + 1) as handle<char>
 		assert newCStr != None
 		
 		strcpy(newCStr, self.cstr)
@@ -134,9 +127,8 @@ class string:
 		return new string(newCStr, false)
 		
 	def __del__():
-		cdef free(handle<char>) None
 		if self.isStatic == False:
-			free(self.cstr)
+			cstd::free(self.cstr)
 			
 	def to_array_char() array<char>:
 		return marshal char[self.length](self.cstr)
@@ -158,29 +150,23 @@ class string:
 		return self.cstr[i]
 		
 	def add(string str) string:
-		cdef malloc(int) handle<char>
-		cdef memcpy(handle<char>, handle<char>, int) None
-		
-		concatCStr = malloc(self.length + str.length + 1)
+		concatCStr = std::malloc(self.length + str.length + 1) as handle<char>
 		assert concatCStr != None
 		
-		memcpy(concatCStr, self.cstr, self.length)
-		memcpy(concatCStr + self.length, str.cstr, str.length)
+		std::memcpy(concatCStr, self.cstr, self.length)
+		std::memcpy(concatCStr + self.length, str.cstr, str.length)
 		concatCStr[self.length + str.length] = 0 as char
 		
 		return new string(concatCStr, false)
 		
 	def substring(int i, int length) string:
-		cdef malloc(int) handle<char>
-		cdef memcpy(handle<char>, handle<char>, int) None
-		
 		assert i >= 0 and i < self.length
 		assert i + length <= self.length
 		
-		destCStr = malloc(length + 1)
+		destCStr = std::malloc(length + 1) as handle<char>
 		assert destCStr != None
 		
-		memcpy(destCStr, self.cstr + i, length)
+		std::memcpy(destCStr, self.cstr + i, length)
 		destCStr[length] = 0 as char
 		
 		return new string(destCStr, false)

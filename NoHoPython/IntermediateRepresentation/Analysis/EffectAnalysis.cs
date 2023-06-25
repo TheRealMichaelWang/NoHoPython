@@ -215,6 +215,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue GetPostEvalPure() => new ArithmeticCast(Operation, Input.GetPostEvalPure(), ErrorReportedElement);
     }
 
+    partial class HandleCast
+    {
+        public bool IsPure => Input.IsPure;
+        public bool IsConstant => Input.IsConstant;
+
+        public IRValue GetPostEvalPure() => new HandleCast(TargetHandleType, Input.GetPostEvalPure(), ErrorReportedElement);
+    }
+
     partial class ArrayOperator
     {
         public bool IsPure => ArrayValue.IsPure;

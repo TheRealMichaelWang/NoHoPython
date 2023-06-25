@@ -20,16 +20,13 @@ mod data:
 			self.bucketCount = bucketCount
 			self.hasher = hasher
 			
-			cdef malloc(int) handle<T>
-			cdef calloc(int, int) handle<bool>
+			self.keyBuckets = std::malloc(bucketCount) as handle<int>
+			self.valueBuckets = std::malloc(bucketCount) as handle<V>
+			self.bucketStates = std::calloc(bucketCount) as handle<bool>
 			
-			self.keyBuckets = malloc(bucketCount * sizeof(int))
-			self.valueBuckets = malloc(bucketCount * sizeof(V))
-			self.bucketStates = calloc(bucketCount, sizeof(bool))
-			
-			assert self.keyBuckets != NULL
-			assert self.valueBuckets != NULL
-			assert self.bucketStates != NULL
+			assert self.keyBuckets != None
+			assert self.valueBuckets != None
+			assert self.bucketStates != None
 
 		def __copy__() hashmap<K, V>:
 			copied = new hashmap<K, V>(self.hasher, self.bucketCount)
@@ -45,35 +42,34 @@ mod data:
 				if self.bucketStates[i] as bool:
 					destroy self.valueBuckets + i
 
-			cdef free(handle) None
-			free(self.keyBuckets)
-			free(self.valueBuckets)
-			free(self.bucketStates)
+			cstd::free(self.keyBuckets)
+			cstd::free(self.valueBuckets)
+			cstd::free(self.bucketStates)
 		
 		def has(K key) bool:
 			hash = self.hasher(key)
 			for i from hash % self.bucketCount within self.bucketCount:
-				if self.bucketStates[i] as bool and self.keyBuckets[i] as int == hash:
+				if self.bucketStates[i] and self.keyBuckets[i] == hash:
 					return True
 			return False
 		
 		def get(K key) V:
 			hash = self.hasher(key)
 			for i from hash % self.bucketCount within self.bucketCount:
-				if self.bucketStates[i] as bool and self.keyBuckets[i] as int == hash:
-					return self.valueBuckets[i] as V
+				if self.bucketStates[i] and self.keyBuckets[i] == hash:
+					return self.valueBuckets[i]
 			abort "Key not found"
 		
 		def emplace(K key, V toadd) bool:
 			def internalEmplace(int hash, V value) bool:
 				for i from hash % self.bucketCount within self.bucketCount:
-					if self.bucketStates[i] as bool == False: #empty bucket, claim it
+					if self.bucketStates[i] == False: #empty bucket, claim it
 						self.keyBuckets[i] = hash
 						self.valueBuckets[i] = value
 						self.bucketStates[i] = True
 						return True
-					elif self.keyBuckets[i] as int == hash:
-						destroy V[i]self.valueBuckets
+					elif self.keyBuckets[i] == hash:
+						destroy self.valueBuckets + i
 						self.valueBuckets[i] = value
 						return False
 				
@@ -82,24 +78,25 @@ mod data:
 				oldBucketStates = self.bucketStates
 				oldBucketCount = self.bucketCount
 				
-				cdef malloc(int) handle
-				cdef calloc(int, int) handle
-				cdef free(handle) None
 				self.bucketCount = self.bucketCount + 64
-				self.keyBuckets = malloc(self.bucketCount * sizeof(int))
-				self.valueBuckets = malloc(self.bucketCount * sizeof(V))
-				self.bucketStates = calloc(self.bucketCount, sizeof(bool))
-				assert self.keyBuckets != NULL
-				assert self.valueBuckets != NULL
-				assert self.bucketStates != NULL
+				self.keyBuckets = std::malloc(self.bucketCount) as handle<int>
+				self.valueBuckets = std::malloc(self.bucketCount) as handle<V>
+				self.bucketStates = std::calloc(self.bucketCount) as handle<bool>
+				assert self.keyBuckets != None
+				assert self.valueBuckets != None
+				assert self.bucketStates != None
+
 				for i from 0 within oldBucketCount:
 					if oldBucketStates[i] as bool:
-						internalEmplace(oldKeys[i] as int, oldValues[i] as V)
-						destroy V[i]oldValues
-				free(oldKeys)
-				free(oldValues)
-				free(oldBucketStates)
+						internalEmplace(oldKeys[i], oldValues[i])
+						destroy oldValues + i
+				
+				cstd::free(oldKeys)
+				cstd::free(oldValues)
+				cstd::free(oldBucketStates)
+				
 				return internalEmplace(hash, value)
+			
 			return internalEmplace(self.hasher(key), toadd)
 	
 	class treemap<K, V>:

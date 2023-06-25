@@ -50,6 +50,24 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    partial class HandleCast
+    {
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Input.RequiresDisposal(typeargs, isTemporaryEval);
+
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            Input.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        {
+            emitter.Append($"(({TargetHandleType.GetCName(irProgram)})");
+            Input.Emit(irProgram, emitter, typeargs, responsibleDestroyer, isTemporaryEval);
+            emitter.Append(')');
+        }
+    }
+
     partial class ArithmeticOperator
     {
         public override void EmitExpression(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource)

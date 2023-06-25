@@ -299,6 +299,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void NonConstructorPropertyAnalysis() => Input.NonConstructorPropertyAnalysis();
     }
 
+    partial class HandleCast
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+
+        public void NonConstructorPropertyAnalysis() => Input.NonConstructorPropertyAnalysis();
+    }
+
     partial class ArrayOperator
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => ArrayValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);

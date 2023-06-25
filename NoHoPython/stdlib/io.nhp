@@ -14,7 +14,7 @@ mod std:
 				fputc(byte, self.ptr)
 
 			def writeBuffer(array<char> buffer) int:
-				cdef fwrite(handle, int, int, handle) int
+				cdef fwrite(handle<char>, int, int, handle) int
 				return fwrite(buffer, 1, buffer as int, self.ptr)
 
 			def flush():

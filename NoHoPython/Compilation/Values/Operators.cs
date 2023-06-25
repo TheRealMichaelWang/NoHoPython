@@ -12,7 +12,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class Property
     {
-        public abstract bool RequiresDisposal { get; }
+        public abstract bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs);
 
         public virtual void ScopeForUse(bool optimizedMessageRecieverCall, Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
@@ -320,7 +320,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Record.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Property.RequiresDisposal;
+        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Property.RequiresDisposal(typeargs);
 
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {

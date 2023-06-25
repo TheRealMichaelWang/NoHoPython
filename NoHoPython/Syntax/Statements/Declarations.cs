@@ -183,7 +183,9 @@ namespace NoHoPython.Syntax.Statements
 
         public AstType DefinedType { get; private set; }
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public TypedefDeclaration(string identifier, List<TypeParameter> typeParameters, AstType definedType, SourceLocation sourceLocation)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             Identifier = identifier;
             TypeParameters = typeParameters;

@@ -1,0 +1,15 @@
+﻿interface myInterface:
+	int int0
+
+class test<T: myInterface>:
+	int i
+
+	def __init__(int i):
+		self.i = i
+
+	def newArray(T fillWith) array<T>:
+		return new T[fillWith.int0](fillWith)
+
+def main():
+	testobj = new test<tuple<int, int>>(0)
+	arr = testobj.newArray((9, 10))

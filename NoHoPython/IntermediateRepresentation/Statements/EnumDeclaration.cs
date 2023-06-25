@@ -88,10 +88,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return;
             else if (value.Type is TypeParameterReference typeParameterReference)
             {
-                if (typeParameterReference.TypeParameter.RequiredImplementedInterface is not null)
+                if (typeParameterReference.TypeParameter.RequiredImplementedInterface != null)
                 {
                     if (!targetType.SupportsType(typeParameterReference.TypeParameter.RequiredImplementedInterface))
                         throw new UnexpectedTypeException(value.Type, errorReportedElement);
+                    Value = new MarshalIntoInterface(typeParameterReference.TypeParameter.RequiredImplementedInterface, Value, ErrorReportedElement);
                 }
                 else
                     throw new UnexpectedTypeException(value.Type, errorReportedElement);
@@ -207,7 +208,7 @@ namespace NoHoPython.Typing
 
     public sealed partial class EnumType : IType, IPropertyContainer
     {
-        public sealed partial class EnumProperty : Property
+        sealed partial class EnumProperty : Property
         {
             public EnumType EnumType { get; private set; }
 
@@ -222,6 +223,7 @@ namespace NoHoPython.Typing
 
         private static Dictionary<EnumType, Lazy<Dictionary<string, EnumProperty>>> globalSupportedProperties = new(new ITypeComparer());
         private static Dictionary<EnumType, Lazy<Dictionary<IType, int>>> globalSupportedOptions = new(new ITypeComparer());
+        private Lazy<Dictionary<TypeParameter, IType>> typeargMap;
 
         public bool IsNativeCType => false;
         public string TypeName => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
@@ -242,6 +244,14 @@ namespace NoHoPython.Typing
         {
             EnumDeclaration = enumDeclaration;
             TypeArguments = typeArguments;
+
+            typeargMap = new(() =>
+            {
+                Dictionary<TypeParameter, IType> typeargs = new(TypeArguments.Count);
+                for (int i = 0; i < TypeArguments.Count; i++)
+                    typeargs.Add(EnumDeclaration.TypeParameters[i], TypeArguments[i]);
+                return typeargs;
+            });
 
             if (globalSupportedProperties.ContainsKey(this))
                 return;
@@ -281,6 +291,7 @@ namespace NoHoPython.Typing
                 };
                 return propertyIdMap;
             });
+
         }
 
         public List<IType> GetOptions() => globalSupportedOptions[this].Value.Keys.ToList();

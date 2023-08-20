@@ -226,6 +226,8 @@ namespace NoHoPython.IntermediateRepresentation
         {
             if (!type.IsTypeDependency)
                 return;
+            if (!typeDependencyTree.ContainsKey(type))
+                return;
 
             foreach (IType dependency in typeDependencyTree[type])
                 if (!compiledTypes.Contains(dependency))
@@ -234,7 +236,7 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void Emit(string outputFile, string? headerFile)
         {
-            using (StatementEmitter emitter = new(outputFile, this))
+            using(StatementEmitter emitter = new(outputFile, this))
             using(StatementEmitter headerEmitter = (headerFile == null) ? emitter : new StatementEmitter(headerFile, this))
             {
                 ExpressionDepth = 0;

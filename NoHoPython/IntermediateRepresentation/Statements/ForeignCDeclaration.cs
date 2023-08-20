@@ -19,6 +19,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
         public SymbolContainer ParentContainer { get; private set; }
+        public override bool IsGloballyNavigable => false;
 
         public string Name { get; private set; }
         

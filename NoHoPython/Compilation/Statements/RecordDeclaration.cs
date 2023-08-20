@@ -432,7 +432,7 @@ namespace NoHoPython.Typing
             
             emitter.AppendLine("\trecord->_nhp_lock = 1;");
             if (destructorCall != null)
-                emitter.AppendLine("\tdestructor(record);");
+                emitter.AppendLine($"\t{destructorCall.GetStandardIdentifier(irProgram)}(record);");
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
             {
                 if (recordProperty.Type.RequiresDisposal && !recordProperty.OptimizeMessageReciever)

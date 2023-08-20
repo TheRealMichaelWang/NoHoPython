@@ -21,6 +21,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => true;
         public bool RequiresDisposal => false;
         public bool MustSetResponsibleDestroyer => false;
+        public bool IsTypeDependency => false;
 
         public virtual bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
 
@@ -74,6 +75,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => true;
         public bool RequiresDisposal => false;
         public bool MustSetResponsibleDestroyer => false;
+        public bool IsTypeDependency => false;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
 

@@ -8,22 +8,20 @@ namespace NoHoPython.Syntax
 {
     partial class AstIRProgramBuilder
     {
-        private List<InterfaceType> usedInterfaceTypes = new();
+        private HashSet<InterfaceType> usedInterfaceTypes = new(new ITypeComparer());
         private Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverloads = new();
 
         public bool DeclareUsedInterfaceType(InterfaceType interfaceType)
         {
-            foreach (InterfaceType usedInterface in usedInterfaceTypes)
-                if (interfaceType.IsCompatibleWith(usedInterface))
-                    return false;
+            if (usedInterfaceTypes.Contains(interfaceType))
+                return false;
 
             usedInterfaceTypes.Add(interfaceType);
             if (!interfaceTypeOverloads.ContainsKey(interfaceType.InterfaceDeclaration))
                 interfaceTypeOverloads.Add(interfaceType.InterfaceDeclaration, new List<InterfaceType>());
             interfaceTypeOverloads[interfaceType.InterfaceDeclaration].Add(interfaceType);
 
-            typeDependencyTree.Add(interfaceType, new HashSet<IType>(interfaceType.GetProperties().ConvertAll((prop) => prop.Type).Where((type) => type is not RecordType), new ITypeComparer()));
-
+            DeclareTypeDependencies(interfaceType, interfaceType.GetProperties().ConvertAll((prop) => prop.Type).ToArray());
             return true;
         }
     }
@@ -152,10 +150,11 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => requiredImplementedProperties.Value.Any((property) => property.Type.MustSetResponsibleDestroyer);
+        public bool IsTypeDependency => true;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => requiredImplementedProperties.Value.Any((property) => property.Type.TypeParameterAffectsCodegen(effectInfo));
 
-        public string GetStandardIdentifier(IRProgram irProgram) => InterfaceDeclaration.EmitMultipleCStructs ? $"_nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_" : $"_nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}";
+        public string GetStandardIdentifier(IRProgram irProgram) => InterfaceDeclaration.EmitMultipleCStructs ? $"nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}" : $"nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}";
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 

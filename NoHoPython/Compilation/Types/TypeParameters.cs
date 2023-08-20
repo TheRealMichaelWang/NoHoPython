@@ -34,6 +34,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public bool RequiresDisposal => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public bool MustSetResponsibleDestroyer => throw new UnexpectedTypeParameterError(TypeParameter, null);
+        public bool IsTypeDependency => throw new UnexpectedTypeParameterError(TypeParameter, null);
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => true;
 

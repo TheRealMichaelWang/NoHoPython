@@ -36,6 +36,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
     }
 
+    partial class ForeignCDeclaration
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
+        public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
+    }
+
     partial class ProcedureDeclaration
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }

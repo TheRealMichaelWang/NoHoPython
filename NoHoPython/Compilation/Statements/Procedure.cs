@@ -23,8 +23,10 @@ namespace NoHoPython.Syntax
             string name = $"_nhp_anonProcTypeNo{uniqueProcedureTypes.Count}";
             uniqueProcedureTypes.Add(new(procedureType, name));
 
-            List<IType> dependencies = new() { procedureType.ReturnType };
-            typeDependencyTree.Add(procedureType, new HashSet<IType>(dependencies.Where((type) => type is not RecordType && type is not ProcedureType), new ITypeComparer()));
+            List<IType> dependencies = new(procedureType.ParameterTypes.Count + 1) { procedureType.ReturnType };
+            dependencies.AddRange(procedureType.ParameterTypes);
+
+            DeclareTypeDependencies(procedureType, dependencies.ToArray());
         }
 
         public ProcedureReference? DeclareUsedProcedureReference(ProcedureReference procedureReference)
@@ -210,6 +212,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
+        public bool IsTypeDependency => true;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
 

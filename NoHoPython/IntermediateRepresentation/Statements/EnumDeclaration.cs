@@ -245,13 +245,7 @@ namespace NoHoPython.Typing
             EnumDeclaration = enumDeclaration;
             TypeArguments = typeArguments;
 
-            typeargMap = new(() =>
-            {
-                Dictionary<TypeParameter, IType> typeargs = new(TypeArguments.Count);
-                for (int i = 0; i < TypeArguments.Count; i++)
-                    typeargs.Add(EnumDeclaration.TypeParameters[i], TypeArguments[i]);
-                return typeargs;
-            });
+            typeargMap = TypeParameter.GetTypeargMap(enumDeclaration.TypeParameters, typeArguments);
 
             if (globalSupportedProperties.ContainsKey(this))
                 return;

@@ -3,6 +3,7 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.Typing
 {
@@ -16,6 +17,18 @@ namespace NoHoPython.Typing
                 if (!typeParameters[i].SupportsType(typeArguments[i]))
                     throw new UnexpectedTypeException(new TypeParameterReference(typeParameters[i]), typeArguments[i], errorReportedElement);
             return typeArguments;
+        }
+
+        public static Lazy<Dictionary<TypeParameter, IType>> GetTypeargMap(List<TypeParameter> typeParameters, List<IType> typeArguments)
+        {
+            Debug.Assert(typeParameters.Count == typeArguments.Count);
+            return new Lazy<Dictionary<TypeParameter, IType>>(() =>
+            {
+                Dictionary<TypeParameter, IType> typeargMap = new(typeParameters.Count);
+                for (int i = 0; i < typeParameters.Count; i++)
+                    typeargMap.Add(typeParameters[i], typeArguments[i]);
+                return typeargMap;
+            });
         }
 
         public static void MatchTypeargs(Dictionary<TypeParameter, IType> typeargs, List<IType> existingTypeArguments, List<IType> arguments, Syntax.IAstElement errorReportedElement)
@@ -311,6 +324,30 @@ namespace NoHoPython.Typing
             if (argument.Type is InterfaceType interfaceType && InterfaceDeclaration == interfaceType.InterfaceDeclaration)
             {
                 TypeParameter.MatchTypeargs(typeargs, TypeArguments, interfaceType.TypeArguments, argument.ErrorReportedElement);
+                return argument;
+            }
+            else
+                return ArithmeticCast.CastTo(argument, this);
+        }
+    }
+
+    partial class ForeignCType
+    {
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ForeignCType(Declaration, TypeArguments.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList());
+
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
+        {
+            if (argument is ForeignCType foreignCType && Declaration == foreignCType.Declaration)
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, foreignCType.TypeArguments, errorReportedElement);
+            else
+                throw new UnexpectedTypeException(argument, errorReportedElement);
+        }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        {
+            if (argument.Type is ForeignCType foreignCType && Declaration == foreignCType.Declaration)
+            {
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, foreignCType.TypeArguments, argument.ErrorReportedElement);
                 return argument;
             }
             else

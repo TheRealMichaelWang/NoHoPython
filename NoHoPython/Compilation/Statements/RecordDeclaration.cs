@@ -21,7 +21,7 @@ namespace NoHoPython.Syntax
                 recordTypeOverloads.Add(recordType.RecordPrototype, new());
             recordTypeOverloads[recordType.RecordPrototype].Add(recordType);
 
-            typeDependencyTree.Add(recordType, new HashSet<IType>(recordType.GetProperties().ConvertAll((prop) => prop.Type).Where((type) => type is not RecordType), new ITypeComparer()));
+            DeclareTypeDependencies(recordType, recordType.GetProperties().ConvertAll((prop) => prop.Type).ToArray());
 
             return true;
         }
@@ -262,6 +262,7 @@ namespace NoHoPython.Typing
 
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
+        public bool IsTypeDependency => false;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo)
         {

@@ -41,6 +41,11 @@ namespace NoHoPython.Typing
         public void ScopeForUsedTypeParameters(AstIRProgramBuilder irBuilder) => TypeArguments.ForEach((typearg) => typearg.ScopeForUsedTypeParameters(irBuilder));
     }
 
+    partial class ForeignCType
+    {
+        public void ScopeForUsedTypeParameters(AstIRProgramBuilder irBuilder) => TypeArguments.ForEach((typearg) => typearg.ScopeForUsedTypeParameters(irBuilder));
+    }
+
     partial class EnumType
     {
         public void ScopeForUsedTypeParameters(AstIRProgramBuilder irBuilder) => TypeArguments.ForEach((typearg) => typearg.ScopeForUsedTypeParameters(irBuilder));

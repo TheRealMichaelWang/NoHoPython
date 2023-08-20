@@ -50,6 +50,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public bool SomeCodePathsBreak() => throw new InvalidOperationException();
     }
 
+    partial class ForeignCDeclaration
+    {
+        public bool AllCodePathsReturn() => throw new InvalidOperationException();
+        public bool SomeCodePathsBreak() => throw new InvalidOperationException();
+    }
+
     partial class ForeignCProcedureDeclaration
     {
         public bool AllCodePathsReturn() => false;

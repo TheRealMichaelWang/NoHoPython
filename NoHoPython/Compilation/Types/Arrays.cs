@@ -15,7 +15,6 @@ namespace NoHoPython.Syntax
                 return;
 
             usedArrayTypes.Add(toscope);
-            typeDependencyTree.Add(toscope, new HashSet<IType>(new ITypeComparer()));
             ScopeForUsedBufferType(toscope.ElementType);
         }
 
@@ -161,6 +160,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;
+        public bool IsTypeDependency => true;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => true;
 
@@ -318,6 +318,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;
+        public bool IsTypeDependency => true;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => ElementType.TypeParameterAffectsCodegen(effectInfo);
 

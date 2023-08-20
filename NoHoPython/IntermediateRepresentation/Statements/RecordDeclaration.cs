@@ -224,13 +224,7 @@ namespace NoHoPython.Typing
                 return toret;
             });
 
-            typeargMap = new(() =>
-            {
-                Dictionary<TypeParameter, IType> typeargs = new(RecordPrototype.TypeParameters.Count);
-                for (int i = 0; i < RecordPrototype.TypeParameters.Count; i++)
-                    typeargs.Add(RecordPrototype.TypeParameters[i], TypeArguments[i]);
-                return typeargs;
-            });
+            typeargMap = TypeParameter.GetTypeargMap(RecordPrototype.TypeParameters, TypeArguments);
 
             constructorParameterTypes = new(() => recordPrototype.ConstructorParameterTypes.Select((parameter) => parameter.SubstituteWithTypearg(typeargMap.Value)).ToList());
         }

@@ -15,7 +15,8 @@ namespace NoHoPython.Syntax
                 return false;
 
             usedTupleTypes.Add(tupleType);
-            typeDependencyTree.Add(tupleType, new HashSet<IType>(tupleType.ValueTypes.Keys.Where((type) => type is not RecordType)));
+
+            DeclareTypeDependencies(tupleType, tupleType.ValueTypes.Keys.ToArray());
 
             return true;
         }
@@ -89,6 +90,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => true;
         public bool RequiresDisposal => ValueTypes.Keys.Any((type) => type.RequiresDisposal);
         public bool MustSetResponsibleDestroyer => ValueTypes.Keys.Any((type) => type.MustSetResponsibleDestroyer);
+        public bool IsTypeDependency => true;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo)
         {

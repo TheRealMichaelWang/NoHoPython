@@ -23,7 +23,7 @@ namespace NoHoPython.Syntax
                 enumTypeOverloads.Add(enumType.EnumDeclaration, new List<EnumType>());
             enumTypeOverloads[enumType.EnumDeclaration].Add(enumType);
 
-            typeDependencyTree.Add(enumType, new HashSet<IType>(enumType.GetOptions().Where((type) => type is not RecordType), new ITypeComparer()));
+            DeclareTypeDependencies(enumType, enumType.GetOptions().ToArray());
             return true;
         }
     }
@@ -168,6 +168,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => false;
         public bool RequiresDisposal => false;
         public bool MustSetResponsibleDestroyer => false;
+        public bool IsTypeDependency => throw new InvalidOperationException();
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
 
@@ -244,6 +245,7 @@ namespace NoHoPython.Typing
 
         public bool RequiresDisposal => globalSupportedOptions[this].Value.Keys.Any((option) => option.RequiresDisposal);
         public bool MustSetResponsibleDestroyer => globalSupportedOptions[this].Value.Keys.Any((option) => option.MustSetResponsibleDestroyer);
+        public bool IsTypeDependency => false;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => globalSupportedOptions[this].Value.Keys.Any((option) => option.TypeParameterAffectsCodegen(effectInfo));
 

@@ -122,6 +122,21 @@ namespace NoHoPython.Typing
         public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource) => throw new InvalidOperationException();
     }
 
+    partial class ForeignCType
+    {
+        public bool HasFormatSpecifier => Declaration.FormatSpecifier != null;
+
+        public string GetFormatSpecifier(IRProgram irProgram) => Declaration.FormatSpecifier ?? throw new NoFormatSpecifierForType(this);
+        
+        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource)
+        {
+            if (Declaration.Formatter == null)
+                throw new InvalidOperationException();
+
+            emitter.Append(GetSource(Declaration.Formatter, irProgram, valueCSource));
+        }
+    }
+
     partial class TupleType
     {
         public bool HasFormatSpecifier => orderedValueTypes.All((type) => type.HasFormatSpecifier);

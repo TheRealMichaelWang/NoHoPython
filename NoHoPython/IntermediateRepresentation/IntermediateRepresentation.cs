@@ -3,6 +3,7 @@ using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.Syntax
 {
@@ -61,6 +62,18 @@ namespace NoHoPython.Syntax
         public void AddEnumDeclaration(EnumDeclaration enumDeclaration) => EnumDeclarations.Add(enumDeclaration);
         public void AddProcDeclaration(ProcedureDeclaration procedureDeclaration) => ProcedureDeclarations.Add(procedureDeclaration);
 
+        public void DeclareTypeDependencies(IType type, params IType[] dependencies)
+        {
+            Debug.Assert(!typeDependencyTree.ContainsKey(type));
+
+            HashSet<IType> dependencySet = new(new ITypeComparer());
+            foreach (IType dependency in dependencies)
+                if (dependency.IsTypeDependency)
+                    dependencySet.Add(dependency);
+
+            typeDependencyTree.Add(type, dependencySet);
+        }
+
         public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, bool mainEntryPoint, MemoryAnalyzer memoryAnalyzer)
         {
             List<ProcedureDeclaration> compileHeads = new();
@@ -78,14 +91,14 @@ namespace NoHoPython.Syntax
             ScopeForAllSecondaryProcedures();
 
             return new(doBoundsChecking, eliminateAsserts, emitExpressionStatements, doCallStack, nameRuntimeTypes, emitLineDirectives,
-                RecordDeclarations, InterfaceDeclarations, EnumDeclarations, ProcedureDeclarations, new List<string>()
+                RecordDeclarations, InterfaceDeclarations, EnumDeclarations, foreignTypeOverloads.Keys.ToList(), ProcedureDeclarations, new List<string>()
                 {
                     "<stdio.h>",
                     "<stdlib.h>",
                     "<string.h>",
                     "<math.h>"
                 },
-                usedArrayTypes.ToList(), usedTupleTypes.ToList(), bufferTypes.ToList(), uniqueProcedureTypes, usedProcedureReferences, procedureOverloads, enumTypeOverloads, interfaceTypeOverloads, recordTypeOverloads, typeDependencyTree, memoryAnalyzer);
+                usedArrayTypes.ToList(), usedTupleTypes.ToList(), bufferTypes.ToList(), uniqueProcedureTypes, usedProcedureReferences, procedureOverloads, enumTypeOverloads, interfaceTypeOverloads, recordTypeOverloads, foreignTypeOverloads, typeDependencyTree, memoryAnalyzer);
         }
     }
 }
@@ -126,6 +139,7 @@ namespace NoHoPython.IntermediateRepresentation
         public readonly List<RecordDeclaration> RecordDeclarations;
         public readonly List<InterfaceDeclaration> InterfaceDeclarations;
         public readonly List<EnumDeclaration> EnumDeclarations;
+        public readonly List<ForeignCDeclaration> ForeignCDeclarations;
         public readonly List<ProcedureDeclaration> ProcedureDeclarations;
 
         public readonly SortedSet<string> IncludedCFiles;
@@ -144,7 +158,7 @@ namespace NoHoPython.IntermediateRepresentation
 
         public int ExpressionDepth;
 
-        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<TupleType> usedTupleTypes, List<IType> bufferTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
+        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ForeignCDeclaration> foreignCDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<TupleType> usedTupleTypes, List<IType> bufferTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<ForeignCDeclaration, List<ForeignCType>> foreignTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
         {
             DoBoundsChecking = doBoundsChecking;
             EliminateAsserts = eliminateAsserts;
@@ -157,6 +171,7 @@ namespace NoHoPython.IntermediateRepresentation
             InterfaceDeclarations = interfaceDeclarations;
             EnumDeclarations = enumDeclarations;
             ProcedureDeclarations = procedureDeclarations;
+            ForeignCDeclarations = foreignCDeclarations;
             IncludedCFiles = new SortedSet<string>(includedCFiles);
 
             this.uniqueProcedureTypes = uniqueProcedureTypes;
@@ -168,6 +183,7 @@ namespace NoHoPython.IntermediateRepresentation
             EnumTypeOverloads = enumTypeOverloads;
             InterfaceTypeOverloads = interfaceTypeOverload;
             RecordTypeOverloads = recordTypeOverloads;
+            ForeignTypeOverloads = foreignTypeOverloads;
 
             MemoryAnalyzer = memoryAnalyzer;
             this.typeDependencyTree = typeDependencyTree;
@@ -197,6 +213,9 @@ namespace NoHoPython.IntermediateRepresentation
 
         public bool DeclareCompiledType(StatementEmitter emitter, IType type)
         {
+            if (!type.IsTypeDependency)
+                return true;
+
             if (!compiledTypes.Add(type))
                 return false;
             CompileUncompiledDependencies(emitter, type);
@@ -205,6 +224,9 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void CompileUncompiledDependencies(StatementEmitter emitter, IType type)
         {
+            if (!type.IsTypeDependency)
+                return;
+
             foreach (IType dependency in typeDependencyTree[type])
                 if (!compiledTypes.Contains(dependency))
                     dependency.EmitCStruct(this, emitter);
@@ -237,6 +259,7 @@ namespace NoHoPython.IntermediateRepresentation
                 ForwardDeclareInterfaceTypes(headerEmitter);
                 EmitAnonProcedureTypedefs(headerEmitter);
                 ForwardDeclareRecordTypes(headerEmitter);
+                ForwardDeclareForeignTypes(headerEmitter);
 
                 //emit c structs
                 RecordDeclaration.EmitRecordMaskProto(headerEmitter);
@@ -245,6 +268,8 @@ namespace NoHoPython.IntermediateRepresentation
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclareType(this, headerEmitter));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclareType(this, headerEmitter));
                 RecordDeclarations.ForEach((record) => record.ForwardDeclareType(this, headerEmitter));
+                ForeignCDeclarations.ForEach((foreign) => foreign.ForwardDeclareType(this, headerEmitter));
+                
                 ForwardDeclareAnonProcedureTypes(this, headerEmitter);
 
                 //emit function headers
@@ -253,6 +278,7 @@ namespace NoHoPython.IntermediateRepresentation
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclare(this, headerEmitter));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, headerEmitter));
                 RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, headerEmitter));
+                ForeignCDeclarations.ForEach((foreign) => foreign.ForwardDeclare(this, headerEmitter));
                 usedProcedureReferences.ForEach((procedure) => procedure.EmitCaptureContextCStruct(this, headerEmitter, usedProcedureReferences.FindAll((procedureReference) => procedureReference.IsAnonymous)));
                 ProcedureDeclarations.ForEach((procedure) => procedure.ForwardDeclareActual(this, headerEmitter));
 
@@ -277,6 +303,7 @@ namespace NoHoPython.IntermediateRepresentation
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new(), 0));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(this, emitter, new(), 0));
                 RecordDeclarations.ForEach((record) => record.Emit(this, emitter, new(), 0));
+                ForeignCDeclarations.ForEach((foreign) => foreign.Emit(this, emitter, new(), 0));
                 ProcedureDeclarations.ForEach((proc) => proc.EmitActual(this, emitter, 0));
             }
         }

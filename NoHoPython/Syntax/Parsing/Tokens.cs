@@ -51,6 +51,7 @@
         As,
         Readonly,
         Nothing,
+        Attributes,
 
         //symbols
         OpenBracket,

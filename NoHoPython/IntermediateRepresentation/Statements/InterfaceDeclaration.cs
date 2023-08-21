@@ -199,7 +199,7 @@ namespace NoHoPython.Syntax.Statements
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IRInterfaceDeclaration);
-            IRInterfaceDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((InterfaceProperty property) => new IntermediateRepresentation.Statements.InterfaceDeclaration.InterfaceProperty(property.Identifier, property.Type.ToIRType(irBuilder, this))));
+            IRInterfaceDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((property) => new IntermediateRepresentation.Statements.InterfaceDeclaration.InterfaceProperty(property.Item2, property.Item1.ToIRType(irBuilder, this))));
             irBuilder.SymbolMarshaller.GoBack();
         }
 

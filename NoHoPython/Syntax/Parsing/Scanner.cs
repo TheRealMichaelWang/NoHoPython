@@ -328,6 +328,8 @@ namespace NoHoPython.Syntax.Parsing
                     "as" => TokenType.As,
                     "include" => TokenType.Include,
                     "cinclude" => TokenType.CInclude,
+                    "attributes" => TokenType.Attributes,
+                    "attr" => TokenType.Attributes,
                     _ => TokenType.Identifier
                 }, keyword);
             }

@@ -1,8 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Typing;
-using System.Runtime.InteropServices;
-using System.Text;
 
 namespace NoHoPython.Syntax
 {

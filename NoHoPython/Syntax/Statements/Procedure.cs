@@ -221,7 +221,7 @@ namespace NoHoPython.Syntax.Parsing
 
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? ParseTypeParameters() : new List<TypeParameter>();
 
-            if (typeParameters.Count > 0 || scanner.LastToken.Type == TokenType.OpenParen)
+            if (scanner.LastToken.Type == TokenType.OpenParen)
             {
                 MatchAndScanToken(TokenType.OpenParen);
                 List<AstType> parameters = new();
@@ -234,6 +234,8 @@ namespace NoHoPython.Syntax.Parsing
                 scanner.ScanToken();
                 return new ForeignCProcedureDeclaration(identifier, typeParameters, parameters, ParseType(), location);
             }
+            else if (scanner.LastToken.Type == TokenType.StringLiteral)
+                return ParseForeignCTypeDeclaration(identifier, typeParameters, location);
             else
             {
                 if (scanner.LastToken.Type == TokenType.Newline)

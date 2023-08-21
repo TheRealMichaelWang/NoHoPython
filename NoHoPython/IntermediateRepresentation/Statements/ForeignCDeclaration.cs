@@ -2,6 +2,7 @@
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
@@ -39,14 +40,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public string? FormatSpecifier { get; private set; }
         public string? Formatter { get; private set; }
 
-        public List<ForeignCProperty>? Properties;
+        public List<ForeignCProperty>? Properties = null;
 
-        public ForeignCDeclaration(string name, List<TypeParameter> typeParameters, bool pointerPropertyAccess, List<ForeignCProperty>? properties, string? forwardDeclaration, string? cStructDeclaration, string? marshallerHeaders, string? marshallerDeclarations, string cReferenceSource, string? copier, string? mover, string? destructor, string? responsibleDestroyerSetter, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement)
+        public ForeignCDeclaration(string name, List<TypeParameter> typeParameters, bool pointerPropertyAccess, string? forwardDeclaration, string? cStructDeclaration, string? marshallerHeaders, string? marshallerDeclarations, string cReferenceSource, string? copier, string? mover, string? destructor, string? responsibleDestroyerSetter, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement)
         {
             Name = name;
             TypeParameters = typeParameters;
             PointerPropertyAccess = pointerPropertyAccess;
-            Properties = properties;
 
             ForwardDeclaration = forwardDeclaration;
             CStructDeclaration = cStructDeclaration;
@@ -61,9 +61,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ParentContainer = parentContainer;
             ErrorReportedElement = errorReportedElement;
         }
+
+        public void DelayedLinkSetProperties(List<ForeignCProperty> properties)
+        {
+            Debug.Assert(Properties == null);
+            Properties = properties;
+        }
     }
 }
-
 
 namespace NoHoPython.Typing
 {
@@ -127,5 +132,43 @@ namespace NoHoPython.Typing
         public Property FindProperty(string identifier) => identifierPropertyMap.Value[identifier];
 
         public List<Property> GetProperties() => properties.Value.ConvertAll((ForeignCDeclaration.ForeignCProperty property) => (Property)property);
+    }
+}
+
+namespace NoHoPython.Syntax.Statements
+{
+    partial class ForeignCDeclaration
+    {
+        private IntermediateRepresentation.Statements.ForeignCDeclaration IRDeclaration;
+
+        public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder)
+        {
+            string? GetOption(string attribute)
+            {
+                if (Attributes.ContainsKey(attribute))
+                    return Attributes[attribute];
+                return null;
+            }
+
+            List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
+
+            IRDeclaration = new IntermediateRepresentation.Statements.ForeignCDeclaration(Identifier, typeParameters, Attributes.ContainsKey("ptr") || CSource.EndsWith('*'), GetOption("ForwardDeclaration"), GetOption("CStruct"), GetOption("MarshallerHeaders"), GetOption("Marshallers"), CSource, GetOption("Copy"), GetOption("Move"), GetOption("Destroy"), GetOption("ActorSetter"), irBuilder.SymbolMarshaller.CurrentModule, this);
+            irBuilder.SymbolMarshaller.DeclareSymbol(IRDeclaration, this);
+            irBuilder.SymbolMarshaller.NavigateToScope(IRDeclaration);
+
+            foreach (Typing.TypeParameter parameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
+
+            irBuilder.SymbolMarshaller.GoBack();
+        }
+
+        public void ForwardDeclare(AstIRProgramBuilder irBuilder)
+        {
+            irBuilder.SymbolMarshaller.NavigateToScope(IRDeclaration);
+            IRDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((property) => new IntermediateRepresentation.Statements.ForeignCDeclaration.ForeignCProperty(property.Item2, property.Item1.ToIRType(irBuilder, this))));
+            irBuilder.SymbolMarshaller.GoBack();
+        }
+
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => IRDeclaration;
     }
 }

@@ -3,6 +3,28 @@ using System.Text;
 
 namespace NoHoPython.Syntax.Statements
 {
+    public static class AttributeTableExtensions
+    {
+        public static string ToString(this Dictionary<string, string?> attributeTable, int indent)
+        {
+            if (attributeTable.Count == 0)
+                return string.Empty;
+
+            StringBuilder builder = new();
+
+            builder.AppendLine($"{IAstStatement.Indent(indent)}attributes:");
+            foreach (KeyValuePair<string, string?> attribute in attributeTable)
+            {
+                if (attribute.Value != null)
+                    builder.AppendLine($"{IAstStatement.Indent(indent + 1)}{attribute.Key} : {attribute.Value}");
+                else
+                    builder.AppendLine($"{IAstStatement.Indent(indent + 1)}{attribute.Key}");
+            }
+
+            return builder.ToString();
+        }
+    }
+
     public sealed partial class EnumDeclaration : IAstStatement
     {
         public SourceLocation SourceLocation { get; private set; }
@@ -39,28 +61,14 @@ namespace NoHoPython.Syntax.Statements
 
     public sealed partial class InterfaceDeclaration : IAstStatement
     {
-        public sealed class InterfaceProperty
-        {
-            public AstType Type { get; private set; }
-            public readonly string Identifier;
-
-            public InterfaceProperty(AstType type, string identifier)
-            {
-                Type = type;
-                Identifier = identifier;
-            }
-
-            public override string ToString() => $"{Type} {Identifier}";
-        }
-
         public SourceLocation SourceLocation { get; private set; }
 
         public readonly string Identifier;
         public readonly List<TypeParameter> TypeParameters;
-        public readonly List<InterfaceProperty> Properties;
+        public readonly List<(AstType, string)> Properties;
 
 #pragma warning disable CS8618 //IRInterfaceDeclaration initialized upon generating IR 
-        public InterfaceDeclaration(string identifier, List<TypeParameter> typeParameters, List<InterfaceProperty> properties, SourceLocation sourceLocation)
+        public InterfaceDeclaration(string identifier, List<TypeParameter> typeParameters, List<(AstType, string)> properties, SourceLocation sourceLocation)
 #pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
@@ -77,8 +85,8 @@ namespace NoHoPython.Syntax.Statements
                 builder.Append($"<{string.Join(", ", TypeParameters)}>");
             builder.Append(':');
 
-            foreach (InterfaceProperty property in Properties)
-                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
+            foreach ((AstType, string) property in Properties)
+                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property.Item1.ToString()} {property.Item2}");
             return builder.ToString();
         }
     }
@@ -150,6 +158,43 @@ namespace NoHoPython.Syntax.Statements
 
             if (MessageRecievers.Count > 0)
                 builder.Append($"\n{IAstStatement.Indent(indent + 1)}...({MessageRecievers.Count} message recievers in {Identifier})...");
+
+            return builder.ToString();
+        }
+    }
+
+    public sealed partial class ForeignCDeclaration : IAstStatement
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public string Identifier { get; private set; }
+        public string CSource { get; private set; }
+        public readonly List<TypeParameter> TypeParameters;
+        public readonly Dictionary<string, string?> Attributes;
+        public List<(AstType, string)> Properties;
+
+        public ForeignCDeclaration(string identifier, string cSource, List<TypeParameter> typeParameters, Dictionary<string, string?> attributes, List<(AstType, string)> properties, SourceLocation sourceLocation)
+        {
+            Identifier = identifier;
+            CSource = cSource;
+            TypeParameters = typeParameters;
+            Attributes = attributes;
+            Properties = properties;
+            SourceLocation = sourceLocation;
+        }
+
+        public string ToString(int indent)
+        {
+            StringBuilder builder = new();
+            builder.Append($"{IAstStatement.Indent(indent)}cdef {Identifier}");
+            if (TypeParameters.Count > 0)
+                builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            builder.Append($" \"{CSource}\":");
+            
+            foreach((AstType, string) property in Properties)
+                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property.Item1.ToString()} {property.Item2}");
+
+            builder.AppendLine(Attributes.ToString(indent));
 
             return builder.ToString();
         }
@@ -257,15 +302,15 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            List<InterfaceDeclaration.InterfaceProperty> interfaceProperties = ParseBlock(() =>
+            List<(AstType, string)> properties = ParseBlock(() =>
             {
                 AstType type = ParseType();
                 MatchToken(TokenType.Identifier);
                 string identifier = scanner.LastToken.Identifier;
                 scanner.ScanToken();
-                return new InterfaceDeclaration.InterfaceProperty(type, identifier);
+                return (type, identifier);
             });
-            return new InterfaceDeclaration(identifier, typeParameters, interfaceProperties, location);
+            return new InterfaceDeclaration(identifier, typeParameters, properties, location);
         }
 
         private RecordDeclaration ParseRecordDeclaration()
@@ -314,6 +359,27 @@ namespace NoHoPython.Syntax.Parsing
             return new RecordDeclaration(identifier, typeParameters, properties, procedures, location);
         }
 
+        private ForeignCDeclaration ParseForeignCTypeDeclaration(string identifier, List<TypeParameter> typeParameters, SourceLocation sourceLocation)
+        {
+            MatchToken(TokenType.StringLiteral);
+            string csource = scanner.LastToken.Identifier;
+            scanner.ScanToken();
+
+            MatchAndScanToken(TokenType.Colon);
+            MatchAndScanToken(TokenType.Newline);
+            
+            List<(AstType, string)> properties = ParseBlock(() =>
+            {
+                AstType type = ParseType();
+                MatchToken(TokenType.Identifier);
+                string identifier = scanner.LastToken.Identifier;
+                scanner.ScanToken();
+                return (type, identifier);
+            });
+
+            return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), properties, sourceLocation);
+        }
+
         private ModuleContainer ParseModule()
         {
             SourceLocation location = scanner.CurrentLocation;
@@ -327,6 +393,32 @@ namespace NoHoPython.Syntax.Parsing
 
             List<IAstStatement> statements = ParseBlock(ParseTopLevel);
             return new ModuleContainer(identifier, statements, location);
+        }
+
+        private Dictionary<string, string?> ParseAttributesTable()
+        {
+            if (scanner.LastToken.Type != TokenType.Attributes)
+                return new();
+
+            scanner.ScanToken();
+            MatchAndScanToken(TokenType.Colon);
+            MatchAndScanToken(TokenType.Newline);
+
+            return new(ParseBlock(() =>
+            {
+                MatchToken(TokenType.Identifier);
+                string identifier = scanner.LastToken.Identifier;
+                scanner.ScanToken();
+
+                if (scanner.LastToken.Type != TokenType.Colon)
+                    return new KeyValuePair<string, string?>(identifier, null);
+                scanner.ScanToken();
+
+                MatchToken(TokenType.Identifier);
+                string value = scanner.LastToken.Identifier;
+                scanner.ScanToken();
+                return new KeyValuePair<string, string?>(identifier, value);
+            }));
         }
     }
 }

@@ -173,7 +173,9 @@ namespace NoHoPython.Syntax.Statements
         public readonly Dictionary<string, string?> Attributes;
         public List<(AstType, string)> Properties;
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public ForeignCDeclaration(string identifier, string cSource, List<TypeParameter> typeParameters, Dictionary<string, string?> attributes, List<(AstType, string)> properties, SourceLocation sourceLocation)
+#pragma warning restore CS8618 
         {
             Identifier = identifier;
             CSource = cSource;
@@ -359,25 +361,34 @@ namespace NoHoPython.Syntax.Parsing
             return new RecordDeclaration(identifier, typeParameters, properties, procedures, location);
         }
 
-        private ForeignCDeclaration ParseForeignCTypeDeclaration(string identifier, List<TypeParameter> typeParameters, SourceLocation sourceLocation)
+        private ForeignCDeclaration ParseForeignCDeclaration(string identifier, List<TypeParameter> typeParameters, SourceLocation sourceLocation)
         {
             MatchToken(TokenType.StringLiteral);
             string csource = scanner.LastToken.Identifier;
             scanner.ScanToken();
 
-            MatchAndScanToken(TokenType.Colon);
-            MatchAndScanToken(TokenType.Newline);
-            
-            List<(AstType, string)> properties = ParseBlock(() =>
+            if (scanner.LastToken.Type == TokenType.Colon)
             {
-                AstType type = ParseType();
-                MatchToken(TokenType.Identifier);
-                string identifier = scanner.LastToken.Identifier;
                 scanner.ScanToken();
-                return (type, identifier);
-            });
+                MatchAndScanToken(TokenType.Newline);
 
-            return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), properties, sourceLocation);
+                List<(AstType, string)> properties = ParseBlock(() =>
+                {
+                    AstType type = ParseType();
+                    MatchToken(TokenType.Identifier);
+                    string identifier = scanner.LastToken.Identifier;
+                    scanner.ScanToken();
+                    return (type, identifier);
+                });
+                
+                NextLine();
+                return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), properties, sourceLocation);
+            }
+            else
+            {
+                NextLine();
+                return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), new(), sourceLocation);
+            }
         }
 
         private ModuleContainer ParseModule()
@@ -414,7 +425,7 @@ namespace NoHoPython.Syntax.Parsing
                     return new KeyValuePair<string, string?>(identifier, null);
                 scanner.ScanToken();
 
-                MatchToken(TokenType.Identifier);
+                MatchToken(TokenType.StringLiteral);
                 string value = scanner.LastToken.Identifier;
                 scanner.ScanToken();
                 return new KeyValuePair<string, string?>(identifier, value);

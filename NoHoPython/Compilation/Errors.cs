@@ -1,11 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NoHoPython.IntermediateRepresentation
 {
@@ -18,7 +13,7 @@ namespace NoHoPython.IntermediateRepresentation
             IRElement = iRElement;
         }
 
-        public void Print()
+        public virtual void Print()
         {
             Console.WriteLine($"Codegen(to C) Error: {Message}");
 

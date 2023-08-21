@@ -2,6 +2,7 @@
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Text;
 
 namespace NoHoPython.Syntax
 {
@@ -42,6 +43,26 @@ namespace NoHoPython.IntermediateRepresentation
                 foreach (ForeignCType foreign in ForeignTypeOverloads[foreignDeclaration])
                         emitter.AppendLine(foreign.GetSource(foreignDeclaration.ForwardDeclaration, this));
             }
+        }
+    }
+
+    public sealed class ForeignInlineCError : CodegenError
+    {
+        public string InlineCSource { get; private set; }
+        public int Index { get; private set; }
+        public string InlineMessage { get; private set; }
+
+        public ForeignInlineCError(string inlineCSource, int index, string inlineMessage, ForeignCType foreignCType):base(foreignCType.Declaration, "An error occured with your inline C code.")
+        {
+            InlineCSource = inlineCSource;
+            Index = index;
+            InlineMessage = inlineMessage;
+        }
+
+        public override void Print()
+        {
+            base.Print();
+
         }
     }
 }
@@ -107,23 +128,6 @@ namespace NoHoPython.Typing
 {
     partial class ForeignCType
     {
-        public string GetSource(string templateSource, IRProgram irProgram, string? value=null, string? agent=null)
-        {
-            templateSource = templateSource.Replace("##ID", GetStandardIdentifier(irProgram));
-            for(int i = 0; i < Declaration.TypeParameters.Count; i++)
-            {
-                templateSource = templateSource.Replace($"##{Declaration.TypeParameters[i].Name}_ID", TypeArguments[i].GetStandardIdentifier(irProgram));
-                templateSource = templateSource.Replace($"##{Declaration.TypeParameters[i].Name}_CSRC", TypeArguments[i].GetCName(irProgram));
-            }
-
-            if (value != null)
-                templateSource = templateSource.Replace("##VALUE", value);
-            if (agent != null)
-                templateSource = templateSource.Replace("##AGENT", agent);
-
-            return templateSource;
-        }
-
         public bool IsNativeCType => true;
         public bool RequiresDisposal => Declaration.Destructor != null;
         public bool MustSetResponsibleDestroyer => Declaration.ResponsibleDestroyerSetter != null;

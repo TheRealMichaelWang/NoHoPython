@@ -1,5 +1,6 @@
 ﻿using NoHoPython.Syntax.Statements;
 using NoHoPython.Syntax.Values;
+using System.Diagnostics;
 using System.Text;
 
 namespace NoHoPython.Syntax.Parsing
@@ -106,16 +107,17 @@ namespace NoHoPython.Syntax.Parsing
 
         private bool skipIndentCounting = false;
         private int lastCountedIndents = 0;
+        
+        private int CountIndent()
+        {
+            int count;
+            for (count = 0; scanner.LastToken.Type == TokenType.Tab; count++)
+                scanner.ScanToken();
+            return count;
+        }
+        
         private List<TLineType> ParseBlock<TLineType>(Func<TLineType?> lineParser)
         {
-            int countIndent()
-            {
-                int count;
-                for (count = 0; scanner.LastToken.Type == TokenType.Tab; count++)
-                    scanner.ScanToken();
-                return count;
-            }
-
             currentExpectedIndents++;
             List<TLineType> statements = new();
             while (true)
@@ -127,7 +129,7 @@ namespace NoHoPython.Syntax.Parsing
                     skipIndentCounting = false;
                 else
                 {
-                    int indents = countIndent();
+                    int indents = CountIndent();
                     if (scanner.LastToken.Type == TokenType.Newline)
                     {
                         scanner.ScanToken();
@@ -167,6 +169,20 @@ namespace NoHoPython.Syntax.Parsing
             skipIndentCounting = true;
 
             return statements;
+        }
+
+        private void NextLine()
+        {
+            if (skipIndentCounting)
+            {
+                skipIndentCounting = false;
+                return;
+            }
+
+            MatchAndScanToken(TokenType.Newline);
+            lastCountedIndents = CountIndent();
+            if (lastCountedIndents != currentExpectedIndents)
+                throw new IndentationLevelException(currentExpectedIndents, lastCountedIndents, scanner.CurrentLocation);
         }
 
         private List<IAstStatement> ParseCodeBlock() => ParseBlock(ParseStatement);

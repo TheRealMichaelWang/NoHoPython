@@ -235,7 +235,7 @@ namespace NoHoPython.Syntax.Parsing
                 return new ForeignCProcedureDeclaration(identifier, typeParameters, parameters, ParseType(), location);
             }
             else if (scanner.LastToken.Type == TokenType.StringLiteral)
-                return ParseForeignCTypeDeclaration(identifier, typeParameters, location);
+                return ParseForeignCDeclaration(identifier, typeParameters, location);
             else
             {
                 if (scanner.LastToken.Type == TokenType.Newline)

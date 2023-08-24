@@ -1,5 +1,29 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.Typing;
 using System.Text;
+
+namespace NoHoPython.IntermediateRepresentation
+{
+    public sealed class ForeignInlineCError : CodegenError
+    {
+        public string InlineCSource { get; private set; }
+        public int Index { get; private set; }
+        public string InlineMessage { get; private set; }
+
+        public ForeignInlineCError(string inlineCSource, int index, string inlineMessage, ForeignCType foreignCType) : base(foreignCType.Declaration, "An error occured with your inline C code.")
+        {
+            InlineCSource = inlineCSource;
+            Index = index;
+            InlineMessage = inlineMessage;
+        }
+
+        public override void Print()
+        {
+            base.Print();
+
+        }
+    }
+}
 
 namespace NoHoPython.Typing
 {

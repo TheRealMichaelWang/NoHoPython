@@ -66,7 +66,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 DefaultValue = null;
             }
 
-            public RecordProperty SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), IsReadOnly, (RecordType)RecordType.SubstituteWithTypearg(typeargs), RecordDeclaration);
+            public RecordProperty SubstituteWithTypeargs(Dictionary<TypeParameter, IType> typeargs)
+            {
+                string newName = Name;
+                foreach (KeyValuePair<TypeParameter, IType> typearg in typeargs)
+                    newName = newName.Replace($"{typearg.Key.Name}_IDENT", typearg.Value.Identifier);
+
+                return new(newName, Type.SubstituteWithTypearg(typeargs), IsReadOnly, (RecordType)RecordType.SubstituteWithTypearg(typeargs), RecordDeclaration);
+            }
 
             public void DelayedLinkSetDefaultValue(IRValue defaultValue)
             {
@@ -92,7 +99,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         private List<RecordProperty>? properties;
         private Dictionary<string, IRValue> defaultValues;
-        private HashSet<string>? propertyNames;
 
         public ProcedureDeclaration Constructor { get; private set; }
         public ProcedureDeclaration? Destructor { get; private set; }
@@ -108,7 +114,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ErrorReportedElement = errorReportedElement;
             ParentContainer = parentContainer;
             properties = null;
-            propertyNames = null;
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
             Constructor = null;
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
@@ -130,7 +135,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             List<RecordProperty> typeProperties = new(properties.Count);
             foreach (RecordProperty recordProperty in properties)
-                typeProperties.Add(recordProperty.SubstituteWithTypearg(typeargs));
+                typeProperties.Add(recordProperty.SubstituteWithTypeargs(typeargs));
 
             return typeProperties;
         }
@@ -140,10 +145,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Debug.Assert(this.properties == null);
             this.properties = properties;
             IPropertyContainer.SanitizePropertyNames(properties.ConvertAll((prop) => (Property)prop), ErrorReportedElement);
-
-            propertyNames = new();
-            foreach (RecordProperty property in properties)
-                propertyNames.Add(property.Name);
         }
 
         public void DelayedLinkSetConstructor(ProcedureDeclaration constructor, ProcedureDeclaration? destructor, ProcedureDeclaration? copier)
@@ -176,10 +177,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 #pragma warning disable CS8602 // Only called during IR generation, following linking
         public bool AllPropertiesInitialized(SortedSet<RecordProperty> initializedProperties) => properties.TrueForAll(property => initializedProperties.Contains(property));
 #pragma warning restore CS8602
-
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-        public bool HasProperty(string name) => propertyNames.Contains(name);
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
     }
 }
 
@@ -229,7 +226,7 @@ namespace NoHoPython.Typing
             constructorParameterTypes = new(() => recordPrototype.ConstructorParameterTypes.Select((parameter) => parameter.SubstituteWithTypearg(typeargMap.Value)).ToList());
         }
 
-        public bool HasProperty(string identifier) => RecordPrototype.HasProperty(identifier);
+        public bool HasProperty(string identifier) => identifierPropertyMap.Value.ContainsKey(identifier);
 
         public Property FindProperty(string identifier) => identifierPropertyMap.Value[identifier];
 

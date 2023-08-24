@@ -12,7 +12,7 @@ namespace NoHoPython.Syntax.Statements
 
             StringBuilder builder = new();
 
-            builder.AppendLine($"{IAstStatement.Indent(indent)}attributes:");
+            builder.AppendLine($"\n{IAstStatement.Indent(indent)}attributes:");
             foreach (KeyValuePair<string, string?> attribute in attributeTable)
             {
                 if (attribute.Value != null)
@@ -34,8 +34,10 @@ namespace NoHoPython.Syntax.Statements
         public readonly List<AstType> RequiredImplementedInterfaces;
         public readonly List<AstType> Options;
 
+        public readonly Dictionary<string, string?> Attributes;
+
 #pragma warning disable CS8618 // IREnumDeclaration initialized upon IR generation
-        public EnumDeclaration(string identifier, List<TypeParameter> typeParameters, List<AstType> requiredImplementedInterfaces, List<AstType> options, SourceLocation sourceLocation)
+        public EnumDeclaration(string identifier, List<TypeParameter> typeParameters, List<AstType> requiredImplementedInterfaces, List<AstType> options, Dictionary<string, string?> attributes, SourceLocation sourceLocation)
 #pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
@@ -43,6 +45,7 @@ namespace NoHoPython.Syntax.Statements
             TypeParameters = typeParameters;
             RequiredImplementedInterfaces = requiredImplementedInterfaces;
             Options = options;
+            Attributes = attributes;
         }
 
         public string ToString(int indent)
@@ -55,6 +58,9 @@ namespace NoHoPython.Syntax.Statements
 
             foreach (AstType option in Options)
                 builder.Append($"\n{IAstStatement.Indent(indent + 1)}{option}");
+
+            builder.Append(Attributes.ToString(indent));
+
             return builder.ToString();
         }
     }
@@ -287,7 +293,7 @@ namespace NoHoPython.Syntax.Parsing
                 scanner.ScanToken();
 
             List<AstType> Options = ParseBlock(ParseType);
-            return new EnumDeclaration(identifier, typeParameters, requiredImplementedInterfaces, Options, location);
+            return new EnumDeclaration(identifier, typeParameters, requiredImplementedInterfaces, Options, ParseAttributesTable(), location);
         }
 
         private InterfaceDeclaration ParseInterfaceDeclaration()
@@ -381,12 +387,10 @@ namespace NoHoPython.Syntax.Parsing
                     return (type, identifier);
                 });
                 
-                NextLine();
                 return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), properties, sourceLocation);
             }
             else
             {
-                NextLine();
                 return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), new(), sourceLocation);
             }
         }
@@ -408,10 +412,11 @@ namespace NoHoPython.Syntax.Parsing
 
         private Dictionary<string, string?> ParseAttributesTable()
         {
-            if (scanner.LastToken.Type != TokenType.Attributes)
+            if (!NextLine(TokenType.Attributes))
                 return new();
 
             scanner.ScanToken();
+
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 

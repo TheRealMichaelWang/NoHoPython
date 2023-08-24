@@ -11,4 +11,4 @@ attr:
 cdef fopen(handle<char>) fileptr
 
 def main():
-	cdef printf()
+	pass

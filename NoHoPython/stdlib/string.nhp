@@ -210,7 +210,7 @@ class string:
 				if i != self.length:
 					parts.pushBack(substring(i, self.length - i))
 				
-				return parts.toArray()
+				return parts
 			else:
 				if end != i:
 					parts.pushBack(substring(i, end - i))

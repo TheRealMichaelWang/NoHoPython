@@ -171,18 +171,42 @@ namespace NoHoPython.Syntax.Parsing
             return statements;
         }
 
-        private void NextLine()
+        private bool NextLine(TokenType? matchTok = null)
         {
             if (skipIndentCounting)
             {
                 skipIndentCounting = false;
-                return;
+                if (matchTok == null)
+                    return true;
+                return scanner.LastToken.Type == matchTok;
             }
+            else
+            {
+                if (matchTok == null)
+                {
+                    MatchAndScanToken(TokenType.Newline);
+                    lastCountedIndents = CountIndent();
+                    if (lastCountedIndents != currentExpectedIndents)
+                        throw new IndentationLevelException(currentExpectedIndents, lastCountedIndents, scanner.CurrentLocation);
+                    return true;
+                }
+                else
+                {
+                    if (scanner.LastToken.Type == TokenType.EndOfFile)
+                        return false;
+                    MatchAndScanToken(TokenType.Newline);
+                    lastCountedIndents = CountIndent();
 
-            MatchAndScanToken(TokenType.Newline);
-            lastCountedIndents = CountIndent();
-            if (lastCountedIndents != currentExpectedIndents)
-                throw new IndentationLevelException(currentExpectedIndents, lastCountedIndents, scanner.CurrentLocation);
+                    if (lastCountedIndents < currentExpectedIndents || scanner.LastToken.Type != matchTok)
+                    {
+                        skipIndentCounting = true;
+                        return false;
+                    }
+                    else if (lastCountedIndents > currentExpectedIndents)
+                        throw new IndentationLevelException(currentExpectedIndents, lastCountedIndents, scanner.CurrentLocation);
+                    return true;
+                }
+            }
         }
 
         private List<IAstStatement> ParseCodeBlock() => ParseBlock(ParseStatement);

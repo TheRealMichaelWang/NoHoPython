@@ -441,7 +441,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Record = record;
         }
 
-        public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new OptimizedRecordMessageCall(Property.SubstituteWithTypearg(typeargs), Record.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
+        public override IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new OptimizedRecordMessageCall(Property.SubstituteWithTypeargs(typeargs), Record.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
     }
 
     public sealed partial class AnonymizeProcedure : IRValue

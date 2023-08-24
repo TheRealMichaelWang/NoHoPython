@@ -39,6 +39,9 @@ namespace NoHoPython.IntermediateRepresentation
         {
             foreach(EnumDeclaration enumDeclaration in EnumTypeOverloads.Keys)
             {
+                if (enumDeclaration.IsCEnum)
+                    continue;
+
                 enumDeclaration.EmitOptionsCEnum(this, emitter);
 
                 if (enumDeclaration.EmitMultipleCStructs)
@@ -61,19 +64,35 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 #pragma warning disable CS8604
         public bool IsEmpty => options.TrueForAll((option) => option.IsEmpty);
         public bool EmitMultipleCStructs => options.Any((option) => option.TypeParameterAffectsCodegen(new(new ITypeComparer())));
+        public bool IsCEnum => Attributes.ContainsKey("CEnum") && Attributes["CEnum"] != null && IsEmpty;
 #pragma warning restore CS8604
 #pragma warning restore CS8602
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public string GetCEnumOptionForType(IRProgram irProgram, IType type) => $"_nhp_enum_{IScopeSymbol.GetAbsolouteName(this)}_OPTION_{type.GetStandardIdentifier(irProgram)}";
+        public string GetCEnumOptionForType(IRProgram irProgram, IType type)
+        {
+            if (IsCEnum)
+            {
+                Debug.Assert(type is EmptyEnumOption);
+                EmptyEnumOption emptyEnumOption = (EmptyEnumOption)type;
+                Debug.Assert(emptyEnumOption.EnumDeclaration == this);
+
+                if (Attributes.ContainsKey("CPrefix") && Attributes["CPrefix"] != null)
+                    return $"{Attributes["CPrefix"]}{emptyEnumOption.Name}";
+                else
+                    return emptyEnumOption.Name;
+            }
+
+            return $"nhp_enum_{IScopeSymbol.GetAbsolouteName(this)}_OPTION_{type.GetStandardIdentifier(irProgram)}";
+        }
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
         public string GetCEnumOptionForType(IRProgram irProgram, int optionNumber) => GetCEnumOptionForType(irProgram, options[optionNumber]);
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 
         public void ForwardDeclareType(IRProgram irProgram, StatementEmitter emitter)
         {
-            if (!irProgram.EnumTypeOverloads.ContainsKey(this))
+            if (!irProgram.EnumTypeOverloads.ContainsKey(this) || IsCEnum)
                 return;
 
             if (EmitMultipleCStructs)
@@ -100,7 +119,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void ForwardDeclare(IRProgram irProgram, StatementEmitter emitter)
         {
-            if (!irProgram.EnumTypeOverloads.ContainsKey(this))
+            if (!irProgram.EnumTypeOverloads.ContainsKey(this) || IsCEnum)
                 return;
 
             foreach(EnumType usedEnum in irProgram.EnumTypeOverloads[this])
@@ -122,6 +141,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void EmitOptionsCEnum(IRProgram irProgram, StatementEmitter emitter)
         {
+            if (IsCEnum)
+                return;
+
             emitter.AppendLine($"typedef enum _nhp_enum_{IScopeSymbol.GetAbsolouteName(this)}_options {{");
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             for (int i = 0; i < options.Count; i++)
@@ -139,7 +161,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
         {
-            if (!irProgram.EnumTypeOverloads.ContainsKey(this))
+            if (!irProgram.EnumTypeOverloads.ContainsKey(this) || IsCEnum)
                 return;
 
             foreach (EnumType enumType in irProgram.EnumTypeOverloads[this])
@@ -249,9 +271,18 @@ namespace NoHoPython.Typing
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => globalSupportedOptions[this].Value.Keys.Any((option) => option.TypeParameterAffectsCodegen(effectInfo));
 
-        public string GetStandardIdentifier(IRProgram irProgram) => EnumDeclaration.EmitMultipleCStructs ? $"_nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}" : $"_nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}";
+        public string GetStandardIdentifier(IRProgram irProgram) => EnumDeclaration.EmitMultipleCStructs ? $"nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}" : $"nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}";
 
-        public string GetCName(IRProgram irProgram) => EnumDeclaration.IsEmpty ? $"{GetStandardIdentifier(irProgram)}_options_t" : $"{GetStandardIdentifier(irProgram)}_t";
+        public string GetCName(IRProgram irProgram)
+        {
+            if (EnumDeclaration.IsCEnum)
+#pragma warning disable CS8603 //Null checked in IsCEnum
+                return EnumDeclaration.Attributes["CEnum"];
+#pragma warning restore CS8603
+            else if (EnumDeclaration.IsEmpty)
+                return $"{GetStandardIdentifier(irProgram)}_options_t";
+            return $"{GetStandardIdentifier(irProgram)}_t";
+        }
 
         public string GetCEnumOptionForType(IRProgram irProgram, IType type) => EnumDeclaration.GetCEnumOptionForType(irProgram, globalSupportedOptions[this].Value[type]);
 
@@ -289,7 +320,6 @@ namespace NoHoPython.Typing
 
         public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
         public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
-
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -444,7 +474,7 @@ namespace NoHoPython.Typing
 
         public void EmitOptionTypeNames(IRProgram irProgram, StatementEmitter emitter)
         {
-            if (!irProgram.NameRuntimeTypes)
+            if (!irProgram.NameRuntimeTypes || EnumDeclaration.IsCEnum)
                 return;
 
             emitter.Append($"static const char* {GetStandardIdentifier(irProgram)}_typenames[] = {{");
@@ -580,7 +610,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             emitter.Append('(');
             IRValue.EmitMemorySafe(EnumValue, irProgram, emitter, typeargs);
-            emitter.Append(".option == ");
+            if (!enumType.EnumDeclaration.IsEmpty)
+                emitter.Append(".option");
+            emitter.Append(" == ");
             emitter.Append(enumType.GetCEnumOptionForType(irProgram, Option.SubstituteWithTypearg(typeargs)));
             emitter.Append(')');
         }

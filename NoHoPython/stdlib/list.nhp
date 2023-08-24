@@ -108,7 +108,7 @@ mod data:
 			destroy self.buffer + self.count
 			return popped
 		
-		def toArray() array<T>:
+		def to_array_T_IDENT() array<T>:
 			return marshal T[self.count](self.buffer)
 		
 		def forall(fn<None, T> todo):

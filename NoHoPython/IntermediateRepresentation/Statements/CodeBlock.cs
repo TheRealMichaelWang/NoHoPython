@@ -1,6 +1,7 @@
 ﻿using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Syntax;
+using NoHoPython.Typing;
 
 namespace NoHoPython.Syntax
 {
@@ -14,24 +15,30 @@ namespace NoHoPython.Syntax
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
-    public partial class CodeBlock : VariableContainer
+    public partial class CodeBlock : SymbolContainer
     {
+        public override bool IsGloballyNavigable => false;
+
         public List<IRStatement>? Statements { get; private set; }
         public List<Variable> LocalVariables { get; private set; }
         private List<VariableDeclaration> DeclaredVariables;
+        private Dictionary<Variable, (IType, VariableReference.RefinementEmitter?)> VariableRefinements;
 
         public bool IsLoop { get; private set; }
         public int? BreakLabelId { get; private set; }
 
+        protected SymbolContainer parentContainer;
         public SourceLocation BlockBeginLocation { get; private set; }
 
-        public CodeBlock(SymbolContainer parent, bool isLoop, SourceLocation blockBeginLocation) : base(parent)
+        public CodeBlock(SymbolContainer parentContainer, bool isLoop, SourceLocation blockBeginLocation)
         {
             IsLoop = isLoop;
+            this.parentContainer = parentContainer;
             BlockBeginLocation = blockBeginLocation;
             Statements = null;
-            LocalVariables = new List<Variable>();
-            DeclaredVariables = new List<VariableDeclaration>();
+            LocalVariables = new();
+            DeclaredVariables = new();
+            VariableRefinements = new();
         }
 
         public void AddVariableDeclaration(VariableDeclaration variableDeclaration)
@@ -60,6 +67,30 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
+        public (IType, VariableReference.RefinementEmitter?)? GetVariableRefinement(Variable variable)
+        {
+            if (VariableRefinements.ContainsKey(variable))
+                return VariableRefinements[variable];
+
+            if (parentContainer == null || parentContainer is not CodeBlock || this == variable.ParentProcedure)
+                return null;
+            else
+                return ((CodeBlock)parentContainer).GetVariableRefinement(variable);
+        }
+
+        public void ClearVariableRefinments(Variable variable)
+        {
+            if (VariableRefinements.ContainsKey(variable))
+                VariableRefinements.Remove(variable);
+
+            if (parentContainer == null || parentContainer is not CodeBlock || this == variable.ParentProcedure)
+                return;
+            else
+                ((CodeBlock)parentContainer).ClearVariableRefinments(variable);
+        }
+
+        public void RefineVariable(Variable variable, (IType, VariableReference.RefinementEmitter?) refinement) => VariableRefinements[variable] = refinement;
+
         public List<Variable> GetLoopLocals(IAstElement errorReportedElement)
         {
             if (this.IsLoop)
@@ -87,6 +118,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 throw new UnexpectedLoopStatementException(errorReportedElement);
             else
                 return ((CodeBlock)parentContainer).GetLoopBreakLabelId(errorReportedElement, irBuilder);
+        }
+
+        public override IScopeSymbol? FindSymbol(string identifier, IAstElement errorReportedElement)
+        {
+            IScopeSymbol? result = base.FindSymbol(identifier, errorReportedElement);
+            return result ?? (parentContainer?.FindSymbol(identifier, errorReportedElement));
         }
     }
 }

@@ -82,11 +82,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             public Variable? MatchedVariable { get; private set; }
             public CodeBlock ToExecute { get; private set; }
 
-            public MatchHandler(IType matchedType, string? matchIdentifier, CodeBlock toExecute, List<IAstStatement> toExecuteStatements, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+            public MatchHandler(IRValue matchValue, IType matchedType, string? matchIdentifier, CodeBlock toExecute, List<IAstStatement> toExecuteStatements, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
             {
                 MatchedType = matchedType;
                 ToExecute = toExecute;
                 irBuilder.SymbolMarshaller.NavigateToScope(toExecute);
+                matchValue.RefineAssumeType(irBuilder, (matchedType, EnumDeclaration.GetRefinedEnumEmitter(matchedType)));
 
                 if (matchIdentifier != null)
                 {
@@ -224,6 +225,7 @@ namespace NoHoPython.Syntax.Statements
             IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, false);
 
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
+            condition.RefineIfTrue(irBuilder);
             scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, IfTrueBlock), irBuilder);
             irBuilder.SymbolMarshaller.GoBack();
 
@@ -282,8 +284,9 @@ namespace NoHoPython.Syntax.Statements
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, true);
-
+            
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
+            condition.RefineIfTrue(irBuilder);
             scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute), irBuilder);
             irBuilder.SymbolMarshaller.GoBack();
 
@@ -346,20 +349,22 @@ namespace NoHoPython.Syntax.Statements
             IRValue matchValue = MatchedValue.GenerateIntermediateRepresentationForValue(irBuilder, null, false);
             if(matchValue.Type is EnumType enumType)
             {
-                HashSet<IType> handledTypes = new(enumType.GetOptions(), new ITypeComparer());
+                HashSet<IType> unhandledTypes = new(enumType.GetOptions(), new ITypeComparer());
 
                 List<IntermediateRepresentation.Statements.MatchStatement.MatchHandler> matchHandlers = new(MatchHandlers.Count);
                 foreach(MatchHandler handler in MatchHandlers)
                 {
                     IType handledType = handler.MatchType.ToIRType(irBuilder, this);
-                    if (!handledTypes.Contains(handledType))
+                    if (!unhandledTypes.Contains(handledType))
                         throw new UnexpectedTypeException(handledType, this);
-                    handledTypes.Remove(handledType);
-                    matchHandlers.Add(new(handledType, handler.MatchIdentifier, handlerCodeBlocks[handler], handler.Statements, irBuilder, this));
+                    unhandledTypes.Remove(handledType);
+                    matchHandlers.Add(new(matchValue, handledType, handler.MatchIdentifier, handlerCodeBlocks[handler], handler.Statements, irBuilder, this));
                 }
                 if (defaultHandlerCodeBlock == null)
-                    foreach (IType unhandledOption in handledTypes)
-                        throw new UnhandledMatchOption(enumType, unhandledOption, this);
+                {
+                    if(unhandledTypes.Count > 0)
+                        throw new UnhandledMatchOption(enumType, unhandledTypes.First(), this);
+                }
                 else
                 {
                     irBuilder.SymbolMarshaller.NavigateToScope(defaultHandlerCodeBlock);
@@ -368,6 +373,7 @@ namespace NoHoPython.Syntax.Statements
 #pragma warning restore CS8604
                     irBuilder.SymbolMarshaller.GoBack();
                 }
+
                 return new IntermediateRepresentation.Statements.MatchStatement(matchValue, matchHandlers, defaultHandlerCodeBlock, this);
             }
             throw new UnexpectedTypeException(matchValue.Type, this);

@@ -8,6 +8,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public sealed partial class EnumDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
+        public static VariableReference.RefinementEmitter GetRefinedEnumEmitter(IType type) => (IRProgram irProgram, IEmitter emitter, string variableIdentifier, Dictionary<TypeParameter, IType> typeargs) => emitter.Append($"{variableIdentifier}.data.{type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set");
+
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
         public SymbolContainer ParentContainer { get; private set; }
 

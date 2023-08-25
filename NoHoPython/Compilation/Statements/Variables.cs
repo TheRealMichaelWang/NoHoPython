@@ -22,11 +22,24 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class VariableReference
     {
+        public delegate void RefinementEmitter(IRProgram irProgram, IEmitter emitter, string variableIdentifier, Dictionary<TypeParameter, IType> typeargs);
+
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            if (Refinements.HasValue)
+                Refinements.Value.Item1.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+        }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval) => emitter.Append(Variable.GetStandardIdentifier());
+        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        {
+            if (Refinements.HasValue && Refinements.Value.Item2 != null)
+                Refinements.Value.Item2(irProgram, emitter, Variable.GetStandardIdentifier(), typeargs);
+            else
+                emitter.Append(Variable.GetStandardIdentifier());
+        }
     }
 
     partial class VariableDeclaration

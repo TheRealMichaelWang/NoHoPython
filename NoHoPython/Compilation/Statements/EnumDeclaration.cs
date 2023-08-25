@@ -583,7 +583,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             emitter.Append($"abort();}} {Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} res{irProgram.ExpressionDepth} = ");
             
-
             Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, $"enum{irProgram.ExpressionDepth}.data.{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set", responsibleDestroyer);
             emitter.Append(";");
 

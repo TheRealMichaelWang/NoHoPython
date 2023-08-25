@@ -236,7 +236,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => true;
         public bool IsConstant { get; private set; }
 
-        public IRValue GetPostEvalPure() => new VariableReference(Variable, IsConstant, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new VariableReference(Variable, IsConstant, Refinements, ErrorReportedElement);
     }
 
     partial class VariableDeclaration

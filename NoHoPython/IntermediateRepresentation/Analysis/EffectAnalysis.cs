@@ -244,7 +244,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => false;
         public bool IsConstant => InitialValue.IsConstant;
 
-        public IRValue GetPostEvalPure() => new VariableReference(Variable, false, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new VariableReference(Variable, false, null, ErrorReportedElement);
     }
 
     partial class SetVariable
@@ -252,7 +252,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => false;
         public bool IsConstant => SetValue.IsConstant;
 
-        public IRValue GetPostEvalPure() => new VariableReference(Variable, false, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new VariableReference(Variable, false, null, ErrorReportedElement);
     }
 
     partial class CSymbolReference

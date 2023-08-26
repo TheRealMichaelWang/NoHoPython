@@ -811,7 +811,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 if (i > 0 || Arguments.Count > 0)
                     emitter.Append(", ");
-                VariableReference variableReference = new(Procedure.ProcedureDeclaration.CapturedVariables[i], true, ErrorReportedElement);
+                VariableReference variableReference = new(Procedure.ProcedureDeclaration.CapturedVariables[i], true, null, ErrorReportedElement);
                 variableReference.Emit(irProgram, emitter, typeargs, "NULL", true);
             }
             if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer)

@@ -22,7 +22,7 @@ class list<T>:
 	
 	def isEmpty() bool:
 		match self.head:
-			node<T> head:
+			node<T>:
 				return False
 			None:
 				return True

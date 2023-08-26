@@ -38,6 +38,21 @@ enum schoolperson:
 	int
 	char
 
+def enumMatchTest(schoolperson p):
+	match p:
+		student:
+			p.grade = 11
+		faculty:
+			p.name = "Random Faculty Name"
+		default:
+			return
+
 def main():
-	print(new student("michael", 17, 11))
-	print(new faculty("maine", 40, 140))
+	michael = new student("michael", 17, 11)
+	maine = new faculty("maine", 40, 140)
+	print(michael)
+	print(maine)
+	enumMatchTest(michael)
+	enumMatchTest(maine)
+	print(michael)
+	print(maine)

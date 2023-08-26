@@ -145,6 +145,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    partial class GetValueAtIndex
+    {
+        public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
+        public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, VariableReference.RefinementEmitter?) assumedRefinement) { }
+        public void RefineSetVariable(AstIRProgramBuilder irBuilder, Variable toSet) { }
+    }
+
     partial class SetValueAtIndex
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
@@ -264,6 +271,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, VariableReference.RefinementEmitter?) assumedRefinement) { }
+        public void RefineSetVariable(AstIRProgramBuilder irBuilder, Variable toSet) { }
     }
 
     partial class CheckEnumOption
@@ -271,17 +279,20 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) => EnumValue.RefineAssumeType(irBuilder, (Option, EnumDeclaration.GetRefinedEnumEmitter(Option)));
 
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, VariableReference.RefinementEmitter?) assumedRefinement) { }
+        public void RefineSetVariable(AstIRProgramBuilder irBuilder, Variable toSet) { }
     }
 
     partial class MarshalIntoInterface
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, VariableReference.RefinementEmitter?) assumedRefinement) { }
+        public void RefineSetVariable(AstIRProgramBuilder irBuilder, Variable toSet) { }
     }
 
     partial class MemorySet
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, VariableReference.RefinementEmitter?) assumedRefinement) { }
+        public void RefineSetVariable(AstIRProgramBuilder irBuilder, Variable toSet) { }
     }
 }

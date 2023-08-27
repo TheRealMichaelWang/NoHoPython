@@ -15,8 +15,8 @@ namespace NoHoPython.Compilation
         public AnalysisMode Mode { get; private set; }
         public bool ProtectAllocFailure { get; private set; }
 
-        public string Allocate(string size) => $"{((Mode == AnalysisMode.None && !ProtectAllocFailure) ? "malloc" : "_nhp_malloc")}({size})";
-        public string Dealloc(string ptr, string size) => $"{(Mode == AnalysisMode.None ? "free" : "_nhp_free")}({ptr}{(Mode >= AnalysisMode.UsageMagnitudeCheck ? ", " + size : string.Empty)})";
+        public string Allocate(string size) => $"{((Mode == AnalysisMode.None && !ProtectAllocFailure) ? "malloc" : "nhp_malloc")}({size})";
+        public string Dealloc(string ptr, string size) => $"{(Mode == AnalysisMode.None ? "free" : "nhp_free")}({ptr}{(Mode >= AnalysisMode.UsageMagnitudeCheck ? ", " + size : string.Empty)})";
 
         public MemoryAnalyzer(AnalysisMode analysisMode, bool protectAllocFailure)
         {
@@ -55,7 +55,7 @@ namespace NoHoPython.Compilation
             #endregion
             
             #region emitAllocator
-            emitter.AppendLine("static void* _nhp_malloc(int size) {");
+            emitter.AppendLine("static void* nhp_malloc(int size) {");
 
             if (ProtectAllocFailure)
             {
@@ -88,9 +88,9 @@ namespace NoHoPython.Compilation
             if (Mode > AnalysisMode.None)
             {
                 if(Mode >= AnalysisMode.UsageMagnitudeCheck)
-                    emitter.AppendLine("static void _nhp_free(void* buf, int size) {");
+                    emitter.AppendLine("static void nhp_free(void* buf, int size) {");
                 else
-                    emitter.AppendLine("static void _nhp_free(void* buf) {");
+                    emitter.AppendLine("static void nhp_free(void* buf) {");
                 
                 if (Mode >= AnalysisMode.LeakSanityCheck)
                     emitter.AppendLine("\tactive_allocs--;");

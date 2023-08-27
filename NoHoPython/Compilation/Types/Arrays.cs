@@ -78,7 +78,7 @@ namespace NoHoPython.IntermediateRepresentation
         {
             if (DoBoundsChecking)
             {
-                emitter.AppendLine("int _nhp_bounds_check(int index, int max_length, const char* src_loc, const char* access_src) {");
+                emitter.AppendLine("int nhp_bounds_check(int index, int max_length, const char* src_loc, const char* access_src) {");
                 emitter.AppendLine("\tif(index < 0 || index >= max_length) {");
 
                 if (doCallStack)
@@ -208,7 +208,7 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
-        public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_array_{ElementType.GetStandardIdentifier(irProgram)}";
+        public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_array_{ElementType.GetStandardIdentifier(irProgram)}";
 
         public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter)
         {
@@ -324,7 +324,7 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => $"{ElementType.GetCName(irProgram)}*";
 
-        public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_{Identifier}";
+        public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_{Identifier}";
 
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
         {

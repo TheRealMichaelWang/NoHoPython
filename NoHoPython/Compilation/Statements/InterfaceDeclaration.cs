@@ -306,7 +306,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     throw new CannotEmitDestructorError(Value);
                 
                 irProgram.ExpressionDepth++;
-                emitter.Append($"({{{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_marshal_buf{irProgram.ExpressionDepth} = ");
+                emitter.Append($"({{{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} nhp_marshal_buf{irProgram.ExpressionDepth} = ");
                 Value.Emit(irProgram, emitter, typeargs, "NULL", true);
                 emitter.Append(';');
             }
@@ -319,7 +319,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 string valueEmitter;
                 if (Value.RequiresDisposal(typeargs, true))
-                    valueEmitter = $"_nhp_marshal_buf{irProgram.ExpressionDepth}";
+                    valueEmitter = $"nhp_marshal_buf{irProgram.ExpressionDepth}";
                 else if (firstEmit)
                     valueEmitter = BufferedEmitter.EmittedBufferedMemorySafe(Value, irProgram, typeargs);
                 else
@@ -344,7 +344,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (Value.RequiresDisposal(typeargs, true))
             {
-                emitter.Append($"{realPrototype.GetCName(irProgram)} _nhp_int_res{irProgram.ExpressionDepth} = ");
+                emitter.Append($"{realPrototype.GetCName(irProgram)} nhp_int_res{irProgram.ExpressionDepth} = ");
                 emitter.Append($"({realPrototype.GetCName(irProgram)}){{");
                 for (int i = 0; i < properties.Count; i++)
                 {
@@ -354,8 +354,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 }
                 emitter.Append("};");
 
-                Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"_nhp_marshal_buf{irProgram.ExpressionDepth}", "NULL");
-                emitter.Append($"_nhp_int_res{irProgram.ExpressionDepth};}})");
+                Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"nhp_marshal_buf{irProgram.ExpressionDepth}", "NULL");
+                emitter.Append($"nhp_int_res{irProgram.ExpressionDepth};}})");
                 irProgram.ExpressionDepth--;
             }
             else

@@ -101,7 +101,7 @@ namespace NoHoPython.Typing
             return effectInfo[this] = ValueTypes.Keys.Any((type) => type.TypeParameterAffectsCodegen(effectInfo));
         }
 
-        public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_tuple_{Identifier}";
+        public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_tuple_{Identifier}";
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
         public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
@@ -175,7 +175,7 @@ namespace NoHoPython.Typing
             if (!irProgram.DeclareCompiledType(emitter, this))
                 return;
 
-            emitter.AppendLine($"struct _nhp_tuple_{Identifier} {{");
+            emitter.AppendLine($"struct nhp_tuple_{Identifier} {{");
             foreach(KeyValuePair<IType, int> valuePair in ValueTypes)
             {
                 for (int i = 0; i < valuePair.Value; i++)

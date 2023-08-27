@@ -572,7 +572,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class GetPropertyValue
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.Name, ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs)
+        {
+            Debug.Assert(Refinements == null);
+            return new GetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.Name, null, ErrorReportedElement);
+        }
     }
 
     partial class SetPropertyValue

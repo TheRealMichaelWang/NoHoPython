@@ -325,7 +325,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
         {
             if (Record.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
-                Property.EmitGet(irProgram, emitter, typeargs, propertyContainer, BufferedEmitter.EmittedBufferedMemorySafe(Record, irProgram, typeargs), responsibleDestroyer);
+            {
+                if(Refinements.HasValue && Refinements.Value.Item2 != null)
+                {
+                    BufferedEmitter propertyGet = new();
+                    Property.EmitGet(irProgram, propertyGet, typeargs, propertyContainer, BufferedEmitter.EmittedBufferedMemorySafe(Record, irProgram, typeargs), responsibleDestroyer);
+                    Refinements.Value.Item2(irProgram, emitter, propertyGet.ToString(), typeargs);
+                }
+                else
+                    Property.EmitGet(irProgram, emitter, typeargs, propertyContainer, BufferedEmitter.EmittedBufferedMemorySafe(Record, irProgram, typeargs), responsibleDestroyer);
+            }
             else
                 throw new UnexpectedTypeException(Record.Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
         }
@@ -440,7 +449,7 @@ namespace NoHoPython.Typing
     {
         public static void EmitBoundsCheckedIndex(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IRValue array, IRValue index, Syntax.IAstElement errorReportedElement)
         {
-            emitter.Append("_nhp_bounds_check(");
+            emitter.Append("nhp_bounds_check(");
             IRValue.EmitMemorySafe(index, irProgram, emitter, typeargs);
             emitter.Append(", ");
             if (array.Type is ArrayType)

@@ -119,19 +119,19 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public static void EmitRecordMaskProto(StatementEmitter emitter)
         {
-            emitter.AppendLine("typedef struct _nhp_std_record_mask _nhp_std_record_mask_t;");
-            emitter.AppendLine("struct _nhp_std_record_mask {");
-            emitter.AppendLine("\tint _nhp_ref_count;");
-            emitter.AppendLine("\tint _nhp_master_count;");
-            emitter.AppendLine("\tint _nhp_lock;");
+            emitter.AppendLine("typedef struct nhp_std_record_mask nhp_std_record_mask_t;");
+            emitter.AppendLine("struct nhp_std_record_mask {");
+            emitter.AppendLine("\tint nhp_ref_count;");
+            emitter.AppendLine("\tint nhp_master_count;");
+            emitter.AppendLine("\tint nhp_lock;");
             emitter.AppendLine($"\t{RecordType.StandardRecordMask} parent_record;");
             emitter.AppendLine("};");
-            emitter.AppendLine("typedef void (*_nhp_custom_destructor)(void* to_destroy);");
+            emitter.AppendLine("typedef void (*nhp_custom_destructor)(void* to_destroy);");
         }
 
         public static void EmitRecordChildFinder(StatementEmitter emitter)
         {
-            emitter.AppendLine("static int _nhp_record_has_child(_nhp_std_record_mask_t* parent, _nhp_std_record_mask_t* child) {");
+            emitter.AppendLine("static int nhp_record_has_child(nhp_std_record_mask_t* parent, nhp_std_record_mask_t* child) {");
             emitter.AppendLine("\twhile(child != NULL) {");
             emitter.AppendLine("\t\tif(parent == child)");
             emitter.AppendLine("\t\t\treturn 1;");
@@ -197,7 +197,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
                 emitter.Append($"void free_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record, {RecordType.StandardRecordMask} child_agent");
                 if (Destructor != null)
-                    emitter.Append(", _nhp_custom_destructor destructor");
+                    emitter.Append(", nhp_custom_destructor destructor");
                 emitter.AppendLine(");");
 
                 emitter.AppendLine($"{genericRecordType.GetCName(irProgram)} borrow_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record, void* responsible_destroyer);");
@@ -258,7 +258,7 @@ namespace NoHoPython.Typing
 
         public Dictionary<TypeParameter, IType> TypeargMap => typeargMap.Value;
 
-        public static string StandardRecordMask => "_nhp_std_record_mask_t*";
+        public static string StandardRecordMask => "nhp_std_record_mask_t*";
 
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
@@ -273,8 +273,8 @@ namespace NoHoPython.Typing
             return effectInfo[this] = properties.Value.Any((property) => property.Type.TypeParameterAffectsCodegen(effectInfo));
         }
 
-        public string GetStandardIdentifier(IRProgram irProgram) => RecordPrototype.EmitMultipleCStructs ? GetOriginalStandardIdentifer(irProgram) : $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}";
-        public string GetOriginalStandardIdentifer(IRProgram irProgram) => $"_nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
+        public string GetStandardIdentifier(IRProgram irProgram) => RecordPrototype.EmitMultipleCStructs ? GetOriginalStandardIdentifer(irProgram) : $"nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}";
+        public string GetOriginalStandardIdentifer(IRProgram irProgram) => $"nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}_";
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t*";
         public string GetCHeapSizer(IRProgram irProgram) => $"sizeof({GetStandardIdentifier(irProgram)}_t)";
@@ -290,7 +290,7 @@ namespace NoHoPython.Typing
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
             }
             if (!RecordPrototype.EmitMultipleCStructs && destructorCall != null)
-                emitter.Append($", (_nhp_custom_destructor)&{destructorCall.GetStandardIdentifier(irProgram)}");
+                emitter.Append($", (nhp_custom_destructor)&{destructorCall.GetStandardIdentifier(irProgram)}");
             emitter.Append(");");
         }
 
@@ -354,9 +354,9 @@ namespace NoHoPython.Typing
         public void EmitCStructImmediatley(IRProgram irProgram, StatementEmitter emitter)
         {
             emitter.AppendLine($"struct {GetStandardIdentifier(irProgram)} {{");
-            emitter.AppendLine("\tint _nhp_ref_count;");
-            emitter.AppendLine("\tint _nhp_master_count;");
-            emitter.AppendLine("\tint _nhp_lock;");
+            emitter.AppendLine("\tint nhp_ref_count;");
+            emitter.AppendLine("\tint nhp_master_count;");
+            emitter.AppendLine("\tint nhp_lock;");
             emitter.AppendLine($"\t{StandardRecordMask} parent_record;");
 
             foreach (var property in properties.Value)
@@ -381,21 +381,21 @@ namespace NoHoPython.Typing
             EmitConstructorCHeader(irProgram, emitter);
             emitter.AppendLine(" {"); 
             
-            emitter.AppendLine($"\t{GetCName(irProgram)} _nhp_self = {irProgram.MemoryAnalyzer.Allocate(GetCHeapSizer(irProgram))};");
-            emitter.AppendLine("\t_nhp_self->_nhp_ref_count = 0;");
-            emitter.AppendLine("\t_nhp_self->_nhp_master_count = 0;");
-            emitter.AppendLine("\t_nhp_self->_nhp_lock = 0;");
-            emitter.AppendLine("\t_nhp_self->parent_record = parent_record;");
+            emitter.AppendLine($"\t{GetCName(irProgram)} nhp_self = {irProgram.MemoryAnalyzer.Allocate(GetCHeapSizer(irProgram))};");
+            emitter.AppendLine("\tnhp_self->nhp_ref_count = 0;");
+            emitter.AppendLine("\tnhp_self->nhp_master_count = 0;");
+            emitter.AppendLine("\tnhp_self->nhp_lock = 0;");
+            emitter.AppendLine("\tnhp_self->parent_record = parent_record;");
             
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
                 if (recordProperty.HasDefaultValue && !recordProperty.OptimizeMessageReciever)
                 {
-                    emitter.Append($"\t_nhp_self->{recordProperty.Name} = ");
+                    emitter.Append($"\tnhp_self->{recordProperty.Name} = ");
 #pragma warning disable CS8602 //recordProperty.HasDefaultValue guarentees DefaultValue is not null 
                     if (recordProperty.DefaultValue.RequiresDisposal(new(), false))
-                        recordProperty.DefaultValue.Emit(irProgram, emitter, new(), "_nhp_self", false);
+                        recordProperty.DefaultValue.Emit(irProgram, emitter, new(), "nhp_self", false);
                     else
-                        recordProperty.Type.EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(recordProperty.DefaultValue, irProgram, new(), "NULL"), "_nhp_self");
+                        recordProperty.Type.EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(recordProperty.DefaultValue, irProgram, new(), "NULL"), "nhp_self");
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
                     emitter.AppendLine(";");
                 }
@@ -403,9 +403,9 @@ namespace NoHoPython.Typing
             emitter.Append($"\t{constructorCall.GetStandardIdentifier(irProgram)}(");
             for (int i = 0; i < constructorParameterTypes.Value.Count; i++)
                 emitter.Append($"param{i}, ");
-            emitter.AppendLine("_nhp_self);");
+            emitter.AppendLine("nhp_self);");
             
-            emitter.AppendLine("\treturn _nhp_self;");
+            emitter.AppendLine("\treturn nhp_self;");
             emitter.AppendLine("}");
         }
 
@@ -413,24 +413,24 @@ namespace NoHoPython.Typing
         {
             emitter.Append($"void free_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, {StandardRecordMask} child_agent");
             if (!RecordPrototype.EmitMultipleCStructs && destructorCall != null)
-                emitter.Append(", _nhp_custom_destructor destructor");
+                emitter.Append(", nhp_custom_destructor destructor");
             emitter.AppendLine(") {");
 
-            emitter.AppendLine($"\tif(record->_nhp_lock || _nhp_record_has_child(({StandardRecordMask})record, child_agent))");
+            emitter.AppendLine($"\tif(record->nhp_lock || nhp_record_has_child(({StandardRecordMask})record, child_agent))");
             emitter.AppendLine("\t\treturn;");
 
-            emitter.AppendLine("\tif(record->_nhp_ref_count) {");
-            emitter.AppendLine($"\t\tif(_nhp_record_has_child(child_agent, ({StandardRecordMask})record)) {{");
-            emitter.AppendLine("\t\t\tif(record->_nhp_master_count == 0)");
+            emitter.AppendLine("\tif(record->nhp_ref_count) {");
+            emitter.AppendLine($"\t\tif(nhp_record_has_child(child_agent, ({StandardRecordMask})record)) {{");
+            emitter.AppendLine("\t\t\tif(record->nhp_master_count == 0)");
             emitter.AppendLine("\t\t\t\trecord->parent_record = NULL;");
             emitter.AppendLine("\t\t\telse");
-            emitter.AppendLine("\t\t\t\trecord->_nhp_master_count--;");
+            emitter.AppendLine("\t\t\t\trecord->nhp_master_count--;");
             emitter.AppendLine("\t\t}");
-            emitter.AppendLine("\t\trecord->_nhp_ref_count--;");
+            emitter.AppendLine("\t\trecord->nhp_ref_count--;");
             emitter.AppendLine("\t\treturn;");
             emitter.AppendLine("\t}");
             
-            emitter.AppendLine("\trecord->_nhp_lock = 1;");
+            emitter.AppendLine("\trecord->nhp_lock = 1;");
             if (destructorCall != null)
                 emitter.AppendLine($"\t{destructorCall.GetStandardIdentifier(irProgram)}(record);");
             foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
@@ -453,9 +453,9 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, {StandardRecordMask} parent_record) {{");
             emitter.AppendLine($"\t{GetCName(irProgram)} copied_record = {irProgram.MemoryAnalyzer.Allocate(GetCHeapSizer(irProgram))};");
-            emitter.AppendLine("\tcopied_record->_nhp_ref_count = 0;");
-            emitter.AppendLine("\tcopied_record->_nhp_master_count = 0;");
-            emitter.AppendLine("\tcopied_record->_nhp_lock = 0;");
+            emitter.AppendLine("\tcopied_record->nhp_ref_count = 0;");
+            emitter.AppendLine("\tcopied_record->nhp_master_count = 0;");
+            emitter.AppendLine("\tcopied_record->nhp_lock = 0;");
             emitter.AppendLine("\tcopied_record->parent_record = parent_record;");
 
             foreach (RecordDeclaration.RecordProperty property in properties.Value)
@@ -490,10 +490,10 @@ namespace NoHoPython.Typing
         {
             emitter.AppendLine($"{GetCName(irProgram)} borrow_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, void* responsible_destroyer) {{");
 
-            emitter.AppendLine($"\tif(!_nhp_record_has_child(({StandardRecordMask})record, responsible_destroyer)) {{");
-            emitter.AppendLine("\t\trecord->_nhp_ref_count++;");
-            emitter.AppendLine($"\t\tif(_nhp_record_has_child(({StandardRecordMask})responsible_destroyer, ({StandardRecordMask})record))");
-            emitter.AppendLine("\t\t\trecord->_nhp_master_count++;");
+            emitter.AppendLine($"\tif(!nhp_record_has_child(({StandardRecordMask})record, responsible_destroyer)) {{");
+            emitter.AppendLine("\t\trecord->nhp_ref_count++;");
+            emitter.AppendLine($"\t\tif(nhp_record_has_child(({StandardRecordMask})responsible_destroyer, ({StandardRecordMask})record))");
+            emitter.AppendLine("\t\t\trecord->nhp_master_count++;");
             emitter.AppendLine("\t}");
             
             emitter.AppendLine("\treturn record;");

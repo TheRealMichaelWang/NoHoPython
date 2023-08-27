@@ -306,7 +306,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             EmitArguments(irProgram, emitter, typeargs, releasedArguments, currentNestedCall);
             if (Arguments.Count > 0)
                 emitter.Append(", ");
-            emitter.Append($"(_nhp_std_record_mask_t*){responsibleDestroyer})");
+            emitter.Append($"(nhp_std_record_mask_t*){responsibleDestroyer})");
         }
     }
 }

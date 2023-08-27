@@ -142,13 +142,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (!irProgram.EmitExpressionStatements || Operation == ArrayOperation.GetArrayHandle || Operation == ArrayOperation.GetSpanHandle)
                     throw new CannotEmitDestructorError(ArrayValue);
 
-                emitter.Append($"({{{ArrayValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} _nhp_buffer = ");
+                emitter.Append($"({{{ArrayValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} nhp_buffer = ");
                 ArrayValue.Emit(irProgram, emitter, typeargs, "NULL", false);
-                emitter.Append($"; {Type.GetCName(irProgram)} _nhp_res = _nhp_buffer");
+                emitter.Append($"; {Type.GetCName(irProgram)} nhp_res = nhp_buffer");
                 EmitOp();
                 emitter.Append("; ");
-                ArrayValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "_nhp_buffer", "NULL");
-                emitter.Append("; _nhp_res;})");
+                ArrayValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "nhp_buffer", "NULL");
+                emitter.Append("; nhp_res;})");
             }
             else
             {

@@ -22,7 +22,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public List<IRStatement>? Statements { get; private set; }
         public List<Variable> LocalVariables { get; private set; }
         private List<VariableDeclaration> DeclaredVariables;
-        private Dictionary<Variable, (IType, VariableReference.RefinementEmitter?)> VariableRefinements;
+        private Dictionary<Variable, RefinementEntry> VariableRefinements;
 
         public bool IsLoop { get; private set; }
         public int? BreakLabelId { get; private set; }
@@ -66,30 +66,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return combined;
             }
         }
-
-        public (IType, VariableReference.RefinementEmitter?)? GetVariableRefinement(Variable variable)
-        {
-            if (VariableRefinements.ContainsKey(variable))
-                return VariableRefinements[variable];
-
-            if (parentContainer == null || parentContainer is not CodeBlock || this == variable.ParentProcedure)
-                return null;
-            else
-                return ((CodeBlock)parentContainer).GetVariableRefinement(variable);
-        }
-
-        public void ClearVariableRefinments(Variable variable)
-        {
-            if (VariableRefinements.ContainsKey(variable))
-                VariableRefinements.Remove(variable);
-
-            if (parentContainer == null || parentContainer is not CodeBlock || this == variable.ParentProcedure)
-                return;
-            else
-                ((CodeBlock)parentContainer).ClearVariableRefinments(variable);
-        }
-
-        public void RefineVariable(Variable variable, (IType, VariableReference.RefinementEmitter?) refinement) => VariableRefinements[variable] = refinement;
 
         public List<Variable> GetLoopLocals(IAstElement errorReportedElement)
         {

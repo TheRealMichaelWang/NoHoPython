@@ -22,8 +22,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class VariableReference
     {
-        public delegate void RefinementEmitter(IRProgram irProgram, IEmitter emitter, string variableIdentifier, Dictionary<TypeParameter, IType> typeargs);
-
         public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)

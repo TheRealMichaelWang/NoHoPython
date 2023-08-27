@@ -10,8 +10,8 @@ namespace NoHoPython.Typing
             if (!irProgram.EmitExpressionStatements)
                 throw new CannotEmitDestructorError(null);
             
-            emitter.Append($"({{{type.GetCName(irProgram)} _nhp_es_move_temp = {destC}; {destC} = {valueCSource}; ");
-            type.EmitFreeValue(irProgram, emitter, "_nhp_es_move_temp", childAgent);
+            emitter.Append($"({{{type.GetCName(irProgram)} nhp_es_move_temp = {destC}; {destC} = {valueCSource}; ");
+            type.EmitFreeValue(irProgram, emitter, "nhp_es_move_temp", childAgent);
             emitter.Append($" {destC};}})");
         }
     }

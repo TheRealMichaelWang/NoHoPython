@@ -58,9 +58,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsFalsey => false;
 
         public Variable Variable { get; private set; }
-        public (IType, RefinementEmitter?)? Refinements { get; private set; }
+        public (IType, CodeBlock.RefinementEmitter?)? Refinements { get; private set; }
 
-        public VariableReference(Variable variable, bool isConstant, (IType, RefinementEmitter?)? refinements, IAstElement errorReportedElement)
+        public VariableReference(Variable variable, bool isConstant, (IType, CodeBlock.RefinementEmitter?)? refinements, IAstElement errorReportedElement)
         {
             Variable = variable;
             IsConstant = isConstant;
@@ -68,7 +68,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ErrorReportedElement = errorReportedElement;
         }
 
-        public VariableReference(Tuple<Variable, bool> santizeResult, (IType, RefinementEmitter?)? refinements, IAstElement errorReportedElement) : this(santizeResult.Item1, santizeResult.Item2, refinements, errorReportedElement)
+        public VariableReference(Tuple<Variable, bool> santizeResult, (IType, CodeBlock.RefinementEmitter?)? refinements, IAstElement errorReportedElement) : this(santizeResult.Item1, santizeResult.Item2, refinements, errorReportedElement)
         {
 
         }
@@ -167,7 +167,7 @@ namespace NoHoPython.Syntax.Values
         {
             IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
             return valueSymbol is Variable variable
-                ? new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), irBuilder.SymbolMarshaller.CurrentCodeBlock.GetVariableRefinement(variable), this)
+                ? new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), irBuilder.SymbolMarshaller.CurrentCodeBlock.GetRefinementEntry(variable)?.Refinement, this)
                 : valueSymbol is ProcedureDeclaration procedureDeclaration
                 ? (IRValue)new AnonymizeProcedure(procedureDeclaration, expectedType == null ? false : expectedType is HandleType, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek())
                 : valueSymbol is CSymbol cSymbol
@@ -194,8 +194,21 @@ namespace NoHoPython.Syntax.Values
                 if(valueSymbol is Variable variable)
                 {
                     variable = irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, true, this).Item1;
-                    irBuilder.SymbolMarshaller.CurrentCodeBlock.ClearVariableRefinments(variable);
-                    return new IntermediateRepresentation.Values.SetVariable(variable, SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type, willRevaluate), this);
+                    
+                    IRValue setTo = SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type, willRevaluate);
+                    
+                    CodeBlock.RefinementEntry? refinementEntry = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetRefinementEntry(variable, true);
+                    refinementEntry?.Clear();
+                    if(refinementEntry != null)
+                        setTo.RefineSetVariable(irBuilder, refinementEntry);
+                    else
+                    {
+                        CodeBlock.RefinementEntry newEntry = new(null, new());
+                        setTo.RefineSetVariable(irBuilder, newEntry);
+                        irBuilder.SymbolMarshaller.CurrentCodeBlock.NewRefinementEntry(variable, newEntry);
+                    }
+
+                    return new IntermediateRepresentation.Values.SetVariable(variable, setTo, this);
                 }
                 throw new NotAVariableException(valueSymbol, this);
             }

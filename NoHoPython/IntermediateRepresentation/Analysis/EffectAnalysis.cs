@@ -196,7 +196,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => Record.IsPure;
         public bool IsConstant => Record.IsConstant;
 
-        public IRValue GetPostEvalPure() => new GetPropertyValue(Record.GetPostEvalPure(), Property.Name, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new GetPropertyValue(Record.GetPostEvalPure(), Property.Name, Refinements, ErrorReportedElement);
     }
 
     partial class SetPropertyValue
@@ -204,7 +204,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => false;
         public bool IsConstant => Record.IsConstant && Value.IsConstant;
 
-        public IRValue GetPostEvalPure() => new GetPropertyValue(Record.GetPostEvalPure(), Property.Name, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new GetPropertyValue(Record.GetPostEvalPure(), Property.Name, null, ErrorReportedElement);
     }
 
     partial class ArithmeticCast

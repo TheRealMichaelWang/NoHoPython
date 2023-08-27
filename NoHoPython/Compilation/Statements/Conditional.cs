@@ -252,12 +252,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             IteratorVariableDeclaration.Emit(irProgram, emitter, typeargs, indent + 1);
 
             CodeBlock.CIndent(emitter, indent + 1);
-            emitter.Append($"long _nhp_upper_{IteratorVariableDeclaration.Variable.Name} = ");
+            emitter.Append($"long nhp_upper_{IteratorVariableDeclaration.Variable.Name} = ");
             UpperBound.Emit(irProgram, emitter, typeargs, "NULL", true);
             emitter.AppendLine(";");
             
             CodeBlock.CIndent(emitter, indent + 1);
-            emitter.AppendLine($"while((++{IteratorVariableDeclaration.Variable.GetStandardIdentifier()}) <= _nhp_upper_{IteratorVariableDeclaration.Variable.Name}) {{");
+            emitter.AppendLine($"while((++{IteratorVariableDeclaration.Variable.GetStandardIdentifier()}) <= nhp_upper_{IteratorVariableDeclaration.Variable.Name}) {{");
             IterationBlock.EmitNoOpen(irProgram, emitter, typeargs, indent + 1, false);
             CodeBlock.CIndent(emitter, indent);
             emitter.AppendLine("}");
@@ -351,7 +351,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public static void EmitAsserter(StatementEmitter emitter, bool doCallStack)
         {
-            emitter.AppendLine("void _nhp_assert(int flag, const char* src_loc, const char* assertion_src) {");
+            emitter.AppendLine("void nhp_assert(int flag, const char* src_loc, const char* assertion_src) {");
             emitter.AppendLine("\tif(!flag) {");
 
             if (doCallStack)
@@ -379,7 +379,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return;
 
             CodeBlock.CIndent(emitter, indent);
-            emitter.Append("_nhp_assert(");
+            emitter.Append("nhp_assert(");
             IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
             emitter.Append(", ");
             CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString(), false, true);

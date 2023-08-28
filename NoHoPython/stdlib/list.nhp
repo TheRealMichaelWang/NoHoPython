@@ -13,7 +13,6 @@ mod data:
 		def __init__(int capacity):
 			self.capacity = capacity
 			self.buffer = std::malloc(capacity)
-			assert self.buffer != None
 		
 		def __del__():
 			for i from 0 within self.count:
@@ -55,7 +54,6 @@ mod data:
 			
 			self.capacity = capacity + 10
 			self.buffer = std::realloc(self.buffer, self.capacity)
-			assert self.buffer != None
 		
 		def pushFront(T elem):
 			ensureCapacity(self.count + 1)

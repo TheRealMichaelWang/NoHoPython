@@ -24,7 +24,6 @@ mod std:
 			self.length = 0
 
 			self.buffer = cstd::malloc(capacity) as handle<char>
-			assert self.buffer != None
 			
 		def __del__():
 			cstd::free(self.buffer)
@@ -43,7 +42,6 @@ mod std:
 			if self.capacity < minCap:
 				self.capacity = minCap
 				self.buffer = std::realloc(self.buffer, minCap)
-				assert self.buffer != None
 
 		def writeByte(char byte):
 			ensureCapacity(self.length + 1)

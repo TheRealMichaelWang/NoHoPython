@@ -16,17 +16,17 @@ mod cstd:
 mod std:
 	def malloc<T>(int num) handle<T>:
 		ptr = cstd::malloc(num * sizeof(T)) as handle<T>
-		assert ptr != None
+		assert ptr != NULL
 		return ptr
 
 	def calloc<T>(int num) handle<T>:
 		ptr = cstd::calloc(num, sizeof(T)) as handle<T>
-		assert ptr != None
+		assert ptr != NULL
 		return ptr
 
 	def realloc<T>(handle<T> oldPtr, int newCapacity) handle<T>:
 		ptr = cstd::realloc(oldPtr, newCapacity * sizeof(T)) as handle<T>
-		assert ptr != None
+		assert ptr != NULL
 		return ptr
 
 	def memcpy<T>(handle<T> dest, handle<T> src, int nums) handle<T>:

@@ -437,7 +437,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class NullPointerLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NullPointerLiteral((HandleType)HandleType.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NullPointerLiteral((HandleType)Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class StaticCStringLiteral

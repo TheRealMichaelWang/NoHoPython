@@ -3,10 +3,12 @@ include "stream.nhp"
 
 mod std:
 	mod io:
+		cdef ioptr "FILE*"
+
 		class handleOutputStream:
-			handle ptr
+			ioptr ptr
 		
-			def __init__(handle ptr):
+			def __init__(ioptr ptr):
 				self.ptr = ptr
 			
 			def writeByte(char byte):
@@ -14,36 +16,36 @@ mod std:
 				fputc(byte, self.ptr)
 
 			def writeBuffer(array<char> buffer) int:
-				cdef fwrite(handle<char>, int, int, handle) int
+				cdef fwrite(handle<char>, int, int, ioptr) int
 				return fwrite(buffer, 1, buffer as int, self.ptr)
 
 			def flush():
-				cdef fflush(handle) None
+				cdef fflush(ioptr) None
 				fflush(self.ptr)
 			
 		class handleInputStream:
-			handle ptr
+			ioptr ptr
 		
-			def __init__(handle ptr):
+			def __init__(ioptr ptr):
 				self.ptr = ptr
 			
 			def readByte() char:
-				cdef getc(handle) char
+				cdef getc(ioptr) char
 				return getc(self.ptr)
 			
 			def peek() char:
-				cdef getc(handle) char
-				cdef ungetc(char, handle) None
+				cdef getc(ioptr) char
+				cdef ungetc(char, ioptr) None
 			
 				lastChar = getc(self.ptr)
 				ungetc(lastChar, self.ptr)
 				return lastChar
 
 		class fileOutputStream:
-			shared<handle> ptr
+			shared<ioptr> ptr
 			handleOutputStream output
 
-			def __init__(shared<handle> ptr):
+			def __init__(shared<ioptr> ptr):
 				self.ptr = ptr
 				self.output = new handleOutputStream(ptr.resource)
 
@@ -57,10 +59,10 @@ mod std:
 				self.output.flush()
 
 		class fileInputStream:
-			shared<handle> ptr
+			shared<ioptr> ptr
 			handleInputStream input
 
-			def __init__(shared<handle> ptr):
+			def __init__(shared<ioptr> ptr):
 				self.ptr = ptr
 				self.input = new handleInputStream(ptr.resource)
 
@@ -71,23 +73,23 @@ mod std:
 				return self.input.peek()
 
 		def openFile(string path, string mode) shared<handle>:
-			cdef fopen(handle<char>, handle<char>) handle
-			cdef fclose(handle) None
+			cdef fopen(handle<char>, handle<char>) ioptr
+			cdef fclose(ioptr) None
 
 			ptr = fopen(path.cstr, mode.cstr)
-			assert ptr != None
+			assert ptr != NULL
 
 			return makeShared(ptr, lambda handle toFree: fclose(toFree))
 
 def input() string:
-	cdef stdin handle
+	cdef stdin ioptr
 
 	inStream = new std::io::handleInputStream(stdin)
 	buf = std::stream::readLine(inStream)
 	return std::makeString(buf)
 
 def print(string msg) None:
-	cdef stdout handle
+	cdef stdout ioptr
 
 	outStream = new std::io::handleOutputStream(stdout)
 	for i from 0 within msg.length:

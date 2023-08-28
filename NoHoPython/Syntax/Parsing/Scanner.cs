@@ -287,6 +287,7 @@ namespace NoHoPython.Syntax.Parsing
                     "None" => TokenType.Nothing,
                     "Nothing" => TokenType.Nothing,
                     "nothing" => TokenType.Nothing,
+                    "NULL" => TokenType.Null,
                     "module" => TokenType.Module,
                     "mod" => TokenType.Module,
                     "interface" => TokenType.Interface,

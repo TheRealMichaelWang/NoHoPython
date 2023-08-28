@@ -337,6 +337,9 @@ namespace NoHoPython.Syntax.Parsing
                         case TokenType.Nothing:
                             scanner.ScanToken();
                             return new NothingLiteral(location);
+                        case TokenType.Null:
+                            scanner.ScanToken();
+                            return new NullPointerLiteral(location);
                         case TokenType.Sizeof:
                             {
                                 scanner.ScanToken();

@@ -51,6 +51,7 @@
         As,
         Readonly,
         Nothing,
+        Null,
         Attributes,
 
         //symbols

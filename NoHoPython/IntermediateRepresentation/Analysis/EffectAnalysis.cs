@@ -61,7 +61,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => true;
         public bool IsConstant => true;
 
-        public IRValue GetPostEvalPure() => new NullPointerLiteral(HandleType, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new NullPointerLiteral(Type, ErrorReportedElement);
     }
 
     partial class StaticCStringLiteral

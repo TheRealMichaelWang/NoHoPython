@@ -15,7 +15,6 @@ mod std:
 
 			self.capacity = capacity
 			self.cstr = malloc(capacity)
-			assert self.cstr != None
 
 		def __copy__() stringBuilder:
 			cdef memcpy(handle<char>, handle<char>, int) None
@@ -32,7 +31,6 @@ mod std:
 
 		def to_string() string:
 			newCStr = std::malloc(self.length + 1) as handle<char>
-			assert newCStr != None
 
 			memcpy(newCStr, self.cstr, self.length)
 			newCStr[self.length] = 0 as char
@@ -47,7 +45,6 @@ mod std:
 
 			self.capacity = newCapacity
 			self.cstr = realloc(self.cstr, self.capacity)
-			assert self.cstr != None
 
 		def appendChar(char c):
 			ensureCapacity(self.length + 1)
@@ -77,7 +74,6 @@ mod std:
 
 	def makeString(array<char> buf) string:
 		cstr = std::malloc(buf as int + 1) as handle<char>
-		assert cstr != None
 
 		memcpy(cstr, buf, buf)
 		cstr[buf as int] = 0 as char
@@ -120,7 +116,6 @@ class string:
 		cdef strcpy(handle<char>, handle<char>) None
 		
 		newCStr = std::malloc(self.length + 1) as handle<char>
-		assert newCStr != None
 		
 		strcpy(newCStr, self.cstr)
 		
@@ -151,7 +146,6 @@ class string:
 		
 	def add(string str) string:
 		concatCStr = std::malloc(self.length + str.length + 1) as handle<char>
-		assert concatCStr != None
 		
 		std::memcpy(concatCStr, self.cstr, self.length)
 		std::memcpy(concatCStr + self.length, str.cstr, str.length)
@@ -164,7 +158,6 @@ class string:
 		assert i + length <= self.length
 		
 		destCStr = std::malloc(length + 1) as handle<char>
-		assert destCStr != None
 		
 		std::memcpy(destCStr, self.cstr + i, length)
 		destCStr[length] = 0 as char

@@ -83,12 +83,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsTruey => false;
         public bool IsFalsey => true;
 
-        public IType Type => HandleType;
-        public HandleType HandleType { get; private set; }
+        public IType Type { get; private set; }
 
-        public NullPointerLiteral(HandleType expectedHandleType, IAstElement errorReportedElement)
+        public NullPointerLiteral(IType expectedType, IAstElement errorReportedElement)
         {
-            HandleType = expectedHandleType;
+            if (!(expectedType is HandleType || expectedType is ForeignCType foreignType && foreignType.Declaration.PointerPropertyAccess))
+                throw new UnexpectedTypeException(expectedType, errorReportedElement);
+
+            Type = expectedType;
             ErrorReportedElement = errorReportedElement;
         }
     }
@@ -318,7 +320,12 @@ namespace NoHoPython.Syntax.Values
 
     partial class NothingLiteral
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => expectedType is HandleType handleType ? new IntermediateRepresentation.Values.NullPointerLiteral(handleType, this) : new IntermediateRepresentation.Values.EmptyTypeLiteral(Primitive.Nothing, this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.EmptyTypeLiteral(Primitive.Nothing, this);
+    }
+
+    partial class NullPointerLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.NullPointerLiteral(expectedType ?? Primitive.Handle, this);
     }
 
     partial class ArrayLiteral

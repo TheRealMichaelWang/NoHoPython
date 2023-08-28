@@ -79,16 +79,18 @@ namespace NoHoPython.Syntax.Statements
         public SourceLocation SourceLocation { get; private set; }
         
         public string Identifier { get; private set; }
+        public string? CFunctionName { get; private set; }
         public readonly List<TypeParameter> TypeParameters;
         public readonly List<AstType> ParameterTypes;
         public readonly AstType ReturnType;
 
 #pragma warning disable CS8618 //IR Foreign set during forward declaration
-        public ForeignCProcedureDeclaration(string identifier, List<TypeParameter> typeParameters, List<AstType> parameterTypes, AstType returnType, SourceLocation sourceLocation)
+        public ForeignCProcedureDeclaration(string identifier, string? cFunctionName, List<TypeParameter> typeParameters, List<AstType> parameterTypes, AstType returnType, SourceLocation sourceLocation)
 #pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
             Identifier = identifier;
+            CFunctionName = cFunctionName;
             TypeParameters = typeParameters;
             ParameterTypes = parameterTypes;
             ReturnType = returnType;
@@ -228,11 +230,21 @@ namespace NoHoPython.Syntax.Parsing
                 while (scanner.LastToken.Type != TokenType.CloseParen)
                 {
                     parameters.Add(ParseType());
+                    if (scanner.LastToken.Type == TokenType.Identifier)
+                        scanner.ScanToken();
                     if (scanner.LastToken.Type != TokenType.CloseParen)
                         MatchAndScanToken(TokenType.Comma);
                 }
                 scanner.ScanToken();
-                return new ForeignCProcedureDeclaration(identifier, typeParameters, parameters, ParseType(), location);
+                AstType returnType = ParseType();
+
+                if(scanner.LastToken.Type == TokenType.StringLiteral)
+                {
+                    string cFunctionName = scanner.LastToken.Identifier;
+                    scanner.ScanToken();
+                    return new ForeignCProcedureDeclaration(identifier, cFunctionName, typeParameters, parameters, returnType, location);
+                }
+                return new ForeignCProcedureDeclaration(identifier, null, typeParameters, parameters, returnType, location);
             }
             else if (scanner.LastToken.Type == TokenType.StringLiteral)
                 return ParseForeignCDeclaration(identifier, typeParameters, location);

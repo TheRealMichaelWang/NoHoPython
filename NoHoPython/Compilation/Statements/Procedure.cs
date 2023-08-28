@@ -962,7 +962,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public override void EmitCall(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, SortedSet<int> bufferedArguments, int currentNestedCall, string responsibleDestroyer)
         {
-            emitter.Append($"{ForeignCProcedure.Name}(");
+            if (ForeignCProcedure.CFunctionName == null)
+                emitter.Append($"{ForeignCProcedure.Name}(");
+            else
+                emitter.Append($"{ForeignCProcedure.CFunctionName}(");
+            
             EmitArguments(irProgram, emitter, ProcedureReference.SubstituteTypeargsWithTypeargs(typeArguments, typeargs), bufferedArguments, currentNestedCall);
             emitter.Append(')');
 

@@ -316,14 +316,16 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public IAstElement ErrorReportedElement { get; private set; }
 
         public string Name { get; private set; }
+        public string? CFunctionName { get; private set; }
 
         public List<Typing.TypeParameter>? TypeParameters { get; private set; }
         public List<IType>? ParameterTypes { get; private set; }
         public IType? ReturnType { get; private set; }
 
-        public ForeignCProcedureDeclaration(string name, IAstElement errorReportedElement, SymbolContainer parentContainer)
+        public ForeignCProcedureDeclaration(string name, string? cFunctionName, IAstElement errorReportedElement, SymbolContainer parentContainer)
         {
             Name = name;
+            CFunctionName = cFunctionName;
             ParentContainer = parentContainer;
             ErrorReportedElement = errorReportedElement;
         }
@@ -662,7 +664,7 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
-            IRForeignDeclaration = new IntermediateRepresentation.Statements.ForeignCProcedureDeclaration(Identifier, this, irBuilder.SymbolMarshaller.CurrentScope);
+            IRForeignDeclaration = new IntermediateRepresentation.Statements.ForeignCProcedureDeclaration(Identifier, CFunctionName, this, irBuilder.SymbolMarshaller.CurrentScope);
 
             irBuilder.SymbolMarshaller.NavigateToScope(IRForeignDeclaration);
 

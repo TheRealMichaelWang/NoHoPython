@@ -1,6 +1,5 @@
 ﻿using NoHoPython.Syntax.Statements;
 using NoHoPython.Syntax.Values;
-using System.Diagnostics;
 using System.Text;
 
 namespace NoHoPython.Syntax.Parsing
@@ -9,7 +8,7 @@ namespace NoHoPython.Syntax.Parsing
     {
         private Scanner scanner;
         private int currentExpectedIndents;
-        private List<string> includedCFiles;
+        private List<(string, string[]?)> includedCFiles;
 
         public AstParser(Scanner scanner)
         {
@@ -18,10 +17,7 @@ namespace NoHoPython.Syntax.Parsing
             includedCFiles = new();
         }
 
-        public void IncludeCFiles(IntermediateRepresentation.IRProgram irProgram)
-        {
-            includedCFiles.ForEach((file) => irProgram.IncludeCFile(file));
-        }
+        public void IncludeCFiles(IntermediateRepresentation.IRProgram irProgram) => includedCFiles.ForEach((file) => irProgram.IncludeCFile(file));
 
         private void MatchToken(TokenType expectedLastTokenType)
         {
@@ -477,8 +473,27 @@ namespace NoHoPython.Syntax.Parsing
                         {
                             scanner.ScanToken();
                             MatchToken(TokenType.StringLiteral);
-                            includedCFiles.Add(scanner.LastToken.Identifier);
+                            string includeSource = scanner.LastToken.Identifier;
                             scanner.ScanToken();
+
+                            if (scanner.LastToken.Type == TokenType.OpenParen)
+                            {
+                                scanner.ScanToken();
+                                List<string> preincludeDefinitions = new();
+                                while (scanner.LastToken.Type != TokenType.CloseParen)
+                                {
+                                    MatchToken(TokenType.Identifier);
+                                    preincludeDefinitions.Add(scanner.LastToken.Identifier);
+                                    scanner.ScanToken();
+                                    if (scanner.LastToken.Type != TokenType.CloseParen)
+                                        MatchAndScanToken(TokenType.Comma);
+                                }
+                                scanner.ScanToken();
+                                includedCFiles.Add((includeSource, preincludeDefinitions.ToArray()));
+                            }
+                            else
+                                includedCFiles.Add((includeSource, null));
+
                             MatchToken(TokenType.Newline);
                             continue;
                         }

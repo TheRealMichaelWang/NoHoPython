@@ -66,7 +66,7 @@ public static class Program
             if (args.Contains("-header"))
             {
                 string headerName = outputFile.EndsWith(".c") ? outputFile.Replace(".c", ".h") : outputFile + ".h";
-                program.IncludeCFile(headerName);
+                program.IncludeCFile((headerName, null));
                 program.Emit(outputFile, headerName);
             }
             else

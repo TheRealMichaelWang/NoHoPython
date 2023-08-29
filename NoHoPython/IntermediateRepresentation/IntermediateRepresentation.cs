@@ -142,7 +142,7 @@ namespace NoHoPython.IntermediateRepresentation
         public readonly List<ForeignCDeclaration> ForeignCDeclarations;
         public readonly List<ProcedureDeclaration> ProcedureDeclarations;
 
-        public readonly SortedSet<string> IncludedCFiles;
+        public readonly Dictionary<string, string[]?> IncludedCFiles;
 
         public bool DoBoundsChecking { get; private set; }
         public bool EliminateAsserts { get; private set; }
@@ -172,7 +172,7 @@ namespace NoHoPython.IntermediateRepresentation
             EnumDeclarations = enumDeclarations;
             ProcedureDeclarations = procedureDeclarations;
             ForeignCDeclarations = foreignCDeclarations;
-            IncludedCFiles = new SortedSet<string>(includedCFiles);
+            IncludedCFiles = new(includedCFiles.Count);
 
             this.uniqueProcedureTypes = uniqueProcedureTypes;
             this.usedArrayTypes = usedArrayTypes;
@@ -203,12 +203,14 @@ namespace NoHoPython.IntermediateRepresentation
             }
             foreach (IType type in typeDependencyTree.Keys)
                 SantizeNoCircularDependencies(type, new List<IType>());
+            foreach (string includedFile in includedCFiles)
+                IncludedCFiles.Add(includedFile, null);
         }
 
-        public void IncludeCFile(string cFile)
+        public void IncludeCFile((string, string[]?) toInclude)
         {
-            if (!IncludedCFiles.Contains(cFile))
-                IncludedCFiles.Add(cFile);
+            if (!IncludedCFiles.ContainsKey(toInclude.Item1))
+                IncludedCFiles.Add(toInclude.Item1, toInclude.Item2);
         }
 
         public bool DeclareCompiledType(StatementEmitter emitter, IType type)
@@ -246,11 +248,17 @@ namespace NoHoPython.IntermediateRepresentation
                     headerEmitter.AppendLine("#ifndef _NHP_HEADER_GUARD_");
                     headerEmitter.AppendLine("#define _NHP_HEADER_GUARD_");
                 }
-                foreach (string includedCFile in IncludedCFiles)
-                    if (includedCFile.StartsWith('<'))
+                foreach (var includedCFile in IncludedCFiles)
+                {
+                    if (includedCFile.Value != null)
+                        foreach (string preincludeDefinition in includedCFile.Value)
+                            emitter.AppendLine($"#define {preincludeDefinition}");
+
+                    if (includedCFile.Key.StartsWith('<'))
                         emitter.AppendLine($"#include {includedCFile}");
                     else
                         emitter.AppendLine($"#include \"{includedCFile}\"");
+                }
                 emitter.AppendLine();
 
                 //emit typedefs

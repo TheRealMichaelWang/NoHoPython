@@ -72,6 +72,10 @@ mod std:
 		def append(string str):
 			appendCPtr(str.cstr, str.length)
 
+		def appendLine(string str)
+			appendCPtr(str.cstr, str.length)
+			appendChar('\n')
+
 	def makeString(array<char> buf) string:
 		cstr = std::malloc(buf as int + 1) as handle<char>
 

@@ -10,12 +10,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public sealed partial class ForeignCProperty : Property
         {
-            public ForeignCProperty(string name, IType type) : base(name, type)
-            {
+            public string? AccessSource { get; private set; }
 
+            public ForeignCProperty(string name, IType type, string? accessSource) : base(name, type)
+            {
+                AccessSource = accessSource;
             }
 
-            public ForeignCProperty SubstituteWithTypeargs(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs));
+            public ForeignCProperty SubstituteWithTypeargs(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), AccessSource);
         }
 
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
@@ -165,7 +167,7 @@ namespace NoHoPython.Syntax.Statements
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IRDeclaration);
-            IRDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((property) => new IntermediateRepresentation.Statements.ForeignCDeclaration.ForeignCProperty(property.Item2, property.Item1.ToIRType(irBuilder, this))));
+            IRDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((property) => new IntermediateRepresentation.Statements.ForeignCDeclaration.ForeignCProperty(property.Item2, property.Item1.ToIRType(irBuilder, this), property.Item3)));
             irBuilder.SymbolMarshaller.GoBack();
         }
 

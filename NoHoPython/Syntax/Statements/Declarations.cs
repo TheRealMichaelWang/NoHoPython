@@ -177,10 +177,10 @@ namespace NoHoPython.Syntax.Statements
         public string CSource { get; private set; }
         public readonly List<TypeParameter> TypeParameters;
         public readonly Dictionary<string, string?> Attributes;
-        public List<(AstType, string)> Properties;
+        public List<(AstType, string, string?)> Properties;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public ForeignCDeclaration(string identifier, string cSource, List<TypeParameter> typeParameters, Dictionary<string, string?> attributes, List<(AstType, string)> properties, SourceLocation sourceLocation)
+        public ForeignCDeclaration(string identifier, string cSource, List<TypeParameter> typeParameters, Dictionary<string, string?> attributes, List<(AstType, string, string?)> properties, SourceLocation sourceLocation)
 #pragma warning restore CS8618 
         {
             Identifier = identifier;
@@ -198,9 +198,13 @@ namespace NoHoPython.Syntax.Statements
             if (TypeParameters.Count > 0)
                 builder.Append($"<{string.Join(", ", TypeParameters)}>");
             builder.Append($" \"{CSource}\":");
-            
-            foreach((AstType, string) property in Properties)
+
+            foreach ((AstType, string, string?) property in Properties)
+            {
                 builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property.Item1.ToString()} {property.Item2}");
+                if (property.Item3 != null)
+                    builder.Append($" \"{property.Item3}\"");
+            }
 
             builder.AppendLine(Attributes.ToString(indent));
 
@@ -378,13 +382,20 @@ namespace NoHoPython.Syntax.Parsing
                 scanner.ScanToken();
                 MatchAndScanToken(TokenType.Newline);
 
-                List<(AstType, string)> properties = ParseBlock(() =>
+                List<(AstType, string, string?)> properties = ParseBlock(() =>
                 {
                     AstType type = ParseType();
                     MatchToken(TokenType.Identifier);
                     string identifier = scanner.LastToken.Identifier;
                     scanner.ScanToken();
-                    return (type, identifier);
+
+                    string? accessSource = null;
+                    if (scanner.LastToken.Type == TokenType.StringLiteral)
+                    {
+                        accessSource = scanner.LastToken.Identifier;
+                        scanner.ScanToken();
+                    }
+                    return (type, identifier, accessSource);
                 });
                 
                 return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), properties, sourceLocation);

@@ -59,9 +59,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 ForeignCType foreignCType = (ForeignCType)propertyContainer;
 
-                emitter.Append(valueCSource);
-                emitter.Append(foreignCType.Declaration.PointerPropertyAccess ? "->" : ".");
-                emitter.Append(Name);
+                if (AccessSource == null)
+                {
+                    emitter.Append(valueCSource);
+                    emitter.Append(foreignCType.Declaration.PointerPropertyAccess ? "->" : ".");
+                    emitter.Append(Name);
+                }
+                else
+                    emitter.Append(foreignCType.GetSource(AccessSource, irProgram, valueCSource, responsibleDestroyer));
                 
                 return false;
             }

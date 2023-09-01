@@ -359,7 +359,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
 
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) => destinationEntry.Refinement = (Value.Type, EnumDeclaration.GetRefinedEnumEmitter(Value.Type));
+        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) => destinationEntry.Refinement = (Value.Type, EnumDeclaration.GetRefinedEnumEmitter(TargetType, Value.Type));
     }
 
     partial class UnwrapEnumValue
@@ -373,7 +373,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class CheckEnumOption
     {
-        public void RefineIfTrue(AstIRProgramBuilder irBuilder) => EnumValue.RefineAssumeType(irBuilder, (Option, EnumDeclaration.GetRefinedEnumEmitter(Option)));
+        public void RefineIfTrue(AstIRProgramBuilder irBuilder) => EnumValue.RefineAssumeType(irBuilder, (Option, EnumDeclaration.GetRefinedEnumEmitter((EnumType)EnumValue.Type, Option)));
 
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
         public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }

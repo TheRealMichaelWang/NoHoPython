@@ -77,23 +77,25 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public sealed partial class MatchHandler
         {
-            public IType MatchedType { get; private set; }
+            public List<IType> MatchTypes { get; private set; }
 
             public Variable? MatchedVariable { get; private set; }
             public CodeBlock ToExecute { get; private set; }
 
-            public MatchHandler(IRValue matchValue, IType matchedType, string? matchIdentifier, CodeBlock toExecute, List<IAstStatement> toExecuteStatements, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+            public MatchHandler(IRValue matchValue, List<IType> matchedTypes, string? matchIdentifier, CodeBlock toExecute, List<IAstStatement> toExecuteStatements, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
             {
-                MatchedType = matchedType;
+                MatchTypes = matchedTypes;
                 ToExecute = toExecute;
                 irBuilder.SymbolMarshaller.NavigateToScope(toExecute);
-                matchValue.RefineAssumeType(irBuilder, (matchedType, EnumDeclaration.GetRefinedEnumEmitter(matchedType)));
+
+                if (matchedTypes.Count == 1)
+                    matchValue.RefineAssumeType(irBuilder, (matchedTypes[0], EnumDeclaration.GetRefinedEnumEmitter((EnumType)matchValue.Type, matchedTypes[0])));
 
                 if (matchIdentifier != null)
                 {
-                    if (matchedType.IsEmpty)
-                        throw new UnexpectedTypeException(matchedType, errorReportedElement);
-                    MatchedVariable = new(matchedType, matchIdentifier, irBuilder.ScopedProcedures.Peek(), false, errorReportedElement);
+                    if (matchedTypes[0].IsEmpty)
+                        throw new UnexpectedTypeException(matchedTypes[0], errorReportedElement);
+                    MatchedVariable = new(matchedTypes[0], matchIdentifier, irBuilder.ScopedProcedures.Peek(), false, errorReportedElement);
                     irBuilder.SymbolMarshaller.DeclareSymbol(MatchedVariable, errorReportedElement);
                     ToExecute.LocalVariables.Add(MatchedVariable);
                 }
@@ -349,23 +351,11 @@ namespace NoHoPython.Syntax.Statements
             IRValue matchValue = MatchedValue.GenerateIntermediateRepresentationForValue(irBuilder, null, false);
             if(matchValue.Type is EnumType enumType)
             {
-                HashSet<IType> unhandledTypes = new(enumType.GetOptions(), new ITypeComparer());
-
                 List<IntermediateRepresentation.Statements.MatchStatement.MatchHandler> matchHandlers = new(MatchHandlers.Count);
                 foreach(MatchHandler handler in MatchHandlers)
-                {
-                    IType handledType = handler.MatchType.ToIRType(irBuilder, this);
-                    if (!unhandledTypes.Contains(handledType))
-                        throw new UnexpectedTypeException(handledType, this);
-                    unhandledTypes.Remove(handledType);
-                    matchHandlers.Add(new(matchValue, handledType, handler.MatchIdentifier, handlerCodeBlocks[handler], handler.Statements, irBuilder, this));
-                }
-                if (defaultHandlerCodeBlock == null)
-                {
-                    if(unhandledTypes.Count > 0)
-                        throw new UnhandledMatchOption(enumType, unhandledTypes.First(), this);
-                }
-                else
+                    matchHandlers.Add(new(matchValue, handler.MatchTypes.ConvertAll((type) => type.ToIRType(irBuilder, this)), handler.MatchIdentifier, handlerCodeBlocks[handler], handler.Statements, irBuilder, this));
+
+                if(defaultHandlerCodeBlock != null)
                 {
                     irBuilder.SymbolMarshaller.NavigateToScope(defaultHandlerCodeBlock);
 #pragma warning disable CS8604 // Default handler is not null when defaultHandlerCodeBlock isn't null

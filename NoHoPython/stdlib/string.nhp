@@ -72,7 +72,7 @@ mod std:
 		def append(string str):
 			appendCPtr(str.cstr, str.length)
 
-		def appendLine(string str)
+		def appendLine(string str):
 			appendCPtr(str.cstr, str.length)
 			appendChar('\n')
 

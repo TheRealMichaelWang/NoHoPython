@@ -291,21 +291,23 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             foreach(MatchHandler handler in MatchHandlers)
             {
-                IType currentOption = handler.MatchedType.SubstituteWithTypearg(typeargs);
+                List<IType> currentOptions = handler.MatchTypes.ConvertAll((type) => type.SubstituteWithTypearg(typeargs));
 
                 CodeBlock.CIndent(emitter, indent);
-                emitter.AppendLine($"case {enumType.GetCEnumOptionForType(irProgram, currentOption)}: {{");
+
+                foreach(IType option in currentOptions)
+                    emitter.AppendLine($"case {enumType.GetCEnumOptionForType(irProgram, option)}: {{");
                 
                 if (handler.MatchedVariable != null)
                 {
                     CodeBlock.CIndent(emitter, indent + 1);
-                    emitter.Append($"{currentOption.GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier()} = ");
+                    emitter.Append($"{currentOptions[0].GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier()} = ");
 
                     BufferedEmitter matchedOptionValue = new();
                     IRValue.EmitMemorySafe(MatchValue.GetPostEvalPure(), irProgram, matchedOptionValue, typeargs);
-                    matchedOptionValue.Append($".data.{currentOption.GetStandardIdentifier(irProgram)}_set");
+                    matchedOptionValue.Append($".data.{currentOptions[0].GetStandardIdentifier(irProgram)}_set");
 
-                    currentOption.EmitCopyValue(irProgram, emitter, matchedOptionValue.ToString(), "NULL");
+                    currentOptions[0].EmitCopyValue(irProgram, emitter, matchedOptionValue.ToString(), "NULL");
                     emitter.AppendLine(";");
                 }
 

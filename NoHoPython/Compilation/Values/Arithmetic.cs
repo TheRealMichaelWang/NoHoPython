@@ -4,7 +4,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class ArithmeticCast
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) 
         {
@@ -12,12 +12,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Input.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Input.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval);
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval) => destination((emitter) =>
         {
             void EmitCCast(string castTo)
             {
                 emitter.Append($"(({castTo})");
-                IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
+                IRValue.EmitDirect(irProgram, emitter, Input, typeargs, Emitter.NullPromise, true);
                 emitter.Append(')');
             }
 
@@ -25,7 +27,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 case ArithmeticCastOperation.BooleanToInt:
                 case ArithmeticCastOperation.CharToInt:
-                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
+                    IRValue.EmitDirect(irProgram, emitter, Input, typeargs, Emitter.NullPromise, true);
                     break;
                 case ArithmeticCastOperation.HandleToInt:
                 case ArithmeticCastOperation.DecimalToInt:
@@ -39,7 +41,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     break;
                 case ArithmeticCastOperation.IntToBoolean:
                     emitter.Append('(');
-                    IRValue.EmitMemorySafe(Input, irProgram, emitter, typeargs);
+                    IRValue.EmitDirect(irProgram, emitter, Input, typeargs, Emitter.NullPromise, isTemporaryEval);
                     emitter.Append(" ? 1 : 0");
                     emitter.Append(')');
                     break;
@@ -47,12 +49,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     EmitCCast("void*");
                     break;
             }
-        }
+        });
     }
 
     partial class HandleCast
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Input.RequiresDisposal(typeargs, isTemporaryEval);
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Input.RequiresDisposal(irProgram, typeargs, isTemporaryEval);
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -60,61 +62,74 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Input.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Input.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval);
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval) => destination((emitter) =>
         {
             emitter.Append($"(({TargetHandleType.GetCName(irProgram)})");
-            Input.Emit(irProgram, emitter, typeargs, responsibleDestroyer, isTemporaryEval);
+            IRValue.EmitDirect(irProgram, emitter, Input, typeargs, Emitter.NullPromise, isTemporaryEval);
             emitter.Append(')');
-        }
+        });
     }
 
     partial class ArithmeticOperator
     {
-        public override void EmitExpression(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource)
+        protected override void EmitExpression(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise left, Emitter.Promise right)
         {
-            if (Operation == ArithmeticOperation.Exponentiate)
+            if(Operation == ArithmeticOperation.Exponentiate)
             {
-                if (Type is DecimalType)
-                    emitter.Append($"pow({leftCSource}, {rightCSource})");
-                else
-                    emitter.Append($"(int)pow((double){leftCSource}, (double){rightCSource})");
+                if (Type is not DecimalType)
+                    primaryEmitter.Append("(int)");
+                primaryEmitter.Append("pow(");
+                left(primaryEmitter);
+                primaryEmitter.Append(", ");
+                right(primaryEmitter);
+                primaryEmitter.Append(')');
             }
-            else if (Operation == ArithmeticOperation.Modulo && Type is DecimalType)
-                emitter.Append($"fmod({leftCSource}, {rightCSource})");
+            else if(Operation == ArithmeticOperation.Modulo && Type is DecimalType)
+            {
+                primaryEmitter.Append("fmod(");
+                left(primaryEmitter);
+                primaryEmitter.Append(", ");
+                right(primaryEmitter);
+                primaryEmitter.Append(')');
+            }
             else
             {
-                emitter.Append($"({leftCSource}");
-                switch (Operation)
+                primaryEmitter.Append('(');
+                left(primaryEmitter);
+                primaryEmitter.Append(Operation switch
                 {
-                    case ArithmeticOperation.Add:
-                        emitter.Append(" + ");
-                        break;
-                    case ArithmeticOperation.Subtract:
-                        emitter.Append(" - ");
-                        break;
-                    case ArithmeticOperation.Multiply:
-                        emitter.Append(" * ");
-                        break;
-                    case ArithmeticOperation.Divide:
-                        emitter.Append(" / ");
-                        break;
-					case ArithmeticOperation.Modulo:
-						emitter.Append(" % ");
-						break;
-                }
-                emitter.Append($"{rightCSource})");
+                    ArithmeticOperation.Add => " + ",
+                    ArithmeticOperation.Subtract => " - ",
+                    ArithmeticOperation.Multiply => " * ",
+                    ArithmeticOperation.Divide => " / ",
+                    ArithmeticOperation.Modulo => " % ",
+                    _ => throw new InvalidOperationException()
+                });
+                right(primaryEmitter);
+                primaryEmitter.Append(')');
             }
         }
     }
 
     partial class PointerAddOperator
     {
-        public override void EmitExpression(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource) => emitter.Append($"&{leftCSource}[{rightCSource}]");
+        protected override void EmitExpression(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise left, Emitter.Promise right)
+        {
+            primaryEmitter.Append('(');
+            left(primaryEmitter);
+            primaryEmitter.Append(" + ");
+            right(primaryEmitter);
+            primaryEmitter.Append(')');
+        }
     }
 
     partial class ArrayOperator
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
+
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => ArrayValue.MustUseDestinationPromise(irProgram, typeargs, true) || ArrayValue.RequiresDisposal(irProgram, typeargs, true);
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -122,39 +137,46 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ArrayValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            void EmitOp()
+            if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
-                switch (Operation)
-                {
-                    case ArrayOperation.GetArrayLength:
-                        emitter.Append(".length");
-                        break;
-                    case ArrayOperation.GetArrayHandle:
-                        emitter.Append(".buffer");
-                        break;
-                }
-            }
+                int indirection = primaryEmitter.AppendStartBlock();
 
-            if(ArrayValue.RequiresDisposal(typeargs, false))
-            {
-                if (!irProgram.EmitExpressionStatements || Operation == ArrayOperation.GetArrayHandle || Operation == ArrayOperation.GetSpanHandle)
+                primaryEmitter.AppendLine($"{ArrayValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} arr{indirection};");
+                ArrayValue.Emit(irProgram, primaryEmitter, typeargs, (arrayPromise) =>
+                {
+                    primaryEmitter.Append($"arr{indirection} = ");
+                    arrayPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+
+                if (Operation != ArrayOperation.GetArrayLength && ArrayValue.RequiresDisposal(irProgram, typeargs, true))
                     throw new CannotEmitDestructorError(ArrayValue);
 
-                emitter.Append($"({{{ArrayValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} nhp_buffer = ");
-                ArrayValue.Emit(irProgram, emitter, typeargs, "NULL", false);
-                emitter.Append($"; {Type.GetCName(irProgram)} nhp_res = nhp_buffer");
-                EmitOp();
-                emitter.Append("; ");
-                ArrayValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, "nhp_buffer", "NULL");
-                emitter.Append("; nhp_res;})");
+                destination((emitter) =>
+                {
+                    emitter.Append($"arr{indirection}");
+                    if (Operation == ArrayOperation.GetArrayLength)
+                        emitter.Append(".length");
+                    else if (Operation == ArrayOperation.GetArrayHandle)
+                        emitter.Append(".buffer");
+                });
+
+                if (ArrayValue.RequiresDisposal(irProgram, typeargs, true))
+                    ArrayValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"arr{indirection}"), Emitter.NullPromise);
+
+                primaryEmitter.AppendEndBlock();
             }
             else
-            {
-                ArrayValue.Emit(irProgram, emitter, typeargs, "NULL", false);
-                EmitOp();
-            }
+                destination((emitter) =>
+                {
+                    IRValue.EmitDirect(irProgram, emitter, ArrayValue, typeargs, Emitter.NullPromise, true);
+                    if (Operation == ArrayOperation.GetArrayLength)
+                        emitter.Append(".length");
+                    else if (Operation == ArrayOperation.GetArrayHandle)
+                        emitter.Append(".buffer");
+                });
         }
     }
 }

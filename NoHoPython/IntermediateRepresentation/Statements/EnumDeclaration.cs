@@ -11,9 +11,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public static CodeBlock.RefinementEmitter GetRefinedEnumEmitter(EnumType enumType, IType type)
         {
             if (type.IsEmpty)
-                return (IRProgram irProgram, IEmitter emitter, string variableIdentifier, Dictionary<TypeParameter, IType> typeargs) => emitter.Append(enumType.GetCEnumOptionForType(irProgram, type));
+                return (IRProgram irProgram, Emitter emitter, Emitter.Promise value, Dictionary<TypeParameter, IType> typeargs) => emitter.Append(enumType.GetCEnumOptionForType(irProgram, type));
 
-            return (IRProgram irProgram, IEmitter emitter, string variableIdentifier, Dictionary<TypeParameter, IType> typeargs) => emitter.Append($"{variableIdentifier}.data.{type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set");
+            return (IRProgram irProgram, Emitter emitter, Emitter.Promise value, Dictionary<TypeParameter, IType> typeargs) =>
+            {
+                value(emitter);
+                emitter.Append($".data.{type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set");
+            };
         }
 
         public Syntax.IAstElement ErrorReportedElement { get; private set; }

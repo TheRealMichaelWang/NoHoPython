@@ -18,7 +18,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
     }
 
-    public partial interface IPropertyContainer
+    public interface IPropertyContainer
     {
         public static void SanitizePropertyNames(List<Property> properties, Syntax.IAstElement errorReportedElement)
         {

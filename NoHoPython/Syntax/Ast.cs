@@ -6,7 +6,7 @@ namespace NoHoPython.Syntax
 {
     public interface IAstElement : ISourceLocatable
     { 
-        public void EmitSrcAsCString(IEmitter emitter, bool formatStr=true, bool encapsulateWithQuotes=true)
+        public void EmitSrcAsCString(Emitter emitter, bool formatStr=true, bool encapsulateWithQuotes=true)
         {
             if (this is IAstValue astValue)
                 CharacterLiteral.EmitCString(emitter, astValue.ToString(), formatStr, encapsulateWithQuotes);
@@ -57,7 +57,7 @@ namespace NoHoPython.Syntax
 
         public override string ToString() => $"File \"{File}\", row {Row}, col {Column}";
 
-        public void EmitLineDirective(IEmitter emitter)
+        public void EmitLineDirective(Emitter emitter)
         {
             emitter.Append($"#line {Row} ");
 

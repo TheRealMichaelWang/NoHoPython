@@ -1,75 +1,46 @@
 ﻿using NoHoPython.Syntax;
-using NoHoPython.Typing;
 using System.Diagnostics;
 using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation
 {
-    public interface IEmitter
+    public sealed class Emitter : IDisposable
     {
-        public void Append(string str);
-        public void Append(char c);
-    }
+        public delegate void SetPromise(Promise valueEmitPromise);
+        public delegate void Promise(Emitter emitter);
 
-    public sealed class BufferedEmitter : IEmitter
-    {
-        public static string EmitBufferedValue(IRValue value, IRProgram irProgram, Dictionary<Typing.TypeParameter, IType> typeArgs, string responsibleDestroyer)
-        {
-            BufferedEmitter bufferedEmitter = new();
-            value.Emit(irProgram, bufferedEmitter, typeArgs, responsibleDestroyer, false);
-            return bufferedEmitter.ToString();
-        }
+        public static Promise NullPromise = (emitter) => emitter.Append("NULL");
 
-        public static string EmittedBufferedMemorySafe(IRValue value, IRProgram irProgram, Dictionary<Typing.TypeParameter, IType> typeArgs)
-        {
-            BufferedEmitter bufferedEmitter = new();
-            IRValue.EmitMemorySafe(value, irProgram, bufferedEmitter, typeArgs);
-            return bufferedEmitter.ToString();
-        }
-
-        private StringBuilder builder;
-
-        public BufferedEmitter()
-        {
-            builder = new();
-        }
-
-        public BufferedEmitter(int capacity)
-        {
-            builder = new(capacity);
-        }
-
-        public void Append(string str)
-        {
-            Debug.Assert(!str.Contains('\n'));
-            builder.Append(str);
-        }
-
-        public void Append(char c)
-        {
-            Debug.Assert(c != '\n');
-            builder.Append(c);
-        }
-
-        public override string ToString() => builder.ToString();
-    }
-
-    public sealed class StatementEmitter : IEmitter, IDisposable
-    {
-        private StreamWriter writer;
+        private TextWriter writer;
+        private Stream stream;
         private StringBuilder currentLineBuilder;
-        private IRProgram irProgram;
 
         public SourceLocation? LastSourceLocation { get; set; }
+        public bool EmitLineDirectives { get; private set; }
+        private int Indirection;
 
-        public StatementEmitter(string outputPath, IRProgram irProgram)
+        public bool BufferMode { get; private set; }
+
+        public Emitter(string outputPath, bool emitLineDirectives)
         {
-            this.irProgram = irProgram;
-
             if (File.Exists(outputPath))
                 File.Delete(outputPath);
 
-            writer = new(new FileStream(outputPath, FileMode.OpenOrCreate, FileAccess.Write));
+            BufferMode = false;
+            EmitLineDirectives = emitLineDirectives;
+            Indirection = 0;
+            stream = new FileStream(outputPath, FileMode.OpenOrCreate, FileAccess.Write);
+            writer = new StreamWriter(stream, Encoding.UTF8);
+            currentLineBuilder = new();
+        }
+
+        public Emitter()
+        {
+            BufferMode = true;
+            EmitLineDirectives = false;
+            Indirection = 0;
+            stream = new MemoryStream();
+            writer = new StreamWriter(stream, new UTF8Encoding(false));
             currentLineBuilder = new();
         }
 
@@ -85,6 +56,12 @@ namespace NoHoPython.IntermediateRepresentation
             currentLineBuilder.Append(c);
         }
 
+        public void AppendLine(char c)
+        {
+            currentLineBuilder.Append(c);
+            AppendLine();
+        }
+
         public void AppendLine(string str)
         {
             currentLineBuilder.Append(str);
@@ -93,19 +70,67 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void AppendLine()
         {
-            if (irProgram.EmitLineDirectives && LastSourceLocation.HasValue)
+            if (BufferMode)
+                throw new InvalidOperationException();
+
+            if (EmitLineDirectives && LastSourceLocation.HasValue)
             {
-                BufferedEmitter bufferedEmitter = new();
-                LastSourceLocation.Value.EmitLineDirective(bufferedEmitter);
-                writer.WriteLine(bufferedEmitter.ToString());
+                LastSourceLocation.Value.EmitLineDirective(this);
+                writer.WriteLine();
             }
 
-            writer.WriteLine(currentLineBuilder.ToString());
-            currentLineBuilder.Clear();
+            Flush(true);
+            writer.WriteLine();
+        }
+
+        public int AppendStartBlock(string str)
+        {
+            currentLineBuilder.Append(str);
+            return AppendStartBlock();
+        }
+
+        public int AppendStartBlock()
+        {
+            if (currentLineBuilder.Length > 0)
+                currentLineBuilder.Append(' ');
+            currentLineBuilder.Append('{');
+            AppendLine();
+            Indirection++;
+
+            return Indirection;
+        }
+
+        public void AppendEndBlock()
+        {
+            Debug.Assert(currentLineBuilder.Length == 0);
+            currentLineBuilder.Append('}');
+            Indirection--;
+            AppendLine();
+        }
+
+        public string GetBuffered()
+        {
+            Flush();
+            MemoryStream memoryStream = (MemoryStream)stream;
+            return Encoding.UTF8.GetString(memoryStream.ToArray());
         }
 
         #region disposing
         private bool isDisposed = false;
+
+        public void Flush(bool suppressFlush=false)
+        {
+            if (currentLineBuilder.Length == 0)
+                return;
+
+            for (int i = 0; i < Indirection; i++)
+                writer.Write('\t');
+
+            writer.Write(currentLineBuilder.ToString());
+            if(!suppressFlush)
+                writer.Flush();
+            currentLineBuilder.Clear();
+        }
 
         public void Dispose()
         {
@@ -120,6 +145,7 @@ namespace NoHoPython.IntermediateRepresentation
             if (disposing)
             {
                 // free managed resources
+                Flush();
                 writer.Close();
                 writer.Dispose();
             }

@@ -11,6 +11,19 @@
         public static bool EvaluationOrderGuarenteed(params IRValue[] operands) => EvaluationOrderGuarenteed(operands as IEnumerable<IRValue>); 
 
         public static bool EvaluationOrderGuarenteed(IEnumerable<IRValue> operands) => operands.All((operand) => operand.IsPure) || operands.All((operand) => operand.IsConstant);
+
+        public static bool HasPostEvalPure(IRValue value)
+        {
+            try
+            {
+                value.GetPostEvalPure();
+                return true;
+            }
+            catch (NoPostEvalPureValue)
+            {
+                return false;
+            }
+        }
     }
 }
 
@@ -90,10 +103,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class TupleLiteral
     {
-        public bool IsPure => TupleElements.TrueForAll((elem) => elem.IsPure);
-        public bool IsConstant => TupleElements.TrueForAll((elem) => elem.IsConstant);
+        public bool IsPure => Elements.TrueForAll((elem) => elem.IsPure);
+        public bool IsConstant => Elements.TrueForAll((elem) => elem.IsConstant);
 
-        public IRValue GetPostEvalPure() => new TupleLiteral(TupleElements.Select((element) => element.GetPostEvalPure()).ToList(), ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new TupleLiteral(Elements.Select((element) => element.GetPostEvalPure()).ToList(), ErrorReportedElement);
     }
 
     partial class MarshalIntoLowerTuple

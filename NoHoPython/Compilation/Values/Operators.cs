@@ -1,22 +1,16 @@
-﻿using NoHoPython.IntermediateRepresentation;
-using NoHoPython.IntermediateRepresentation.Statements;
-using NoHoPython.IntermediateRepresentation.Values;
+﻿using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
-    //partial interface IPropertyContainer
-    //{
-    //    public void EmitGetProperty(IRProgram irProgram, IEmitter emitter, string valueCSource, string propertyIdentifier);
-    //}
-
     partial class Property
     {
         public abstract bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs);
 
         public virtual void ScopeForUse(bool optimizedMessageRecieverCall, Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public abstract bool EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource, string responsibleDestroyer);
+        public abstract bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer);
     }
 }
 
@@ -31,120 +25,136 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Right.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public virtual bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Left.MustUseDestinationPromise(irProgram, typeargs, true) || Right.MustUseDestinationPromise(irProgram, typeargs, true) || Left.RequiresDisposal(irProgram, typeargs, true) || Right.RequiresDisposal(irProgram, typeargs, true) || !IRValue.EvaluationOrderGuarenteed(Left, Right);
+
+        protected abstract void EmitExpression(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise left, Emitter.Promise right);
+
+        public virtual void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            BufferedEmitter leftBuilder = new();
-            BufferedEmitter rightBuilder = new();
-
-            if((!ShortCircuit && !IRValue.EvaluationOrderGuarenteed(Left, Right))
-                || Left.RequiresDisposal(typeargs, true) || Right.RequiresDisposal(typeargs, true))
+            if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
-                if (!irProgram.EmitExpressionStatements)
-                    throw new CannotEnsureOrderOfEvaluation(this);
+                int indirection = primaryEmitter.AppendStartBlock();
+                primaryEmitter.AppendLine($"{Left.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} lhs{indirection}; {Right.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} rhs{indirection};");
+                Left.Emit(irProgram, primaryEmitter, typeargs, (leftPromise) =>
+                {
+                    primaryEmitter.Append($"lhs{indirection} = ");
+                    leftPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+                Right.Emit(irProgram, primaryEmitter, typeargs, (leftPromise) =>
+                {
+                    primaryEmitter.Append($"rhs{indirection} = ");
+                    leftPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
 
-                irProgram.ExpressionDepth++;
+                Emitter.Promise lhs = (leftEmitter) => leftEmitter.Append($"lhs{indirection}");
+                Emitter.Promise rhs = (rightEmitter) => rightEmitter.Append($"rhs{indirection}");
+                destination((emitter) => EmitExpression(irProgram, emitter, typeargs, lhs, rhs));
 
-                Left.Emit(irProgram, leftBuilder, typeargs, "NULL", true);
-                Right.Emit(irProgram, rightBuilder, typeargs, "NULL", true);
+                if (Left.RequiresDisposal(irProgram, typeargs, true))
+                    Left.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, lhs, Emitter.NullPromise);
+                if (Right.RequiresDisposal(irProgram, typeargs, true))
+                    Right.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, rhs, Emitter.NullPromise);
 
-                emitter.Append($"({{{Left.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} lhs{irProgram.ExpressionDepth} = {leftBuilder}; {Right.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} rhs{irProgram.ExpressionDepth} = {rightBuilder}; {Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} res{irProgram.ExpressionDepth} = ");
-                EmitExpression(irProgram, emitter, typeargs, $"lhs{irProgram.ExpressionDepth}", $"rhs{irProgram.ExpressionDepth}");
-                emitter.Append("; ");
-
-                if (Left.RequiresDisposal(typeargs, true))
-                    Left.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"lhs{irProgram.ExpressionDepth}", "NULL");
-
-                if(Right.RequiresDisposal(typeargs, true))
-                    Right.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"rhs{irProgram.ExpressionDepth}", "NULL");
-                
-                emitter.Append($"res{irProgram.ExpressionDepth};}})");
-                irProgram.ExpressionDepth--;
+                primaryEmitter.AppendEndBlock();
             }
             else
-            {
-                IRValue.EmitMemorySafe(Left, irProgram, leftBuilder, typeargs);
-                IRValue.EmitMemorySafe(Right, irProgram, rightBuilder, typeargs);
-                EmitExpression(irProgram, emitter, typeargs, leftBuilder.ToString(), rightBuilder.ToString());
-            } 
+                destination((emitter) => EmitExpression(irProgram, emitter, typeargs, IRValue.EmitDirectPromise(irProgram, Left, typeargs, Emitter.NullPromise, true), IRValue.EmitDirectPromise(irProgram, Right, typeargs, Emitter.NullPromise, true)));
         }
-
-        public abstract void EmitExpression(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource);
     }
 
     partial class ComparativeOperator
     {
-        public override void EmitExpression(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource)
+        protected override void EmitExpression(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise left, Emitter.Promise right)
         {
-            emitter.Append($"({leftCSource}");
-            switch (Operation)
+            primaryEmitter.Append('(');
+            left(primaryEmitter);
+            primaryEmitter.Append(Operation switch
             {
-                case CompareOperation.Equals:
-                    emitter.Append(" == ");
-                    break;
-                case CompareOperation.NotEquals:
-                    emitter.Append(" != ");
-                    break;
-                case CompareOperation.More:
-                    emitter.Append(" > ");
-                    break;
-                case CompareOperation.Less:
-                    emitter.Append(" < ");
-                    break;
-                case CompareOperation.MoreEqual:
-                    emitter.Append(" >= ");
-                    break;
-                case CompareOperation.LessEqual:
-                    emitter.Append(" <= ");
-                    break;
-            }
-            emitter.Append($"{rightCSource})");
+                CompareOperation.Equals => " == ",
+                CompareOperation.NotEquals => " != ",
+                CompareOperation.More => " > ",
+                CompareOperation.Less => " < ",
+                CompareOperation.MoreEqual => " >= ",
+                CompareOperation.LessEqual => " <= ",
+                _ => throw new InvalidOperationException()
+            });
+            right(primaryEmitter);
+            primaryEmitter.Append(')');
         }
     }
 
     partial class LogicalOperator
     {
-        public override void EmitExpression(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource)
+        public override bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Left.MustUseDestinationPromise(irProgram, typeargs, true) || Right.MustUseDestinationPromise(irProgram, typeargs, true);
+
+        public override void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            emitter.Append($"({leftCSource} ");
-            switch (Operation)
+            if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
-                case LogicalOperation.And:
-                    emitter.Append("&&");
-                    break;
-                case LogicalOperation.Or:
-                    emitter.Append("||");
-                    break;
+                int indirection = primaryEmitter.AppendStartBlock();
+                primaryEmitter.AppendLine($"int lhs{indirection};");
+                Left.Emit(irProgram, primaryEmitter, typeargs, (leftPromise) =>
+                {
+                    primaryEmitter.Append($"lhs{indirection} = ");
+                    leftPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+
+                primaryEmitter.AppendStartBlock(Operation == LogicalOperation.And ? "if(lhs)" : "if(!lhs)");
+                primaryEmitter.AppendLine($"int rhs{indirection};");
+                Right.Emit(irProgram, primaryEmitter, typeargs, (rightPromise) =>
+                {
+                    primaryEmitter.Append($"rhs{indirection} = ");
+                    rightPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+                destination((emitter) => emitter.Append($"rhs{indirection}"));
+                primaryEmitter.AppendEndBlock();
+
+                primaryEmitter.AppendStartBlock("else");
+                if (Operation == LogicalOperation.And)
+                    destination((emitter) => emitter.Append('0'));
+                else
+                    destination((emitter) => emitter.Append('1'));
+                primaryEmitter.AppendEndBlock();
+
+                primaryEmitter.AppendEndBlock();
             }
-            emitter.Append($" {rightCSource})");
+            else
+                destination((emitter) =>
+                {
+                    emitter.Append('(');
+                    IRValue.EmitDirect(irProgram, emitter, Left, typeargs, Emitter.NullPromise, true);
+                    emitter.Append(Operation == LogicalOperation.And ? " && " : " || ");
+                    IRValue.EmitDirect(irProgram, emitter, Right, typeargs, Emitter.NullPromise, true);
+                    emitter.Append(')');
+                });
         }
+
+        protected override void EmitExpression(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise left, Emitter.Promise right) => throw new InvalidOperationException();
     }
 
     partial class BitwiseOperator
     {
-        public override void EmitExpression(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string leftCSource, string rightCSource)
+        protected override void EmitExpression(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise left, Emitter.Promise right)
         {
-            emitter.Append($"({leftCSource} ");
-            switch (Operation)
+            primaryEmitter.Append('(');
+            left(primaryEmitter);
+            primaryEmitter.Append(Operation switch
             {
-                case BitwiseOperation.And:
-                    emitter.Append('&');
-                    break;
-                case BitwiseOperation.Or:
-                    emitter.Append('|');
-                    break;
-                case BitwiseOperation.Xor:
-                    emitter.Append('^');
-                    break;
-                case BitwiseOperation.ShiftLeft:
-                    emitter.Append("<<");
-                    break;
-                case BitwiseOperation.ShiftRight:
-                    emitter.Append(">>");
-                    break;
-            }
-            emitter.Append($" {rightCSource})");
+                BitwiseOperation.And => " & ",
+                BitwiseOperation.Or => " | ",
+                BitwiseOperation.Xor => " ^ ",
+                BitwiseOperation.ShiftLeft => " << ",
+                BitwiseOperation.ShiftRight => " >> ",
+                _ => throw new InvalidOperationException()
+            });
+            right(primaryEmitter);
+            primaryEmitter.Append(')');
         }
     }
 
@@ -157,48 +167,80 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Index.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Array.MustUseDestinationPromise(irProgram, typeargs, true) || Index.MustUseDestinationPromise(irProgram, typeargs, true) || Array.RequiresDisposal(irProgram, typeargs, true) || !IRValue.EvaluationOrderGuarenteed(Array, Index) || (irProgram.DoBoundsChecking && Array.Type is ArrayType && !IRValue.HasPostEvalPure(Array));
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            if (!IRValue.EvaluationOrderGuarenteed(Array, Index))
+            if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
-                if (!irProgram.EmitExpressionStatements)
-                    throw new CannotEnsureOrderOfEvaluation(this);
+                int indirection = primaryEmitter.AppendStartBlock();
+                primaryEmitter.AppendLine($"{Array.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} arr{indirection}; {Index.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} ind{indirection};");
+                Array.Emit(irProgram, primaryEmitter, typeargs, (arrayPromise) =>
+                {
+                    primaryEmitter.Append($"arr{indirection} = ");
+                    arrayPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+                Index.Emit(irProgram, primaryEmitter, typeargs, (indexPromise) =>
+                {
+                    primaryEmitter.Append($"ind{indirection} = ");
+                    indexPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
 
-                irProgram.ExpressionDepth++;
+                destination((emitter) =>
+                {
+                    emitter.Append($"arr{indirection}");
+                    if (Array.Type is ArrayType)
+                        emitter.Append(".buffer");
+                    emitter.Append('[');
+                    if (irProgram.DoBoundsChecking)
+                    {
+                        emitter.Append($"nhp_bounds_check(ind{indirection}, ");
+                        if (Array.Type is MemorySpan memorySpan)
+                            emitter.Append(memorySpan.Length.ToString());
+                        else
+                            emitter.Append($"arr{indirection}.length");
+                        emitter.Append(')');
+                    }
+                    else
+                        emitter.Append($"ind{indirection}");
+                    emitter.Append(']');
+                });
 
-                emitter.Append($"({{{Array.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} arr{irProgram.ExpressionDepth} = ");
-                IRValue.EmitMemorySafe(Array, irProgram, emitter, typeargs);
+                if (Array.RequiresDisposal(irProgram, typeargs, true))
+                    Array.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"arr{indirection}"), Emitter.NullPromise);
 
-                emitter.Append($"; long ind{irProgram.ExpressionDepth} = ");
-                if (irProgram.DoBoundsChecking)
-                    ArrayType.EmitBoundsCheckedIndex(irProgram, emitter, typeargs, Array, Index, ErrorReportedElement);
-                else
-                    IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
-                emitter.Append($"; arr{irProgram.ExpressionDepth}");
-
-                if (Array.Type is ArrayType)
-                    emitter.Append(".buffer");
-
-                emitter.Append("[ind{irProgram.ExpressionDepth}];}})");
-
-                irProgram.ExpressionDepth--;
+                primaryEmitter.AppendEndBlock();
             }
             else
-            {
-                IRValue.EmitMemorySafe(Array, irProgram, emitter, typeargs);
-
-                if (Array.Type is ArrayType)
-                    emitter.Append(".buffer");
-
-                emitter.Append('[');
-                if (irProgram.DoBoundsChecking)
-                    ArrayType.EmitBoundsCheckedIndex(irProgram, emitter, typeargs, Array, Index, ErrorReportedElement);
-                else
-                    IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
-                emitter.Append(']');        
-            }
+                destination((emitter) =>
+                {
+                    IRValue.EmitDirect(irProgram, emitter, Array, typeargs, Emitter.NullPromise, true);
+                    if (Array.Type is ArrayType)
+                        emitter.Append(".buffer");
+                    emitter.Append('[');
+                    if (irProgram.DoBoundsChecking)
+                    {
+                        emitter.Append("nhp_bounds_check(");
+                        IRValue.EmitDirect(irProgram, emitter, Index, typeargs, Emitter.NullPromise, true);
+                        emitter.Append(", ");
+                        if (Array.Type is MemorySpan memorySpan)
+                            emitter.Append(memorySpan.Length.ToString());
+                        else
+                        {
+                            Debug.Assert(!Array.GetPostEvalPure().RequiresDisposal(irProgram, typeargs, true));
+                            IRValue.EmitDirect(irProgram, emitter, Array.GetPostEvalPure(), typeargs, Emitter.NullPromise, true);
+                            emitter.Append(".length");
+                        }
+                        emitter.Append(')');
+                    }
+                    else
+                        IRValue.EmitDirect(irProgram, emitter, Index, typeargs, Emitter.NullPromise, true);
+                    emitter.Append(']');
+                });
         }
     }
 
@@ -212,103 +254,101 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Array.MustUseDestinationPromise(irProgram, typeargs, true) || Index.MustUseDestinationPromise(irProgram, typeargs, true) || Value.MustUseDestinationPromise(irProgram, typeargs, false) || !IRValue.EvaluationOrderGuarenteed(Array, Index, Value) || !IRValue.HasPostEvalPure(Array) || Value.Type.SubstituteWithTypearg(typeargs).RequiresDisposal;
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            string arrayResponsibleDestroyer = ArrayType.GetResponsibleDestroyer(irProgram, typeargs, Array);
-            if (!IRValue.EvaluationOrderGuarenteed(Array, Index, Value))
+            IRValue? arrayResponsibleDestroyerValue = Array.GetResponsibleDestroyer();
+            Emitter.Promise arrayResponsibleDestroyer = arrayResponsibleDestroyerValue != null ? IRValue.EmitDirectPromise(irProgram, arrayResponsibleDestroyerValue, typeargs, Emitter.NullPromise, true) : Emitter.NullPromise;
+            Debug.Assert(!Array.RequiresDisposal(irProgram, typeargs, true));
+
+            if (!MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
-                if (!irProgram.EmitExpressionStatements)
-                    throw new CannotEnsureOrderOfEvaluation(this);
-
-                irProgram.ExpressionDepth++;
-
-                emitter.Append($"({{{Array.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} arr{irProgram.ExpressionDepth} = ");
-                IRValue.EmitMemorySafe(Array, irProgram, emitter, typeargs);
-                emitter.Append($"; long ind{irProgram.ExpressionDepth} = ");
-
-                if (irProgram.DoBoundsChecking)
-                    ArrayType.EmitBoundsCheckedIndex(irProgram, emitter, typeargs, Array, Index, ErrorReportedElement);
-                else
-                    IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
-
-                emitter.Append(';');
-                BufferedEmitter valueBuilder = new();
-                if (Value.RequiresDisposal(typeargs, false))
-                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer, false);
-                else
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), arrayResponsibleDestroyer);
-
-                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, Array.Type is ArrayType ? $"arr{irProgram.ExpressionDepth}.buffer[ind{irProgram.ExpressionDepth}]" : $"arr{irProgram.ExpressionDepth}[ind{irProgram.ExpressionDepth}]", valueBuilder.ToString(), arrayResponsibleDestroyer);
-                emitter.Append(";})");
-
-                irProgram.ExpressionDepth--;
+                int indirection = primaryEmitter.AppendStartBlock();
+                primaryEmitter.AppendLine($"{Array.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} arr{indirection}; {Index.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} ind{indirection}; {Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} value{indirection};");
+                Array.Emit(irProgram, primaryEmitter, typeargs, (arrayPromise) =>
+                {
+                    primaryEmitter.Append($"arr{indirection} = ");
+                    arrayPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+                Index.Emit(irProgram, primaryEmitter, typeargs, (indexPromise) =>
+                {
+                    primaryEmitter.Append($"ind{indirection} = ");
+                    if (irProgram.DoBoundsChecking)
+                    {
+                        primaryEmitter.Append("nhp_bounds_check(");
+                        indexPromise(primaryEmitter);
+                        primaryEmitter.Append(", ");
+                        if (Array.Type is MemorySpan memorySpan)
+                            primaryEmitter.Append(memorySpan.Length.ToString());
+                        else
+                            primaryEmitter.Append($"arr{indirection}.length");
+                        primaryEmitter.Append(')');
+                    }
+                    else
+                        indexPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+                Value.Emit(irProgram, primaryEmitter, typeargs, (valuePromise) =>
+                {
+                    primaryEmitter.Append($"value{indirection} = ");
+                    if (Value.RequiresDisposal(irProgram, typeargs, false))
+                        valuePromise(primaryEmitter);
+                    else
+                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, arrayResponsibleDestroyer);
+                    primaryEmitter.AppendLine(';');
+                }, arrayResponsibleDestroyer, false);
+                Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (oldValEmitter) =>
+                {
+                    oldValEmitter.Append($"arr{indirection}");
+                    if (Array.Type is ArrayType)
+                        oldValEmitter.Append(".buffer");
+                    oldValEmitter.Append($"[ind{indirection}]");
+                }, arrayResponsibleDestroyer);
+                destination((emitter) =>
+                {
+                    emitter.Append($"arr{indirection}");
+                    if (Array.Type is ArrayType)
+                        emitter.Append(".buffer");
+                    emitter.Append($"[ind{indirection}] = value{indirection}");
+                });
+                primaryEmitter.AppendEndBlock();
             }
             else
-            {
-                BufferedEmitter destBuilder = new();
-                IRValue.EmitMemorySafe(Array, irProgram, destBuilder, typeargs);
-
-                if (Array.Type is ArrayType)
-                    destBuilder.Append(".buffer");
-                destBuilder.Append('[');
-                if (irProgram.DoBoundsChecking)
-                    ArrayType.EmitBoundsCheckedIndex(irProgram, destBuilder, typeargs, Array, Index, ErrorReportedElement);
-                else
-                    IRValue.EmitMemorySafe(Index, irProgram, destBuilder, typeargs);
-                destBuilder.Append(']');
-
-                BufferedEmitter valueBuilder = new();
-                if (Value.RequiresDisposal(typeargs, false))
-                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer, false);
-                else
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), arrayResponsibleDestroyer);
-
-                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, destBuilder.ToString(), valueBuilder.ToString(), arrayResponsibleDestroyer);
-            }
+                destination((emitter) =>
+                {
+                    emitter.Append('(');
+                    IRValue.EmitDirect(irProgram, emitter, Array, typeargs, Emitter.NullPromise, true);
+                    if (Array.Type is ArrayType)
+                        emitter.Append(".buffer");
+                    emitter.Append('[');
+                    if (irProgram.DoBoundsChecking)
+                    {
+                        emitter.Append("nhp_bounds_check(");
+                        IRValue.EmitDirect(irProgram, emitter, Index, typeargs, Emitter.NullPromise, true);
+                        emitter.Append(", ");
+                        if (Array.Type is MemorySpan memorySpan)
+                            emitter.Append(memorySpan.Length.ToString());
+                        else
+                        {
+                            Debug.Assert(!Array.GetPostEvalPure().RequiresDisposal(irProgram, typeargs, true));
+                            IRValue.EmitDirect(irProgram, emitter, Array.GetPostEvalPure(), typeargs, Emitter.NullPromise, true);
+                            emitter.Append(".length");
+                        }
+                        emitter.Append(')');
+                    }
+                    else
+                        IRValue.EmitDirect(irProgram, emitter, Index, typeargs, Emitter.NullPromise, true);
+                    emitter.Append("] = ");
+                    IRValue.EmitDirect(irProgram, emitter, Value, typeargs, arrayResponsibleDestroyer, false);
+                    emitter.Append(')');
+                });
         }
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
-        {
-            CodeBlock.CIndent(emitter, indent);
-
-            string arrayResponsibleDestroyer = ArrayType.GetResponsibleDestroyer(irProgram, typeargs, Array);
-            if (!IRValue.EvaluationOrderGuarenteed(Array, Index, Value))
-            {
-                emitter.AppendLine("{");
-
-                CodeBlock.CIndent(emitter, indent + 1);
-                emitter.Append($"{Array.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} arr = ");
-                IRValue.EmitMemorySafe(Array, irProgram, emitter, typeargs);
-                emitter.AppendLine(";");
-
-                CodeBlock.CIndent(emitter, indent + 1);
-                emitter.Append("long ind = ");
-                if (irProgram.DoBoundsChecking)
-                    ArrayType.EmitBoundsCheckedIndex(irProgram, emitter, typeargs, Array, Index, ErrorReportedElement);
-                else
-                    IRValue.EmitMemorySafe(Index, irProgram, emitter, typeargs);
-                emitter.AppendLine(";");
-
-                BufferedEmitter valueBuilder = new();
-                if (Value.RequiresDisposal(typeargs, false))
-                    Value.Emit(irProgram, valueBuilder, typeargs, arrayResponsibleDestroyer, false);
-                else
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, valueBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), arrayResponsibleDestroyer);
-
-                CodeBlock.CIndent(emitter, indent + 1);
-                Value.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, "arr.buffer[ind]", valueBuilder.ToString(), arrayResponsibleDestroyer);
-                emitter.AppendLine(";");
-                CodeBlock.CIndent(emitter, indent);
-                emitter.AppendLine("}");
-            }
-            else
-            {
-                Emit(irProgram, emitter, typeargs, "NULL", false);
-                emitter.AppendLine(";");
-            }
-        }
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
     }
 
     partial class GetPropertyValue
@@ -320,23 +360,43 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Record.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Property.RequiresDisposal(typeargs);
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Property.RequiresDisposal(typeargs);
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Record.MustUseDestinationPromise(irProgram, typeargs, true) || Record.RequiresDisposal(irProgram, typeargs, true);
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            if (Record.Type.SubstituteWithTypearg(typeargs) is IPropertyContainer propertyContainer)
+            IPropertyContainer propertyContainer = (IPropertyContainer)Record.Type.SubstituteWithTypearg(typeargs);
+
+            if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
-                if(Refinements.HasValue && Refinements.Value.Item2 != null)
+                int indirection = primaryEmitter.AppendStartBlock();
+                primaryEmitter.AppendLine($"{Record.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} record{indirection};");
+                Record.Emit(irProgram, primaryEmitter, typeargs, (recordPromise) =>
                 {
-                    BufferedEmitter propertyGet = new();
-                    Property.EmitGet(irProgram, propertyGet, typeargs, propertyContainer, BufferedEmitter.EmittedBufferedMemorySafe(Record, irProgram, typeargs), responsibleDestroyer);
-                    Refinements.Value.Item2(irProgram, emitter, propertyGet.ToString(), typeargs);
-                }
+                    primaryEmitter.Append($"record{indirection} = ");
+                    recordPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+
+                Emitter.Promise finalEmit = (emitter) => Property.EmitGet(irProgram, emitter, typeargs, propertyContainer, (valueEmitter) => valueEmitter.Append($"record{indirection}"), responsibleDestroyer);
+                if (Refinements.HasValue && Refinements.Value.Item2 != null)
+                    destination((emitter) => Refinements.Value.Item2(irProgram, emitter, finalEmit, typeargs));
                 else
-                    Property.EmitGet(irProgram, emitter, typeargs, propertyContainer, BufferedEmitter.EmittedBufferedMemorySafe(Record, irProgram, typeargs), responsibleDestroyer);
+                    destination(finalEmit);
+
+                if (Record.RequiresDisposal(irProgram, typeargs, true))
+                    Record.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (valueEmitter) => valueEmitter.Append($"record{indirection}"), Emitter.NullPromise);
+                primaryEmitter.AppendEndBlock();
             }
             else
-                throw new UnexpectedTypeException(Record.Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+            {
+                Emitter.Promise finalEmit = (emitter) => Property.EmitGet(irProgram, emitter, typeargs, propertyContainer, IRValue.EmitDirectPromise(irProgram, Record, typeargs, Emitter.NullPromise, true), responsibleDestroyer);
+                if (Refinements.HasValue && Refinements.Value.Item2 != null)
+                    destination((emitter) => Refinements.Value.Item2(irProgram, emitter, finalEmit, typeargs));
+                else
+                    destination(finalEmit);
+            }
         }
     }
 
@@ -349,136 +409,53 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Record.MustUseDestinationPromise(irProgram, typeargs, true) || Value.MustUseDestinationPromise(irProgram, typeargs, false) || !IRValue.EvaluationOrderGuarenteed(Record, Value) || !IRValue.HasPostEvalPure(Record) || (Value.Type.SubstituteWithTypearg(typeargs).RequiresDisposal && !IsInitializingProperty);
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            if (!IRValue.EvaluationOrderGuarenteed(Record, Value))
+            if (Record.RequiresDisposal(irProgram, typeargs, true))
+                throw new CannotEmitDestructorError(Record);
+
+            if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
-                irProgram.ExpressionDepth++;
-
-                emitter.Append($"({{{Record.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} record{irProgram.ExpressionDepth} = ");
-                IRValue.EmitMemorySafe(Record, irProgram, emitter, typeargs);
-                emitter.Append($"; {Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} value{irProgram.ExpressionDepth} = ");
-
-                if (Value.RequiresDisposal(typeargs, false))
-                    Value.Emit(irProgram, emitter, typeargs, $"record{irProgram.ExpressionDepth}", false);
-                else
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), $"record{irProgram.ExpressionDepth}");
-
-                emitter.Append(';');
-                if (IsInitializingProperty)
-                    emitter.Append($"(record{irProgram.ExpressionDepth}->{Property.Name} = value{irProgram.ExpressionDepth});}})");
-                else
+                int indirection = primaryEmitter.AppendStartBlock();
+                primaryEmitter.AppendLine($"{Record.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} record{indirection}; {Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} value{indirection};");
+                Record.Emit(irProgram, primaryEmitter, typeargs, (recordPromise) =>
                 {
-                    Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"record{irProgram.ExpressionDepth}->{Property.Name}", $"value{irProgram.ExpressionDepth}", $"record{irProgram.ExpressionDepth}");
-                    emitter.Append(";})");
-                }
+                    primaryEmitter.Append($"record{indirection} = ");
+                    recordPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+                Emitter.Promise recordResponsibleDestroyer = (emitter) => emitter.Append($"record{indirection}");
+                Value.Emit(irProgram, primaryEmitter, typeargs, (valuePromise) =>
+                {
+                    primaryEmitter.Append($"value{indirection} = ");
+                    if (Value.RequiresDisposal(irProgram, typeargs, false))
+                        valuePromise(primaryEmitter);
+                    else
+                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, recordResponsibleDestroyer);
+                    primaryEmitter.AppendLine(';');
+                }, recordResponsibleDestroyer, false);
+
+                if(!IsInitializingProperty)
+                    Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"record{indirection}->{Property.Name}"), recordResponsibleDestroyer);
                 
-                irProgram.ExpressionDepth--;
+                destination((emitter) => emitter.Append($"record{indirection}->{Property.Name} = value{indirection}"));
+                primaryEmitter.AppendEndBlock();
             }
             else
-            {
-                string recordCSource = BufferedEmitter.EmittedBufferedMemorySafe(Record, irProgram, typeargs);
-                string recordResponsibleDestroyer = BufferedEmitter.EmittedBufferedMemorySafe(Record.GetPostEvalPure(), irProgram, typeargs);
-
-                if (IsInitializingProperty)
+                destination((emitter) =>
                 {
-                    emitter.Append($"({recordCSource}->{Property.Name} = ");
-                    if (Value.RequiresDisposal(typeargs, false))
-                        Value.Emit(irProgram, emitter, typeargs, recordResponsibleDestroyer, false);
-                    else
-                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), recordResponsibleDestroyer.ToString());
+                    emitter.Append('(');
+                    IRValue.EmitDirect(irProgram, emitter, Record, typeargs, Emitter.NullPromise, isTemporaryEval);
+                    emitter.Append($"->{Property.Name} = ");
+                    IRValue.EmitDirect(irProgram, emitter, Value, typeargs, IRValue.EmitDirectPromise(irProgram, Record.GetPostEvalPure(), typeargs, Emitter.NullPromise, true), false);
                     emitter.Append(')');
-                }
-                else
-                {
-                    BufferedEmitter toCopyBuilder = new();
-                    if (Value.RequiresDisposal(typeargs, false))
-                        Value.Emit(irProgram, toCopyBuilder, typeargs, recordResponsibleDestroyer.ToString(), false);
-                    else
-                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, toCopyBuilder, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), recordResponsibleDestroyer.ToString());
-                    Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"{recordCSource}->{Property.Name}", toCopyBuilder.ToString(), recordCSource);
-                }
-            }
+                });
         }
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
-        {
-            CodeBlock.CIndent(emitter, indent);
-            if (!IRValue.EvaluationOrderGuarenteed(Record, Value))
-            {
-                emitter.AppendLine("{");
-
-                CodeBlock.CIndent(emitter, indent + 1);
-                emitter.Append($"{Record.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} record = ");
-                IRValue.EmitMemorySafe(Record, irProgram, emitter, typeargs);
-                emitter.AppendLine(";");
-
-                CodeBlock.CIndent(emitter, indent + 1);
-                emitter.Append($"{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} value = ");
-                if (Value.RequiresDisposal(typeargs, false))
-                    Value.Emit(irProgram, emitter, typeargs, "record", false);
-                else
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), "record");
-                emitter.AppendLine(";");
-
-                CodeBlock.CIndent(emitter, indent + 1);
-                if (IsInitializingProperty)
-                    emitter.AppendLine($"record->{Property.Name} = value;");
-                else
-                {
-                    Property.Type.SubstituteWithTypearg(typeargs).EmitMoveValue(irProgram, emitter, $"record->{Property.Name}", "value", "record");
-                    emitter.AppendLine(";");
-                }
-                CodeBlock.CIndent(emitter, indent);
-                emitter.AppendLine("}");
-            }
-            else
-            {
-                Emit(irProgram, emitter, typeargs, "NULL", false);
-                emitter.AppendLine(";");
-            }
-        }
-    }
-}
-
-namespace NoHoPython.Typing
-{
-    partial class ArrayType
-    {
-        public static void EmitBoundsCheckedIndex(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IRValue array, IRValue index, Syntax.IAstElement errorReportedElement)
-        {
-            emitter.Append("nhp_bounds_check(");
-            IRValue.EmitMemorySafe(index, irProgram, emitter, typeargs);
-            emitter.Append(", ");
-            if (array.Type is ArrayType)
-            {
-                IRValue.EmitMemorySafe(array.GetPostEvalPure(), irProgram, emitter, typeargs);
-                emitter.Append(".length, ");
-            }
-            else
-            {
-                MemorySpan memorySpan = (MemorySpan)array.Type;
-                emitter.Append($"{memorySpan.Length}, ");
-            }
-            CharacterLiteral.EmitCString(emitter, errorReportedElement.SourceLocation.ToString(), false, true);
-            emitter.Append(", ");
-            errorReportedElement.EmitSrcAsCString(emitter);
-            emitter.Append(')');
-        }
-
-        public static string GetResponsibleDestroyer(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, IRValue array)
-        {
-            IRValue? responsibleDestroyer = array.GetResponsibleDestroyer();
-            if (responsibleDestroyer == null)
-                return "NULL";
-            else
-            {
-                BufferedEmitter bufferedEmitter = new();
-                responsibleDestroyer.Emit(irProgram, bufferedEmitter, typeargs, "NULL", false);
-                return bufferedEmitter.ToString();
-            }
-        }
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
     }
 }

@@ -74,7 +74,7 @@ namespace NoHoPython.Syntax
             typeDependencyTree.Add(type, dependencySet);
         }
 
-        public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, bool mainEntryPoint, MemoryAnalyzer memoryAnalyzer)
+        public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, bool mainEntryPoint, MemoryAnalyzer memoryAnalyzer)
         {
             List<ProcedureDeclaration> compileHeads = new();
             foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
@@ -90,7 +90,7 @@ namespace NoHoPython.Syntax
                 procedureDeclaration.ScopeAsCompileHead(this);
             ScopeForAllSecondaryProcedures();
 
-            return new(doBoundsChecking, eliminateAsserts, emitExpressionStatements, doCallStack, nameRuntimeTypes, emitLineDirectives,
+            return new(doBoundsChecking, eliminateAsserts, doCallStack, nameRuntimeTypes, emitLineDirectives,
                 RecordDeclarations, InterfaceDeclarations, EnumDeclarations, foreignTypeOverloads.Keys.ToList(), ProcedureDeclarations, new List<string>()
                 {
                     "<stdio.h>",
@@ -115,7 +115,8 @@ namespace NoHoPython.IntermediateRepresentation
 
     public partial interface IRValue : IRElement
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval);
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval);
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval);
 
         public IType Type { get; }
         public bool IsTruey { get; }
@@ -125,13 +126,13 @@ namespace NoHoPython.IntermediateRepresentation
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
 
         //emit corresponding C code
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval);
     }
 
     public partial interface IRStatement : IRElement
     {
         //emit corresponding C code
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs);
     }
 
     public sealed partial class IRProgram
@@ -146,7 +147,6 @@ namespace NoHoPython.IntermediateRepresentation
 
         public bool DoBoundsChecking { get; private set; }
         public bool EliminateAsserts { get; private set; }
-        public bool EmitExpressionStatements { get; private set; }
         public bool DoCallStack { get; private set; }
         public bool NameRuntimeTypes { get; private set; }
         public bool EmitLineDirectives { get;private set; } 
@@ -156,13 +156,10 @@ namespace NoHoPython.IntermediateRepresentation
 
         public MemoryAnalyzer MemoryAnalyzer { get; private set; }
 
-        public int ExpressionDepth;
-
-        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ForeignCDeclaration> foreignCDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<TupleType> usedTupleTypes, List<IType> bufferTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<ForeignCDeclaration, List<ForeignCType>> foreignTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
+        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ForeignCDeclaration> foreignCDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<TupleType> usedTupleTypes, List<IType> bufferTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<ForeignCDeclaration, List<ForeignCType>> foreignTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
         {
             DoBoundsChecking = doBoundsChecking;
             EliminateAsserts = eliminateAsserts;
-            EmitExpressionStatements = emitExpressionStatements;
             DoCallStack = doCallStack;
             NameRuntimeTypes = nameRuntimeTypes;
             EmitLineDirectives = emitLineDirectives;
@@ -213,7 +210,7 @@ namespace NoHoPython.IntermediateRepresentation
                 IncludedCFiles.Add(toInclude.Item1, toInclude.Item2);
         }
 
-        public bool DeclareCompiledType(StatementEmitter emitter, IType type)
+        public bool DeclareCompiledType(Emitter emitter, IType type)
         {
             if (!type.IsTypeDependency)
                 return true;
@@ -224,7 +221,7 @@ namespace NoHoPython.IntermediateRepresentation
             return true;
         }
 
-        public void CompileUncompiledDependencies(StatementEmitter emitter, IType type)
+        public void CompileUncompiledDependencies(Emitter emitter, IType type)
         {
             if (!type.IsTypeDependency)
                 return;
@@ -238,11 +235,9 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void Emit(string outputFile, string? headerFile)
         {
-            using(StatementEmitter emitter = new(outputFile, this))
-            using(StatementEmitter headerEmitter = (headerFile == null) ? emitter : new StatementEmitter(headerFile, this))
+            using(Emitter emitter = new(outputFile, EmitLineDirectives))
+            using(Emitter headerEmitter = (headerFile == null) ? emitter : new Emitter(headerFile, false))
             {
-                ExpressionDepth = 0;
-
                 if (headerEmitter != emitter)
                 {
                     headerEmitter.AppendLine("#ifndef _NHP_HEADER_GUARD_");
@@ -255,9 +250,9 @@ namespace NoHoPython.IntermediateRepresentation
                             emitter.AppendLine($"#define {preincludeDefinition}");
 
                     if (includedCFile.Key.StartsWith('<'))
-                        emitter.AppendLine($"#include {includedCFile}");
+                        emitter.AppendLine($"#include {includedCFile.Key}");
                     else
-                        emitter.AppendLine($"#include \"{includedCFile}\"");
+                        emitter.AppendLine($"#include \"{includedCFile.Key}\"");
                 }
                 emitter.AppendLine();
 
@@ -279,8 +274,6 @@ namespace NoHoPython.IntermediateRepresentation
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclareType(this, headerEmitter));
                 RecordDeclarations.ForEach((record) => record.ForwardDeclareType(this, headerEmitter));
                 ForeignCDeclarations.ForEach((foreign) => foreign.ForwardDeclareType(this, headerEmitter));
-                
-                ForwardDeclareAnonProcedureTypes(this, headerEmitter);
 
                 //emit function headers
                 ForwardDeclareArrayTypes(headerEmitter);
@@ -307,14 +300,13 @@ namespace NoHoPython.IntermediateRepresentation
                 //emit function behavior
                 EmitAnonProcedureCapturedContecies(emitter);
                 EmitBufferCopiers(emitter);
-                EmitArrayTypeMarshallers(emitter, DoCallStack);
+                EmitArrayTypeMarshallers(emitter);
                 EmitTupleTypeMarshallers(emitter);
-                EmitAnonProcedureMovers(this, emitter);
-                EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new(), 0));
-                InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(this, emitter, new(), 0));
-                RecordDeclarations.ForEach((record) => record.Emit(this, emitter, new(), 0));
-                ForeignCDeclarations.ForEach((foreign) => foreign.Emit(this, emitter, new(), 0));
-                ProcedureDeclarations.ForEach((proc) => proc.EmitActual(this, emitter, 0));
+                EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new()));
+                InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(this, emitter, new()));
+                RecordDeclarations.ForEach((record) => record.Emit(this, emitter, new()));
+                ForeignCDeclarations.ForEach((foreign) => foreign.Emit(this, emitter, new()));
+                ProcedureDeclarations.ForEach((proc) => proc.EmitActual(this, emitter));
             }
         }
     }

@@ -18,13 +18,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Left { get; protected set; }
         public IRValue Right { get; protected set; }
 
-        public bool ShortCircuit { get; protected set; }
-
-        public BinaryOperator(IRValue left, IRValue right, bool shortCuircuit, IAstElement errorReportedElement)
+        public BinaryOperator(IRValue left, IRValue right, IAstElement errorReportedElement)
         {
             Left = left;
             Right = right;
-            ShortCircuit = shortCuircuit;
             ErrorReportedElement = errorReportedElement;
         }
     }
@@ -45,7 +42,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public CompareOperation Operation { get; private set; }
 
-        public ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, false, errorReportedElement)
+        public ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
         {
             Operation = operation;
 
@@ -81,7 +78,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public LogicalOperation Operation { get; private set; }
 
-        public LogicalOperator(LogicalOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Boolean), ArithmeticCast.CastTo(right, Primitive.Boolean), true, errorReportedElement)
+        public LogicalOperator(LogicalOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Boolean), ArithmeticCast.CastTo(right, Primitive.Boolean), errorReportedElement)
         {
             Operation = operation;
         }
@@ -102,7 +99,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public BitwiseOperation Operation { get; private set; }
 
-        public BitwiseOperator(BitwiseOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Integer), ArithmeticCast.CastTo(right, Primitive.Integer), false, errorReportedElement)
+        public BitwiseOperator(BitwiseOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Integer), ArithmeticCast.CastTo(right, Primitive.Integer), errorReportedElement)
         {
             Operation = operation;
         }

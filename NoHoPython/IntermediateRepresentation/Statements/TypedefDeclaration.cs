@@ -28,7 +28,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ErrorReportedElement = errorReportedElement;
         }
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<Typing.TypeParameter, IType> typeargs, int indent) { }
+        public void Emit(IRProgram irProgram, Emitter emitter, Dictionary<Typing.TypeParameter, IType> typeargs) { }
 
         public void ScopeForUsedTypes(Dictionary<Typing.TypeParameter, IType> typeargs, AstIRProgramBuilder irBuilder) { }
 

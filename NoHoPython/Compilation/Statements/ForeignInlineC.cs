@@ -29,9 +29,9 @@ namespace NoHoPython.Typing
 {
     partial class ForeignCType
     {
-        public string GetSource(string templateSource, IRProgram irProgram, string? value = null, string? agent = null)
+        public string GetSource(string templateSource, IRProgram irProgram, Emitter.Promise? value = null, Emitter.Promise? agent = null)
         {
-            void replaceFunction(string name, int expectedArgs, Action<IRProgram, IEmitter, string[]> replacer)
+            void replaceFunction(string name, int expectedArgs, Action<IRProgram, Emitter, string[]> replacer)
             {
                 int index;
                 while ((index = templateSource.IndexOf(name)) != -1)
@@ -75,10 +75,11 @@ namespace NoHoPython.Typing
                     if (arguments.Count != expectedArgs)
                         throw new ForeignInlineCError(templateSource, index, $"Got {arguments.Count} arguments, expected {expectedArgs}.", this);
 
-                    BufferedEmitter bufferedEmitter = new();
-                    replacer(irProgram, bufferedEmitter, arguments.ToArray());
-
-                    templateSource = templateSource.Remove(index, i - index).Insert(index, bufferedEmitter.ToString());
+                    using (Emitter emitBuffer = new())
+                    {
+                        replacer(irProgram, emitBuffer, arguments.ToArray());
+                        templateSource = templateSource.Remove(index, i - index).Insert(index, emitBuffer.GetBuffered());
+                    }
                 }
             }
 
@@ -92,16 +93,27 @@ namespace NoHoPython.Typing
 
             for (int i = 0; i < Declaration.TypeParameters.Count; i++)
             {
-                replaceFunction($"##COPY_{Declaration.TypeParameters[i].Name}", 2, (irProgram, emitter, args) => TypeArguments[i].EmitCopyValue(irProgram, emitter, args[0], args[1]));
-                replaceFunction($"##DESTROY_{Declaration.TypeParameters[i].Name}", 2, (irProgram, emitter, args) => TypeArguments[i].EmitFreeValue(irProgram, emitter, args[0], args[1]));
-                replaceFunction($"##MOVE_{Declaration.TypeParameters[i].Name}", 3, (irProgram, emitter, args) => TypeArguments[i].EmitMoveValue(irProgram, emitter, args[0], args[1], args[3]));
-                replaceFunction($"##BORROW_{Declaration.TypeParameters[i].Name}", 2, (irProgram, emitter, args) => TypeArguments[i].EmitClosureBorrowValue(irProgram, emitter, args[0], args[1]));
+                replaceFunction($"##COPY_{Declaration.TypeParameters[i].Name}", 2, (irProgram, emitter, args) => TypeArguments[i].EmitCopyValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])));
+                replaceFunction($"##DESTROY_{Declaration.TypeParameters[i].Name}", 2, (irProgram, emitter, args) => TypeArguments[i].EmitFreeValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])));
+                replaceFunction($"##BORROW_{Declaration.TypeParameters[i].Name}", 2, (irProgram, emitter, args) => TypeArguments[i].EmitClosureBorrowValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])));
             }
 
             if (value != null)
-                templateSource = templateSource.Replace("##VALUE", value);
+            {
+                using(Emitter valueSourceBuffer = new())
+                {
+                    value(valueSourceBuffer);
+                    templateSource = templateSource.Replace($"##VALUE", valueSourceBuffer.GetBuffered());
+                }
+            }
             if (agent != null)
-                templateSource = templateSource.Replace("##AGENT", agent);
+            {
+                using (Emitter agentSourceBuffer = new())
+                {
+                    agent(agentSourceBuffer);
+                    templateSource = templateSource.Replace($"##AGENT", agentSourceBuffer.GetBuffered());
+                }
+            }
 
             return templateSource;
         }

@@ -2,14 +2,12 @@
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
-using System.Diagnostics;
-using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class IfElseValue
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => IfTrueValue.RequiresDisposal(irProgram, typeargs, isTemporaryEval) || IfFalseValue.RequiresDisposal(irProgram, typeargs, isTemporaryEval);
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -27,24 +25,67 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Condition.MustUseDestinationPromise(irProgram, typeargs, true) || IfTrueValue.MustUseDestinationPromise(irProgram, typeargs, false) || IfFalseValue.MustUseDestinationPromise(irProgram, typeargs, false);
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            if (Condition.IsTruey)
-                IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs);
-            else if (Condition.IsFalsey)
-                IRValue.EmitMemorySafe(IfFalseValue, irProgram, emitter, typeargs);
-            else
+            void EmitCorrectCopy(IRValue irValue)
             {
-                emitter.Append('(');
-                emitter.Append('(');
-                IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
-                emitter.Append(") ? (");
-                IRValue.EmitMemorySafe(IfTrueValue, irProgram, emitter, typeargs);
-                emitter.Append(") : (");
-                IRValue.EmitMemorySafe(IfFalseValue, irProgram, emitter, typeargs);
-                emitter.Append(')');
-                emitter.Append(')');
+                if (RequiresDisposal(irProgram, typeargs, isTemporaryEval) && !irValue.RequiresDisposal(irProgram, typeargs, false))
+                    irValue.Emit(irProgram, primaryEmitter, typeargs, (promise) => destination((emitter) => irValue.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, promise, responsibleDestroyer)), responsibleDestroyer, false);
+                else
+                    irValue.Emit(irProgram, primaryEmitter, typeargs, destination, responsibleDestroyer, false);
             }
+
+            if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
+            {
+                int indirection = primaryEmitter.AppendStartBlock();
+
+                if ((Condition.IsTruey || Condition.IsFalsey) && !Condition.IsPure)
+                    IRValue.EmitAsStatement(irProgram, primaryEmitter, Condition, typeargs);
+
+                if (Condition.IsTruey)
+                    EmitCorrectCopy(IfTrueValue);
+                else if (Condition.IsFalsey)
+                    EmitCorrectCopy(IfFalseValue);
+                else
+                {
+                    if (Condition.MustUseDestinationPromise(irProgram, typeargs, true))
+                    {
+                        primaryEmitter.AppendLine($"int cond{indirection};");
+                        Condition.Emit(irProgram, primaryEmitter, typeargs, (condPromise) =>
+                        {
+                            primaryEmitter.Append($"cond{indirection} = ");
+                            condPromise(primaryEmitter);
+                            primaryEmitter.AppendLine(';');
+                        }, Emitter.NullPromise, true);
+                        primaryEmitter.AppendStartBlock($"if(cond{indirection})");
+                    }
+                    else
+                    {
+                        primaryEmitter.Append("if(");
+                        IRValue.EmitDirect(irProgram, primaryEmitter, Condition, typeargs, Emitter.NullPromise, true);
+                        primaryEmitter.AppendStartBlock(")");
+                    }
+                    EmitCorrectCopy(IfTrueValue);
+                    primaryEmitter.AppendEndBlock();
+                    primaryEmitter.AppendStartBlock("else");
+                    EmitCorrectCopy(IfFalseValue);
+                    primaryEmitter.AppendEndBlock();
+                }
+                primaryEmitter.AppendEndBlock();
+            }
+            else
+                destination((emitter) =>
+                {
+                    emitter.Append("((");
+                    IRValue.EmitDirect(irProgram, emitter, Condition, typeargs, Emitter.NullPromise, true);
+                    emitter.Append(") ? (");
+                    EmitCorrectCopy(IfTrueValue);
+                    emitter.Append(") : (");
+                    EmitCorrectCopy(IfFalseValue);
+                    emitter.Append("))");
+                });
         }
     }
 }
@@ -53,12 +94,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     partial class CodeBlock
     {
-        public static void CIndent(StatementEmitter emitter, int indent)
-        {
-            Debug.Assert(indent >= 0);
-            emitter.Append(new string('\t', indent));
-        }
-
         public virtual void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
             if (Statements == null)
@@ -67,58 +102,53 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements.ForEach((statement) => statement.ScopeForUsedTypes(typeargs, irBuilder));
         }
 
-        public void EmitInitialize(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void EmitInitialize(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
 
             foreach (VariableDeclaration declaration in DeclaredVariables)
-                declaration.EmitCDecl(irProgram, emitter, typeargs, indent);
+                declaration.EmitCDecl(irProgram, emitter, typeargs);
         }
 
-        public void EmitNoOpen(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent, bool insertFinalBreak)
+        public void EmitNoOpen(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, bool insertFinalBreak)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
 
             Statements.ForEach((statement) => {
                 emitter.LastSourceLocation = statement.ErrorReportedElement.SourceLocation;
-                statement.Emit(irProgram, emitter, typeargs, indent + 1);
+                statement.Emit(irProgram, emitter, typeargs);
             });
 
             emitter.LastSourceLocation = BlockBeginLocation;
             if (!CodeBlockAllCodePathsReturn())
             {
                 foreach (Variable declaration in LocalVariables)
-                    declaration.EmitCFree(irProgram, emitter, typeargs, indent);
+                    declaration.EmitCFree(irProgram, emitter, typeargs);
                 
                 if (insertFinalBreak)
                 {
                     if (BreakLabelId != null)
                         throw new InvalidOperationException();
 
-                    CIndent(emitter, indent + 1);
                     emitter.AppendLine("break;");
                 }
             }
-            CIndent(emitter, indent);
-            emitter.AppendLine("}");
+            emitter.AppendEndBlock();
 
             if (BreakLabelId != null)
-            {
-                CIndent(emitter, indent);
                 emitter.AppendLine($"loopbreaklabel{BreakLabelId.Value}:");
-            }
         }
 
-        public virtual void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public virtual void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
             if (Statements == null)
                 throw new InvalidOperationException();
 
-            emitter.AppendLine(" {");
-            EmitInitialize(irProgram, emitter, typeargs, indent);
-            EmitNoOpen(irProgram, emitter, typeargs, indent, false);
+            primaryEmitter.AppendStartBlock();
+            EmitInitialize(irProgram, primaryEmitter, typeargs);
+            EmitNoOpen(irProgram, primaryEmitter, typeargs, false);
         }
     }
 
@@ -138,29 +168,39 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            if (Condition.IsTruey && Condition.IsPure)
+            if ((Condition.IsTruey || Condition.IsFalsey) && !Condition.IsPure)
+                IRValue.EmitAsStatement(irProgram, primaryEmitter, Condition, typeargs);
+
+            if (Condition.IsTruey)
+                IfTrueBlock.Emit(irProgram, primaryEmitter, typeargs);
+            else if (Condition.IsFalsey)
+                IfFalseBlock.Emit(irProgram, primaryEmitter, typeargs);
+            else if(Condition.MustUseDestinationPromise(irProgram, typeargs, true))
             {
-                CodeBlock.CIndent(emitter, indent);
-                IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
-            }
-            else if (Condition.IsFalsey && Condition.IsPure)
-            {
-                CodeBlock.CIndent(emitter, indent);
-                IfFalseBlock.Emit(irProgram, emitter, typeargs, indent);
+                int indirection = primaryEmitter.AppendStartBlock();
+                primaryEmitter.AppendLine($"int cond{indirection} = ");
+                Condition.Emit(irProgram, primaryEmitter, typeargs, (conditionPromise) =>
+                {
+                    primaryEmitter.Append($"cond{indirection} = ");
+                    conditionPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+                primaryEmitter.Append($"if(cond{indirection})");
+                IfTrueBlock.Emit(irProgram, primaryEmitter, typeargs);
+                primaryEmitter.Append("else");
+                IfFalseBlock.Emit(irProgram, primaryEmitter, typeargs);
+                primaryEmitter.AppendEndBlock();
             }
             else
             {
-                CodeBlock.CIndent(emitter, indent);
-                emitter.Append("if(");
-                IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
-                emitter.Append(')');
-                IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
-
-                CodeBlock.CIndent(emitter, indent);
-                emitter.Append("else");
-                IfFalseBlock.Emit(irProgram, emitter, typeargs, indent);
+                primaryEmitter.Append("if(");
+                IRValue.EmitDirect(irProgram, primaryEmitter, Condition, typeargs, Emitter.NullPromise, true);
+                primaryEmitter.Append(')');
+                IfTrueBlock.Emit(irProgram, primaryEmitter, typeargs);
+                primaryEmitter.Append("else");
+                IfFalseBlock.Emit(irProgram, primaryEmitter, typeargs);
             }
         }
     }
@@ -180,23 +220,35 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            if (Condition.IsFalsey && Condition.IsPure)
-                return;
+            if ((Condition.IsTruey || Condition.IsFalsey) && !Condition.IsPure)
+                IRValue.EmitAsStatement(irProgram, primaryEmitter, Condition, typeargs);
 
-            if (Condition.IsTruey && Condition.IsPure)
+            if (Condition.IsTruey)
+                IfTrueBlock.Emit(irProgram, primaryEmitter, typeargs);
+            else if (Condition.IsFalsey)
+                return;
+            else if (Condition.MustUseDestinationPromise(irProgram, typeargs, true))
             {
-                CodeBlock.CIndent(emitter, indent);
-                IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
+                int indirection = primaryEmitter.AppendStartBlock();
+                primaryEmitter.AppendLine($"int cond{indirection} = ");
+                Condition.Emit(irProgram, primaryEmitter, typeargs, (conditionPromise) =>
+                {
+                    primaryEmitter.Append($"cond{indirection} = ");
+                    conditionPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+                primaryEmitter.Append($"if(cond{indirection})");
+                IfTrueBlock.Emit(irProgram, primaryEmitter, typeargs);
+                primaryEmitter.AppendEndBlock();
             }
             else
             {
-                CodeBlock.CIndent(emitter, indent);
-                emitter.Append("if(");
-                IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
-                emitter.Append(')');
-                IfTrueBlock.Emit(irProgram, emitter, typeargs, indent);
+                primaryEmitter.Append("if(");
+                IRValue.EmitDirect(irProgram, primaryEmitter, Condition, typeargs, Emitter.NullPromise, true);
+                primaryEmitter.Append(')');
+                IfTrueBlock.Emit(irProgram, primaryEmitter, typeargs);
             }
         }
     }
@@ -217,21 +269,44 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            if (Condition.IsFalsey && Condition.IsPure)
+            if(Condition.IsFalsey)
+            {
+                if(!Condition.IsPure)
+                    IRValue.EmitAsStatement(irProgram, primaryEmitter, Condition, typeargs);
+                
                 return;
+            }
 
-            CodeBlock.CIndent(emitter, indent);
-            if (Condition.IsTruey && Condition.IsPure)
-                emitter.Append("for(;;)");
+            int indirection; 
+            if (Condition.IsTruey || Condition.MustUseDestinationPromise(irProgram, typeargs, true))
+                indirection = primaryEmitter.AppendStartBlock("for(;;)");
             else
             {
-                emitter.Append("while(");
-                IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
-                emitter.Append(')');
+                primaryEmitter.Append("while(");
+                IRValue.EmitDirect(irProgram, primaryEmitter, Condition, typeargs, Emitter.NullPromise, true);
+                indirection = primaryEmitter.AppendStartBlock(")");
             }
-            WhileTrueBlock.Emit(irProgram, emitter, typeargs, indent);
+
+            if (Condition.IsTruey && !Condition.IsPure)
+                IRValue.EmitAsStatement(irProgram, primaryEmitter, Condition, typeargs);
+            else if (Condition.MustUseDestinationPromise(irProgram, typeargs, true))
+            {
+                primaryEmitter.AppendLine($"int cond{indirection};");
+                Condition.Emit(irProgram, primaryEmitter, typeargs, (conditionPromise) =>
+                {
+                    primaryEmitter.Append($"cond{indirection} = ");
+                    conditionPromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+
+                if (!Condition.IsTruey)
+                    primaryEmitter.AppendLine($"if(!cond{indirection}) {{ break; }}");
+            }
+
+            WhileTrueBlock.Emit(irProgram, primaryEmitter, typeargs);
+            primaryEmitter.AppendEndBlock();
         }
     }
 
@@ -244,23 +319,21 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             IterationBlock.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            CodeBlock.CIndent(emitter, indent);
-            emitter.AppendLine("{");
-            IterationBlock.EmitInitialize(irProgram, emitter, typeargs, indent);
-            IteratorVariableDeclaration.Emit(irProgram, emitter, typeargs, indent + 1);
-
-            CodeBlock.CIndent(emitter, indent + 1);
-            emitter.Append($"long nhp_upper_{IteratorVariableDeclaration.Variable.Name} = ");
-            UpperBound.Emit(irProgram, emitter, typeargs, "NULL", true);
-            emitter.AppendLine(";");
-            
-            CodeBlock.CIndent(emitter, indent + 1);
-            emitter.AppendLine($"while((++{IteratorVariableDeclaration.Variable.GetStandardIdentifier()}) <= nhp_upper_{IteratorVariableDeclaration.Variable.Name}) {{");
-            IterationBlock.EmitNoOpen(irProgram, emitter, typeargs, indent + 1, false);
-            CodeBlock.CIndent(emitter, indent);
-            emitter.AppendLine("}");
+            int indirection = primaryEmitter.AppendStartBlock();
+            IterationBlock.EmitInitialize(irProgram, primaryEmitter, typeargs);
+            IteratorVariableDeclaration.Emit(irProgram, primaryEmitter, typeargs);
+            primaryEmitter.AppendLine($"{UpperBound.Type.GetCName(irProgram)} upper_{indirection};");
+            UpperBound.Emit(irProgram, primaryEmitter, typeargs, (upperPromise) =>
+            {
+                primaryEmitter.Append($"upper_{indirection} = ");
+                upperPromise(primaryEmitter);
+                primaryEmitter.AppendLine(';');
+            }, Emitter.NullPromise, true);
+            primaryEmitter.AppendStartBlock($"while((++{IteratorVariableDeclaration.Variable.GetStandardIdentifier()}) <= upper_{indirection})");
+            IterationBlock.EmitNoOpen(irProgram, primaryEmitter, typeargs, false);
+            primaryEmitter.AppendEndBlock();
         }
     }
 
@@ -276,54 +349,69 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 DefaultHandler.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
             EnumType enumType = (EnumType)MatchValue.Type.SubstituteWithTypearg(typeargs);
 
-            CodeBlock.CIndent(emitter, indent);
-            emitter.Append("switch(");
-            IRValue.EmitMemorySafe(MatchValue, irProgram, emitter, typeargs);
-
-            if (enumType.EnumDeclaration.IsEmpty)
-                emitter.AppendLine(") {");
+            bool bufferedMatchVal = MatchValue.MustUseDestinationPromise(irProgram, typeargs, true) || MatchValue.RequiresDisposal(irProgram, typeargs, true) || !MatchValue.IsPure;
+            int indirection = -1;
+            if (bufferedMatchVal)
+            {
+                indirection = primaryEmitter.AppendStartBlock();
+                primaryEmitter.AppendLine($"{enumType.GetCName(irProgram)} matchVal{indirection};");
+                MatchValue.Emit(irProgram, primaryEmitter, typeargs, (matchValuePromise) =>
+                {
+                    primaryEmitter.Append($"matchVal{indirection} = ");
+                    matchValuePromise(primaryEmitter);
+                    primaryEmitter.AppendLine(';');
+                }, Emitter.NullPromise, true);
+                primaryEmitter.AppendLine($"switch(matchVal{indirection}.option) {{");
+            }
             else
-                emitter.AppendLine(".option) {");
+            {
+                primaryEmitter.Append("switch(");
+                IRValue.EmitDirect(irProgram, primaryEmitter, MatchValue, typeargs, Emitter.NullPromise, true);
+                primaryEmitter.AppendLine(".option) {");
+            }
 
-            foreach(MatchHandler handler in MatchHandlers)
+            foreach (MatchHandler handler in MatchHandlers)
             {
                 List<IType> currentOptions = handler.MatchTypes.ConvertAll((type) => type.SubstituteWithTypearg(typeargs));
 
-                CodeBlock.CIndent(emitter, indent);
+                foreach (IType option in currentOptions)
+                    primaryEmitter.AppendStartBlock($"case {enumType.GetCEnumOptionForType(irProgram, option)}:");
 
-                foreach(IType option in currentOptions)
-                    emitter.AppendLine($"case {enumType.GetCEnumOptionForType(irProgram, option)}: {{");
-                
                 if (handler.MatchedVariable != null)
                 {
-                    CodeBlock.CIndent(emitter, indent + 1);
-                    emitter.Append($"{currentOptions[0].GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier()} = ");
-
-                    BufferedEmitter matchedOptionValue = new();
-                    IRValue.EmitMemorySafe(MatchValue.GetPostEvalPure(), irProgram, matchedOptionValue, typeargs);
-                    matchedOptionValue.Append($".data.{currentOptions[0].GetStandardIdentifier(irProgram)}_set");
-
-                    currentOptions[0].EmitCopyValue(irProgram, emitter, matchedOptionValue.ToString(), "NULL");
-                    emitter.AppendLine(";");
+                    primaryEmitter.Append($"{currentOptions[0].GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier()} = ");
+                    currentOptions[0].EmitCopyValue(irProgram, primaryEmitter, (emitter) =>
+                    {
+                        if (bufferedMatchVal)
+                            emitter.Append($"matchVal{indirection}");
+                        else
+                            IRValue.EmitDirect(irProgram, emitter, MatchValue, typeargs, Emitter.NullPromise, true);
+                        emitter.Append($".data.{currentOptions[0].GetStandardIdentifier(irProgram)}_set");
+                    }, Emitter.NullPromise);
+                    primaryEmitter.AppendLine(';');
                 }
 
-                handler.ToExecute.EmitInitialize(irProgram, emitter, typeargs, indent);
-                handler.ToExecute.EmitNoOpen(irProgram, emitter, typeargs, indent, true);
+                handler.ToExecute.EmitInitialize(irProgram, primaryEmitter, typeargs);
+                handler.ToExecute.EmitNoOpen(irProgram, primaryEmitter, typeargs, true);
             }
             if(DefaultHandler != null)
             {
-                CodeBlock.CIndent(emitter, indent);
-                emitter.AppendLine("default: {");
-                DefaultHandler.EmitInitialize(irProgram, emitter, typeargs, indent);
-                DefaultHandler.EmitNoOpen(irProgram, emitter, typeargs, indent, false);
+                primaryEmitter.AppendStartBlock("default:");
+                DefaultHandler.EmitInitialize(irProgram, primaryEmitter, typeargs);
+                DefaultHandler.EmitNoOpen(irProgram, primaryEmitter, typeargs, false);
             }
+            primaryEmitter.AppendLine('}');
 
-            CodeBlock.CIndent(emitter, indent);
-            emitter.AppendLine("}");
+            if (bufferedMatchVal)
+            {
+                if (MatchValue.RequiresDisposal(irProgram, typeargs, true))
+                    enumType.EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"matchVal{indirection}"), Emitter.NullPromise);
+                primaryEmitter.AppendEndBlock();
+            }
         }
     }
 
@@ -331,35 +419,30 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
             foreach (Variable variable in activeLoopVariables)
                 if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
-                {
-                    CodeBlock.CIndent(emitter, indent);
-                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, variable.GetStandardIdentifier(), "NULL");
-                    emitter.AppendLine();
-                }
+                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append(variable.GetStandardIdentifier()), Emitter.NullPromise);
 
-            CodeBlock.CIndent(emitter, indent);
             if (Action.Type == Syntax.Parsing.TokenType.Break)
-                emitter.AppendLine($"goto loopbreaklabel{breakLabelId};");
+                primaryEmitter.AppendLine($"goto loopbreaklabel{breakLabelId};");
             else
-                emitter.AppendLine("continue;");
+                primaryEmitter.AppendLine("continue;");
         }
     }
 
     partial class AssertStatement
     {
-        public static void EmitAsserter(StatementEmitter emitter, bool doCallStack)
+        public static void EmitAsserter(Emitter emitter, bool doCallStack)
         {
             emitter.AppendLine("void nhp_assert(int flag, const char* src_loc, const char* assertion_src) {");
             emitter.AppendLine("\tif(!flag) {");
 
             if (doCallStack)
             {
-                CallStackReporting.EmitErrorLoc(emitter, "src_loc", "assertion_src", 2);
-                CallStackReporting.EmitPrintStackTrace(emitter, 2);
+                CallStackReporting.EmitErrorLoc(emitter, "src_loc", "assertion_src");
+                CallStackReporting.EmitPrintStackTrace(emitter);
                 emitter.AppendLine("\t\tprintf(\"AssertionError: %s failed.\\n\", assertion_src);");
             }
             else
@@ -375,19 +458,21 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => Condition.ScopeForUsedTypes(typeargs, irBuilder);
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
             if (irProgram.EliminateAsserts)
                 return;
 
-            CodeBlock.CIndent(emitter, indent);
-            emitter.Append("nhp_assert(");
-            IRValue.EmitMemorySafe(Condition, irProgram, emitter, typeargs);
-            emitter.Append(", ");
-            CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString(), false, true);
-            emitter.Append(", ");
-            ErrorReportedElement.EmitSrcAsCString(emitter);
-            emitter.AppendLine(");");
+            Condition.Emit(irProgram, primaryEmitter, typeargs, (conditionPromise) =>
+            {
+                primaryEmitter.Append("nhp_assert(");
+                conditionPromise(primaryEmitter);
+                primaryEmitter.Append(", ");
+                CharacterLiteral.EmitCString(primaryEmitter, ErrorReportedElement.SourceLocation.ToString(), false, true);
+                primaryEmitter.Append(", ");
+                ErrorReportedElement.EmitSrcAsCString(primaryEmitter);
+                primaryEmitter.AppendLine(");");
+            }, Emitter.NullPromise, true);
         }
     }
 }

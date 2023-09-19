@@ -1,7 +1,5 @@
 ﻿include "mem.nhp"
 
-#linked lists no longer work because of restrictions on match statements; matched variables are copies of the original enum values. See issue #18 for more details
-
 enum nullable<T>:
 	T
 	None
@@ -64,7 +62,7 @@ def main():
 		
 		stop = myList.isEmpty
 		while stop() == False:
-			match res=myList.popFront():
+			match myList.popFront():
 				int j:
 					printf("%i\n\0", j)
 				None:

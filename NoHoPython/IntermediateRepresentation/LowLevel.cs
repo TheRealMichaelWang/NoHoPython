@@ -28,7 +28,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public override IType Type { get; }
 
-        public MemoryGet(IType type, IRValue address, IRValue index, IAstElement errorReportedElement) : base(address, ArithmeticCast.CastTo(index, Primitive.Integer), false, errorReportedElement)
+        public MemoryGet(IType type, IRValue address, IRValue index, IAstElement errorReportedElement) : base(address, ArithmeticCast.CastTo(index, Primitive.Integer), errorReportedElement)
         {
             Type = type;
 

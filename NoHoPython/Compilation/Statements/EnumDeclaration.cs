@@ -35,7 +35,7 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public readonly Dictionary<EnumDeclaration, List<EnumType>> EnumTypeOverloads;
 
-        public void ForwardDeclareEnumTypes(StatementEmitter emitter)
+        public void ForwardDeclareEnumTypes(Emitter emitter)
         {
             foreach(EnumDeclaration enumDeclaration in EnumTypeOverloads.Keys)
             {
@@ -90,7 +90,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public string GetCEnumOptionForType(IRProgram irProgram, int optionNumber) => GetCEnumOptionForType(irProgram, options[optionNumber]);
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 
-        public void ForwardDeclareType(IRProgram irProgram, StatementEmitter emitter)
+        public void ForwardDeclareType(IRProgram irProgram, Emitter emitter)
         {
             if (!irProgram.EnumTypeOverloads.ContainsKey(this) || IsCEnum)
                 return;
@@ -117,7 +117,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void ForwardDeclare(IRProgram irProgram, StatementEmitter emitter)
+        public void ForwardDeclare(IRProgram irProgram, Emitter emitter)
         {
             if (!irProgram.EnumTypeOverloads.ContainsKey(this) || IsCEnum)
                 return;
@@ -130,8 +130,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 {
                     emitter.AppendLine($"void free_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} nhp_enum, void* child_agent);");
                     emitter.AppendLine($"{usedEnum.GetCName(irProgram)} copy_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} nhp_enum, void* responsible_destroyer);");
-                    if (!irProgram.EmitExpressionStatements)
-                        emitter.AppendLine($"{usedEnum.GetCName(irProgram)} move_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)}* dest, {usedEnum.GetCName(irProgram)} src, void* child_agent);");
                 }
 
                 if (!EmitMultipleCStructs)
@@ -139,7 +137,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void EmitOptionsCEnum(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitOptionsCEnum(IRProgram irProgram, Emitter emitter)
         {
             if (IsCEnum)
                 return;
@@ -159,7 +157,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine($"nhp_enum_{IScopeSymbol.GetAbsolouteName(this)}_options_t;");
         }
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
             if (!irProgram.EnumTypeOverloads.ContainsKey(this) || IsCEnum)
                 return;
@@ -167,14 +165,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (EnumType enumType in irProgram.EnumTypeOverloads[this])
             {
                 //enumType.EmitMarshallers(irProgram, emitter);
-                enumType.EmitPropertyGetters(irProgram, emitter);
+                enumType.EmitPropertyGetters(irProgram, primaryEmitter);
                 if (enumType.RequiresDisposal)
                 {
-                    enumType.EmitDestructor(irProgram, emitter);
-                    enumType.EmitCopier(irProgram, emitter);
-                    enumType.EmitMover(irProgram, emitter);
+                    enumType.EmitDestructor(irProgram, primaryEmitter);
+                    enumType.EmitCopier(irProgram, primaryEmitter);
                 }
-                enumType.EmitOptionTypeNames(irProgram, emitter);
+                enumType.EmitOptionTypeNames(irProgram, primaryEmitter);
 
                 if (!EmitMultipleCStructs)
                     return;
@@ -197,12 +194,11 @@ namespace NoHoPython.Typing
         public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_empty_option_{Name}";
         public string GetCName(IRProgram irProgram) => throw new CannotCompileEmptyTypeError(null);
 
-        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string recordCSource) => throw new CannotCompileEmptyTypeError(null);
-        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter) { }
+        public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)=> throw new CannotCompileEmptyTypeError(null);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => throw new CannotCompileEmptyTypeError(null);
+        public void EmitCStruct(IRProgram irProgram, Emitter emitter) { }
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder) { }
     }
@@ -249,11 +245,12 @@ namespace NoHoPython.Typing
                 typePropertyInUse[enumType].Add(this);
             }
 
-            public override bool EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource, string responsibleDestroyer)
+            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer)
             {
                 Debug.Assert(propertyContainer is EnumType enumType && EnumType.IsCompatibleWith(enumType));
 
-                emitter.Append($"get_{Name}{EnumType.GetStandardIdentifier(irProgram)}({valueCSource}");
+                emitter.Append($"get_{Name}{EnumType.GetStandardIdentifier(irProgram)}(");
+                value(emitter);
                 if (RequiresDisposal(typeargs))
                     emitter.Append($", {responsibleDestroyer}");
                 emitter.Append(')');
@@ -286,40 +283,37 @@ namespace NoHoPython.Typing
 
         public string GetCEnumOptionForType(IRProgram irProgram, IType type) => EnumDeclaration.GetCEnumOptionForType(irProgram, globalSupportedOptions[this].Value[type]);
 
-        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
-        {
-            if(RequiresDisposal)
-                emitter.Append($"free_enum{GetStandardIdentifier(irProgram)}({valueCSource}, {childAgent});");
-        }
-
-        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer)
+        public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
         {
             if (RequiresDisposal)
             {
-                emitter.Append($"copy_enum{GetStandardIdentifier(irProgram)}({valueCSource}");
+                emitter.Append($"free_enum{GetStandardIdentifier(irProgram)}(");
+                valuePromise(emitter);
+                emitter.Append(", ");
+                childAgent(emitter);
+                emitter.AppendLine(");");
+            }
+        }
+
+        public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
+        {
+            if (RequiresDisposal)
+            {
+                primaryEmitter.Append($"copy_enum{GetStandardIdentifier(irProgram)}(");
+                valueCSource(primaryEmitter);
                 if (MustSetResponsibleDestroyer)
-                    emitter.Append($", {responsibleDestroyer}");
-                emitter.Append(')');
+                {
+                    primaryEmitter.Append(", ");
+                    responsibleDestroyer(primaryEmitter);
+                }
+                primaryEmitter.Append(')');
             }
             else
-                emitter.Append(valueCSource);
+                valueCSource(primaryEmitter);
         }
 
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
-        {
-            if (RequiresDisposal)
-            {
-                if (irProgram.EmitExpressionStatements)
-                    IType.EmitMove(this, irProgram, emitter, destC, valueCSource, childAgent);
-                else
-                    emitter.Append($"move_enum{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource}, {childAgent})");
-            }
-            else
-                emitter.Append($"({destC} = {valueCSource})");
-        }
-
-        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -330,7 +324,7 @@ namespace NoHoPython.Typing
             }
         }
 
-        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitCStruct(IRProgram irProgram, Emitter emitter)
         {
             if (!irProgram.DeclareCompiledType(emitter, this) || EnumDeclaration.IsEmpty)
                 return;
@@ -344,7 +338,7 @@ namespace NoHoPython.Typing
             EmitCStructImmediatley(irProgram, emitter);
         }
 
-        public void EmitCStructImmediatley(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitCStructImmediatley(IRProgram irProgram, Emitter emitter)
         {
             emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
             emitter.AppendLine($"\tnhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_options_t option;");
@@ -360,7 +354,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine("};");
         }
 
-        public void EmitPropertyGetHeaders(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitPropertyGetHeaders(IRProgram irProgram, Emitter emitter)
         {
             foreach (EnumProperty property in globalSupportedProperties[this].Value.Values)
             {
@@ -374,7 +368,7 @@ namespace NoHoPython.Typing
             }
         }
 
-        public void EmitPropertyGetters(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitPropertyGetters(IRProgram irProgram, Emitter emitter)
         {
             foreach (EnumProperty property in globalSupportedProperties[this].Value.Values)
             {
@@ -396,13 +390,14 @@ namespace NoHoPython.Typing
 
                         if (!accessProperty.RequiresDisposal(typeargMap.Value) && property.RequiresDisposal(typeargMap.Value))
                         {
-                            BufferedEmitter propertyGet = new();
-                            accessProperty.EmitGet(irProgram, propertyGet, typeargMap.Value, propertyContainer, $"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set", "NULL");
-                            property.Type.EmitCopyValue(irProgram, emitter, propertyGet.ToString(), "responsible_destroyer");
+                            property.Type.EmitCopyValue(irProgram, emitter, (e) =>
+                            {
+                                accessProperty.EmitGet(irProgram, e, typeargMap.Value, propertyContainer, (k) => k.Append($"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set"), (k) => k.Append("responsible_destroyer"));
+                            }, (k) => k.Append("responsible_destroyer"));
                         }
                         else
                         {
-                            accessProperty.EmitGet(irProgram, emitter, typeargMap.Value, propertyContainer, $"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set", "responsible_destroyer");
+                            accessProperty.EmitGet(irProgram, emitter, typeargMap.Value, propertyContainer, (e) => e.Append($"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set"), (e) => e.Append("responsible_destroyer"));
                         }
                         emitter.AppendLine(";");
                     }
@@ -412,7 +407,7 @@ namespace NoHoPython.Typing
             }
         }
 
-        public void EmitDestructor(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitDestructor(IRProgram irProgram, Emitter emitter)
         {
             emitter.AppendLine($"void free_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} nhp_enum, void* child_agent) {{");
             emitter.AppendLine("\tswitch(nhp_enum.option) {");
@@ -422,7 +417,7 @@ namespace NoHoPython.Typing
                 {
                     emitter.AppendLine($"\tcase {EnumDeclaration.GetCEnumOptionForType(irProgram, option.Value)}:");
                     emitter.Append("\t\t");
-                    option.Key.EmitFreeValue(irProgram, emitter, $"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set", "child_agent");
+                    option.Key.EmitFreeValue(irProgram, emitter, (e) => e.Append($"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set"), (e) => e.Append("child_agent"));
                     emitter.AppendLine();
                     emitter.AppendLine("\t\tbreak;");
                 }
@@ -431,7 +426,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitCopier(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitCopier(IRProgram irProgram, Emitter emitter)
         {
             emitter.Append($"{GetCName(irProgram)} copy_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} nhp_enum");
 
@@ -448,7 +443,7 @@ namespace NoHoPython.Typing
                 {
                     emitter.AppendLine($"\tcase {EnumDeclaration.GetCEnumOptionForType(irProgram, option.Value)}:");
                     emitter.Append($"\t\tcopied_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set = ");
-                    option.Key.EmitCopyValue(irProgram, emitter, $"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set", "responsible_destroyer");
+                    option.Key.EmitCopyValue(irProgram, emitter, (e) => e.Append($"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set"), (e) => e.Append("responsible_destroyer"));
                     emitter.AppendLine(";");
                     emitter.AppendLine("\t\tbreak;");
                 }
@@ -458,21 +453,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitMover(IRProgram irProgram, StatementEmitter emitter)
-        {
-            if (irProgram.EmitExpressionStatements)
-                return;
-
-            emitter.AppendLine($"{GetCName(irProgram)} move_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src, void* child_agent) {{");
-            emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "*dest", "child_agent");
-            emitter.AppendLine();
-            emitter.AppendLine($"\t*dest = src;");
-            emitter.AppendLine("\treturn src;");
-            emitter.AppendLine("}");
-        }
-
-        public void EmitOptionTypeNames(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitOptionTypeNames(IRProgram irProgram, Emitter emitter)
         {
             if (!irProgram.NameRuntimeTypes || EnumDeclaration.IsCEnum)
                 return;
@@ -495,7 +476,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class MarshalIntoEnum
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => TargetType.SubstituteWithTypearg(typeargs).RequiresDisposal;
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Value.RequiresDisposal(irProgram, typeargs, isTemporaryEval);
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -503,30 +484,29 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => !Value.Type.IsEmpty && Value.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval);
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
             EnumType realPrototype = (EnumType)TargetType.SubstituteWithTypearg(typeargs);
 
             if (realPrototype.EnumDeclaration.IsEmpty)
-                emitter.Append(realPrototype.GetCEnumOptionForType(irProgram, Value.Type));
-            else if(Value.Type.IsEmpty)
-                emitter.Append($"(({realPrototype.GetCName(irProgram)}) {{.option = {realPrototype.GetCEnumOptionForType(irProgram, Value.Type.SubstituteWithTypearg(typeargs))}}})");
+                destination((emitter) => emitter.Append(realPrototype.GetCEnumOptionForType(irProgram, Value.Type)));
+            else if (Value.Type.IsEmpty)
+                destination((emitter) => emitter.Append($"(({realPrototype.GetCName(irProgram)}) {{.option = {realPrototype.GetCEnumOptionForType(irProgram, Value.Type.SubstituteWithTypearg(typeargs))}}})"));
             else
-            {
-                emitter.Append($"(({realPrototype.GetCName(irProgram)}) {{.option = {realPrototype.GetCEnumOptionForType(irProgram, Value.Type.SubstituteWithTypearg(typeargs))}, .data = {{ .{Value.Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set = ");
-
-                if (Value.RequiresDisposal(typeargs, false))
-                    Value.Emit(irProgram, emitter, typeargs, responsibleDestroyer, false);
-                else
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(Value, irProgram, typeargs, "NULL"), responsibleDestroyer);
-                emitter.Append("}})");
-            }
+                Value.Emit(irProgram, primaryEmitter, typeargs, (valuePromise) => destination((emitter) => 
+                {
+                    emitter.Append($"(({realPrototype.GetCName(irProgram)}) {{.option = {realPrototype.GetCEnumOptionForType(irProgram, Value.Type.SubstituteWithTypearg(typeargs))}, .data = {{ .{Value.Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set = ");
+                    valuePromise(emitter);
+                    emitter.Append("}})");
+                }), responsibleDestroyer, isTemporaryEval);
         }
     }
 
     partial class UnwrapEnumValue
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Type.SubstituteWithTypearg(typeargs).RequiresDisposal;
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => EnumValue.RequiresDisposal(irProgram, typeargs, isTemporaryEval);
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -534,68 +514,67 @@ namespace NoHoPython.IntermediateRepresentation.Values
             EnumValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            if (!irProgram.EmitExpressionStatements)
-                throw new CannotEmitDestructorError(this);
-
-            irProgram.ExpressionDepth++;
-
             EnumType enumType = (EnumType)EnumValue.Type.SubstituteWithTypearg(typeargs);
 
-            emitter.Append($"({{{enumType.GetCName(irProgram)} enum{irProgram.ExpressionDepth} = ");
-            EnumValue.Emit(irProgram, emitter, typeargs, "NULL", true);
-            
-            emitter.Append($"; if(enum{irProgram.ExpressionDepth}.option != {enumType.GetCEnumOptionForType(irProgram, Type.SubstituteWithTypearg(typeargs))}) {{");
+            int indirection = primaryEmitter.AppendStartBlock();
+            primaryEmitter.AppendLine($"{enumType.GetCName(irProgram)} enum{indirection};");
+            EnumValue.Emit(irProgram, primaryEmitter, typeargs, (enumValuePromise) =>
+            {
+                primaryEmitter.Append($"enum{indirection} = ");
+                enumValuePromise(primaryEmitter);
+                primaryEmitter.AppendLine(';');
+            }, responsibleDestroyer, isTemporaryEval);
+
+            primaryEmitter.AppendStartBlock($"if(enum{indirection}.option != {enumType.GetCEnumOptionForType(irProgram, Type.SubstituteWithTypearg(typeargs))})");
             if (irProgram.DoCallStack)
             {
-                CallStackReporting.EmitErrorLoc(emitter, ErrorReportedElement);
-                CallStackReporting.EmitPrintStackTrace(emitter);
+                CallStackReporting.EmitErrorLoc(primaryEmitter, ErrorReportedElement);
+                CallStackReporting.EmitPrintStackTrace(primaryEmitter);
                 if (irProgram.NameRuntimeTypes)
                 {
-                    emitter.Append("printf(\"Unwrapping Error: Expected ");
-                    ErrorReportedElement.EmitSrcAsCString(emitter, true, false);
-                    emitter.Append($"to be {Type.SubstituteWithTypearg(typeargs).TypeName}, but got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{irProgram.ExpressionDepth}.option]);");
+                    primaryEmitter.Append("printf(\"Unwrapping Error: Expected ");
+                    ErrorReportedElement.EmitSrcAsCString(primaryEmitter, true, false);
+                    primaryEmitter.Append($"to be {Type.SubstituteWithTypearg(typeargs).TypeName}, but got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{indirection}.option]);");
                 }
                 else
                 {
-                    emitter.Append("puts(\"Unwrapping Error: ");
-                    ErrorReportedElement.EmitSrcAsCString(emitter, false, false);
-                    emitter.Append(" failed.\");");
+                    primaryEmitter.Append("puts(\"Unwrapping Error: ");
+                    ErrorReportedElement.EmitSrcAsCString(primaryEmitter, false, false);
+                    primaryEmitter.Append(" failed.\");");
                 }
             }
             else
             {
                 if (irProgram.NameRuntimeTypes)
                 {
-                    emitter.Append($"printf(\"Failed to unwrap {Type.SubstituteWithTypearg(typeargs).TypeName} from ");
-                    CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString(), true, false);
-                    emitter.Append($", got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{irProgram.ExpressionDepth}.option]); ");
+                    primaryEmitter.Append($"printf(\"Failed to unwrap {Type.SubstituteWithTypearg(typeargs).TypeName} from ");
+                    CharacterLiteral.EmitCString(primaryEmitter, ErrorReportedElement.SourceLocation.ToString(), true, false);
+                    primaryEmitter.Append($", got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{indirection}.option]); ");
                 }
                 else
                 {
-                    emitter.Append("puts(\"Failed to unwrap enum from value, ");
-                    CharacterLiteral.EmitCString(emitter, ErrorReportedElement.SourceLocation.ToString(), false, false);
-                    emitter.Append(".\\n\\t");
-                    ErrorReportedElement.EmitSrcAsCString(emitter, true, false);
-                    emitter.Append("\");");
+                    primaryEmitter.Append("puts(\"Failed to unwrap enum from value, ");
+                    CharacterLiteral.EmitCString(primaryEmitter, ErrorReportedElement.SourceLocation.ToString(), false, false);
+                    primaryEmitter.Append(".\\n\\t");
+                    ErrorReportedElement.EmitSrcAsCString(primaryEmitter, true, false);
+                    primaryEmitter.Append("\");");
                 }
             }
-            emitter.Append($"abort();}} {Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} res{irProgram.ExpressionDepth} = ");
+            primaryEmitter.AppendLine("abort();");
+            primaryEmitter.AppendEndBlock();
             
-            Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, $"enum{irProgram.ExpressionDepth}.data.{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set", responsibleDestroyer);
-            emitter.Append(";");
-
-            if (EnumValue.RequiresDisposal(typeargs, true))
-                EnumValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, $"enum{irProgram.ExpressionDepth}", "NULL");
-
-            irProgram.ExpressionDepth--;
+            destination((emitter) => emitter.Append($"enum{indirection}.data.{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set"));
+            primaryEmitter.AppendEndBlock();
         }
     }
 
     partial class CheckEnumOption
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -603,17 +582,22 @@ namespace NoHoPython.IntermediateRepresentation.Values
             EnumValue.ScopeForUsedTypes(typeargs, irBuilder);
         }
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => EnumValue.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval);
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
             EnumType enumType = (EnumType)EnumValue.Type.SubstituteWithTypearg(typeargs);
 
-            emitter.Append('(');
-            IRValue.EmitMemorySafe(EnumValue, irProgram, emitter, typeargs);
-            if (!enumType.EnumDeclaration.IsEmpty)
-                emitter.Append(".option");
-            emitter.Append(" == ");
-            emitter.Append(enumType.GetCEnumOptionForType(irProgram, Option.SubstituteWithTypearg(typeargs)));
-            emitter.Append(')');
+            EnumValue.Emit(irProgram, primaryEmitter, typeargs, (enumValuePromise) => destination((emitter) =>
+            {
+                emitter.Append('(');
+                enumValuePromise(emitter);
+                if (!enumType.EnumDeclaration.IsEmpty)
+                    emitter.Append(".option");
+                emitter.Append(" == ");
+                emitter.Append(enumType.GetCEnumOptionForType(irProgram, Option.SubstituteWithTypearg(typeargs)));
+                emitter.Append(')');
+            }), Emitter.NullPromise, true);
         }
     }
 }

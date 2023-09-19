@@ -35,7 +35,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public string? MarshallerDeclarations { get; private set; }
         public string CReferenceSource { get; private set; }
         public string? Copier { get; private set; }
-        public string? Mover { get; private set; }
         public string? Destructor { get; private set; }
         public string? ResponsibleDestroyerSetter { get; private set; }
 
@@ -44,7 +43,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public List<ForeignCProperty>? Properties = null;
 
-        public ForeignCDeclaration(string name, List<TypeParameter> typeParameters, bool pointerPropertyAccess, string? forwardDeclaration, string? cStructDeclaration, string? marshallerHeaders, string? marshallerDeclarations, string cReferenceSource, string? copier, string? mover, string? destructor, string? responsibleDestroyerSetter, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement)
+        public ForeignCDeclaration(string name, List<TypeParameter> typeParameters, bool pointerPropertyAccess, string? forwardDeclaration, string? cStructDeclaration, string? marshallerHeaders, string? marshallerDeclarations, string cReferenceSource, string? copier, string? destructor, string? responsibleDestroyerSetter, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement)
         {
             Name = name;
             TypeParameters = typeParameters;
@@ -56,7 +55,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             MarshallerDeclarations = marshallerDeclarations;
             CReferenceSource = cReferenceSource;
             Copier = copier;
-            Mover = mover;
             Destructor = destructor;
             ResponsibleDestroyerSetter = responsibleDestroyerSetter;
 
@@ -154,7 +152,7 @@ namespace NoHoPython.Syntax.Statements
 
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRDeclaration = new IntermediateRepresentation.Statements.ForeignCDeclaration(Identifier, typeParameters, Attributes.ContainsKey("ptr") || CSource.EndsWith('*'), GetOption("ForwardDeclaration"), GetOption("CStruct"), GetOption("MarshallerHeaders"), GetOption("Marshallers"), CSource, GetOption("Copy"), GetOption("Move"), GetOption("Destroy"), GetOption("ActorSetter"), irBuilder.SymbolMarshaller.CurrentModule, this);
+            IRDeclaration = new IntermediateRepresentation.Statements.ForeignCDeclaration(Identifier, typeParameters, Attributes.ContainsKey("ptr") || CSource.EndsWith('*'), GetOption("ForwardDeclaration"), GetOption("CStruct"), GetOption("MarshallerHeaders"), GetOption("Marshallers"), CSource, GetOption("Copy"), GetOption("Destroy"), GetOption("ActorSetter"), irBuilder.SymbolMarshaller.CurrentModule, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRDeclaration);
 

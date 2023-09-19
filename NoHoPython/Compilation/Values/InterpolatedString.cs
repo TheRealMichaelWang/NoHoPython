@@ -9,7 +9,7 @@ namespace NoHoPython.Typing
         public bool HasFormatSpecifier { get; }
 
         public string GetFormatSpecifier(IRProgram irProgram);
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource);
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value);
     }
 
     partial class Primitive
@@ -17,7 +17,7 @@ namespace NoHoPython.Typing
         public bool HasFormatSpecifier => true;
 
         public abstract string GetFormatSpecifier(IRProgram irProgram);
-        public virtual void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource) => emitter.Append(valueCSource);
+        public virtual void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value) => value(emitter);
     }
 
     partial class ArrayType
@@ -26,16 +26,16 @@ namespace NoHoPython.Typing
 
         public string GetFormatSpecifier(IRProgram irProgram) => ElementType.IsCompatibleWith(Primitive.Character) ? "%.*s" : "%p";
 
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource)
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value)
         {
             if (!ElementType.IsCompatibleWith(Primitive.Character))
                 emitter.Append("(void*)");
 
-            emitter.Append(valueCSource);
+            value(emitter);
             if (ElementType.IsCompatibleWith(Primitive.Character))
             {
                 emitter.Append(".length, ");
-                emitter.Append(valueCSource);
+                value(emitter);
             }
             emitter.Append(".buffer");
         }
@@ -47,12 +47,12 @@ namespace NoHoPython.Typing
 
         public string GetFormatSpecifier(IRProgram irProgram) => ElementType.IsCompatibleWith(Primitive.Character) ? $"%.{Length}s" : "%p";
 
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource)
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value)
         {
             if (!ElementType.IsCompatibleWith(Primitive.Character))
                 emitter.Append("(void*)");
 
-            emitter.Append(valueCSource);
+            value(emitter);
         }
     }
 
@@ -60,7 +60,12 @@ namespace NoHoPython.Typing
     {
         public override string GetFormatSpecifier(IRProgram irProgram) => "%s";
 
-        public override void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource) => emitter.Append($"(({valueCSource}) ? \"true\" : \"false\")");
+        public override void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value)
+        {
+            emitter.Append("((");
+            value(emitter);
+            emitter.Append(") ? \"true\" : \"false\")");
+        }
     }
 
     partial class CharacterType
@@ -88,7 +93,7 @@ namespace NoHoPython.Typing
         public bool HasFormatSpecifier => false;
 
         public string GetFormatSpecifier(IRProgram irProgram) => throw new NoFormatSpecifierForType(this);
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource) => throw new InvalidOperationException();
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value) => throw new InvalidOperationException();
     }
 
     partial class EnumType
@@ -96,21 +101,30 @@ namespace NoHoPython.Typing
         public bool HasFormatSpecifier => true;
 
         public string GetFormatSpecifier(IRProgram irProgram) => irProgram.NameRuntimeTypes ? "%s" : throw new NoFormatSpecifierForType(this);
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource) => emitter.Append(irProgram.NameRuntimeTypes ? $"{GetStandardIdentifier(irProgram)}_typenames[(int){valueCSource}.option]" : throw new InvalidOperationException());
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value)
+        {
+            if (irProgram.NameRuntimeTypes)
+                throw new InvalidOperationException();
+
+            emitter.Append($"{GetStandardIdentifier(irProgram)}_typenames[(int)");
+            value(emitter);
+            emitter.Append(".option]");
+        }
     }
 
     partial class RecordType
     {
-        public bool HasFormatSpecifier => HasProperty("cstr");
+        public bool HasFormatSpecifier => HasProperty("cstr") && identifierPropertyMap.Value["cstr"].Type.IsCompatibleWith(new HandleType(Primitive.Character));
 
         public string GetFormatSpecifier(IRProgram irProgram) => HasFormatSpecifier ? "%s" : throw new NoFormatSpecifierForType(this);
         
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource)
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value)
         {
-            if (HasFormatSpecifier)
-                emitter.Append($"(char*){valueCSource}->cstr");
-            else
+            if (!HasFormatSpecifier)
                 throw new InvalidOperationException();
+
+            value(emitter);
+            emitter.Append("->cstr");
         }
     }
 
@@ -119,7 +133,7 @@ namespace NoHoPython.Typing
         public bool HasFormatSpecifier => false;
 
         public string GetFormatSpecifier(IRProgram irProgram) => throw new NoFormatSpecifierForType(this);
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource) => throw new InvalidOperationException();
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value) => throw new InvalidOperationException();
     }
 
     partial class ForeignCType
@@ -128,12 +142,12 @@ namespace NoHoPython.Typing
 
         public string GetFormatSpecifier(IRProgram irProgram) => Declaration.FormatSpecifier ?? throw new NoFormatSpecifierForType(this);
         
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource)
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value)
         {
             if (Declaration.Formatter == null)
                 throw new InvalidOperationException();
 
-            emitter.Append(GetSource(Declaration.Formatter, irProgram, valueCSource));
+            emitter.Append(GetSource(Declaration.Formatter, irProgram, value));
         }
     }
 
@@ -143,14 +157,18 @@ namespace NoHoPython.Typing
 
         public string GetFormatSpecifier(IRProgram irProgram) => $"({string.Join(", ", orderedValueTypes.ConvertAll((type) => type.GetFormatSpecifier(irProgram)))})";
 
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource)
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value)
         {
             Property[] properties = this.properties.Values.ToArray();
             for (int i = 0; i < properties.Length; i++)
             {
                 if (i > 0)
                     emitter.Append(", ");
-                properties[i].Type.EmitFormatValue(irProgram, emitter, $"{valueCSource}.{properties[i].Name}");
+                properties[i].Type.EmitFormatValue(irProgram, emitter, (e) =>
+                {
+                    value(e);
+                    emitter.Append($".{properties[i].Name}");
+                });
             }
         }
     }
@@ -160,7 +178,7 @@ namespace NoHoPython.Typing
         public bool HasFormatSpecifier => false;
 
         public string GetFormatSpecifier(IRProgram irProgram) => throw new NoFormatSpecifierForType(this);
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource) => throw new InvalidOperationException();
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value) => throw new InvalidOperationException();
     }
 
     partial class NothingType
@@ -168,7 +186,7 @@ namespace NoHoPython.Typing
         public bool HasFormatSpecifier => false;
 
         public string GetFormatSpecifier(IRProgram irProgram) => throw new NoFormatSpecifierForType(this);
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource) => throw new InvalidOperationException();
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value) => throw new InvalidOperationException();
     }
 
     partial class TypeParameterReference
@@ -176,7 +194,7 @@ namespace NoHoPython.Typing
         public bool HasFormatSpecifier => false;
 
         public string GetFormatSpecifier(IRProgram irProgram) => throw new NoFormatSpecifierForType(this);
-        public void EmitFormatValue(IRProgram irProgram, IEmitter emitter, string valueCSource) => throw new InvalidOperationException();
+        public void EmitFormatValue(IRProgram irProgram, Emitter emitter, Emitter.Promise value) => throw new InvalidOperationException();
     }
 }
 
@@ -192,74 +210,63 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     irValue.ScopeForUsedTypes(new(), irBuilder);
         }
 
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => TargetArrayChar;
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => TargetArrayChar;
 
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval)
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            if (!irProgram.EmitExpressionStatements)
-                throw new CannotEmitInterpolatedString(this);
-
-            irProgram.ExpressionDepth++;
-            BufferedEmitter formatBuilder = new();
-            List<IRValue> arguments = new();
-            SortedSet<int> bufferedArguments = new();
-            void emitFormatValues()
+            string format;
+            using (Emitter formatBuilder = new Emitter())
             {
-                for (int i = 0; i < arguments.Count; i++)
-                {
-                    emitter.Append(", ");
-                    if (bufferedArguments.Contains(i))
-                        arguments[i].Type.EmitFormatValue(irProgram, emitter, $"intpd_buffered_arg{i}{irProgram.ExpressionDepth}");
+                formatBuilder.Append('\"');
+                foreach (object value in InterpolatedValues)
+                    if (value is IRValue irValue)
+                        formatBuilder.Append(irValue.Type.GetFormatSpecifier(irProgram));
                     else
-                        arguments[i].Type.EmitFormatValue(irProgram, emitter, BufferedEmitter.EmitBufferedValue(arguments[i], irProgram, typeargs, "NULl"));
-                }
-            }
-
-            foreach (object value in InterpolatedValues)
-            {
-                if (value is IRValue irValue)
-                {
-                    if (!irValue.IsPure || irValue.RequiresDisposal(typeargs, true))
-                        bufferedArguments.Add(arguments.Count);
-
-                    formatBuilder.Append(irValue.Type.GetFormatSpecifier(irProgram));
-                    arguments.Add(irValue);
-                }
-                else
 #pragma warning disable CS8604 //Interpolated values are always non-null strings or IRValues
-                    CharacterLiteral.EmitCString(formatBuilder, value as string, true, false);
-#pragma warning restore CS8604 
+                        CharacterLiteral.EmitCString(formatBuilder, value as string, true, false);
+#pragma warning restore CS8604
+                formatBuilder.Append('\"');
+                format = formatBuilder.GetBuffered();
             }
 
-            emitter.Append($"({{{Type.GetCName(irProgram)} intpd_str{irProgram.ExpressionDepth}; ");
-            foreach (int bufferedArg in bufferedArguments)
+            int indirection = primaryEmitter.AppendStartBlock();
+
+            void EmitFormatArgs()
             {
-                emitter.Append($"{arguments[bufferedArg].Type.GetCName(irProgram)} intpd_buffered_arg{bufferedArg}{irProgram.ExpressionDepth} = ");
-                arguments[bufferedArg].Emit(irProgram, emitter, typeargs, "NULL", true);
-                emitter.Append(';');
+                for (int i = 0; i < InterpolatedValues.Count; i++)
+                    if (InterpolatedValues[i] is IRValue)
+                        primaryEmitter.Append($", arg{i}{indirection}");
+                primaryEmitter.AppendLine(");");
             }
 
+            for (int i = 0; i < InterpolatedValues.Count; i++)
+                if (InterpolatedValues[i] is IRValue irValue)
+                {
+                    primaryEmitter.AppendLine($"{irValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} arg{i}{indirection};");
+                    irValue.Emit(irProgram, primaryEmitter, typeargs, (valuePromise) =>
+                    {
+                        primaryEmitter.Append($"arg{i}{indirection} = ");
+                        valuePromise(primaryEmitter);
+                        primaryEmitter.AppendLine(';');
+                    }, Emitter.NullPromise, true);
+                }
+
+            primaryEmitter.Append($"int count{indirection} = snprintf(NULL, 0, {format}");
+            EmitFormatArgs();
+            primaryEmitter.AppendLine($"char* cstr{indirection} = {irProgram.MemoryAnalyzer.Allocate($"count{indirection} + 1")};");
+            primaryEmitter.Append($"snprintf(cstr{indirection}, count{indirection} + 1, {format}");
+            EmitFormatArgs();
             if (TargetArrayChar)
-                emitter.Append($"intpd_str{irProgram.ExpressionDepth}.length");
+                destination((emitter) => emitter.Append($"({Type.GetCName(irProgram)}){{.buffer = cstr{indirection}, .length=count{indirection}}}"));
             else
-                emitter.Append("int length");
-            emitter.Append($" = snprintf(NULL, 0, \"{formatBuilder}\"");
-            emitFormatValues();
-            emitter.Append(");");
+                destination((emitter) => emitter.Append($"cstr{indirection}"));
 
-            if (TargetArrayChar)
-                emitter.Append($"intpd_str{irProgram.ExpressionDepth}.buffer = {irProgram.MemoryAnalyzer.Allocate($"intpd_str{irProgram.ExpressionDepth}.length + 1")}; snprintf(intpd_str{irProgram.ExpressionDepth}.buffer, intpd_str{irProgram.ExpressionDepth}.length + 1, \"{formatBuilder}\"");
-            else
-                emitter.Append($"intpd_str{irProgram.ExpressionDepth} = malloc(length + 1); snprintf(intpd_str{irProgram.ExpressionDepth}, length + 1 + 1, \"{formatBuilder}\"");
-            emitFormatValues();
-            emitter.Append(");");
-
-            foreach (int bufferedArg in bufferedArguments)
-                if (arguments[bufferedArg].RequiresDisposal(typeargs, true))
-                    arguments[bufferedArg].Type.EmitFreeValue(irProgram, emitter, $"intpd_buffered_arg{bufferedArg}{irProgram.ExpressionDepth}", "NULL");
-
-            emitter.Append($"intpd_str{irProgram.ExpressionDepth};}})");
-            irProgram.ExpressionDepth--;
+            for (int i = 0; i < InterpolatedValues.Count; i++)
+                if (InterpolatedValues[i] is IRValue irValue && irValue.RequiresDisposal(irProgram, typeargs, true))
+                    irValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"arg{i}{indirection}"), Emitter.NullPromise);
+            primaryEmitter.AppendEndBlock();
         }
     }
 }

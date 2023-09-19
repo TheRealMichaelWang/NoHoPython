@@ -16,7 +16,15 @@ namespace NoHoPython.Compilation
         public bool ProtectAllocFailure { get; private set; }
 
         public string Allocate(string size) => $"{((Mode == AnalysisMode.None && !ProtectAllocFailure) ? "malloc" : "nhp_malloc")}({size})";
-        public string Dealloc(string ptr, string size) => $"{(Mode == AnalysisMode.None ? "free" : "nhp_free")}({ptr}{(Mode >= AnalysisMode.UsageMagnitudeCheck ? ", " + size : string.Empty)})";
+        public string Dealloc(string ptr, string size) => $"{(Mode == AnalysisMode.None ? "free" : "nhp_free")}({ptr}{(Mode >= AnalysisMode.UsageMagnitudeCheck ? ", " + size : string.Empty)});";
+
+        public void EmitAllocate(Emitter emitter, Emitter.Promise sizePromise)
+        {
+            emitter.Append((Mode == AnalysisMode.None && !ProtectAllocFailure) ? "malloc" : "nhp_malloc");
+            emitter.Append('(');
+            sizePromise(emitter);
+            emitter.Append(')');
+        }
 
         public MemoryAnalyzer(AnalysisMode analysisMode, bool protectAllocFailure)
         {
@@ -24,7 +32,7 @@ namespace NoHoPython.Compilation
             ProtectAllocFailure = protectAllocFailure;
         }
 
-        public void EmitAnalyzers(StatementEmitter emitter)
+        public void EmitAnalyzers(Emitter emitter)
         {
             if (Mode == AnalysisMode.None && !ProtectAllocFailure)
                 return;

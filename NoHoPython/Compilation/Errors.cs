@@ -40,26 +40,6 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
-    public sealed class CannotPerformCallStackReporting : CodegenError
-    {
-        public ProcedureCall ProcedureCall { get; private set; }
-
-        public CannotPerformCallStackReporting(ProcedureCall procedureCall) : base(procedureCall, "Cannot perform call stack reporting; please enable expression-statements via ommiting the -nogcc flag.")
-        {
-            ProcedureCall = procedureCall;
-        }
-    }
-
-    public sealed class CannotEmitInterpolatedString : CodegenError
-    {
-        public InterpolatedString InterpolatedString { get; private set; }
-
-        public CannotEmitInterpolatedString(InterpolatedString interpolatedString) : base(interpolatedString, "Cannot emit interpolated string; please emit expression statements via omitting the -nogcc flag.")
-        {
-            InterpolatedString = interpolatedString;
-        }
-    }
-
     public sealed class CannotCompileEmptyTypeError : CodegenError
     {
         public CannotCompileEmptyTypeError(IRElement? errorReportedElement) : base(errorReportedElement, "(Internal Error)Cannot actually compile/emit a nothing literal nor scope a nothing type nor any other type with no associated data.")
@@ -70,7 +50,7 @@ namespace NoHoPython.IntermediateRepresentation
 
     public sealed class CannotConfigureResponsibleDestroyerError : CodegenError
     {
-        public CannotConfigureResponsibleDestroyerError(ProcedureCall procedureCall, IType rawReturnType, string responsibleDestroyer) : base(procedureCall, $"Cannot configure responsible destroyer for call {procedureCall} and raw-return-type {rawReturnType} with {responsibleDestroyer} as the responsible destroyer.")
+        public CannotConfigureResponsibleDestroyerError(ProcedureCall procedureCall, IType rawReturnType) : base(procedureCall, $"Cannot configure responsible destroyer for call {procedureCall} and raw-return-type {rawReturnType}.")
         {
 
         }

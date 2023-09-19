@@ -207,7 +207,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public ArithmeticOperation Operation { get; private set; }
         public override IType Type { get; }
 
-        private ArithmeticOperator(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, false, errorReportedElement)
+        private ArithmeticOperator(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
         {
             Operation = operation;
 
@@ -243,7 +243,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Address => Left;
         public IRValue Offset => Right;
 
-        public PointerAddOperator(IRValue address, IRValue offset, IAstElement errorReportedElement) : base(address, ArithmeticCast.CastTo(offset, Primitive.Integer), false, errorReportedElement)
+        public PointerAddOperator(IRValue address, IRValue offset, IAstElement errorReportedElement) : base(address, ArithmeticCast.CastTo(offset, Primitive.Integer), errorReportedElement)
         {
             if (address.Type is not HandleType)
                 throw new UnexpectedTypeException(address.Type, errorReportedElement);

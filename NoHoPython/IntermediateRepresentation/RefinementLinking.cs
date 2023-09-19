@@ -5,7 +5,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     partial class CodeBlock
     {
-        public delegate void RefinementEmitter(IRProgram irProgram, IEmitter emitter, string variableIdentifier, Dictionary<TypeParameter, IType> typeargs);
+        public delegate void RefinementEmitter(IRProgram irProgram, Emitter emitter, Emitter.Promise value, Dictionary<TypeParameter, IType> typeargs);
 
         public sealed class RefinementEntry
         {

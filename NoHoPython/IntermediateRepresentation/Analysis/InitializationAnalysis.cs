@@ -224,9 +224,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class TupleLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => TupleElements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true));
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Elements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true));
 
-        public void NonConstructorPropertyAnalysis() => TupleElements.ForEach((element) => element.NonConstructorPropertyAnalysis());
+        public void NonConstructorPropertyAnalysis() => Elements.ForEach((element) => element.NonConstructorPropertyAnalysis());
     }
 
     partial class MarshalIntoLowerTuple

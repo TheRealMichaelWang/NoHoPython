@@ -189,18 +189,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
-        public TupleType TupleType => new TupleType(TupleElements.ConvertAll((elem) => elem.Type));
+        public TupleType TupleType => new TupleType(Elements.ConvertAll((elem) => elem.Type));
 
-        public readonly List<IRValue> TupleElements;
+        public readonly List<IRValue> Elements;
 
         public TupleLiteral(List<IRValue> tupleElements, IAstElement errorReportedElement)
         {
-            TupleElements = tupleElements;
+            Elements = tupleElements;
             ErrorReportedElement = errorReportedElement;
-
-            //sort tuple elements
-            ITypeComparer comparer = new();
-            TupleElements.Sort((a, b) => comparer.Compare(a.Type, b.Type));
         }
     }
 
@@ -208,7 +204,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IAstElement ErrorReportedElement { get; private set; }
 
-        public IType Type => TargetArrayChar ? new ArrayType(Primitive.Character) : Primitive.Handle;
+        public IType Type => TargetArrayChar ? new ArrayType(Primitive.Character) : Primitive.CString;
 
         public bool IsTruey => false;
         public bool IsFalsey => false;

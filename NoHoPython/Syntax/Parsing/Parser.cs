@@ -181,7 +181,11 @@ namespace NoHoPython.Syntax.Parsing
                 if (matchTok == null)
                 {
                     MatchAndScanToken(TokenType.Newline);
-                    lastCountedIndents = CountIndent();
+                    int countedIndents = CountIndent();
+                    if (scanner.LastToken.Type == TokenType.Newline)
+                        return false;
+
+                    lastCountedIndents = countedIndents;
                     if (lastCountedIndents != currentExpectedIndents)
                         throw new IndentationLevelException(currentExpectedIndents, lastCountedIndents, scanner.CurrentLocation);
                     return true;
@@ -191,7 +195,11 @@ namespace NoHoPython.Syntax.Parsing
                     if (scanner.LastToken.Type == TokenType.EndOfFile)
                         return false;
                     MatchAndScanToken(TokenType.Newline);
-                    lastCountedIndents = CountIndent();
+                    int countedIndents = CountIndent();
+                    if (scanner.LastToken.Type == TokenType.Newline)
+                        return false;
+
+                    lastCountedIndents = countedIndents;
 
                     if (lastCountedIndents < currentExpectedIndents || scanner.LastToken.Type != matchTok)
                     {

@@ -236,8 +236,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
             void EmitFormatArgs()
             {
                 for (int i = 0; i < InterpolatedValues.Count; i++)
-                    if (InterpolatedValues[i] is IRValue)
-                        primaryEmitter.Append($", arg{i}{indirection}");
+                    if (InterpolatedValues[i] is IRValue value)
+                    {
+                        primaryEmitter.Append(", ");
+                        int j = i;
+                        value.Type.SubstituteWithTypearg(typeargs).EmitFormatValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"arg{j}{indirection}"));
+                    }
                 primaryEmitter.AppendLine(");");
             }
 
@@ -255,7 +259,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             primaryEmitter.Append($"int count{indirection} = snprintf(NULL, 0, {format}");
             EmitFormatArgs();
-            primaryEmitter.AppendLine($"char* cstr{indirection} = {irProgram.MemoryAnalyzer.Allocate($"count{indirection} + 1")};");
+            primaryEmitter.AppendLine($"char* cstr{indirection} = malloc(count{indirection} + 1);");
             primaryEmitter.Append($"snprintf(cstr{indirection}, count{indirection} + 1, {format}");
             EmitFormatArgs();
             if (TargetArrayChar)

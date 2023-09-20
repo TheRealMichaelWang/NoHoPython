@@ -23,7 +23,7 @@
 				
 	def makeShared<T>(T resource, fn<None, T> destructor) shared<T>:
 		counterPtr = std::malloc(1) as handle<int>
-		assert counterPtr != None
+		assert counterPtr != NULL
 		counterPtr[0] = 0
 		
 		return new shared<T>(resource, counterPtr, destructor)

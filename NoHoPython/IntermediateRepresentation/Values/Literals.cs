@@ -87,7 +87,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public NullPointerLiteral(IType expectedType, IAstElement errorReportedElement)
         {
-            if (!(expectedType is HandleType || expectedType is ForeignCType foreignType && foreignType.Declaration.PointerPropertyAccess))
+            if (!(expectedType is HandleType || (expectedType is ForeignCType foreignType && foreignType.Declaration.PointerPropertyAccess)))
                 throw new UnexpectedTypeException(expectedType, errorReportedElement);
 
             Type = expectedType;

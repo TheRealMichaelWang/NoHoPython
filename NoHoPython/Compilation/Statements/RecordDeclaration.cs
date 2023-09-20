@@ -269,7 +269,7 @@ namespace NoHoPython.Typing
         }
 
         public string GetStandardIdentifier(IRProgram irProgram) => RecordPrototype.EmitMultipleCStructs ? GetOriginalStandardIdentifer(irProgram) : $"nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}";
-        public string GetOriginalStandardIdentifer(IRProgram irProgram) => $"nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}";
+        public string GetOriginalStandardIdentifer(IRProgram irProgram) => $"nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}{string.Join(string.Empty, TypeArguments.ConvertAll((typearg) => $"_{typearg.GetStandardIdentifier(irProgram)}"))}";
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t*";
         public string GetCHeapSizer(IRProgram irProgram) => $"sizeof({GetStandardIdentifier(irProgram)}_t)";

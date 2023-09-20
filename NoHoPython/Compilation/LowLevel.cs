@@ -105,6 +105,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         else
                             Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valuePromise, responsibleDestroyer);
                     }, responsibleDestroyer, false);
+                    emitter.Append(')');
                 });
         }
 

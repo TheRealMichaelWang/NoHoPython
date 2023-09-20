@@ -451,7 +451,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     emitter.Append('(');
                     IRValue.EmitDirect(irProgram, emitter, Record, typeargs, Emitter.NullPromise, isTemporaryEval);
                     emitter.Append($"->{Property.Name} = ");
-                    IRValue.EmitDirect(irProgram, emitter, Value, typeargs, IRValue.EmitDirectPromise(irProgram, Record.GetPostEvalPure(), typeargs, Emitter.NullPromise, true), false);
+                    Emitter.Promise record = IRValue.EmitDirectPromise(irProgram, Record.GetPostEvalPure(), typeargs, Emitter.NullPromise, true);
+                    if (Value.RequiresDisposal(irProgram, typeargs, false))
+                        IRValue.EmitDirect(irProgram, emitter, Value, typeargs, record, false);
+                    else
+                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, IRValue.EmitDirectPromise(irProgram, Value, typeargs, record, false), record);
                     emitter.Append(')');
                 });
         }

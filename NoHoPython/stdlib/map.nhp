@@ -42,7 +42,8 @@ mod data:
 				if self.bucketStates[i] as bool:
 					destroy self.valueBuckets + i
 
-			cstd::free(self.keyBuckets)
+			cstd::
+			self.keyBuckets)
 			cstd::free(self.valueBuckets)
 			cstd::free(self.bucketStates)
 		

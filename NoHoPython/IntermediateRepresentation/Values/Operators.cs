@@ -56,9 +56,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             else
             {
-                if (left.Type is not Primitive)
+                if (left.Type is not Primitive && !(left.Type is ForeignCType foreignCType && foreignCType.Declaration.PointerPropertyAccess))
                     throw new UnexpectedTypeException(left.Type, left.ErrorReportedElement);
-                if (right.Type is not Primitive)
+                if (right.Type is not Primitive && !(right.Type is ForeignCType rightForeignCType && rightForeignCType.Declaration.PointerPropertyAccess))
                     throw new UnexpectedTypeException(right.Type, right.ErrorReportedElement);
             }
         }

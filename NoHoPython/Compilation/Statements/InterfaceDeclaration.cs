@@ -272,7 +272,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
                 int indirection = primaryEmitter.AppendStartBlock();
-                primaryEmitter.AppendLine($"{Value.Type.SubstituteWithTypearg(typeargs)} value{indirection}; {realPrototype.GetCName(irProgram)} result{indirection};");
+                primaryEmitter.AppendLine($"{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} value{indirection}; {realPrototype.GetCName(irProgram)} result{indirection};");
                 Value.Emit(irProgram, primaryEmitter, typeargs, (valuePromise) =>
                 {
                     primaryEmitter.Append($"value{indirection} = ");

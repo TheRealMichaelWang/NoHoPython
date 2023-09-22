@@ -109,7 +109,7 @@ namespace NoHoPython.Typing
             if (RequiresDisposal)
             {
                 int indirection = emitter.AppendStartBlock();
-                emitter.Append($"\t{GetCName(irProgram)}to_free{indirection} = ");
+                emitter.Append($"{GetCName(irProgram)} to_free{indirection} = ");
                 valuePromise(emitter);
                 emitter.AppendLine(";");
 
@@ -117,10 +117,7 @@ namespace NoHoPython.Typing
                 {
                     if (valuePair.Key.RequiresDisposal)
                         for (int i = 0; i < valuePair.Value; i++)
-                        {
                             valuePair.Key.EmitFreeValue(irProgram, emitter, (e) => e.Append($"to_free{indirection}.{valuePair.Key.Identifier}{i}"), childAgent);
-                            emitter.AppendLine();
-                        }
                 }
                 emitter.AppendEndBlock();
             }

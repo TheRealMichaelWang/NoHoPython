@@ -420,36 +420,31 @@ namespace NoHoPython.Typing
             emitter.Append($"void free_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record, {StandardRecordMask} child_agent");
             if (!RecordPrototype.EmitMultipleCStructs && destructorCall != null)
                 emitter.Append(", nhp_custom_destructor destructor");
-            emitter.AppendLine(") {");
+            emitter.AppendStartBlock(")");
 
             emitter.AppendLine($"\tif(record->nhp_lock || nhp_record_has_child(({StandardRecordMask})record, child_agent))");
             emitter.AppendLine("\t\treturn;");
 
-            emitter.AppendLine("\tif(record->nhp_ref_count) {");
-            emitter.AppendLine($"\t\tif(nhp_record_has_child(child_agent, ({StandardRecordMask})record)) {{");
-            emitter.AppendLine("\t\t\tif(record->nhp_master_count == 0)");
-            emitter.AppendLine("\t\t\t\trecord->parent_record = NULL;");
-            emitter.AppendLine("\t\t\telse");
-            emitter.AppendLine("\t\t\t\trecord->nhp_master_count--;");
-            emitter.AppendLine("\t\t}");
-            emitter.AppendLine("\t\trecord->nhp_ref_count--;");
-            emitter.AppendLine("\t\treturn;");
+            emitter.AppendLine("if(record->nhp_ref_count) {");
+            emitter.AppendLine($"\tif(nhp_record_has_child(child_agent, ({StandardRecordMask})record)) {{");
+            emitter.AppendLine("\t\tif(record->nhp_master_count == 0)");
+            emitter.AppendLine("\t\t\trecord->parent_record = NULL;");
+            emitter.AppendLine("\t\telse");
+            emitter.AppendLine("\t\t\trecord->nhp_master_count--;");
             emitter.AppendLine("\t}");
-            
-            emitter.AppendLine("\trecord->nhp_lock = 1;");
-            if (destructorCall != null)
-                emitter.AppendLine($"\t{destructorCall.GetStandardIdentifier(irProgram)}(record);");
-            foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
-            {
-                if (recordProperty.Type.RequiresDisposal && !recordProperty.OptimizeMessageReciever)
-                {
-                    emitter.Append('\t');
-                    recordProperty.Type.EmitFreeValue(irProgram, emitter, (e) => e.Append($"record->{recordProperty.Name}"), (e) => e.Append("record"));
-                    emitter.AppendLine();
-                }
-            }
-            emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Dealloc("record", GetCHeapSizer(irProgram))}");
+            emitter.AppendLine("\trecord->nhp_ref_count--;");
+            emitter.AppendLine("\treturn;");
             emitter.AppendLine("}");
+            
+            emitter.AppendLine("record->nhp_lock = 1;");
+            if (destructorCall != null)
+                emitter.AppendLine($"{destructorCall.GetStandardIdentifier(irProgram)}(record);");
+            foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
+                if (recordProperty.Type.RequiresDisposal && !recordProperty.OptimizeMessageReciever)
+                    recordProperty.Type.EmitFreeValue(irProgram, emitter, (e) => e.Append($"record->{recordProperty.Name}"), (e) => e.Append("record"));
+
+            emitter.AppendLine($"{irProgram.MemoryAnalyzer.Dealloc("record", GetCHeapSizer(irProgram))}");
+            emitter.AppendEndBlock();
         }
 
         public void EmitCopier(IRProgram irProgram, Emitter emitter)

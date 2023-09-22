@@ -158,7 +158,7 @@ namespace NoHoPython.Typing
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
         {
             int indirection = emitter.AppendStartBlock();
-            emitter.Append($"\t{GetCName(irProgram)} to_free{indirection} = ");
+            emitter.Append($"{GetCName(irProgram)} to_free{indirection} = ");
             valuePromise(emitter);
             emitter.AppendLine(";");
             if(ElementType.RequiresDisposal)

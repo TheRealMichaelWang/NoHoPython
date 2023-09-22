@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "tests/interpolation-test.nhp\r\nout.c\r\n-leaksan"
+      "commandLineArgs": "tests/map-test.nhp\r\nout.c\r\n-leaksan"
     }
   }
 }

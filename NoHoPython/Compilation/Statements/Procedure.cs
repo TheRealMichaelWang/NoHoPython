@@ -604,8 +604,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            primaryEmitter.AppendStartBlock();
-
             if (irProgram.DoCallStack)
             {
                 CallStackReporting.EmitErrorLoc(primaryEmitter, ErrorReportedElement);
@@ -648,7 +646,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 primaryEmitter.Append("puts(\"AbortError: No message given.\");");
 
             primaryEmitter.AppendLine("abort();");
-            primaryEmitter.AppendEndBlock();
         }
     }
 

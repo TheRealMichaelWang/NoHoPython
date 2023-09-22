@@ -23,10 +23,6 @@ mod data:
 			self.keyBuckets = std::malloc(bucketCount) as handle<int>
 			self.valueBuckets = std::malloc(bucketCount) as handle<V>
 			self.bucketStates = std::calloc(bucketCount) as handle<bool>
-			
-			assert self.keyBuckets != None
-			assert self.valueBuckets != None
-			assert self.bucketStates != None
 
 		def __copy__() hashmap<K, V>:
 			copied = new hashmap<K, V>(self.hasher, self.bucketCount)
@@ -42,8 +38,7 @@ mod data:
 				if self.bucketStates[i] as bool:
 					destroy self.valueBuckets + i
 
-			cstd::
-			self.keyBuckets)
+			cstd::free(self.keyBuckets)
 			cstd::free(self.valueBuckets)
 			cstd::free(self.bucketStates)
 		
@@ -83,9 +78,6 @@ mod data:
 				self.keyBuckets = std::malloc(self.bucketCount) as handle<int>
 				self.valueBuckets = std::malloc(self.bucketCount) as handle<V>
 				self.bucketStates = std::calloc(self.bucketCount) as handle<bool>
-				assert self.keyBuckets != None
-				assert self.valueBuckets != None
-				assert self.bucketStates != None
 
 				for i from 0 within oldBucketCount:
 					if oldBucketStates[i] as bool:

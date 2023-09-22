@@ -208,16 +208,13 @@ namespace NoHoPython.Typing
 
         public void EmitDestructor(IRProgram irProgram, Emitter emitter)
         {
-            emitter.AppendLine($"void free_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} interface, void* child_agent) {{");
+            emitter.AppendStartBlock($"void free_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} interface, void* child_agent)");
 
             foreach (var property in requiredImplementedProperties.Value)
                 if (property.Type.RequiresDisposal)
-                {
-                    emitter.Append('\t');
                     property.Type.EmitFreeValue(irProgram, emitter, (e) => e.Append($"interface.{property.Name}"), (e) => e.Append("child_agent"));
-                    emitter.AppendLine();
-                }
-            emitter.AppendLine("}");
+
+            emitter.AppendEndBlock();
         }
 
         public void EmitCopier(IRProgram irProgram, Emitter emitter)
@@ -282,7 +279,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 foreach(Property property in realPrototype.GetProperties())
                 {
-                    primaryEmitter.AppendLine($"result{indirection}.{property.Name} = ");
+                    primaryEmitter.Append($"result{indirection}.{property.Name} = ");
 
 #pragma warning disable CS8602 // property container set in scope for used types
                     Property accessProperty = propertyContainer.FindProperty(property.Name);

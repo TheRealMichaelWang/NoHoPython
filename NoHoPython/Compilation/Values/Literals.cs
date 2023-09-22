@@ -222,9 +222,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Elements.ForEach((element) => element.ScopeForUsedTypes(typeargs, irBuilder));
         }
 
-        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => !Elements.Any(element => element.RequiresDisposal(irProgram, typeargs, isTemporaryEval)) || Elements.Any((elem) => elem.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval)) || !IRValue.EvaluationOrderGuarenteed(Elements);
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => !(isTemporaryEval && !Elements.Any(element => element.RequiresDisposal(irProgram, typeargs, true)));
 
-        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => RequiresDisposal(irProgram, typeargs, isTemporaryEval);
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Elements.Any((elem) => elem.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval)) || !IRValue.EvaluationOrderGuarenteed(Elements);
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
@@ -241,13 +241,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 for (int i = 0; i < initializeProperties.Count; i++)
                     Elements[i].Emit(irProgram, primaryEmitter, typeargs, (elemPromise) =>
                     {
-                        primaryEmitter.Append($".{initializeProperties[i].Name} = ");
-
-                        if (Elements[i].RequiresDisposal(irProgram, typeargs, isTemporaryEval) || isTemporaryEval)
+                        primaryEmitter.Append($"res{indirection}.{initializeProperties[i].Name} = ");
+                        if (!RequiresDisposal(irProgram, typeargs, isTemporaryEval) || Elements[i].RequiresDisposal(irProgram, typeargs, isTemporaryEval))
                             elemPromise(primaryEmitter);
                         else
                             initializeProperties[i].Type.EmitCopyValue(irProgram, primaryEmitter, elemPromise, responsibleDestroyer);
-
                         primaryEmitter.AppendLine(';');
                     }, responsibleDestroyer, isTemporaryEval);
 
@@ -267,7 +265,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         emitter.Append($".{initializeProperties[i].Name} = ");
 
                         Debug.Assert(!Elements[i].MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval));
-                        if (isTemporaryEval)
+                        if (!RequiresDisposal(irProgram, typeargs, isTemporaryEval))
                             IRValue.EmitDirect(irProgram, emitter, Elements[i], typeargs, Emitter.NullPromise, true);
                         else
                         {

@@ -43,8 +43,7 @@ namespace NoHoPython.Syntax.Parsing
             public int Column { get; private set; }
             public char LastChar { get; private set; }
 
-            private readonly string source;
-            private int position;
+            StreamReader reader;
 
             public FileVisitor(string fileName, Scanner scanner)
             {
@@ -71,31 +70,73 @@ namespace NoHoPython.Syntax.Parsing
                 fileName = Path.GetFullPath(fileName);
 
                 FileName = fileName;
-                source = File.ReadAllText(fileName);
+                reader = new StreamReader(new FileStream(fileName, FileMode.Open, FileAccess.Read), true);
+
+                reader.Read();
+                byte[] bom = reader.CurrentEncoding.GetPreamble();
+                reader.BaseStream.Seek(0, SeekOrigin.Begin);
+                reader.DiscardBufferedData();
+                int bommedBytes = 0;
+                while(true)
+                {
+                    bool bommed = true;
+                    for(int i = 0; i < bom.Length; i++)
+                        if (bom[i] != reader.BaseStream.ReadByte())
+                        {
+                            bommed = false;
+                            break;
+                        }
+                    if (bommed)
+                        bommedBytes += bom.Length;
+                    else
+                        break;
+                }
+                reader.BaseStream.Seek(bommedBytes, SeekOrigin.Begin);
+                reader.DiscardBufferedData();
+
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                WorkingDirectory = Path.GetDirectoryName(fileName).Replace('\\','/');
+                WorkingDirectory = Path.GetDirectoryName(fileName).Replace('\\', '/');
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 
                 Row = 1;
                 Column = 1;
-                position = 0;
             }
 
             public char ScanChar()
             {
-                if (position < source.Length)
+                int c = reader.Read();
+                if (c == -1)
+                    return LastChar = '\0';
+                else if (c == '\n')
                 {
-                    if (source[position] == '\n')
-                    {
-                        Row++;
-                        Column = 1;
-                    }
-                    else
-                        Column++;
-                    return LastChar = source[position++];
+                    Row++;
+                    Column = 1;
                 }
-                return LastChar = '\0';
+                else
+                    Column++;
+
+                return LastChar = (char)c;
             }
+
+            #region dispose
+            private bool isDisposed = false;
+
+            public void Dispose()
+            {
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
+            private void Dispose(bool disposing)
+            {
+                if (isDisposed) return;
+
+                if (disposing)
+                    reader.Dispose();
+
+                isDisposed = true;
+            }
+            #endregion dispose
         }
 
         public SourceLocation CurrentLocation => visitorStack.Peek().CurrentLocation;
@@ -148,6 +189,7 @@ namespace NoHoPython.Syntax.Parsing
                         '\'' => '\'',
                         'a' => '\a',
                         'b' => '\b',
+                        'e' => '\x1b',
                         'f' => '\f',
                         't' => '\t',
                         'r' => '\r',
@@ -256,7 +298,7 @@ namespace NoHoPython.Syntax.Parsing
                     return TokenType.Tab;
                 case '\0':
                     if(visitorStack.Count > 1)
-                        visitorStack.Pop();
+                        visitorStack.Pop().Dispose();
                     return TokenType.EndOfFile;
                 default:
                     throw new UnexpectedCharacterException(symChar, CurrentLocation);

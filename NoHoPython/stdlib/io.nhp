@@ -5,7 +5,6 @@ mod std:
 	cdef ioptr "FILE*"
 
 	mod io:
-
 		class handleOutputStream:
 			ioptr ptr
 		
@@ -73,14 +72,23 @@ mod std:
 			def peek() char:
 				return self.input.peek()
 
-		def openFile(string path, string mode) shared<ioptr>:
+		def openFileUnsafe(string path, handle<char> mode) shared<ioptr>:
 			cdef fopen(handle<char>, handle<char>) ioptr
 			cdef fclose(ioptr) None
 
-			ptr = fopen(path.cstr, mode.cstr)
+			ptr = fopen(path.cstr, mode)
 			assert ptr != NULL
 
 			return makeShared(ptr, lambda ioptr toFree: fclose(toFree))
+
+		def openFile(string path, handle<char> mode) option<shared<ioptr>>:
+			cdef fopen(handle<char>, handle<char>) ioptr
+			cdef fclose(ioptr) None
+
+			ptr = fopen(path.cstr, mode)
+			if ptr == NULL:
+				return None
+			return makeShared(ptr, lambda ioptr toFree: fclose(toFree)) as shared<ioptr>
 
 def input() string:
 	cdef stdin std::ioptr

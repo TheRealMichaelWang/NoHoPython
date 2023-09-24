@@ -324,6 +324,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 Dictionary<TypeParameter, IType> typeargs = procedureReference.Emit(irProgram, emitter);
                 EmitInitialize(irProgram, emitter, typeargs);
                 EmitNoOpen(irProgram, emitter, typeargs, false);
+                emitter.EndFunctionBlock();
             }
         }
     }
@@ -414,6 +415,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public Dictionary<TypeParameter, IType> Emit(IRProgram irProgram, Emitter emitter)
         {
             EmitCFunctionHeader(irProgram, emitter);
+            emitter.DeclareFunctionBlock();
             emitter.AppendStartBlock();
             if (IsAnonymous)
             {
@@ -580,10 +582,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     }, (e) => e.Append("ret_responsible_dest"), false);
             }
 
-            foreach (Variable variable in activeVariables)
-                if (localToReturn != variable && variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
-                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (e) => e.Append(variable.GetStandardIdentifier()), Emitter.NullPromise);
-
+            primaryEmitter.DestroyFunctionResources();
             if (ToReturn.Type is not NothingType)
                 primaryEmitter.AppendLine("return nhp_toret;");
             else
@@ -623,12 +622,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 else
                 {
                     primaryEmitter.AppendLine($"{AbortMessage.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} nhp_abort_msg;");
-                    AbortMessage.Emit(irProgram, primaryEmitter, typeargs, (messagePromise) =>
-                    {
-                        primaryEmitter.Append("nhp_abort_msg = ");
-                        messagePromise(primaryEmitter);
-                        primaryEmitter.AppendLine(';');
-                    }, Emitter.NullPromise, true);
+                    primaryEmitter.SetArgument(AbortMessage, $"nhp_abort_msg", irProgram, typeargs, true);
 
                     primaryEmitter.Append("printf(\"AbortError: ");
                     if (AbortMessage.Type is ArrayType)
@@ -637,14 +631,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                         primaryEmitter.AppendLine("%s\\n\", nhp_abort_msg->cstr);");
                     else
                         throw new UnexpectedTypeException(AbortMessage.Type, ErrorReportedElement);
-
-                    if (AbortMessage.RequiresDisposal(irProgram, typeargs, true))
-                        AbortMessage.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (e) => e.Append("nhp_abort_msg"), Emitter.NullPromise);
                 }
             }
             else
                 primaryEmitter.Append("puts(\"AbortError: No message given.\");");
 
+            primaryEmitter.DestroyFunctionResources();
             primaryEmitter.AppendLine("abort();");
         }
     }
@@ -697,12 +689,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     int j = i;
                     if (shouldBufferArg(i))
                     {
-                        Arguments[i].Emit(irProgram, primaryEmitter, typeargs, (argPromise) =>
-                        {
-                            primaryEmitter.Append($"arg{i}{indirection} = ");
-                            argPromise(primaryEmitter);
-                            primaryEmitter.AppendLine(';');
-                        }, Emitter.NullPromise, true);
+                        primaryEmitter.SetArgument(Arguments[i], $"arg{i}{indirection}", irProgram, typeargs, true);
                         argPromises.Add((emitter) => emitter.Append($"arg{j}{indirection}"));
                     }
                     else
@@ -714,15 +701,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                 destination((emitter) => EmitCall(irProgram, emitter, typeargs, argPromises, responsibleDestroyer));
 
-                for (int i = 0; i < Arguments.Count; i++)
-                {
-                    if (Arguments[i].RequiresDisposal(irProgram, typeargs, true))
-                        Arguments[i].Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"arg{i}{indirection}"), Emitter.NullPromise);
-                }
-
                 if (irProgram.DoCallStack)
                     CallStackReporting.EmitReportReturn(primaryEmitter);
-
                 primaryEmitter.AppendEndBlock();
             }
             else

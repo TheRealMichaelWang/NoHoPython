@@ -6,11 +6,12 @@ namespace NoHoPython.Scoping
 {
     partial class Variable
     {
-        public void EmitCFree(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs)
-        {
-            if (Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
-                Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (emitter) => emitter.Append(GetStandardIdentifier()), Emitter.NullPromise);
-        }
+        //depreceated because of Emitter.SetArgument
+        //public void EmitCFree(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs)
+        //{
+        //    if (Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+        //        Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (emitter) => emitter.Append(GetStandardIdentifier()), Emitter.NullPromise);
+        //}
     }
 }
 
@@ -64,6 +65,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
+                //function doesn't need to use set argument
                 if (WillRevaluate && Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
                 {
                     primaryEmitter.AppendStartBlock($"if(init_{Variable.GetStandardIdentifier()})");
@@ -95,6 +97,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     }, Emitter.NullPromise, false);
                     emitter.Append(')');
                 });
+
+            if(Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+                primaryEmitter.AddResourceDestructor((emitter) => {
+                    if (WillRevaluate)
+                        emitter.AppendStartBlock($"if(init_{Variable.GetStandardIdentifier()})");
+
+                    Variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (e) => e.Append(Variable.GetStandardIdentifier()), Emitter.NullPromise);
+
+                    if (WillRevaluate)
+                        emitter.AppendEndBlock();
+                });
         }
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
@@ -114,6 +127,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
+            //doesn't need setARguments
             if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
                 int indirection = primaryEmitter.AppendStartBlock();

@@ -52,6 +52,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
+                //function does not need setARgument
                 int indirection = primaryEmitter.AppendStartBlock();
 
                 if (handleType.ValueType is not NothingType)
@@ -132,18 +133,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 int indirection = primaryEmitter.AppendStartBlock();
                 primaryEmitter.AppendLine($"{Address.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} addr{indirection}; {Length.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} len{indirection};");
-                Address.Emit(irProgram, primaryEmitter, typeargs, (addrPromise) =>
-                {
-                    primaryEmitter.Append($"addr{indirection} = ");
-                    addrPromise(primaryEmitter);
-                    primaryEmitter.AppendLine(';');
-                }, Emitter.NullPromise, true);
-                Length.Emit(irProgram, primaryEmitter, typeargs, (lenPromise) =>
-                {
-                    primaryEmitter.Append($"len{indirection} = ");
-                    lenPromise(primaryEmitter);
-                    primaryEmitter.AppendLine(';');
-                }, Emitter.NullPromise, true);
+                primaryEmitter.SetArgument(Address, $"addr{indirection}",irProgram, typeargs, true);
+                primaryEmitter.SetArgument(Length, $"len{indirection}", irProgram, typeargs, true);
                 destination((emitter) =>
                 {
                     if (ElementType.SubstituteWithTypearg(typeargs).RequiresDisposal) 
@@ -233,12 +224,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 int indirection = primaryEmitter.AppendStartBlock();
                 primaryEmitter.AppendLine($"{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} upper{indirection};");
-                Value.Emit(irProgram, primaryEmitter, typeargs, (higherPromise) =>
-                {
-                    primaryEmitter.Append($"upper{indirection} = ");
-                    higherPromise(primaryEmitter);
-                    primaryEmitter.AppendLine(';');
-                }, Emitter.NullPromise, true);
+                primaryEmitter.SetArgument(Value, $"upper{indirection}", irProgram, typeargs, true);
                 primaryEmitter.AppendLine($"{targetType.GetCName(irProgram)} result{indirection};");
                 foreach (Property property in targetProperties)
                 {
@@ -247,8 +233,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     primaryEmitter.AppendLine(';');
                 }
                 destination((emitter) => emitter.Append($"result{indirection}"));
-                if (Value.RequiresDisposal(irProgram, typeargs, true))
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"upper{indirection}"), Emitter.NullPromise);
                 primaryEmitter.AppendEndBlock();
             }
             else

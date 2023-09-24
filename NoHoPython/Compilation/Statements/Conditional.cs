@@ -1,6 +1,5 @@
 ﻿using NoHoPython.Compilation;
 using NoHoPython.IntermediateRepresentation.Values;
-using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
@@ -53,12 +52,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (Condition.MustUseDestinationPromise(irProgram, typeargs, true))
                     {
                         primaryEmitter.AppendLine($"int cond{indirection};");
-                        Condition.Emit(irProgram, primaryEmitter, typeargs, (condPromise) =>
-                        {
-                            primaryEmitter.Append($"cond{indirection} = ");
-                            condPromise(primaryEmitter);
-                            primaryEmitter.AppendLine(';');
-                        }, Emitter.NullPromise, true);
+                        primaryEmitter.SetArgument(Condition, $"cond{indirection}", irProgram, typeargs, true);
                         primaryEmitter.AppendStartBlock($"if(cond{indirection})");
                     }
                     else
@@ -124,9 +118,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.LastSourceLocation = BlockBeginLocation;
             if (!CodeBlockAllCodePathsReturn())
             {
-                foreach (Variable declaration in LocalVariables)
-                    declaration.EmitCFree(irProgram, emitter, typeargs);
-                
+                emitter.DestroyBlockResources();
                 if (insertFinalBreak)
                 {
                     if (BreakLabelId != null)
@@ -181,12 +173,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 int indirection = primaryEmitter.AppendStartBlock();
                 primaryEmitter.AppendLine($"int cond{indirection} = ");
-                Condition.Emit(irProgram, primaryEmitter, typeargs, (conditionPromise) =>
-                {
-                    primaryEmitter.Append($"cond{indirection} = ");
-                    conditionPromise(primaryEmitter);
-                    primaryEmitter.AppendLine(';');
-                }, Emitter.NullPromise, true);
+                primaryEmitter.SetArgument(Condition, $"cond{indirection}", irProgram, typeargs, true);
                 primaryEmitter.Append($"if(cond{indirection})");
                 IfTrueBlock.Emit(irProgram, primaryEmitter, typeargs);
                 primaryEmitter.Append("else");
@@ -233,12 +220,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 int indirection = primaryEmitter.AppendStartBlock();
                 primaryEmitter.AppendLine($"int cond{indirection} = ");
-                Condition.Emit(irProgram, primaryEmitter, typeargs, (conditionPromise) =>
-                {
-                    primaryEmitter.Append($"cond{indirection} = ");
-                    conditionPromise(primaryEmitter);
-                    primaryEmitter.AppendLine(';');
-                }, Emitter.NullPromise, true);
+                primaryEmitter.SetArgument(Condition, $"cond{indirection}", irProgram, typeargs, true);
                 primaryEmitter.Append($"if(cond{indirection})");
                 IfTrueBlock.Emit(irProgram, primaryEmitter, typeargs);
                 primaryEmitter.AppendEndBlock();
@@ -279,7 +261,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return;
             }
 
-            int indirection; 
+            int indirection;
+            primaryEmitter.DeclareLoopBlock();
             if (Condition.IsTruey || Condition.MustUseDestinationPromise(irProgram, typeargs, true))
                 indirection = primaryEmitter.AppendStartBlock("for(;;)");
             else
@@ -294,12 +277,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             else if (Condition.MustUseDestinationPromise(irProgram, typeargs, true))
             {
                 primaryEmitter.AppendLine($"int cond{indirection};");
-                Condition.Emit(irProgram, primaryEmitter, typeargs, (conditionPromise) =>
-                {
-                    primaryEmitter.Append($"cond{indirection} = ");
-                    conditionPromise(primaryEmitter);
-                    primaryEmitter.AppendLine(';');
-                }, Emitter.NullPromise, true);
+                primaryEmitter.SetArgument(Condition, $"cond{indirection}", irProgram, typeargs, true);
 
                 if (!Condition.IsTruey)
                     primaryEmitter.AppendLine($"if(!cond{indirection}) {{ break; }}");
@@ -307,6 +285,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             WhileTrueBlock.Emit(irProgram, primaryEmitter, typeargs);
             primaryEmitter.AppendEndBlock();
+            primaryEmitter.EndLoopBlock();
         }
     }
 
@@ -322,18 +301,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
             int indirection = primaryEmitter.AppendStartBlock();
+            primaryEmitter.DeclareLoopBlock();
             IterationBlock.EmitInitialize(irProgram, primaryEmitter, typeargs);
             IteratorVariableDeclaration.Emit(irProgram, primaryEmitter, typeargs);
             primaryEmitter.AppendLine($"{UpperBound.Type.GetCName(irProgram)} upper_{indirection};");
-            UpperBound.Emit(irProgram, primaryEmitter, typeargs, (upperPromise) =>
-            {
-                primaryEmitter.Append($"upper_{indirection} = ");
-                upperPromise(primaryEmitter);
-                primaryEmitter.AppendLine(';');
-            }, Emitter.NullPromise, true);
+            primaryEmitter.SetArgument(UpperBound, $"upper_{indirection}", irProgram, typeargs, true);
             primaryEmitter.AppendStartBlock($"while((++{IteratorVariableDeclaration.Variable.GetStandardIdentifier()}) <= upper_{indirection})");
             IterationBlock.EmitNoOpen(irProgram, primaryEmitter, typeargs, false);
             primaryEmitter.AppendEndBlock();
+            primaryEmitter.EndLoopBlock();
         }
     }
 
@@ -359,12 +335,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 indirection = primaryEmitter.AppendStartBlock();
                 primaryEmitter.AppendLine($"{enumType.GetCName(irProgram)} matchVal{indirection};");
-                MatchValue.Emit(irProgram, primaryEmitter, typeargs, (matchValuePromise) =>
-                {
-                    primaryEmitter.Append($"matchVal{indirection} = ");
-                    matchValuePromise(primaryEmitter);
-                    primaryEmitter.AppendLine(';');
-                }, Emitter.NullPromise, true);
+                primaryEmitter.SetArgument(MatchValue, $"matchVal{indirection} = ", irProgram, typeargs, true);
                 primaryEmitter.AppendLine($"switch(matchVal{indirection}.option) {{");
             }
             else
@@ -407,11 +378,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             primaryEmitter.AppendLine('}');
 
             if (bufferedMatchVal)
-            {
-                if (MatchValue.RequiresDisposal(irProgram, typeargs, true))
-                    enumType.EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"matchVal{indirection}"), Emitter.NullPromise);
                 primaryEmitter.AppendEndBlock();
-            }
         }
     }
 
@@ -421,10 +388,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
-            foreach (Variable variable in activeLoopVariables)
-                if (variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
-                    variable.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append(variable.GetStandardIdentifier()), Emitter.NullPromise);
-
+            primaryEmitter.DestroyLoopResources();
             if (Action.Type == Syntax.Parsing.TokenType.Break)
                 primaryEmitter.AppendLine($"goto loopbreaklabel{breakLabelId};");
             else

@@ -249,12 +249,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (InterpolatedValues[i] is IRValue irValue)
                 {
                     primaryEmitter.AppendLine($"{irValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} arg{i}{indirection};");
-                    irValue.Emit(irProgram, primaryEmitter, typeargs, (valuePromise) =>
-                    {
-                        primaryEmitter.Append($"arg{i}{indirection} = ");
-                        valuePromise(primaryEmitter);
-                        primaryEmitter.AppendLine(';');
-                    }, Emitter.NullPromise, true);
+                    primaryEmitter.SetArgument(irValue, $"arg{i}{indirection}", irProgram, typeargs, true);
                 }
 
             primaryEmitter.Append($"int count{indirection} = snprintf(NULL, 0, {format}");
@@ -266,10 +261,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 destination((emitter) => emitter.Append($"({Type.GetCName(irProgram)}){{.buffer = cstr{indirection}, .length=count{indirection}}}"));
             else
                 destination((emitter) => emitter.Append($"cstr{indirection}"));
-
-            for (int i = 0; i < InterpolatedValues.Count; i++)
-                if (InterpolatedValues[i] is IRValue irValue && irValue.RequiresDisposal(irProgram, typeargs, true))
-                    irValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"arg{i}{indirection}"), Emitter.NullPromise);
             primaryEmitter.AppendEndBlock();
         }
     }

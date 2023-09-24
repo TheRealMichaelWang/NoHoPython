@@ -282,7 +282,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public IAstElement ErrorReportedElement { get; private set; }
         public IRValue ToReturn { get; private set; }
 
-        private List<Variable> activeVariables;
         private ProcedureDeclaration parentProcedure;
 
         public ReturnStatement(IRValue toReturn, AstIRProgramBuilder irBuilder, IAstElement errorReportedStatement)
@@ -290,7 +289,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 #pragma warning disable CS8604 // Return types may be linked in after initialization
             ToReturn = ArithmeticCast.CastTo(toReturn, irBuilder.ScopedProcedures.Peek().ReturnType);
 #pragma warning restore CS8604 
-            activeVariables = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetCurrentLocals(irBuilder.ScopedProcedures.Peek());
             parentProcedure = irBuilder.ScopedProcedures.Peek();
             ErrorReportedElement = errorReportedStatement;
         }

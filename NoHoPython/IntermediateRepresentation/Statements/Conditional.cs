@@ -127,14 +127,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public IAstElement ErrorReportedElement { get; private set; }
         public Token Action { get; private set; }
 
-        private List<Variable> activeLoopVariables;
         private int? breakLabelId;
 
         public LoopStatement(Token action, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
             Action = action;
-            activeLoopVariables = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetLoopLocals(errorReportedElement);
 
             breakLabelId = action.Type == TokenType.Break ? irBuilder.SymbolMarshaller.CurrentCodeBlock.GetLoopBreakLabelId(errorReportedElement, irBuilder) : null;
         }

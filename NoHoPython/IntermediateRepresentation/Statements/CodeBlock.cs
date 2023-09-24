@@ -54,33 +54,35 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements = statements;
         }
 
-        public List<Variable> GetCurrentLocals(ProcedureDeclaration currentProcedure)
-        {
-            if (parentContainer == null || parentContainer is not CodeBlock || this == currentProcedure)
-                return new(LocalVariables);
-            else
-            {
-                List<Variable> combined = new();
-                combined.AddRange(((CodeBlock)parentContainer).GetCurrentLocals(currentProcedure));
-                combined.AddRange(LocalVariables);
-                return combined;
-            }
-        }
+        //depreceated beacuse of emitter destructor stack
+        //public List<Variable> GetCurrentLocals(ProcedureDeclaration currentProcedure)
+        //{
+        //    if (parentContainer == null || parentContainer is not CodeBlock || this == currentProcedure)
+        //        return new(LocalVariables);
+        //    else
+        //    {
+        //        List<Variable> combined = new();
+        //        combined.AddRange(((CodeBlock)parentContainer).GetCurrentLocals(currentProcedure));
+        //        combined.AddRange(LocalVariables);
+        //        return combined;
+        //    }
+        //}
 
-        public List<Variable> GetLoopLocals(IAstElement errorReportedElement)
-        {
-            if (this.IsLoop)
-                return new(LocalVariables);
-            if (parentContainer == null || parentContainer is not CodeBlock)
-                throw new UnexpectedLoopStatementException(errorReportedElement);
-            else
-            {
-                List<Variable> combined = new();
-                combined.AddRange(((CodeBlock)parentContainer).GetLoopLocals(errorReportedElement));
-                combined.AddRange(LocalVariables);
-                return combined;
-            }
-        }
+        //depreceated beacuse of emitter destructor stack
+        //public List<Variable> GetLoopLocals(IAstElement errorReportedElement)
+        //{
+        //    if (this.IsLoop)
+        //        return new(LocalVariables);
+        //    if (parentContainer == null || parentContainer is not CodeBlock)
+        //        throw new UnexpectedLoopStatementException(errorReportedElement);
+        //    else
+        //    {
+        //        List<Variable> combined = new();
+        //        combined.AddRange(((CodeBlock)parentContainer).GetLoopLocals(errorReportedElement));
+        //        combined.AddRange(LocalVariables);
+        //        return combined;
+        //    }
+        //}
 
         public int GetLoopBreakLabelId(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder)
         {

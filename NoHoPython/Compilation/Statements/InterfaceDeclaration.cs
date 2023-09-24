@@ -270,12 +270,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 int indirection = primaryEmitter.AppendStartBlock();
                 primaryEmitter.AppendLine($"{Value.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} value{indirection}; {realPrototype.GetCName(irProgram)} result{indirection};");
-                Value.Emit(irProgram, primaryEmitter, typeargs, (valuePromise) =>
-                {
-                    primaryEmitter.Append($"value{indirection} = ");
-                    valuePromise(primaryEmitter);
-                    primaryEmitter.AppendLine(';');
-                }, Emitter.NullPromise, isTemporaryEval);
+                primaryEmitter.SetArgument(Value, $"value{indirection}", irProgram, typeargs, isTemporaryEval);
 
                 foreach(Property property in realPrototype.GetProperties())
                 {
@@ -291,8 +286,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 #pragma warning restore CS8602
                 }
 
-                if (Value.RequiresDisposal(irProgram, typeargs, isTemporaryEval))
-                    Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"value{indirection}"), Emitter.NullPromise);
+                primaryEmitter.DestroyBlockResources();
 
                 destination((emitter) => emitter.Append($"result{indirection}"));
 

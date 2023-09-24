@@ -1,4 +1,5 @@
 ﻿using NoHoPython.Syntax;
+using NoHoPython.Typing;
 using System.Diagnostics;
 using System.Text;
 
@@ -18,6 +19,10 @@ namespace NoHoPython.IntermediateRepresentation
         public SourceLocation? LastSourceLocation { get; set; }
         public bool EmitLineDirectives { get; private set; }
         private int Indirection;
+        private Stack<Promise> resourceDestructors;
+        private Stack<int> blockDestructionFrames;
+        private Stack<int> loopDestructorFrames;
+        private Stack<int> functionDestructorFrames;
 
         public bool BufferMode { get; private set; }
 
@@ -29,9 +34,13 @@ namespace NoHoPython.IntermediateRepresentation
             BufferMode = false;
             EmitLineDirectives = emitLineDirectives;
             Indirection = 0;
-            stream = new FileStream(outputPath, FileMode.OpenOrCreate, FileAccess.Write);
+            stream = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write);
             writer = new StreamWriter(stream, Encoding.UTF8);
             currentLineBuilder = new();
+            resourceDestructors = new();
+            blockDestructionFrames = new();
+            loopDestructorFrames = new();
+            functionDestructorFrames = new();
         }
 
         public Emitter()
@@ -42,6 +51,10 @@ namespace NoHoPython.IntermediateRepresentation
             stream = new MemoryStream();
             writer = new StreamWriter(stream, new UTF8Encoding(false));
             currentLineBuilder = new();
+            resourceDestructors = new();
+            blockDestructionFrames = new();
+            loopDestructorFrames = new();
+            functionDestructorFrames = new();
         }
 
         public void Append(string str)
@@ -97,19 +110,70 @@ namespace NoHoPython.IntermediateRepresentation
             AppendLine();
             Indirection++;
 
+            blockDestructionFrames.Push(resourceDestructors.Count);
+            
             return Indirection;
         }
 
         public void AppendEndBlock()
         {
             Debug.Assert(currentLineBuilder.Length == 0);
+            DestroyResources(blockDestructionFrames.Peek(), blockDestructionFrames.Pop());
             currentLineBuilder.Append('}');
             Indirection--;
             AppendLine();
         }
 
+        public void DeclareLoopBlock() => loopDestructorFrames.Push(resourceDestructors.Count);
+        public void DeclareFunctionBlock() => functionDestructorFrames.Push(resourceDestructors.Count);
+        public void EndLoopBlock() => DestroyResources(loopDestructorFrames.Peek(), loopDestructorFrames.Pop());
+        public void EndFunctionBlock() => DestroyResources(functionDestructorFrames.Peek(), functionDestructorFrames.Pop());
+
+        public void DestroyBlockResources() => DestroyResources(blockDestructionFrames.Peek(), blockDestructionFrames.Peek());
+        public void DestroyLoopResources() => DestroyResources(loopDestructorFrames.Peek(), blockDestructionFrames.Peek());
+        public void DestroyFunctionResources() => DestroyResources(functionDestructorFrames.Peek(), blockDestructionFrames.Peek());
+        public void AssumeBlockResources()
+        {
+            while(resourceDestructors.Count > blockDestructionFrames.Peek())
+                resourceDestructors.Pop();
+        }
+
+        private void DestroyResources(int depth, int frameLimit)
+        {
+            Stack<Promise> recoveredPromises = new();
+            while (resourceDestructors.Count > depth)
+            {
+                Promise p = resourceDestructors.Pop();
+                p(this);
+                if (resourceDestructors.Count < frameLimit)
+                    recoveredPromises.Push(p);
+            }
+            foreach (Promise promise in recoveredPromises)
+                resourceDestructors.Push(promise);
+        }
+
+        public void SetArgument(IRValue irValue, string location, IRProgram irProgram, Dictionary<Typing.TypeParameter, IType> typeargs, bool isTemporary, Promise? responsibleDestroyer = null)
+        {
+            responsibleDestroyer = responsibleDestroyer ?? NullPromise;
+            irValue.Emit(irProgram, this, typeargs, (promise) =>
+            {
+                Append(location);
+                Append(" = ");
+                promise(this);
+                AppendLine(';');
+            }, responsibleDestroyer, isTemporary);
+
+            if (!irValue.RequiresDisposal(irProgram, typeargs, isTemporary))
+                return;
+
+            resourceDestructors.Push((emitter) => irValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (e) => e.Append(location), responsibleDestroyer));
+        }
+
+        public void AddResourceDestructor(Promise resourceDestructor) => resourceDestructors.Push(resourceDestructor);
+
         public string GetBuffered()
         {
+            DestroyResources(0, 0);
             Flush();
             MemoryStream memoryStream = (MemoryStream)stream;
             return Encoding.UTF8.GetString(memoryStream.ToArray());
@@ -145,6 +209,7 @@ namespace NoHoPython.IntermediateRepresentation
             if (disposing)
             {
                 // free managed resources
+                DestroyResources(0, 0);
                 Flush();
                 writer.Close();
                 writer.Dispose();

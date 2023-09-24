@@ -144,12 +144,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 int indirection = primaryEmitter.AppendStartBlock();
 
                 primaryEmitter.AppendLine($"{ArrayValue.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} arr{indirection};");
-                ArrayValue.Emit(irProgram, primaryEmitter, typeargs, (arrayPromise) =>
-                {
-                    primaryEmitter.Append($"arr{indirection} = ");
-                    arrayPromise(primaryEmitter);
-                    primaryEmitter.AppendLine(';');
-                }, Emitter.NullPromise, true);
+                primaryEmitter.SetArgument(ArrayValue, $"arr{indirection}", irProgram, typeargs, true);
 
                 if (Operation != ArrayOperation.GetArrayLength && ArrayValue.RequiresDisposal(irProgram, typeargs, true))
                     throw new CannotEmitDestructorError(ArrayValue);
@@ -162,9 +157,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     else if (Operation == ArrayOperation.GetArrayHandle)
                         emitter.Append(".buffer");
                 });
-
-                if (ArrayValue.RequiresDisposal(irProgram, typeargs, true))
-                    ArrayValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"arr{indirection}"), Emitter.NullPromise);
 
                 primaryEmitter.AppendEndBlock();
             }

@@ -326,10 +326,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class UnwrapEnumValue
     {
-        public bool IsPure => EnumValue.IsPure;
+        public bool IsPure => false;
         public bool IsConstant => EnumValue.IsConstant;
 
-        public IRValue GetPostEvalPure() => new UnwrapEnumValue(EnumValue.GetPostEvalPure(), Type, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new UnwrapEnumValue(EnumValue.GetPostEvalPure(), Type, ErrorReturnEnum, ErrorReportedElement);
     }
 
     partial class CheckEnumOption

@@ -5,6 +5,7 @@ namespace NoHoPython.IntermediateRepresentation
 {
     partial interface IRValue
     {
+        //is using value indicates whether the entirety of a value is being evaluated, or only a known initialized property or index is being evaluated
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue);
         public void NonConstructorPropertyAnalysis();
     }
@@ -476,6 +477,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class UnwrapEnumValue
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => EnumValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
         public void NonConstructorPropertyAnalysis() => EnumValue.NonConstructorPropertyAnalysis();
     }

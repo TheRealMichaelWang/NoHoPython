@@ -519,57 +519,110 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
             EnumType enumType = (EnumType)EnumValue.Type.SubstituteWithTypearg(typeargs);
+            IType targetType = Type.SubstituteWithTypearg(typeargs);
 
             int indirection = primaryEmitter.AppendStartBlock();
             primaryEmitter.AppendLine($"{enumType.GetCName(irProgram)} enum{indirection};");
-            EnumValue.Emit(irProgram, primaryEmitter, typeargs, (enumValuePromise) =>
-            {
-                primaryEmitter.Append($"enum{indirection} = ");
-                enumValuePromise(primaryEmitter);
-                primaryEmitter.AppendLine(';');
-            }, responsibleDestroyer, isTemporaryEval);
+            primaryEmitter.SetArgument(EnumValue, $"enum{indirection}", irProgram, typeargs, isTemporaryEval, responsibleDestroyer);
 
-            primaryEmitter.AppendStartBlock($"if(enum{indirection}.option != {enumType.GetCEnumOptionForType(irProgram, Type.SubstituteWithTypearg(typeargs))})");
-            if (irProgram.DoCallStack)
+            primaryEmitter.AppendStartBlock($"if(enum{indirection}.option != {enumType.GetCEnumOptionForType(irProgram, targetType)})");
+            if (ErrorReturnEnum != null)
             {
-                CallStackReporting.EmitErrorLoc(primaryEmitter, ErrorReportedElement);
-                CallStackReporting.EmitPrintStackTrace(primaryEmitter);
-                if (irProgram.NameRuntimeTypes)
+                EnumType errorReturn = (EnumType)ErrorReturnEnum.SubstituteWithTypearg(typeargs);
+
+                if (enumType.GetOptions().Count > 2)
                 {
-                    primaryEmitter.Append("printf(\"Unwrapping Error: Expected ");
-                    ErrorReportedElement.EmitSrcAsCString(primaryEmitter, true, false);
-                    primaryEmitter.Append($"to be {Type.SubstituteWithTypearg(typeargs).TypeName}, but got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{indirection}.option]);");
+                    primaryEmitter.AppendLine($"{errorReturn.GetCName(irProgram)} toret{indirection};");
+                    primaryEmitter.AppendLine($"switch(enum{indirection}.option) {{");
+                    foreach (IType option in enumType.GetOptions())
+                    {
+                        if (option.IsCompatibleWith(targetType))
+                            continue;
+
+                        primaryEmitter.AppendLine($"case {enumType.GetCEnumOptionForType(irProgram, option)}:");
+                        if (errorReturn.SupportsType(option))
+                        {
+                            primaryEmitter.AppendLine($"\ttoret{indirection}.option = {errorReturn.GetCEnumOptionForType(irProgram, option)}");
+                            if (!option.IsEmpty)
+                            {
+                                primaryEmitter.Append($"\ttoret{indirection}.data.{option.GetStandardIdentifier(irProgram)}_set = ");
+                                option.EmitCopyValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"enum{indirection}.data.{option.GetStandardIdentifier(irProgram)}_set"), (e) => e.Append("ret_responsible_dest"));
+                                primaryEmitter.AppendLine(';');
+                            }
+                        }
+                        else
+                            primaryEmitter.AppendLine($"\ttoret{indirection}.option = {errorReturn.GetCEnumOptionForType(irProgram, Primitive.Nothing)}");
+                        primaryEmitter.AppendLine("\tbreak;");
+                    }
+                    primaryEmitter.AppendLine('}');
+                    primaryEmitter.DestroyFunctionResources();
+                    primaryEmitter.AppendLine($"return toret{indirection};");
                 }
                 else
                 {
-                    primaryEmitter.Append("puts(\"Unwrapping Error: ");
-                    ErrorReportedElement.EmitSrcAsCString(primaryEmitter, false, false);
-                    primaryEmitter.Append(" failed.\");");
+                    IType option = enumType.GetOptions()[enumType.GetOptions()[0].IsCompatibleWith(targetType) ? 1 : 0];
+                    if (option.IsEmpty || !errorReturn.SupportsType(option))
+                    {
+                        primaryEmitter.DestroyFunctionResources();
+                        primaryEmitter.AppendLine($"return ({errorReturn.GetCName(irProgram)}){{.option = {errorReturn.GetCEnumOptionForType(irProgram, option)}}}");
+                    }
+                    else
+                    {
+                        primaryEmitter.AppendLine($"{errorReturn.GetCName(irProgram)} toret{indirection};");
+                        primaryEmitter.AppendLine($"toret.option = {errorReturn.GetCEnumOptionForType(irProgram, option)}");
+                        primaryEmitter.Append($"toret.data.{option.GetStandardIdentifier(irProgram)}_set = ");
+                        option.EmitCopyValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"enum{indirection}.data.{option.GetStandardIdentifier(irProgram)}_set"), (e) => e.Append("ret_responsible_dest"));
+                        primaryEmitter.AppendLine(';');
+                        primaryEmitter.DestroyFunctionResources();
+                        primaryEmitter.AppendLine($"return toret{indirection};");
+                    }
                 }
             }
             else
             {
-                if (irProgram.NameRuntimeTypes)
+                if (irProgram.DoCallStack)
                 {
-                    primaryEmitter.Append($"printf(\"Failed to unwrap {Type.SubstituteWithTypearg(typeargs).TypeName} from ");
-                    CharacterLiteral.EmitCString(primaryEmitter, ErrorReportedElement.SourceLocation.ToString(), true, false);
-                    primaryEmitter.Append($", got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{indirection}.option]); ");
+                    CallStackReporting.EmitErrorLoc(primaryEmitter, ErrorReportedElement);
+                    CallStackReporting.EmitPrintStackTrace(primaryEmitter);
+                    if (irProgram.NameRuntimeTypes)
+                    {
+                        primaryEmitter.Append("printf(\"Unwrapping Error: Expected ");
+                        ErrorReportedElement.EmitSrcAsCString(primaryEmitter, true, false);
+                        primaryEmitter.Append($"to be {targetType.TypeName}, but got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{indirection}.option]);");
+                    }
+                    else
+                    {
+                        primaryEmitter.Append("puts(\"Unwrapping Error: ");
+                        ErrorReportedElement.EmitSrcAsCString(primaryEmitter, false, false);
+                        primaryEmitter.Append(" failed.\");");
+                    }
                 }
                 else
                 {
-                    primaryEmitter.Append("puts(\"Failed to unwrap enum from value, ");
-                    CharacterLiteral.EmitCString(primaryEmitter, ErrorReportedElement.SourceLocation.ToString(), false, false);
-                    primaryEmitter.Append(".\\n\\t");
-                    ErrorReportedElement.EmitSrcAsCString(primaryEmitter, true, false);
-                    primaryEmitter.Append("\");");
+                    if (irProgram.NameRuntimeTypes)
+                    {
+                        primaryEmitter.Append($"printf(\"Failed to unwrap {targetType.TypeName} from ");
+                        CharacterLiteral.EmitCString(primaryEmitter, ErrorReportedElement.SourceLocation.ToString(), true, false);
+                        primaryEmitter.Append($", got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{indirection}.option]); ");
+                    }
+                    else
+                    {
+                        primaryEmitter.Append("puts(\"Failed to unwrap enum from value, ");
+                        CharacterLiteral.EmitCString(primaryEmitter, ErrorReportedElement.SourceLocation.ToString(), false, false);
+                        primaryEmitter.Append(".\\n\\t");
+                        ErrorReportedElement.EmitSrcAsCString(primaryEmitter, true, false);
+                        primaryEmitter.Append("\");");
+                    }
                 }
+                primaryEmitter.AppendLine("abort();");
             }
-            primaryEmitter.AppendLine("abort();");
             primaryEmitter.AppendEndBlock();
-            
-            destination((emitter) => emitter.Append($"enum{indirection}.data.{Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set"));
+            primaryEmitter.AssumeBlockResources();
+            destination((emitter) => emitter.Append($"enum{indirection}.data.{targetType.GetStandardIdentifier(irProgram)}_set"));
             primaryEmitter.AppendEndBlock();
         }
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
     }
 
     partial class CheckEnumOption

@@ -130,17 +130,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => ArithmeticCast.CastTo(Value.SubstituteWithTypearg(typeargs), TargetType.SubstituteWithTypearg(typeargs));
     }
 
-    public sealed partial class UnwrapEnumValue : IRValue
+    public sealed partial class UnwrapEnumValue : IRValue, IRStatement
     {
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
         
         public IRValue EnumValue { get; private set; }
         public IType Type { get; private set; }
+        public EnumType? ErrorReturnEnum { get; private set; }
 
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
-        public UnwrapEnumValue(IRValue enumValue, IType type, Syntax.IAstElement errorReportedElement)
+        public UnwrapEnumValue(IRValue enumValue, IType type, Syntax.AstIRProgramBuilder irBuilder, Syntax.IAstElement errorReportedElement)
         {
             EnumValue = enumValue;
             ErrorReportedElement = errorReportedElement;
@@ -148,13 +149,36 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 if (!enumType.SupportsType(type) || type.IsEmpty)
                     throw new UnexpectedTypeException(type, errorReportedElement);
+
                 Type = type;
+
+#pragma warning disable CS8600 //Return type already linked by now
+                IType returnType = irBuilder.ScopedProcedures.Peek().ReturnType;
+                if (returnType is EnumType errorReturn)
+                {
+                    if (!errorReturn.SupportsType(Primitive.Nothing))
+                    {
+                        foreach (IType option in enumType.GetOptions())
+                            if (!option.IsCompatibleWith(type) && !errorReturn.SupportsType(option))
+                                throw new UnexpectedTypeException(errorReturn, ErrorReportedElement);
+                    }
+                    ErrorReturnEnum = errorReturn;
+                }
+#pragma warning restore CS8600
             }
             else
                 throw new UnexpectedTypeException(EnumValue.Type, errorReportedElement);
         }
 
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new UnwrapEnumValue(EnumValue.SubstituteWithTypearg(typeargs), Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        private UnwrapEnumValue(IRValue enumValue, IType type, EnumType? errorReturnEnum, Syntax.IAstElement errorReportedElement)
+        {
+            EnumValue = enumValue;
+            Type = type;
+            ErrorReturnEnum = errorReturnEnum;
+            ErrorReportedElement = errorReportedElement;
+        }
+
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new UnwrapEnumValue(EnumValue.SubstituteWithTypearg(typeargs), Type.SubstituteWithTypearg(typeargs), (EnumType?)ErrorReturnEnum?.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     public sealed partial class CheckEnumOption : IRValue

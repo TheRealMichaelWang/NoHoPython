@@ -168,17 +168,11 @@ namespace NoHoPython.IntermediateRepresentation
                 value.Emit(irProgram, emitter, typeargs, (valuePromise) => value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valuePromise, Emitter.NullPromise), Emitter.NullPromise, true);
             else
             {
-                if (value.MustUseDestinationPromise(irProgram, typeargs, true))
-                    value.Emit(irProgram, emitter, typeargs, (valuePromise) =>
-                    {
-                        valuePromise(emitter);
-                        emitter.AppendLine(';');
-                    }, Emitter.NullPromise, true);
-                else
+                value.Emit(irProgram, emitter, typeargs, (valuePromise) =>
                 {
-                    EmitDirect(irProgram, emitter, value, typeargs, Emitter.NullPromise, true);
+                    valuePromise(emitter);
                     emitter.AppendLine(';');
-                }
+                }, Emitter.NullPromise, true);
             }
         }
     }

@@ -122,7 +122,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class UnwrapEnumValue
     {
-        public IRValue? GetResponsibleDestroyer() => null;
+        public IRValue? GetResponsibleDestroyer() => EnumValue.GetResponsibleDestroyer();
     }
 
     partial class CheckEnumOption

@@ -62,41 +62,40 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             if (typeTarget.IsCompatibleWith(value.Type))
                 return value;
-            else if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to_{typeTarget.Identifier}"))
+
+            //infalible type conversions
+            if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to_{typeTarget.Identifier}"))
             {
                 IRValue call = AnonymousProcedureCall.ComposeCall(new GetPropertyValue(value, $"to_{typeTarget.Identifier}", null, value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
                 if (!call.Type.IsCompatibleWith(typeTarget))
                     throw new UnexpectedTypeException(typeTarget, call.Type, value.ErrorReportedElement);
                 return call;
             }
-            else if (value.Type is EnumType valueEnumType && valueEnumType.SupportsType(typeTarget))
-                return new UnwrapEnumValue(value, typeTarget, value.ErrorReportedElement);
-            else if (typeTarget is HandleType handleType)
+            if (typeTarget is HandleType handleType)
             {
                 if (explicitCast && value.Type is HandleType)
                     return new HandleCast(handleType, value, value.ErrorReportedElement);
-
-                return value.Type is ArrayType
-                    ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement)
-                    : value.Type is MemorySpan
-                    ? new ArrayOperator(ArrayOperator.ArrayOperation.GetSpanHandle, value, value.ErrorReportedElement)
-                    : value.Type is Primitive
-                    ? PrimitiveCast(value, handleType)
-                    : throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
+                else if (value.Type is MemorySpan || value.Type is ArrayType)
+                    return new ArrayOperator(ArrayOperator.ArrayOperation.GetSpanHandle, value, value.ErrorReportedElement);
             }
-            else if (typeTarget is TupleType tupleTarget && value.Type is TupleType)
-                return new MarshalIntoLowerTuple(tupleTarget, value, value.ErrorReportedElement);
-            else if (typeTarget is ArrayType && value.Type is MemorySpan)
+            if (typeTarget is ArrayType && value.Type is MemorySpan)
                 return new MarshalMemorySpanIntoArray(value, value.ErrorReportedElement);
-            else return typeTarget is EnumType enumType
-                ? new MarshalIntoEnum(enumType, value, value.ErrorReportedElement)
-                : typeTarget is InterfaceType interfaceType
-                ? new MarshalIntoInterface(interfaceType, value, value.ErrorReportedElement)
-                : typeTarget is RecordType recordType
-                    ? new AllocRecord(recordType, new List<IRValue>() { value }, value.ErrorReportedElement)
-                    : typeTarget is Primitive primitive
-                        ? PrimitiveCast(value, primitive)
-                        : throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
+            if(typeTarget is IntegerType && value.Type is ArrayType)
+                return new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayLength, value, value.ErrorReportedElement);
+            if (typeTarget is Primitive primitive)
+                return PrimitiveCast(value, primitive);
+
+            //type conversions that could potentially fail
+            if (typeTarget is TupleType tupleTarget && value.Type is TupleType)
+                return new MarshalIntoLowerTuple(tupleTarget, value, value.ErrorReportedElement);
+            if(typeTarget is EnumType enumType)
+                return new MarshalIntoEnum(enumType, value, value.ErrorReportedElement);
+            if (typeTarget is InterfaceType interfaceType)
+                return new MarshalIntoInterface(interfaceType, value, value.ErrorReportedElement);
+            if (typeTarget is RecordType recordType)
+                return new AllocRecord(recordType, new List<IRValue>() { value }, value.ErrorReportedElement);
+
+            throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
         }
 
         private static IRValue PrimitiveCast(IRValue primitive, Primitive targetType)
@@ -267,8 +266,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IType Type => Operation switch
         {
             ArrayOperation.GetArrayLength => Primitive.Integer,
-            ArrayOperation.GetArrayHandle => new HandleType(((ArrayType)ArrayValue.Type).ElementType),
-            ArrayOperation.GetSpanHandle => new HandleType(((MemorySpan)ArrayValue.Type).ElementType)
+            ArrayOperation.GetArrayHandle => new HandleType(ElementType),
+            ArrayOperation.GetSpanHandle => new HandleType(ElementType)
         };
 #pragma warning restore CS8524
 
@@ -276,12 +275,20 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsFalsey => false;
 
         public IRValue ArrayValue { get; private set; }
+        public IType ElementType { get; private set; }
 
         public ArrayOperator(ArrayOperation arrayOperation, IRValue arrayValue, IAstElement errorReportedElement)
         {
             Operation = arrayOperation;
             ArrayValue = arrayValue;
             ErrorReportedElement = errorReportedElement;
+
+            if (ArrayValue.Type is ArrayType arrayType)
+                ElementType = arrayType.ElementType;
+            else if (ArrayValue.Type is MemorySpan memorySpan)
+                ElementType = memorySpan.ElementType;
+            else
+                throw new UnexpectedTypeException(ArrayValue.Type, errorReportedElement);
         }
     }
 }

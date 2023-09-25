@@ -38,7 +38,7 @@ namespace NoHoPython.Typing
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => true;
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
         public string GetCName(IRProgram irProgram) => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public string GetStandardIdentifier(IRProgram irProgram) => $"type_param_{TypeParameter.Name}";

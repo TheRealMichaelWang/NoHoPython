@@ -113,11 +113,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public Variable Variable { get; private set; }
         public IRValue SetValue { get; private set; }
 
-        public SetVariable(Variable variable, IRValue value, IAstElement errorReportedElement)
+        public SetVariable(Variable variable, IRValue value, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             Variable = variable;
             ErrorReportedElement = errorReportedElement;
-            SetValue = ArithmeticCast.CastTo(value, Variable.Type);
+            SetValue = ArithmeticCast.CastTo(value, Variable.Type, irBuilder);
+        }
+
+        private SetVariable(Variable variable, IRValue setValue, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            Variable = variable;
+            SetValue = setValue;
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => throw new InvalidOperationException();
@@ -200,15 +207,15 @@ namespace NoHoPython.Syntax.Values
                     CodeBlock.RefinementEntry? refinementEntry = irBuilder.SymbolMarshaller.CurrentCodeBlock.GetRefinementEntry(variable, true);
                     refinementEntry?.Clear();
                     if(refinementEntry != null)
-                        setTo.RefineSetVariable(irBuilder, refinementEntry);
+                        setTo.RefineSet(irBuilder, refinementEntry);
                     else
                     {
                         CodeBlock.RefinementEntry newEntry = new(null, new());
-                        setTo.RefineSetVariable(irBuilder, newEntry);
+                        setTo.RefineSet(irBuilder, newEntry);
                         irBuilder.SymbolMarshaller.CurrentCodeBlock.NewRefinementEntry(variable, newEntry);
                     }
 
-                    return new IntermediateRepresentation.Values.SetVariable(variable, setTo, this);
+                    return new IntermediateRepresentation.Values.SetVariable(variable, setTo, irBuilder, this);
                 }
                 throw new NotAVariableException(valueSymbol, this);
             }

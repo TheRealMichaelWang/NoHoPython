@@ -29,12 +29,12 @@ namespace NoHoPython.Typing
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder);
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement);
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder);
 
         public bool IsCompatibleWith(IType type);
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement);
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument);
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder);
 
         public string? ToString() => TypeName;
     }

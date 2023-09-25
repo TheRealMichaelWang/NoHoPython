@@ -58,7 +58,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ArithmeticCastOperation.IntToHandle
         };
 
-        public static IRValue CastTo(IRValue value, IType typeTarget, bool explicitCast=false)
+        public static IRValue CastTo(IRValue value, IType typeTarget, AstIRProgramBuilder irBuilder, bool explicitCast=false)
         {
             if (typeTarget.IsCompatibleWith(value.Type))
                 return value;
@@ -66,7 +66,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             //infalible type conversions
             if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to_{typeTarget.Identifier}"))
             {
-                IRValue call = AnonymousProcedureCall.ComposeCall(new GetPropertyValue(value, $"to_{typeTarget.Identifier}", null, value.ErrorReportedElement), new List<IRValue>(), value.ErrorReportedElement);
+                IRValue call = AnonymousProcedureCall.ComposeCall(new GetPropertyValue(value, $"to_{typeTarget.Identifier}", null, value.ErrorReportedElement), new List<IRValue>(), irBuilder, value.ErrorReportedElement);
                 if (!call.Type.IsCompatibleWith(typeTarget))
                     throw new UnexpectedTypeException(typeTarget, call.Type, value.ErrorReportedElement);
                 return call;
@@ -86,14 +86,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return PrimitiveCast(value, primitive);
 
             //type conversions that could potentially fail
+            if (value.Type is EnumType enumType1 && enumType1.SupportsType(typeTarget))
+                return new UnwrapEnumValue(value, typeTarget, irBuilder, value.ErrorReportedElement);
             if (typeTarget is TupleType tupleTarget && value.Type is TupleType)
                 return new MarshalIntoLowerTuple(tupleTarget, value, value.ErrorReportedElement);
             if(typeTarget is EnumType enumType)
-                return new MarshalIntoEnum(enumType, value, value.ErrorReportedElement);
+                return new MarshalIntoEnum(enumType, value, irBuilder, value.ErrorReportedElement);
             if (typeTarget is InterfaceType interfaceType)
                 return new MarshalIntoInterface(interfaceType, value, value.ErrorReportedElement);
             if (typeTarget is RecordType recordType)
-                return new AllocRecord(recordType, new List<IRValue>() { value }, value.ErrorReportedElement);
+                return new AllocRecord(recordType, new List<IRValue>() { value }, irBuilder, value.ErrorReportedElement);
 
             throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
         }
@@ -184,54 +186,60 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public static bool IsCommunicative(ArithmeticOperation operation) => ((int)operation % 2) == 0;
 
-        public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement)
+        public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             return left.Type is IPropertyContainer leftContainer && leftContainer.HasProperty(operatorOverloadIdentifiers[operation])
                 ? AnonymousProcedureCall.ComposeCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation], null, errorReportedElement), new List<IRValue>()
                 {
                     right
-                }, errorReportedElement)
+                }, irBuilder, errorReportedElement)
                 : OperationIsCommunicative(operation) && right.Type is IPropertyContainer rightContainer && rightContainer.HasProperty(operatorOverloadIdentifiers[operation])
                 ? AnonymousProcedureCall.ComposeCall(new GetPropertyValue(right, operatorOverloadIdentifiers[operation], null, errorReportedElement), new List<IRValue>()
                 {
                     left
-                }, errorReportedElement)
+                }, irBuilder, errorReportedElement)
                 : (left.Type is HandleType && operation == ArithmeticOperation.Add)
-                ? new PointerAddOperator(left, right, errorReportedElement)
+                ? new PointerAddOperator(left, right, irBuilder, errorReportedElement)
                 : (right.Type is HandleType && operation == ArithmeticOperation.Add)
-                ? new PointerAddOperator(right, left, errorReportedElement)
-                : new ArithmeticOperator(operation, left, right, errorReportedElement);
+                ? new PointerAddOperator(right, left, irBuilder, errorReportedElement)
+                : new ArithmeticOperator(operation, left, right, irBuilder, errorReportedElement);
         }
 
         public ArithmeticOperation Operation { get; private set; }
         public override IType Type { get; }
 
-        private ArithmeticOperator(ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
+        private ArithmeticOperator(ArithmeticOperation operation, IRValue left, IRValue right, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
         {
             Operation = operation;
 
             if (left.Type is DecimalType)
             {
                 Type = Primitive.Decimal;
-                Right = ArithmeticCast.CastTo(right, Primitive.Decimal);
+                Right = ArithmeticCast.CastTo(right, Primitive.Decimal, irBuilder);
             }
             else if (right.Type is DecimalType)
             {
                 Type = Primitive.Decimal;
-                Left = ArithmeticCast.CastTo(left, Primitive.Decimal);
+                Left = ArithmeticCast.CastTo(left, Primitive.Decimal, irBuilder);
             }
             else if (left.Type is IntegerType)
             {
                 Type = Primitive.Integer;
-                Right = ArithmeticCast.CastTo(right, Primitive.Integer);
+                Right = ArithmeticCast.CastTo(right, Primitive.Integer, irBuilder);
             }
             else if (right.Type is IntegerType)
             {
                 Type = Primitive.Integer;
-                Left = ArithmeticCast.CastTo(left, Primitive.Integer);
+                Left = ArithmeticCast.CastTo(left, Primitive.Integer, irBuilder);
             }
             else
                 throw new UnexpectedTypeException(left.Type, errorReportedElement);
+        }
+
+        private ArithmeticOperator(IType type, ArithmeticOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
+        {
+            Type = type;
+            Operation = operation;
         }
     }
 
@@ -242,10 +250,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Address => Left;
         public IRValue Offset => Right;
 
-        public PointerAddOperator(IRValue address, IRValue offset, IAstElement errorReportedElement) : base(address, ArithmeticCast.CastTo(offset, Primitive.Integer), errorReportedElement)
+        public PointerAddOperator(IRValue address, IRValue offset, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(address, ArithmeticCast.CastTo(offset, Primitive.Integer, irBuilder), errorReportedElement)
         {
             if (address.Type is not HandleType)
                 throw new UnexpectedTypeException(address.Type, errorReportedElement);
+        }
+
+        private PointerAddOperator(IRValue address, IRValue offset, IAstElement errorReportedElement) : base(address, offset, errorReportedElement)
+        {
+
         }
     }
 

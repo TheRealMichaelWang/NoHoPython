@@ -180,7 +180,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ArithmeticOperator
     {
-        public override IRValue GetPostEvalPure() => new ArithmeticOperator(Operation, Left.GetPostEvalPure(), Right.GetPostEvalPure(), ErrorReportedElement);
+        public override IRValue GetPostEvalPure() => new ArithmeticOperator(Type, Operation, Left.GetPostEvalPure(), Right.GetPostEvalPure(), ErrorReportedElement);
     }
 
     partial class PointerAddOperator
@@ -193,7 +193,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => Array.IsPure && Index.IsPure;
         public bool IsConstant => Array.IsConstant && Index.IsConstant;
 
-        public IRValue GetPostEvalPure() => new GetValueAtIndex(Array.GetPostEvalPure(), Index.GetPostEvalPure(), ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new GetValueAtIndex(Type, Array.GetPostEvalPure(), Index.GetPostEvalPure(), ErrorReportedElement);
     }
 
     partial class SetValueAtIndex
@@ -201,7 +201,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => false;
         public bool IsConstant => Array.IsConstant && Index.IsConstant && Value.IsConstant;
 
-        public IRValue GetPostEvalPure() => GetValueAtIndex.ComposeGetValueAtIndex(Array.GetPostEvalPure(), Index.GetPostEvalPure(), Type, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new GetValueAtIndex(Type, Array.GetPostEvalPure(), Index.GetPostEvalPure(), ErrorReportedElement);
     }
 
     partial class GetPropertyValue
@@ -289,7 +289,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => Condition.IsPure && IfTrueValue.IsPure && IfFalseValue.IsPure;
         public bool IsConstant => Condition.IsConstant && IfTrueValue.IsConstant && IfFalseValue.IsConstant;
 
-        public IRValue GetPostEvalPure() => new IfElseValue(Condition.GetPostEvalPure(), IfTrueValue.GetPostEvalPure(), IfFalseValue.GetPostEvalPure(), ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new IfElseValue(Type, Condition.GetPostEvalPure(), IfTrueValue.GetPostEvalPure(), IfFalseValue.GetPostEvalPure(), ErrorReportedElement);
     }
 
     partial class SizeofOperator

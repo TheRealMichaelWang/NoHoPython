@@ -42,16 +42,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public CompareOperation Operation { get; private set; }
 
-        public ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
+        public ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
         {
             Operation = operation;
 
             if (left.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("compare"))
             {
-                Left = ArithmeticCast.CastTo(AnonymousProcedureCall.ComposeCall(new GetPropertyValue(left, "compare", null,errorReportedElement), new List<IRValue>()
+                Left = ArithmeticCast.CastTo(AnonymousProcedureCall.ComposeCall(new GetPropertyValue(left, "compare", null, errorReportedElement), new List<IRValue>()
                 {
                     right
-                }, errorReportedElement), Primitive.Integer);
+                }, irBuilder, errorReportedElement), Primitive.Integer, irBuilder);
                 Right = new IntegerLiteral(0, errorReportedElement);
             }
             else
@@ -61,6 +61,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (right.Type is not Primitive && !(right.Type is ForeignCType rightForeignCType && rightForeignCType.Declaration.PointerPropertyAccess))
                     throw new UnexpectedTypeException(right.Type, right.ErrorReportedElement);
             }
+        }
+
+        private ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
+        {
+            Operation = operation;
         }
     }
 
@@ -78,7 +83,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public LogicalOperation Operation { get; private set; }
 
-        public LogicalOperator(LogicalOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Boolean), ArithmeticCast.CastTo(right, Primitive.Boolean), errorReportedElement)
+        public LogicalOperator(LogicalOperation operation, IRValue left, IRValue right, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Boolean, irBuilder), ArithmeticCast.CastTo(right, Primitive.Boolean, irBuilder), errorReportedElement)
+        {
+            Operation = operation;
+        }
+
+        private LogicalOperator(LogicalOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
         {
             Operation = operation;
         }
@@ -99,7 +109,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public BitwiseOperation Operation { get; private set; }
 
-        public BitwiseOperator(BitwiseOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Integer), ArithmeticCast.CastTo(right, Primitive.Integer), errorReportedElement)
+        public BitwiseOperator(BitwiseOperation operation, IRValue left, IRValue right, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(ArithmeticCast.CastTo(left, Primitive.Integer, irBuilder), ArithmeticCast.CastTo(right, Primitive.Integer, irBuilder), errorReportedElement)
+        {
+            Operation = operation;
+        }
+
+        private BitwiseOperator(BitwiseOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
         {
             Operation = operation;
         }
@@ -107,16 +122,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class GetValueAtIndex : IRValue
     {
-        public static IRValue ComposeGetValueAtIndex(IRValue array, IRValue index, IType? expectedType, IAstElement errorReportedElement)
+        public static IRValue ComposeGetValueAtIndex(IRValue array, IRValue index, IType? expectedType, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("getAtIndex")
                 ? AnonymousProcedureCall.ComposeCall(new GetPropertyValue(array, "getAtIndex", null, errorReportedElement), new List<IRValue>()
                 {
                     index
-                }, array.ErrorReportedElement)
+                }, irBuilder, array.ErrorReportedElement)
                 : array.Type is HandleType handleType
-                ? new MemoryGet(handleType.ValueType is not NothingType ? handleType.ValueType : expectedType ?? throw new UnexpectedTypeException(Primitive.Nothing, errorReportedElement), array, index, errorReportedElement)
-                : new GetValueAtIndex(array, index, errorReportedElement);
+                ? new MemoryGet(handleType.ValueType is not NothingType ? handleType.ValueType : expectedType ?? throw new UnexpectedTypeException(Primitive.Nothing, errorReportedElement), array, index, irBuilder, errorReportedElement)
+                : new GetValueAtIndex(array, index, irBuilder, errorReportedElement);
         }
 
         public IAstElement ErrorReportedElement { get; private set; }
@@ -127,7 +142,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Array { get; private set; }
         public IRValue Index { get; private set; }
 
-        private GetValueAtIndex(IRValue array, IRValue index, IAstElement errorReportedElement)
+        private GetValueAtIndex(IRValue array, IRValue index, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             if (array.Type is ArrayType arrayType)
                 Type = arrayType.ElementType;
@@ -137,24 +152,32 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 throw new UnexpectedTypeException(array.Type, errorReportedElement);
 
             Array = array;
-            Index = ArithmeticCast.CastTo(index, Primitive.Integer);
+            Index = ArithmeticCast.CastTo(index, Primitive.Integer, irBuilder);
             ErrorReportedElement = errorReportedElement;
+        }
+
+        public GetValueAtIndex(IType type, IRValue array, IRValue index, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            Type = type;
+            Array = array;
+            Index = index;
         }
     }
     
     public sealed partial class SetValueAtIndex : IRValue, IRStatement
     {
-        public static IRValue ComposeSetValueAtIndex(IRValue array, IRValue index, IRValue value, IAstElement errorReportedElement)
+        public static IRValue ComposeSetValueAtIndex(IRValue array, IRValue index, IRValue value, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("setAtIndex")
                 ? AnonymousProcedureCall.ComposeCall(new GetPropertyValue(array, "setAtIndex", null, errorReportedElement), new List<IRValue>()
                 {
                     index,
                     value
-                }, array.ErrorReportedElement)
+                }, irBuilder, array.ErrorReportedElement)
                 : array.Type is HandleType handleType
-                ? new MemorySet(handleType.ValueType is NothingType ? value.Type : handleType.ValueType, array, index, handleType.ValueType is NothingType ? value : ArithmeticCast.CastTo(value, handleType.ValueType), errorReportedElement)
-                : new SetValueAtIndex(array, index, value, errorReportedElement);
+                ? new MemorySet(handleType.ValueType is NothingType ? value.Type : handleType.ValueType, array, index, handleType.ValueType is NothingType ? value : ArithmeticCast.CastTo(value, handleType.ValueType, irBuilder), irBuilder, errorReportedElement)
+                : new SetValueAtIndex(array, index, value, irBuilder, errorReportedElement);
         }
 
         public IAstElement ErrorReportedElement { get; private set; }
@@ -168,16 +191,24 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public IRValue Value { get; private set; }
 
-        private SetValueAtIndex(IRValue array, IRValue index, IRValue value, IAstElement errorReportedElement)
+        private SetValueAtIndex(IRValue array, IRValue index, IRValue value, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             Array = array;
             ErrorReportedElement = errorReportedElement;
 
             Value = array.Type is ArrayType arrayType
-                ? ArithmeticCast.CastTo(value, arrayType.ElementType)
+                ? ArithmeticCast.CastTo(value, arrayType.ElementType, irBuilder)
                 : throw new UnexpectedTypeException(array.Type, array.ErrorReportedElement);
 
-            Index = ArithmeticCast.CastTo(index, Primitive.Integer);
+            Index = ArithmeticCast.CastTo(index, Primitive.Integer, irBuilder);
+        }
+
+        private SetValueAtIndex(IRValue array, IRValue index, IRValue value, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            Array = array;
+            Index = index;
+            Value = value;
         }
     }
 
@@ -216,7 +247,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public IRValue Value { get; private set; }
 
-        public SetPropertyValue(IRValue record, string propertyName, IRValue value, IAstElement errorReportedElement)
+        public SetPropertyValue(IRValue record, string propertyName, IRValue value, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             Record = record;
             ErrorReportedElement = errorReportedElement;
@@ -228,10 +259,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     throw new UnexpectedTypeException(record.Type, errorReportedElement);
 
                 Property = (RecordDeclaration.RecordProperty)propertyContainer.FindProperty(propertyName);
-                Value = ArithmeticCast.CastTo(value, Property.Type);
+                Value = ArithmeticCast.CastTo(value, Property.Type, irBuilder);
             }
             else
                 throw new UnexpectedTypeException(record.Type, errorReportedElement);
+        }
+
+        private SetPropertyValue(IRValue record, RecordDeclaration.RecordProperty property, IRValue value, IAstElement errorReportedElement)
+        {
+            Record = record;
+            Property = property;
+            Value = value;
+            ErrorReportedElement = errorReportedElement;
         }
     }
 }
@@ -285,20 +324,20 @@ namespace NoHoPython.Syntax.Values
             IRValue lhs = Left.GenerateIntermediateRepresentationForValue(irBuilder, LogicalTokens.ContainsKey(Operator) ? Primitive.Boolean : BitwiseTokens.ContainsKey(Operator) ? Primitive.Integer : null, willRevaluate);
 
             return ArithmeticTokens.ContainsKey(Operator)
-                ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, lhs.Type, willRevaluate), this)
+                ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, lhs.Type, willRevaluate), irBuilder, this)
                 : ComparativeTokens.ContainsKey(Operator)
-                ? new ComparativeOperator(ComparativeTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, lhs.Type, willRevaluate), this)
+                ? new ComparativeOperator(ComparativeTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, lhs.Type, willRevaluate), irBuilder, this)
                 : LogicalTokens.ContainsKey(Operator)
-                ? new LogicalOperator(LogicalTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), this)
+                ? new LogicalOperator(LogicalTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), irBuilder, this)
                 : BitwiseTokens.ContainsKey(Operator)
-                ? new BitwiseOperator(BitwiseTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), this)
+                ? new BitwiseOperator(BitwiseTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), irBuilder, this)
                 : throw new InvalidOperationException();
         }
     }
 
     partial class GetValueAtIndex
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irBuilder, expectedType == null ? null : new ArrayType(expectedType), willRevaluate), Index.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), expectedType, this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => IntermediateRepresentation.Values.GetValueAtIndex.ComposeGetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irBuilder, expectedType == null ? null : new ArrayType(expectedType), willRevaluate), Index.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), expectedType, irBuilder, this);
     }
 
     partial class SetValueAtIndex
@@ -308,7 +347,7 @@ namespace NoHoPython.Syntax.Values
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => (IRStatement)GenerateIntermediateRepresentationForValue(irBuilder, null, false);
 
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => IntermediateRepresentation.Values.SetValueAtIndex.ComposeSetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irBuilder, expectedType == null ? null : new ArrayType(expectedType), willRevaluate), Index.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), Value.GenerateIntermediateRepresentationForValue(irBuilder, expectedType, willRevaluate), this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => IntermediateRepresentation.Values.SetValueAtIndex.ComposeSetValueAtIndex(Array.GenerateIntermediateRepresentationForValue(irBuilder, expectedType == null ? null : new ArrayType(expectedType), willRevaluate), Index.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), Value.GenerateIntermediateRepresentationForValue(irBuilder, expectedType, willRevaluate), irBuilder, this);
     }
 
     partial class GetPropertyValue
@@ -338,8 +377,8 @@ namespace NoHoPython.Syntax.Values
             CodeBlock.RefinementEntry? recordRefinement = record.GetRefinementEntry(irBuilder)?.GetSubentry(Property);
             recordRefinement?.Clear();
             if(recordRefinement != null)
-                value.RefineSetVariable(irBuilder, recordRefinement);
-            return new IntermediateRepresentation.Values.SetPropertyValue(record, Property, value, this);
+                value.RefineSet(irBuilder, recordRefinement);
+            return new IntermediateRepresentation.Values.SetPropertyValue(record, Property, value, irBuilder, this);
         }
     }
 }

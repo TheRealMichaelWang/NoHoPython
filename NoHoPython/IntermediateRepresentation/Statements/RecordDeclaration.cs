@@ -75,13 +75,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return new(newName, Type.SubstituteWithTypearg(typeargs), IsReadOnly, (RecordType)RecordType.SubstituteWithTypearg(typeargs), RecordDeclaration);
             }
 
-            public void DelayedLinkSetDefaultValue(IRValue defaultValue)
+            public void DelayedLinkSetDefaultValue(IRValue defaultValue, Syntax.AstIRProgramBuilder irBuilder)
             {
                 Debug.Assert(!HasDefaultValue);
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
                 Debug.Assert(RecordDeclaration.properties.Contains(this));
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
-                RecordDeclaration.defaultValues[Name] = ArithmeticCast.CastTo(defaultValue, Type);
+                RecordDeclaration.defaultValues[Name] = ArithmeticCast.CastTo(defaultValue, Type, irBuilder);
             }
 
             public int CompareTo(RecordProperty? recordProperty) => Name.CompareTo(recordProperty?.Name);
@@ -197,7 +197,7 @@ namespace NoHoPython.Typing
         private Lazy<Dictionary<TypeParameter, IType>> typeargMap;
         private Lazy<List<IType>> constructorParameterTypes;
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
         public RecordType(RecordDeclaration recordPrototype, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(recordPrototype, TypeParameter.ValidateTypeArguments(recordPrototype.TypeParameters, typeArguments, errorReportedElement))
         {
@@ -314,7 +314,7 @@ namespace NoHoPython.Syntax.Statements
             {
                 var propertyValue = Properties[i].DefaultValue;
                 if (propertyValue != null)
-                    IRProperties[i].DelayedLinkSetDefaultValue(propertyValue.GenerateIntermediateRepresentationForValue(irBuilder, IRProperties[i].Type, false));
+                    IRProperties[i].DelayedLinkSetDefaultValue(propertyValue.GenerateIntermediateRepresentationForValue(irBuilder, IRProperties[i].Type, false), irBuilder);
             }
 
             IntermediateRepresentation.Statements.ProcedureDeclaration? Constructor = null;
@@ -328,7 +328,7 @@ namespace NoHoPython.Syntax.Statements
                 else if (reciever.Name == "__copy__")
                     Copier = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
                 else
-                    messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure((IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder), false, reciever, null));
+                    messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure((IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder), false, reciever, null), irBuilder);
             });
 
             if (Constructor == null)

@@ -13,7 +13,7 @@ namespace NoHoPython.IntermediateRepresentation
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement);
 
         //when a variable is set to ths value, this function will make the correct variable refinements 
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry);
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry);
 
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder);
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder);
@@ -26,7 +26,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -35,7 +35,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -44,7 +44,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -53,7 +53,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -62,7 +62,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -71,7 +71,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -80,7 +80,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -89,7 +89,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -98,7 +98,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -107,7 +107,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -116,7 +116,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -125,7 +125,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -134,7 +134,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -143,7 +143,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -152,7 +152,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -161,7 +161,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public virtual void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -182,7 +182,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -191,7 +191,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -199,7 +199,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class GetPropertyValue
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
 
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement)
         {
@@ -218,7 +218,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
 
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null; //refinement entry should be cleared immediatley upon IR generation
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
@@ -228,7 +228,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -237,7 +237,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -246,7 +246,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -264,7 +264,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 entry.Refinement = assumedRefinement;
         }
 
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
 
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => irBuilder.SymbolMarshaller.CurrentCodeBlock.GetRefinementEntry(Variable, true);
 
@@ -284,7 +284,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -293,7 +293,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -302,7 +302,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -311,7 +311,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -320,7 +320,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -329,7 +329,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -338,7 +338,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -347,7 +347,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -359,14 +359,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
 
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) => destinationEntry.Refinement = (Value.Type, EnumDeclaration.GetRefinedEnumEmitter(TargetType, Value.Type));
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) => destinationEntry.Refinement = (Value.Type, EnumDeclaration.GetRefinedEnumEmitter(TargetType, Value.Type));
     }
 
     partial class UnwrapEnumValue
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -376,7 +376,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) => EnumValue.RefineAssumeType(irBuilder, (Option, EnumDeclaration.GetRefinedEnumEmitter((EnumType)EnumValue.Type, Option)));
 
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -385,7 +385,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
@@ -394,7 +394,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, CodeBlock.RefinementEmitter?) assumedRefinement) { }
-        public void RefineSetVariable(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, CodeBlock.RefinementEntry destinationEntry) { }
         public CodeBlock.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public CodeBlock.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }

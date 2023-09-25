@@ -148,7 +148,7 @@ namespace NoHoPython.Syntax.Values
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) 
         {
             IType targetType = TargetType.ToIRType(irBuilder, this);
-            return ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentationForValue(irBuilder, targetType, willRevaluate), targetType, true);
+            return ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentationForValue(irBuilder, targetType, willRevaluate), targetType, irBuilder, true);
         }
     }
 }

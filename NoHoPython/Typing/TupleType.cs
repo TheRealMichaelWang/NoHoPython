@@ -26,7 +26,7 @@ namespace NoHoPython.Typing
         private readonly List<IType> orderedValueTypes;
         private readonly Dictionary<string, Property> properties; 
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => new TupleLiteral(orderedValueTypes.ConvertAll((type) => type.GetDefaultValue(errorReportedElement)), errorReportedElement);
+        public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new TupleLiteral(orderedValueTypes.ConvertAll((type) => type.GetDefaultValue(errorReportedElement, irBuilder)), errorReportedElement);
 
         public TupleType(List<IType> valueTypes)
         {

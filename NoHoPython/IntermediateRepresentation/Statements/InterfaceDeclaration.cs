@@ -92,7 +92,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 throw new UnexpectedTypeException(value.Type, errorReportedElement);
         }
 
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => ArithmeticCast.CastTo(Value.SubstituteWithTypearg(typeargs), TargetType.SubstituteWithTypearg(typeargs));
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MarshalIntoInterface((InterfaceType)TargetType.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 }
 
@@ -110,7 +110,7 @@ namespace NoHoPython.Typing
         private Lazy<List<InterfaceDeclaration.InterfaceProperty>> requiredImplementedProperties;
         private Lazy<Dictionary<string, InterfaceDeclaration.InterfaceProperty>> identifierPropertyMap;
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
         public InterfaceType(InterfaceDeclaration interfaceDeclaration, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(interfaceDeclaration, TypeParameter.ValidateTypeArguments(interfaceDeclaration.TypeParameters, typeArguments, errorReportedElement))
         {

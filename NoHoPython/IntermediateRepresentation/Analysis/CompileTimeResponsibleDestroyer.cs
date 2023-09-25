@@ -151,7 +151,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (ifTrueResponsibleDestroyer == null && ifFalseResponsibleDestroyer == null)
                     return null;
 
-                return new IfElseValue(Condition.GetPostEvalPure(), ifTrueResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ifFalseResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ErrorReportedElement);
+                return new IfElseValue(Type, Condition.GetPostEvalPure(), ifTrueResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ifFalseResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ErrorReportedElement);
             }
         }
     }

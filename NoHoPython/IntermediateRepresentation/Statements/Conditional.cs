@@ -16,9 +16,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public CodeBlock IfTrueBlock { get; private set; }
         public CodeBlock IfFalseBlock { get; private set; }
 
-        public IfElseBlock(IRValue condition, CodeBlock ifTrueBlock, CodeBlock ifFalseBlock, IAstElement errorReportedElement)
+        public IfElseBlock(IRValue condition, CodeBlock ifTrueBlock, CodeBlock ifFalseBlock, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
-            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean, irBuilder);
             IfTrueBlock = ifTrueBlock;
             IfFalseBlock = ifFalseBlock;
             ErrorReportedElement = errorReportedElement;
@@ -32,9 +32,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public IRValue Condition { get; private set; }
         public CodeBlock IfTrueBlock { get; private set; }
 
-        public IfBlock(IRValue condition, CodeBlock ifTrueblock, IAstElement errorReportedElement)
+        public IfBlock(IRValue condition, CodeBlock ifTrueblock, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
-            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean, irBuilder);
             IfTrueBlock = ifTrueblock;
             ErrorReportedElement = errorReportedElement;
         }
@@ -47,9 +47,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public IRValue Condition { get; private set; }
         public CodeBlock WhileTrueBlock { get; private set; }
 
-        public WhileBlock(IRValue condition, CodeBlock whileTrueBlock, IAstElement errorReportedElement)
+        public WhileBlock(IRValue condition, CodeBlock whileTrueBlock, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
-            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean, irBuilder);
             WhileTrueBlock = whileTrueBlock;
             ErrorReportedElement = errorReportedElement;
         }
@@ -144,10 +144,16 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public IRValue Condition { get; private set; }
 
-        public AssertStatement(IRValue condition, IAstElement errorReportedElement)
+        public AssertStatement(IRValue condition, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
-            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean, irBuilder);
+        }
+
+        private AssertStatement(IRValue condition, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            Condition = condition;
         }
     }
 }
@@ -166,19 +172,19 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue IfTrueValue { get; private set; }
         public IRValue IfFalseValue { get; private set; }
 
-        public IfElseValue(IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue, IAstElement errorReportedElement)
+        public IfElseValue(IRValue condition, IRValue ifTrueValue, IRValue ifFalseValue, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
-            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
+            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean, irBuilder);
             try
             {
-                IfFalseValue = ArithmeticCast.CastTo(ifFalseValue, ifTrueValue.Type);
+                IfFalseValue = ArithmeticCast.CastTo(ifFalseValue, ifTrueValue.Type, irBuilder);
                 IfTrueValue = ifTrueValue;
                 Type = IfTrueValue.Type;
             }
             catch (UnexpectedTypeException)
             {
-                IfTrueValue = ArithmeticCast.CastTo(ifTrueValue, ifFalseValue.Type);
+                IfTrueValue = ArithmeticCast.CastTo(ifTrueValue, ifFalseValue.Type, irBuilder);
                 IfFalseValue = ifFalseValue;
                 Type = IfFalseValue.Type;
             }
@@ -188,9 +194,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             Type = type;
             ErrorReportedElement = errorReportedElement;
-            Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean);
-            IfTrueValue = ArithmeticCast.CastTo(ifTrueValue, Type);
-            IfFalseValue = ArithmeticCast.CastTo(ifFalseValue, Type);
+            Condition = condition;
+            IfTrueValue = ifTrueValue;
+            IfFalseValue = ifFalseValue;
         }
     }
 }
@@ -236,11 +242,11 @@ namespace NoHoPython.Syntax.Statements
                 scopedNextIf.DelayedLinkSetStatements(new List<IRStatement>() { NextIf.GenerateIntermediateRepresentationForStatement(irBuilder) }, irBuilder);
 #pragma warning restore CS8602
                 irBuilder.SymbolMarshaller.GoBack();
-                return new IfElseBlock(condition, scopedCodeBlock, scopedNextIf, this);
+                return new IfElseBlock(condition, scopedCodeBlock, scopedNextIf, irBuilder, this);
             }
             else return NextElse != null
-                ? new IfElseBlock(condition, scopedCodeBlock, NextElse.GenerateIRCodeBlock(irBuilder), this)
-                : new IntermediateRepresentation.Statements.IfBlock(condition, scopedCodeBlock, this);
+                ? new IfElseBlock(condition, scopedCodeBlock, NextElse.GenerateIRCodeBlock(irBuilder), irBuilder, this)
+                : new IntermediateRepresentation.Statements.IfBlock(condition, scopedCodeBlock, irBuilder, this);
         }
     }
 
@@ -290,7 +296,7 @@ namespace NoHoPython.Syntax.Statements
             scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute), irBuilder);
             irBuilder.SymbolMarshaller.GoBack();
 
-            return new IntermediateRepresentation.Statements.WhileBlock(condition, scopedCodeBlock, this);
+            return new IntermediateRepresentation.Statements.WhileBlock(condition, scopedCodeBlock, irBuilder, this);
         }
     }
 
@@ -309,7 +315,7 @@ namespace NoHoPython.Syntax.Statements
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
-            IRValue lowerBound = ArithmeticOperator.ComposeArithmeticOperation(ArithmeticOperator.ArithmeticOperation.Subtract, LowerBound.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, false), new IntegerLiteral(1, this), this);
+            IRValue lowerBound = ArithmeticOperator.ComposeArithmeticOperation(ArithmeticOperator.ArithmeticOperation.Subtract, LowerBound.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, false), new IntegerLiteral(1, this), irBuilder, this);
             IRValue upperBound = UpperBound.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, false);
 
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
@@ -383,7 +389,7 @@ namespace NoHoPython.Syntax.Statements
 
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) { }
 
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.AssertStatement(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, false), this);
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.AssertStatement(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, false), irBuilder, this);
     }
 }
 
@@ -391,6 +397,6 @@ namespace NoHoPython.Syntax.Values
 {
     partial class IfElseValue
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), IfTrueValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), IfFalseValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), IfTrueValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), IfFalseValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), irBuilder, this);
     }
 }

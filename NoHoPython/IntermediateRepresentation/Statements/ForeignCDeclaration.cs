@@ -85,7 +85,7 @@ namespace NoHoPython.Typing
         private Lazy<Dictionary<string, ForeignCDeclaration.ForeignCProperty>> identifierPropertyMap;
         private Lazy<Dictionary<TypeParameter, IType>> typeargMap;
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
         public ForeignCType(ForeignCDeclaration declaration, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(declaration, TypeParameter.ValidateTypeArguments(declaration.TypeParameters, typeArguments, errorReportedElement))
         {

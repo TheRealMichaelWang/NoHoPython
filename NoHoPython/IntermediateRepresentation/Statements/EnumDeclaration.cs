@@ -92,7 +92,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public EnumType TargetType { get; private set; }
         public IRValue Value { get; private set; }
 
-        public MarshalIntoEnum(EnumType targetType, IRValue value, Syntax.IAstElement errorReportedElement)
+        public MarshalIntoEnum(EnumType targetType, IRValue value, Syntax.AstIRProgramBuilder irBuilder, Syntax.IAstElement errorReportedElement)
         {
             TargetType = targetType;
             Value = value;
@@ -116,7 +116,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 foreach(IType options in TargetType.GetOptions())
                     try
                     {
-                        Value = ArithmeticCast.CastTo(value, options);
+                        Value = ArithmeticCast.CastTo(value, options, irBuilder);
                         return;
                     }
                     catch (UnexpectedTypeException)
@@ -127,7 +127,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
         }
 
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => ArithmeticCast.CastTo(Value.SubstituteWithTypearg(typeargs), TargetType.SubstituteWithTypearg(typeargs));
+        private MarshalIntoEnum(EnumType targetType, IRValue value, Syntax.IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            TargetType = targetType;
+            Value = value;
+        }
+
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MarshalIntoEnum((EnumType)TargetType.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     public sealed partial class UnwrapEnumValue : IRValue, IRStatement
@@ -225,7 +232,7 @@ namespace NoHoPython.Typing
         public string Identifier => IScopeSymbol.GetAbsolouteName(this);
         public bool IsEmpty => true;
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => new EmptyTypeLiteral(this, errorReportedElement);
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => new EmptyTypeLiteral(this, errorReportedElement);
 
         public EmptyEnumOption(string name, EnumDeclaration enumDeclaration, Syntax.IAstElement errorReportedElement)
         {
@@ -271,7 +278,7 @@ namespace NoHoPython.Typing
         public EnumDeclaration EnumDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
         public EnumType(EnumDeclaration enumDeclaration, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(enumDeclaration, TypeParameter.ValidateTypeArguments(enumDeclaration.TypeParameters, typeArguments, errorReportedElement))
         {

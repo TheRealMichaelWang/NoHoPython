@@ -335,7 +335,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 indirection = primaryEmitter.AppendStartBlock();
                 primaryEmitter.AppendLine($"{enumType.GetCName(irProgram)} matchVal{indirection};");
-                primaryEmitter.SetArgument(MatchValue, $"matchVal{indirection} = ", irProgram, typeargs, true);
+                primaryEmitter.SetArgument(MatchValue, $"matchVal{indirection}", irProgram, typeargs, true);
                 primaryEmitter.AppendLine($"switch(matchVal{indirection}.option) {{");
             }
             else

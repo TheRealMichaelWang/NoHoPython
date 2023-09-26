@@ -36,12 +36,34 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
                 int indirection = primaryEmitter.AppendStartBlock();
-                primaryEmitter.AppendLine($"{Left.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} lhs{indirection}; {Right.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} rhs{indirection};");
-                primaryEmitter.SetArgument(Left, $"lhs{indirection}", irProgram, typeargs, true);
-                primaryEmitter.SetArgument(Right, $"rhs{indirection}", irProgram, typeargs, true);
+                bool directEmitLeft = Left.IsConstant && Left.IsPure && !Left.RequiresDisposal(irProgram, typeargs, true);
+                bool directEmitRight = Right.IsConstant && Right.IsPure && !Right.RequiresDisposal(irProgram, typeargs, true);
 
-                Emitter.Promise lhs = (leftEmitter) => leftEmitter.Append($"lhs{indirection}");
-                Emitter.Promise rhs = (rightEmitter) => rightEmitter.Append($"rhs{indirection}");
+                if (!directEmitLeft)
+                    primaryEmitter.Append($"{Left.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} lhs{indirection};");
+                if (!directEmitLeft)
+                    primaryEmitter.Append($"{Right.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} rhs{indirection};");
+                primaryEmitter.AppendLine();
+
+                if (!Left.IsConstant || !Left.IsPure)
+                    primaryEmitter.SetArgument(Left, $"lhs{indirection}", irProgram, typeargs, true);
+                if (!Right.IsConstant || !Right.IsPure)
+                    primaryEmitter.SetArgument(Right, $"rhs{indirection}", irProgram, typeargs, true);
+
+                Emitter.Promise lhs = (leftEmitter) =>
+                {
+                    if (directEmitLeft)
+                        IRValue.EmitDirect(irProgram, leftEmitter, Left, typeargs, Emitter.NullPromise, true);
+                    else
+                        leftEmitter.Append($"lhs{indirection}");
+                };
+                Emitter.Promise rhs = (rightEmitter) =>
+                {
+                    if (directEmitRight)
+                        IRValue.EmitDirect(irProgram, rightEmitter, Right, typeargs, Emitter.NullPromise, true);
+                    else
+                        rightEmitter.Append($"rhs{indirection}");
+                };
                 destination((emitter) => EmitExpression(irProgram, emitter, typeargs, lhs, rhs));
 
                 primaryEmitter.AppendEndBlock();
@@ -53,6 +75,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ComparativeOperator
     {
+        public override bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval)
+        {
+            if (Operation == CompareOperation.Equals || Operation == CompareOperation.NotEquals)
+            {
+                if (Left.IsTruey || Left.IsFalsey)
+                    return Left.MustUseDestinationPromise(irProgram, typeargs, true);
+                else if (Right.IsTruey || Right.IsFalsey)
+                    return Right.MustUseDestinationPromise(irProgram, typeargs, true);
+            }
+            return base.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval);
+        }
+
         protected override void EmitExpression(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise left, Emitter.Promise right)
         {
             primaryEmitter.Append('(');
@@ -70,14 +104,81 @@ namespace NoHoPython.IntermediateRepresentation.Values
             right(primaryEmitter);
             primaryEmitter.Append(')');
         }
+
+        public override void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
+        {
+            if(Operation == CompareOperation.Equals || Operation == CompareOperation.NotEquals)
+            {
+                if ((Operation == CompareOperation.Equals && Left.IsTruey) || (Operation == CompareOperation.NotEquals && Left.IsFalsey))
+                {
+                    Right.Emit(irProgram, primaryEmitter, typeargs, destination, Emitter.NullPromise, true);
+                    return;
+                }
+                else if ((Operation == CompareOperation.Equals && Left.IsFalsey) || (Operation == CompareOperation.NotEquals && Left.IsTruey))
+                {
+                    Right.Emit(irProgram, primaryEmitter, typeargs, (rightPromise) => destination((emitter) =>
+                    {
+                        emitter.Append('!');
+                        rightPromise(emitter);
+                    }), Emitter.NullPromise, true);
+                    return;
+                }
+                else if ((Operation == CompareOperation.Equals && Right.IsTruey) || (Operation == CompareOperation.NotEquals && Right.IsFalsey))
+                {
+                    Left.Emit(irProgram, primaryEmitter, typeargs, destination, Emitter.NullPromise, true);
+                    return;
+                }
+                else if ((Operation == CompareOperation.Equals && Right.IsFalsey) || (Operation == CompareOperation.NotEquals && Right.IsTruey))
+                {
+                    Left.Emit(irProgram, primaryEmitter, typeargs, (leftPromise) => destination((emitter) =>
+                    {
+                        emitter.Append('!');
+                        leftPromise(emitter);
+                    }), Emitter.NullPromise, true);
+                    return;
+                }
+            }
+            base.Emit(irProgram, primaryEmitter, typeargs, destination, responsibleDestroyer, isTemporaryEval);
+        }
     }
 
     partial class LogicalOperator
     {
-        public override bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Left.MustUseDestinationPromise(irProgram, typeargs, true) || Right.MustUseDestinationPromise(irProgram, typeargs, true);
+        public override bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval)
+        {
+            if (IsTruey || IsFalsey)
+                return false;
+            if (Left.IsTruey || Left.IsFalsey)
+                return Right.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval);
+            else if (Right.IsTruey || Right.IsFalsey)
+                return Left.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval);
+            return Left.MustUseDestinationPromise(irProgram, typeargs, true) || Right.MustUseDestinationPromise(irProgram, typeargs, true);
+        }
 
         public override void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
+            if (IsTruey)
+            {
+                destination((emitter) => emitter.Append('1'));
+                return;
+            }
+            else if (IsFalsey)
+            {
+                destination((emitter) => emitter.Append('0'));
+                return;
+            }
+
+            if (Left.IsTruey || Left.IsFalsey)
+            {
+                Right.Emit(irProgram, primaryEmitter, typeargs, destination, Emitter.NullPromise, true);
+                return;
+            }
+            else if (Right.IsTruey || Right.IsFalsey)
+            {
+                Left.Emit(irProgram, primaryEmitter, typeargs, destination, Emitter.NullPromise, true);
+                return;
+            }
+
             if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
                 int indirection = primaryEmitter.AppendStartBlock();

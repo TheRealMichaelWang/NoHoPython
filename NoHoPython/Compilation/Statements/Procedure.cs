@@ -154,8 +154,11 @@ namespace NoHoPython.IntermediateRepresentation
 {
     partial interface IRValue
     {
-        public static void EmitDirect(IRProgram irProgram, Emitter emitter, IRValue value, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise responsibleDestroyer, bool isTemporaryEval) =>
+        public static void EmitDirect(IRProgram irProgram, Emitter emitter, IRValue value, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
+        {
+            Debug.Assert(!value.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval));
             value.Emit(irProgram, emitter, typeargs, (setPromise) => setPromise(emitter), responsibleDestroyer, isTemporaryEval);
+        }
 
         public static Emitter.Promise EmitDirectPromise(IRProgram irProgram, IRValue value, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise responsibleDestroyer, bool isTemporaryEval) => (emitter) => EmitDirect(irProgram, emitter, value, typeargs, responsibleDestroyer, isTemporaryEval);
 

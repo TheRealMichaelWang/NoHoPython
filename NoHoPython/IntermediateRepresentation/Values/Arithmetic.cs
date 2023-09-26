@@ -66,7 +66,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             //infalible type conversions
             if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to_{typeTarget.Identifier}"))
             {
-                IRValue call = AnonymousProcedureCall.ComposeCall(new GetPropertyValue(value, $"to_{typeTarget.Identifier}", null, value.ErrorReportedElement), new List<IRValue>(), irBuilder, value.ErrorReportedElement);
+                IRValue call = AnonymousProcedureCall.ComposeCall(GetPropertyValue.ComposeGetProperty(value, $"to_{typeTarget.Identifier}", irBuilder, value.ErrorReportedElement), new List<IRValue>(), irBuilder, value.ErrorReportedElement);
                 if (!call.Type.IsCompatibleWith(typeTarget))
                     throw new UnexpectedTypeException(typeTarget, call.Type, value.ErrorReportedElement);
                 return call;
@@ -189,12 +189,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             return left.Type is IPropertyContainer leftContainer && leftContainer.HasProperty(operatorOverloadIdentifiers[operation])
-                ? AnonymousProcedureCall.ComposeCall(new GetPropertyValue(left, operatorOverloadIdentifiers[operation], null, errorReportedElement), new List<IRValue>()
+                ? AnonymousProcedureCall.ComposeCall(GetPropertyValue.ComposeGetProperty(left, operatorOverloadIdentifiers[operation], irBuilder, errorReportedElement), new List<IRValue>()
                 {
                     right
                 }, irBuilder, errorReportedElement)
                 : OperationIsCommunicative(operation) && right.Type is IPropertyContainer rightContainer && rightContainer.HasProperty(operatorOverloadIdentifiers[operation])
-                ? AnonymousProcedureCall.ComposeCall(new GetPropertyValue(right, operatorOverloadIdentifiers[operation], null, errorReportedElement), new List<IRValue>()
+                ? AnonymousProcedureCall.ComposeCall(GetPropertyValue.ComposeGetProperty(right, operatorOverloadIdentifiers[operation], irBuilder, errorReportedElement), new List<IRValue>()
                 {
                     left
                 }, irBuilder, errorReportedElement)

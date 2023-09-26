@@ -74,6 +74,12 @@ namespace NoHoPython.Typing
             ExpectedType = null;
             RecievedType = recievedType;
         }
+
+        public UnexpectedTypeException(IType recievedType, string comments, Syntax.IAstElement errorReportedElement) : base(errorReportedElement, $"Unexpected type {recievedType.TypeName} recieved. {comments}")
+        {
+            ExpectedType = null;
+            RecievedType = recievedType;
+        }
     }
 
     public sealed class UnexpectedTypeArgumentsException : IRGenerationError

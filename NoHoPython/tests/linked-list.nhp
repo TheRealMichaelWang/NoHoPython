@@ -18,7 +18,7 @@ class list<T>:
 	def __init__():
 		self.head = None
 	
-	def isEmpty() bool:
+	def get_isEmpty() bool:
 		match self.head:
 			node<T>:
 				return False
@@ -60,8 +60,7 @@ def main():
 			myList.pushBack(i)
 		mem::report()
 		
-		stop = myList.isEmpty
-		while stop() == False:
+		while myList.isEmpty == False:
 			match myList.popFront():
 				int j:
 					printf("%i\n\0", j)

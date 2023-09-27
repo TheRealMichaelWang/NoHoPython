@@ -75,7 +75,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 if (explicitCast && value.Type is HandleType)
                     return new HandleCast(handleType, value, value.ErrorReportedElement);
-                else if (value.Type is MemorySpan || value.Type is ArrayType)
+                else if(value.Type is ArrayType)
+                    return new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement);
+                else if (value.Type is MemorySpan)
                     return new ArrayOperator(ArrayOperator.ArrayOperation.GetSpanHandle, value, value.ErrorReportedElement);
             }
             if (typeTarget is ArrayType && value.Type is MemorySpan)

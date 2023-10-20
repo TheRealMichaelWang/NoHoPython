@@ -13,6 +13,7 @@ namespace NoHoPython.Typing
 
         public string TypeName { get; }
         public string Identifier { get; }
+        public string PrototypeIdentifier {get;}
         public bool IsEmpty { get; }
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInformation);

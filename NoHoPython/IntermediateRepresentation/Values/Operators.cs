@@ -214,6 +214,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class GetPropertyValue : IRValue
     {
+        public static bool HasMessageReceiver(IRValue value, string name, AstIRProgramBuilder irBuilder)
+        {
+            if(value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty(name))
+                return true;
+            
+            IScopeSymbol? procedure = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.Identifier}_{name}");
+            if(procedure == null)
+                procedure = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.PrototypeIdentifier}_{name}");
+            
+            return procedure != null && procedure is ProcedureDeclaration;
+        }
+
         public static GetPropertyValue ComposeGetProperty(IRValue record, string propertyName, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) => new GetPropertyValue(record, propertyName, record.GetRefinementEntry(irBuilder)?.GetSubentry(propertyName)?.Refinement, errorReportedElement);
 
         public IAstElement ErrorReportedElement { get; private set; }

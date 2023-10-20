@@ -423,6 +423,19 @@ namespace NoHoPython.IntermediateRepresentation.Values
             return new AnonymousProcedureCall(procedureValue, arguments, irBuilder, errorReportedElement);
         }
 
+        public static IRValue ComposeMessageReceiverCall(IRValue value, string receiverName, IType? expectedReturnType, List<IRValue> arguments, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement){
+            if(procedureValue is IPropertyContainer propertyContainer && propertyContainer.HasProperty(receiverName))
+                return ComposeCall(GetPropertyValue.ComposeGetProperty(propertyContainer, receiverName, irBuilder, errorReportedElement), arguments, irBuilder, errorReportedElement);
+            
+            IScopeSymbol? procedure = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.Identifier}_{name}");
+            if(procedure == null)
+                procedure = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.PrototypeIdentifier}_{name}");
+            
+            if(procedure != null)
+                return new LinkedProcedureCall(procedure, argments, expectedReturnType, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedReturnType, irBuilder, errorReportedElement);
+            throw new InvalidOperationException();
+        }
+
         public override IType Type => ProcedureType.ReturnType;
 
         public IRValue ProcedureValue { get; private set; }

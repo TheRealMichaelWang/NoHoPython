@@ -35,6 +35,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public void NonMessageReceiverAnalysis() { }
+
+        public void EnsureMinimumPurity(Purity purity) { }
     }
 }
 

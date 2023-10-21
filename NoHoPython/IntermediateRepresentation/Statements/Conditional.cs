@@ -112,6 +112,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public IRValue MatchValue { get; private set; }
         public readonly List<MatchHandler> MatchHandlers;
         public CodeBlock? DefaultHandler { get; private set; }
+        public bool IsExhaustive { get; private set; }
 
         public MatchStatement(IRValue matchValue, List<MatchHandler> matchHandlers, CodeBlock? defaultHandler, IAstElement errorReportedElement)
         {
@@ -119,6 +120,16 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             MatchValue = matchValue;
             MatchHandlers = matchHandlers;
             DefaultHandler = defaultHandler;
+
+            IsExhaustive = ((EnumType)MatchValue.Type).GetOptions().Any((option) => !matchHandlers.Any((handler) => handler.MatchTypes.Any((type) => type.IsCompatibleWith(option))));
+
+            if(defaultHandler != null)
+            {
+                if (IsExhaustive)
+                    throw new DefaultHandlerUnreachable(errorReportedElement);
+                else
+                    IsExhaustive = true;
+            }
         }
     }
 

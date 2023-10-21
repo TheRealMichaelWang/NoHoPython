@@ -97,7 +97,18 @@ namespace NoHoPython.Syntax
                 case "proc":
                     return typeArguments.Count < 1
                         ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
-                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1));
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments);
+                case "purefn":
+                case "pure":
+                    return typeArguments.Count < 1
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.Pure);
+                case "impure":
+                case "global":
+                case "global_impure":
+                    return typeArguments.Count < 1
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.AffectsGlobals);
                 default:
                     {
                         IScopeSymbol typeSymbol = irBuilder.SymbolMarshaller.FindSymbol(Identifier, errorReportedElement);
@@ -221,6 +232,11 @@ namespace NoHoPython.Syntax.Parsing
             if (scanner.LastToken.Type == TokenType.Nothing)
             {
                 identifier = "nothing";
+                scanner.ScanToken();
+            }
+            else if (scanner.LastToken.Type == TokenType.Pure)
+            {
+                identifier = "pure";
                 scanner.ScanToken();
             }
             else

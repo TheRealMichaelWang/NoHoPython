@@ -6,6 +6,8 @@ namespace NoHoPython.Typing
 {
     public partial interface IType
     {
+        public static bool HasChildren(IType type) => type is MemorySpan || type is HandleType || type is ArrayType || type is RecordType;
+
         public bool IsNativeCType { get; }
         public bool RequiresDisposal { get; }
         public bool MustSetResponsibleDestroyer { get; }

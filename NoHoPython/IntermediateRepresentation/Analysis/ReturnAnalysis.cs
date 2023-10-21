@@ -107,7 +107,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class MatchStatement
     {
-        public bool AllCodePathsReturn() => MatchHandlers.TrueForAll((handler) => handler.ToExecute.CodeBlockAllCodePathsReturn());
+        public bool AllCodePathsReturn() => IsExhaustive && MatchHandlers.TrueForAll((handler) => handler.ToExecute.CodeBlockAllCodePathsReturn());
 
         public bool SomeCodePathsBreak()
         {

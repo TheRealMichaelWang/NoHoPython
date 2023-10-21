@@ -373,6 +373,9 @@ namespace NoHoPython.Syntax.Parsing
                     "cinclude" => TokenType.CInclude,
                     "attributes" => TokenType.Attributes,
                     "attr" => TokenType.Attributes,
+                    "pure" => TokenType.Pure,
+                    "affectsArgsOnly" => TokenType.AffectsArgsOnly,
+                    "impure" => TokenType.Impure,
                     _ => TokenType.Identifier
                 }, keyword);
             }

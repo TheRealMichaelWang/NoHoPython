@@ -2,6 +2,7 @@
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Syntax;
+using System.Text;
 
 namespace NoHoPython.Typing
 {
@@ -25,6 +26,7 @@ namespace NoHoPython.Typing
 
         public abstract string TypeName { get; }
         public string Identifier => TypeName;
+        public string PrototypeIdentifier => Identifier;
         public bool IsEmpty => false;
 
         public abstract int Id { get; }
@@ -119,6 +121,7 @@ namespace NoHoPython.Typing
     {
         public string TypeName => "nothing";
         public string Identifier => "nothing";
+        public string PrototypeIdentifier => "nothing";
         public bool IsEmpty => true;
 
         public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new EmptyTypeLiteral(Primitive.Nothing, errorReportedElement);
@@ -132,6 +135,7 @@ namespace NoHoPython.Typing
     {
         public string TypeName => $"array<{ElementType.TypeName}>";
         public string Identifier => $"array_{ElementType.Identifier}";
+        public string PrototypeIdentifier => $"array_T";
         public bool IsEmpty => false;
 
         public IType ElementType { get; private set; }
@@ -150,6 +154,7 @@ namespace NoHoPython.Typing
     {
         public string TypeName => $"span<{ElementType.TypeName}, {Length}>";
         public string Identifier => $"span_{ElementType.Identifier}_of_{Length}";
+        public string PrototypeIdentifier => $"span_T_of_{Length}";
         public bool IsEmpty => false;
 
         public IType ElementType { get; private set; }
@@ -169,7 +174,29 @@ namespace NoHoPython.Typing
     public sealed partial class ProcedureType : IType
     {
         public string TypeName => $"fn<{ReturnType.TypeName}, {string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}>";
-        public string Identifier => $"proc_{string.Join(string.Empty, ParameterTypes.ConvertAll((type) => $"{type.Identifier}_"))}ret_{ReturnType.Identifier}";
+        public string Identifier
+        {
+            get
+            {
+                List<IType> typeargs = new(ParameterTypes);
+                typeargs.Insert(0, ReturnType);
+                return IType.GetIdentifier("fn", typeargs.ToArray());
+            }
+        
+        }
+        public string PrototypeIdentifier
+        {
+            get
+            {
+                StringBuilder builder = new();
+                builder.Append("fn_");
+                builder.Append(ReturnType is NothingType ? "None" : "RT");
+                for (int i = 0; i < ParameterTypes.Count; i++)
+                    builder.Append("_T");
+                return builder.ToString();
+            }
+        }
+
         public bool IsEmpty => false;
 
         public IType ReturnType { get; private set; }

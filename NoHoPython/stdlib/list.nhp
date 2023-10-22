@@ -1,5 +1,5 @@
 mod data:
-	def convertList<T, X>(list<T> input, fn<X, T> convert) list<X>:
+	def list_T_convertList<T, X>(list<T> input, fn<X, T> convert) list<X>:
 		converted = new list<X>(input.count)
 		for i from 0 within input.count:
 			converted.pushBack(convert(input[i]))
@@ -106,7 +106,7 @@ mod data:
 			destroy self.buffer + self.count
 			return popped
 		
-		def to_array_T_IDENT() array<T>:
+		def to_array_T() array<T>:
 			return marshal T[self.count](self.buffer)
 		
 		def forall(fn<None, T> todo):

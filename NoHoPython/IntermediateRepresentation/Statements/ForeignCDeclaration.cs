@@ -75,7 +75,8 @@ namespace NoHoPython.Typing
     public sealed partial class ForeignCType : IType, IPropertyContainer
     {
         public string TypeName => $"{Declaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
-        public string Identifier => $"{IScopeSymbol.GetAbsolouteName(Declaration)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public string Identifier => IType.GetIdentifier(IScopeSymbol.GetAbsolouteName(Declaration), TypeArguments.ToArray());
+        public string PrototypeIdentifier => IType.GetPrototypeIdentifier(IScopeSymbol.GetAbsolouteName(Declaration), Declaration.TypeParameters);
         public bool IsEmpty => false;
 
         public ForeignCDeclaration Declaration { get; private set; }

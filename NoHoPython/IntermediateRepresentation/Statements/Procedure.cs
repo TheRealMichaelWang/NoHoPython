@@ -443,6 +443,37 @@ namespace NoHoPython.IntermediateRepresentation.Values
             return new AnonymousProcedureCall(procedureValue, arguments, irBuilder, errorReportedElement);
         }
 
+        public static IRValue SendMessage(IRValue value, string receiverName, IType? expectedReturnType, List<IRValue> arguments, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement, bool castExpectedReturn = true){
+            if(value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty(receiverName))
+                return ComposeCall(GetPropertyValue.ComposeGetProperty(value, receiverName, irBuilder, errorReportedElement), arguments, irBuilder, errorReportedElement);
+            
+            IScopeSymbol? procedure = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.Identifier}_{receiverName}");
+            if(procedure == null)
+                procedure = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.PrototypeIdentifier}_{receiverName}");
+
+            if (procedure is ProcedureDeclaration procedureDeclaration)
+            {
+                List<IRValue> newArguments = new List<IRValue>(arguments);
+                arguments.Insert(0, value);
+
+                IRValue toreturn = new LinkedProcedureCall(procedureDeclaration, newArguments, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedReturnType, irBuilder, errorReportedElement);
+                if (expectedReturnType == null)
+                    return toreturn;
+                else
+                {
+                    if (castExpectedReturn)
+                        return ArithmeticCast.CastTo(toreturn, expectedReturnType, irBuilder);
+                    else
+                    {
+                        if (!expectedReturnType.IsCompatibleWith(toreturn.Type))
+                            throw new UnexpectedTypeException(expectedReturnType, toreturn.Type, errorReportedElement);
+                        return toreturn;
+                    }
+                }
+            }
+            throw new InvalidOperationException();
+        }
+
         public override IType Type => ProcedureType.ReturnType;
 
         public IRValue ProcedureValue { get; private set; }
@@ -773,7 +804,10 @@ namespace NoHoPython.Syntax.Values
 
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
-            return AnonymousProcedureCall.ComposeCall(ProcedureValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), irBuilder, this);
+            List<IRValue> arguments = Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate));
+            if (ProcedureValue is GetPropertyValue propertyValue)
+                return AnonymousProcedureCall.SendMessage(propertyValue.Record.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), propertyValue.Property, expectedType, arguments, irBuilder, this);
+            return AnonymousProcedureCall.ComposeCall(ProcedureValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), arguments, irBuilder, this);
         }
     }
 

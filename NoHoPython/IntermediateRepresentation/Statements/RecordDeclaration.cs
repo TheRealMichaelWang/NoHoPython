@@ -42,6 +42,18 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
+        public static bool HasProperty(IType type, string name, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            if (type is IPropertyContainer propertyContainer && propertyContainer.HasProperty(name))
+                return true;
+
+            IScopeSymbol? getter = irBuilder.SymbolMarshaller.FindSymbol($"{type.Identifier}_get_{name}");
+            if (getter == null)
+                getter = irBuilder.SymbolMarshaller.FindSymbol($"{type.PrototypeIdentifier}_get_{name}");
+
+            return getter is ProcedureDeclaration;
+        }
+
         public bool HasProperty(string identifier);
         public Property FindProperty(string identifier);
 
@@ -77,14 +89,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 DefaultValue = null;
             }
 
-            public RecordProperty SubstituteWithTypeargs(Dictionary<TypeParameter, IType> typeargs)
-            {
-                string newName = Name;
-                foreach (KeyValuePair<TypeParameter, IType> typearg in typeargs)
-                    newName = newName.Replace($"{typearg.Key.Name}_IDENT", typearg.Value.Identifier);
-
-                return new(newName, Type.SubstituteWithTypearg(typeargs), IsReadOnly, (RecordType)RecordType.SubstituteWithTypearg(typeargs), RecordDeclaration);
-            }
+            public RecordProperty SubstituteWithTypeargs(Dictionary<TypeParameter, IType> typeargs) => new(Name, Type.SubstituteWithTypearg(typeargs), IsReadOnly, (RecordType)RecordType.SubstituteWithTypearg(typeargs), RecordDeclaration);
 
             public void DelayedLinkSetDefaultValue(IRValue defaultValue, Syntax.AstIRProgramBuilder irBuilder)
             {
@@ -197,7 +202,9 @@ namespace NoHoPython.Typing
     {
         public bool IsNativeCType => false;
         public string TypeName => $"{RecordPrototype.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
-        public string Identifier => $"{IScopeSymbol.GetAbsolouteName(RecordPrototype)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public string Identifier => IType.GetIdentifier(IScopeSymbol.GetAbsolouteName(RecordPrototype), TypeArguments.ToArray());
+        public string PrototypeIdentifier => IType.GetPrototypeIdentifier(IScopeSymbol.GetAbsolouteName(RecordPrototype), RecordPrototype.TypeParameters);
+
         public bool IsEmpty => false;
 
         public RecordDeclaration RecordPrototype;

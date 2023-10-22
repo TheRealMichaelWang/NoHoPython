@@ -79,6 +79,7 @@ namespace NoHoPython.Typing
 
         public string TypeName => TypeParameter.Name;
         public string Identifier => TypeName;
+        public string PrototypeIdentifier => Identifier;
         public bool IsEmpty => false;
 
         public TypeParameter TypeParameter { get; private set; }

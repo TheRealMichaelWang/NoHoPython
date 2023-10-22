@@ -1,6 +1,7 @@
 using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 using NoHoPython.Syntax.Parsing;
 using NoHoPython.Typing;
@@ -38,29 +39,57 @@ namespace NoHoPython.IntermediateRepresentation.Values
             LessEqual
         }
 
+        private static Dictionary<CompareOperation, CompareOperation> reversedCompareOperations = new Dictionary<CompareOperation, CompareOperation>() 
+        { 
+            {CompareOperation.Equals, CompareOperation.Equals},
+            {CompareOperation.NotEquals, CompareOperation.NotEquals},
+            {CompareOperation.Less, CompareOperation.More},
+            {CompareOperation.LessEqual, CompareOperation.MoreEqual},
+            {CompareOperation.More, CompareOperation.Less },
+            {CompareOperation.MoreEqual, CompareOperation.LessEqual}
+        };
+
+        public static IRValue ComposeComparativeOperator(CompareOperation operation, IRValue left, IRValue right, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        {
+            if (GetPropertyValue.HasMessageReceiver(left, "compare", irBuilder))
+                return new ComparativeOperator(operation, AnonymousProcedureCall.SendMessage(left, "compare", Primitive.Integer, new List<IRValue>()
+                    {
+                        right
+                    }, irBuilder, errorReportedElement), new IntegerLiteral(0, errorReportedElement), errorReportedElement);
+            if(GetPropertyValue.HasMessageReceiver(right, "compare", irBuilder))
+                return new ComparativeOperator(reversedCompareOperations[operation], AnonymousProcedureCall.SendMessage(right, "compare", Primitive.Integer, new List<IRValue>()
+                    {
+                        left
+                    }, irBuilder, errorReportedElement), new IntegerLiteral(0, errorReportedElement), errorReportedElement);
+            if (operation == CompareOperation.Equals || operation == CompareOperation.NotEquals)
+            {
+                if (GetPropertyValue.HasMessageReceiver(left, "equals", irBuilder))
+                    return AnonymousProcedureCall.SendMessage(left, "equals", Primitive.Boolean, new List<IRValue>()
+                    {
+                        right
+                    }, irBuilder, errorReportedElement);
+                if(GetPropertyValue.HasMessageReceiver(right, "equals", irBuilder))
+                    return AnonymousProcedureCall.SendMessage(right, "equals", Primitive.Boolean, new List<IRValue>()
+                    {
+                        left
+                    }, irBuilder, errorReportedElement);
+            }
+
+            return new ComparativeOperator(operation, left, right, irBuilder, errorReportedElement);
+        }
+
         public override IType Type => new BooleanType();
 
         public CompareOperation Operation { get; private set; }
 
-        public ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
+        private ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
         {
             Operation = operation;
 
-            if (left.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("compare"))
-            {
-                Left = ArithmeticCast.CastTo(AnonymousProcedureCall.ComposeCall(GetPropertyValue.ComposeGetProperty(left, "compare", irBuilder, errorReportedElement), new List<IRValue>()
-                {
-                    right
-                }, irBuilder, errorReportedElement), Primitive.Integer, irBuilder);
-                Right = new IntegerLiteral(0, errorReportedElement);
-            }
-            else
-            {
-                if (left.Type is not Primitive && !(left.Type is ForeignCType foreignCType && foreignCType.Declaration.PointerPropertyAccess))
-                    throw new UnexpectedTypeException(left.Type, left.ErrorReportedElement);
-                if (right.Type is not Primitive && !(right.Type is ForeignCType rightForeignCType && rightForeignCType.Declaration.PointerPropertyAccess))
-                    throw new UnexpectedTypeException(right.Type, right.ErrorReportedElement);
-            }
+            if (left.Type is not Primitive && !(left.Type is ForeignCType foreignCType && foreignCType.Declaration.PointerPropertyAccess))
+                throw new UnexpectedTypeException(left.Type, left.ErrorReportedElement);
+            if (right.Type is not Primitive && !(right.Type is ForeignCType rightForeignCType && rightForeignCType.Declaration.PointerPropertyAccess))
+                throw new UnexpectedTypeException(right.Type, right.ErrorReportedElement);
         }
 
         private ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
@@ -124,11 +153,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public static IRValue ComposeGetValueAtIndex(IRValue array, IRValue index, IType? expectedType, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
-            return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("getAtIndex")
-                ? AnonymousProcedureCall.ComposeCall(GetPropertyValue.ComposeGetProperty(array, "getAtIndex", irBuilder, errorReportedElement), new List<IRValue>()
-                {
-                    index
-                }, irBuilder, array.ErrorReportedElement)
+            return GetPropertyValue.HasMessageReceiver(array, "getAtIndex", irBuilder)
+                ? AnonymousProcedureCall.SendMessage(array, "getAtIndex", expectedType, new List<IRValue>() { index }, irBuilder, errorReportedElement)
                 : array.Type is HandleType handleType
                 ? new MemoryGet(handleType.ValueType is not NothingType ? handleType.ValueType : expectedType ?? throw new UnexpectedTypeException(Primitive.Nothing, errorReportedElement), array, index, irBuilder, errorReportedElement)
                 : new GetValueAtIndex(array, index, irBuilder, errorReportedElement);
@@ -169,12 +195,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public static IRValue ComposeSetValueAtIndex(IRValue array, IRValue index, IRValue value, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
-            return array.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty("setAtIndex")
-                ? AnonymousProcedureCall.ComposeCall(GetPropertyValue.ComposeGetProperty(array, "setAtIndex", irBuilder, errorReportedElement), new List<IRValue>()
-                {
-                    index,
-                    value
-                }, irBuilder, array.ErrorReportedElement)
+            return GetPropertyValue.HasMessageReceiver(array, "setAtIndex", irBuilder)
+                ? AnonymousProcedureCall.SendMessage(array, "setAtIndex", null, new List<IRValue>() { index, value}, irBuilder, errorReportedElement)
                 : array.Type is HandleType handleType
                 ? new MemorySet(handleType.ValueType is NothingType ? value.Type : handleType.ValueType, array, index, handleType.ValueType is NothingType ? value : ArithmeticCast.CastTo(value, handleType.ValueType, irBuilder), irBuilder, errorReportedElement)
                 : new SetValueAtIndex(array, index, value, irBuilder, errorReportedElement);
@@ -214,7 +236,28 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class GetPropertyValue : IRValue
     {
-        public static GetPropertyValue ComposeGetProperty(IRValue record, string propertyName, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) => new GetPropertyValue(record, propertyName, record.GetRefinementEntry(irBuilder)?.GetSubentry(propertyName)?.Refinement, errorReportedElement);
+        public static bool HasMessageReceiver(IRValue value, string name, AstIRProgramBuilder irBuilder)
+        {
+            if(value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty(name))
+                return true;
+            
+            IScopeSymbol? messageReceiver = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.Identifier}_{name}");
+            if(messageReceiver == null)
+                messageReceiver = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.PrototypeIdentifier}_{name}");
+            
+            return messageReceiver != null && messageReceiver is ProcedureDeclaration;
+        }
+
+        public static IRValue ComposeGetProperty(IRValue record, string name, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        {
+            if (record.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty(name))
+                return new GetPropertyValue(record, name, record.GetRefinementEntry(irBuilder)?.GetSubentry(name)?.Refinement, errorReportedElement);
+
+            if (HasMessageReceiver(record, $"get_{name}", irBuilder))
+                return AnonymousProcedureCall.SendMessage(record, $"get_{name}", null, new(), irBuilder, errorReportedElement);
+
+            throw new UnexpectedTypeException(record.Type, $"Type doesn't contain property {name}.", errorReportedElement);
+        }
 
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type => Refinements.HasValue ? Refinements.Value.Item1 : Property.Type;
@@ -232,13 +275,29 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Refinements = refinements;
             Property = record.Type is IPropertyContainer propertyContainer
 				? (propertyContainer.HasProperty(propertyName) ? propertyContainer.FindProperty(propertyName) : throw new UnexpectedTypeException(record.Type, $"Type doesn't contain property {propertyName}.", errorReportedElement))
-                : throw new UnexpectedTypeException(record.Type, errorReportedElement);
+                : throw new UnexpectedTypeException(record.Type, "Type isn't a property container.", errorReportedElement);
             ErrorReportedElement = errorReportedElement;
         }
     }
 
     public sealed partial class SetPropertyValue : IRValue, IRStatement
     {
+        public static IRValue ComposeSetPropertyValue(IRValue record, string name, IRValue value, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        {
+            if (record.Type is RecordType recordType && recordType.HasProperty(name))
+            {
+                CodeBlock.RefinementEntry? recordRefinement = record.GetRefinementEntry(irBuilder)?.GetSubentry(name);
+                recordRefinement?.Clear();
+                if (recordRefinement != null)
+                    value.RefineSet(irBuilder, recordRefinement);
+                return new SetPropertyValue(record, name, value, irBuilder, errorReportedElement);
+            }
+            if (GetPropertyValue.HasMessageReceiver(record, $"set_{name}", irBuilder))
+                AnonymousProcedureCall.SendMessage(record, $"set_{name}", null, new(), irBuilder, errorReportedElement);
+
+            throw new UnexpectedTypeException(record.Type, $"Type doesn't contain property {name}.", errorReportedElement);
+        }
+        
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type => Property.Type;
         public bool IsTruey => Value.IsTruey;
@@ -249,7 +308,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public IRValue Value { get; private set; }
 
-        public SetPropertyValue(IRValue record, string propertyName, IRValue value, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        private SetPropertyValue(IRValue record, string propertyName, IRValue value, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             Record = record;
             ErrorReportedElement = errorReportedElement;
@@ -258,13 +317,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (record.Type is RecordType propertyContainer)
             {
                 if (!propertyContainer.HasProperty(propertyName))
-                    throw new UnexpectedTypeException(record.Type, errorReportedElement);
+                    throw new UnexpectedTypeException(record.Type, $"Record doesn't contain property {propertyName}.", errorReportedElement);
 
                 Property = (RecordDeclaration.RecordProperty)propertyContainer.FindProperty(propertyName);
                 Value = ArithmeticCast.CastTo(value, Property.Type, irBuilder);
             }
             else
-                throw new UnexpectedTypeException(record.Type, errorReportedElement);
+                throw new UnexpectedTypeException(record.Type, $"Type isn't a record/class.", errorReportedElement);
         }
 
         private SetPropertyValue(IRValue record, RecordDeclaration.RecordProperty property, IRValue value, IAstElement errorReportedElement)
@@ -328,7 +387,7 @@ namespace NoHoPython.Syntax.Values
             return ArithmeticTokens.ContainsKey(Operator)
                 ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, lhs.Type, willRevaluate), irBuilder, this)
                 : ComparativeTokens.ContainsKey(Operator)
-                ? new ComparativeOperator(ComparativeTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, lhs.Type, willRevaluate), irBuilder, this)
+                ? ComparativeOperator.ComposeComparativeOperator(ComparativeTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, lhs.Type, willRevaluate), irBuilder, this)
                 : LogicalTokens.ContainsKey(Operator)
                 ? new LogicalOperator(LogicalTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), irBuilder, this)
                 : BitwiseTokens.ContainsKey(Operator)
@@ -354,20 +413,7 @@ namespace NoHoPython.Syntax.Values
 
     partial class GetPropertyValue
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
-        {
-            IRValue record = Record.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate);
-
-            if (record.Type is IPropertyContainer property)
-            {
-                if (property.HasProperty($"get_{Property}"))
-                    return AnonymousProcedureCall.ComposeCall(IntermediateRepresentation.Values.GetPropertyValue.ComposeGetProperty(record, $"get_{Property}", irBuilder, this), new(), irBuilder, this);
-                else
-                    return IntermediateRepresentation.Values.GetPropertyValue.ComposeGetProperty(record, Property, irBuilder, this);
-            }
-            else
-                throw new UnexpectedTypeException(record.Type, "Expected a property container type.", record.ErrorReportedElement);
-        }
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => IntermediateRepresentation.Values.GetPropertyValue.ComposeGetProperty(Record.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), Property, irBuilder, this);
     }
 
     partial class SetPropertyValue
@@ -381,29 +427,10 @@ namespace NoHoPython.Syntax.Values
         {
             IRValue record = Record.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate);
 
-            IType? hintType = expectedType;
-            if (record is IPropertyContainer propertyContainer && !propertyContainer.HasProperty(Property) && propertyContainer.HasProperty($"set_{Property}"))
-            {
-                IRValue getter = IntermediateRepresentation.Values.GetPropertyValue.ComposeGetProperty(record, $"set_property", irBuilder, this);
-                if (getter.Type is ProcedureType procedureType && procedureType.ParameterTypes.Count == 1)
-                    hintType = procedureType.ParameterTypes[0];
-                return AnonymousProcedureCall.ComposeCall(getter, new List<IRValue>()
-                {
-                    Value.GenerateIntermediateRepresentationForValue(irBuilder, hintType, willRevaluate)
-                }, irBuilder, this);
-            }
-            else
-            {
-                if (record.Type is RecordType recordType && recordType.HasProperty(Property))
-                    hintType = recordType.FindProperty(Property).Type;
-                IRValue value = Value.GenerateIntermediateRepresentationForValue(irBuilder, hintType, willRevaluate);
+            IType? hintType = record.Type is RecordType recordType && recordType.HasProperty(Property) ? recordType.FindProperty(Property).Type : expectedType;
+            IRValue value = Value.GenerateIntermediateRepresentationForValue(irBuilder, hintType, willRevaluate);
 
-                CodeBlock.RefinementEntry? recordRefinement = record.GetRefinementEntry(irBuilder)?.GetSubentry(Property);
-                recordRefinement?.Clear();
-                if (recordRefinement != null)
-                    value.RefineSet(irBuilder, recordRefinement);
-                return new IntermediateRepresentation.Values.SetPropertyValue(record, Property, value, irBuilder, this);
-            }
+            return IntermediateRepresentation.Values.SetPropertyValue.ComposeSetPropertyValue(record, Property, value, irBuilder, this);
         }
     }
 }

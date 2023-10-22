@@ -98,10 +98,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return ((CodeBlock)parentContainer).GetLoopBreakLabelId(errorReportedElement, irBuilder);
         }
 
-        public override IScopeSymbol? FindSymbol(string identifier, IAstElement errorReportedElement)
+        public override IScopeSymbol? FindSymbol(string identifier)
         {
-            IScopeSymbol? result = base.FindSymbol(identifier, errorReportedElement);
-            return result ?? (parentContainer?.FindSymbol(identifier, errorReportedElement));
+            IScopeSymbol? result = base.FindSymbol(identifier);
+            return result ?? (parentContainer?.FindSymbol(identifier));
         }
     }
 }

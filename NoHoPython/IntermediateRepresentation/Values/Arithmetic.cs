@@ -64,13 +64,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return value;
 
             //infalible type conversions
-            if (value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty($"to_{typeTarget.Identifier}"))
-            {
-                IRValue call = AnonymousProcedureCall.ComposeCall(GetPropertyValue.ComposeGetProperty(value, $"to_{typeTarget.Identifier}", irBuilder, value.ErrorReportedElement), new List<IRValue>(), irBuilder, value.ErrorReportedElement);
-                if (!call.Type.IsCompatibleWith(typeTarget))
-                    throw new UnexpectedTypeException(typeTarget, call.Type, value.ErrorReportedElement);
-                return call;
-            }
+            if (GetPropertyValue.HasMessageReceiver(value, $"to_{typeTarget.Identifier}", irBuilder))
+                return AnonymousProcedureCall.SendMessage(value, $"to_{typeTarget.Identifier}", typeTarget, new(), irBuilder, value.ErrorReportedElement, false);
+            if (GetPropertyValue.HasMessageReceiver(value, $"to_{typeTarget.PrototypeIdentifier}", irBuilder))
+                return AnonymousProcedureCall.SendMessage(value, $"to_{typeTarget.PrototypeIdentifier}", typeTarget, new(), irBuilder, value.ErrorReportedElement, false);
+
             if (typeTarget is HandleType handleType)
             {
                 if (explicitCast && value.Type is HandleType)
@@ -190,17 +188,39 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public static IRValue ComposeArithmeticOperation(ArithmeticOperation operation, IRValue left, IRValue right, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
-            return left.Type is IPropertyContainer leftContainer && leftContainer.HasProperty(operatorOverloadIdentifiers[operation])
-                ? AnonymousProcedureCall.ComposeCall(GetPropertyValue.ComposeGetProperty(left, operatorOverloadIdentifiers[operation], irBuilder, errorReportedElement), new List<IRValue>()
+            if (GetPropertyValue.HasMessageReceiver(left, operatorOverloadIdentifiers[operation], irBuilder))
+                return AnonymousProcedureCall.SendMessage(left, operatorOverloadIdentifiers[operation], null, new List<IRValue>() { right }, irBuilder, errorReportedElement);
+            if (OperationIsCommunicative(operation) && GetPropertyValue.HasMessageReceiver(right, operatorOverloadIdentifiers[operation], irBuilder))
+                return AnonymousProcedureCall.SendMessage(right, operatorOverloadIdentifiers[operation], null, new List<IRValue>() { left }, irBuilder, errorReportedElement);
+            if(operation == ArithmeticOperation.Subtract && GetPropertyValue.HasMessageReceiver(right, "negate", irBuilder))
+            {
+                IRValue negativeRight = AnonymousProcedureCall.SendMessage(right, "negate", null, new(), irBuilder, errorReportedElement);
+                if (left.IsFalsey)
+                    return negativeRight;
+                else
+                    return ComposeArithmeticOperation(ArithmeticOperation.Add, left, negativeRight, irBuilder, errorReportedElement);
+            }
+            if (operation == ArithmeticOperation.Divide)
+            {
+                if (GetPropertyValue.HasMessageReceiver(right, "inverse", irBuilder))
                 {
-                    right
-                }, irBuilder, errorReportedElement)
-                : OperationIsCommunicative(operation) && right.Type is IPropertyContainer rightContainer && rightContainer.HasProperty(operatorOverloadIdentifiers[operation])
-                ? AnonymousProcedureCall.ComposeCall(GetPropertyValue.ComposeGetProperty(right, operatorOverloadIdentifiers[operation], irBuilder, errorReportedElement), new List<IRValue>()
+                    IRValue invertedRight = AnonymousProcedureCall.SendMessage(right, "inverse", null, new(), irBuilder, errorReportedElement);
+                    if (left is IntegerLiteral integerLiteral && integerLiteral.Number == 1)
+                        return invertedRight;
+                    else
+                        return ComposeArithmeticOperation(ArithmeticOperation.Multiply, left, invertedRight, irBuilder, errorReportedElement);
+                }
+                if(GetPropertyValue.HasMessageReceiver(right, "exponentiate", irBuilder))
                 {
-                    left
-                }, irBuilder, errorReportedElement)
-                : (left.Type is HandleType && operation == ArithmeticOperation.Add)
+                    IRValue invertedRight = AnonymousProcedureCall.SendMessage(right, "exponentiate", null, new() { new IntegerLiteral(-1, errorReportedElement) }, irBuilder, errorReportedElement);
+                    if (left is IntegerLiteral integerLiteral && integerLiteral.Number == 1)
+                        return invertedRight;
+                    else
+                        return ComposeArithmeticOperation(ArithmeticOperation.Multiply, left, invertedRight, irBuilder, errorReportedElement);
+                }
+            }
+
+            return (left.Type is HandleType && operation == ArithmeticOperation.Add)
                 ? new PointerAddOperator(left, right, irBuilder, errorReportedElement)
                 : (right.Type is HandleType && operation == ArithmeticOperation.Add)
                 ? new PointerAddOperator(right, left, irBuilder, errorReportedElement)

@@ -1,11 +1,36 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
+using System.Text;
 
 namespace NoHoPython.Typing
 {
     public partial interface IType
     {
+        public static string GetIdentifier(string typeIdentifier, params IType[] typeargs)
+        {
+            StringBuilder builder = new();
+            builder.Append(typeIdentifier);
+            foreach(IType type in typeargs)
+            {
+                builder.Append('_');
+                builder.Append(type.Identifier);
+            }
+            return builder.ToString();
+        }
+
+        public static string GetPrototypeIdentifier(string typeIdentifier, List<TypeParameter> typeParameters)
+        {
+            StringBuilder builder = new();
+            builder.Append(typeIdentifier);
+            foreach (TypeParameter typeParameter in typeParameters)
+            {
+                builder.Append('_');
+                builder.Append(typeParameter.Name);
+            }
+            return builder.ToString();
+        }
+      
         public static bool HasChildren(IType type) => type is MemorySpan || type is HandleType || type is ArrayType || type is RecordType;
 
         public bool IsNativeCType { get; }
@@ -15,6 +40,7 @@ namespace NoHoPython.Typing
 
         public string TypeName { get; }
         public string Identifier { get; }
+        public string PrototypeIdentifier {get;}
         public bool IsEmpty { get; }
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInformation);

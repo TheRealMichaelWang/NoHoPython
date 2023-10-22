@@ -81,6 +81,7 @@ namespace NoHoPython.Syntax.Parsing
                     scanner.ScanToken();
                     return new AssertStatement(ParseExpression(), location);
                 case TokenType.Define:
+                case TokenType.Pure:
                     return ParseProcedureDeclaration();
                 case TokenType.CDefine:
                     return ParseCDefine();
@@ -241,6 +242,7 @@ namespace NoHoPython.Syntax.Parsing
                     switch (scanner.LastToken.Type)
                     {
                         case TokenType.Lambda:
+                        case TokenType.Pure:
                             return ParseLambdaDeclaration(location);
                         case TokenType.OpenParen:
                             {
@@ -439,6 +441,7 @@ namespace NoHoPython.Syntax.Parsing
             switch (scanner.LastToken.Type)
             {
                 case TokenType.Define:
+                case TokenType.Pure:
                     return ParseProcedureDeclaration();
                 case TokenType.CDefine:
                     return ParseCDefine();

@@ -20,6 +20,14 @@ namespace NoHoPython.Syntax.Statements
             public override string ToString() => $"{Type} {Identifier}";
         }
 
+        public static string PurityToString(string? defstr, IntermediateRepresentation.Statements.Purity purity) => purity switch
+        {
+            IntermediateRepresentation.Statements.Purity.Pure => "pure",
+            IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments => defstr ?? string.Empty,
+            IntermediateRepresentation.Statements.Purity.AffectsGlobals => "global_impure",
+            _ => throw new InvalidOperationException()
+        };
+
         public SourceLocation SourceLocation { get; private set; }
 
         public readonly string Name;
@@ -29,8 +37,10 @@ namespace NoHoPython.Syntax.Statements
 
         public AstType? AnnotatedReturnType { get; private set; }
 
+        public IntermediateRepresentation.Statements.Purity Purity { get; private set; }
+
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, List<ProcedureParameter> parameters, List<IAstStatement> statements, AstType? annotatedReturnType, SourceLocation sourceLocation)
+        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, List<ProcedureParameter> parameters, IntermediateRepresentation.Statements.Purity purity, List<IAstStatement> statements, AstType? annotatedReturnType, SourceLocation sourceLocation)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             Name = name;
@@ -39,9 +49,10 @@ namespace NoHoPython.Syntax.Statements
             Parameters = parameters;
             AnnotatedReturnType = annotatedReturnType;
             TypeParameters = typeParameters;
+            Purity = purity;
         }
 
-        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}def {Name}{(TypeParameters.Count > 0 ? $"<{string.Join(", ", TypeParameters)}>" : string.Empty)}({string.Join(", ", Parameters)}){(AnnotatedReturnType != null ? " " + AnnotatedReturnType.ToString() : "")}:\n{IAstStatement.BlockToString(indent, Statements)}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{PurityToString("def", Purity)} {Name}{(TypeParameters.Count > 0 ? $"<{string.Join(", ", TypeParameters)}>" : string.Empty)}({string.Join(", ", Parameters)}){(AnnotatedReturnType != null ? " " + AnnotatedReturnType.ToString() : "")}:\n{IAstStatement.BlockToString(indent, Statements)}";
     }
 
     public sealed partial class ReturnStatement : IAstStatement
@@ -82,10 +93,11 @@ namespace NoHoPython.Syntax.Statements
         public string? CFunctionName { get; private set; }
         public readonly List<TypeParameter> TypeParameters;
         public readonly List<AstType> ParameterTypes;
-        public readonly AstType ReturnType;
+        public AstType ReturnType { get; private set; }
+        public IntermediateRepresentation.Statements.Purity Purity { get; private set; }
 
 #pragma warning disable CS8618 //IR Foreign set during forward declaration
-        public ForeignCProcedureDeclaration(string identifier, string? cFunctionName, List<TypeParameter> typeParameters, List<AstType> parameterTypes, AstType returnType, SourceLocation sourceLocation)
+        public ForeignCProcedureDeclaration(string identifier, string? cFunctionName, List<TypeParameter> typeParameters, List<AstType> parameterTypes, AstType returnType, IntermediateRepresentation.Statements.Purity purity, SourceLocation sourceLocation)
 #pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
@@ -94,6 +106,7 @@ namespace NoHoPython.Syntax.Statements
             TypeParameters = typeParameters;
             ParameterTypes = parameterTypes;
             ReturnType = returnType;
+            Purity = purity;
         }
 
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}cdef {Identifier}({string.Join(", ", ParameterTypes)}) {ReturnType}";
@@ -148,15 +161,17 @@ namespace NoHoPython.Syntax.Values
 
         public readonly List<ProcedureParameter> Parameters;
         public IAstValue ReturnExpression { get; private set; }
+        public IntermediateRepresentation.Statements.Purity Purity { get; private set; }
 
-        public LambdaDeclaration(List<ProcedureParameter> parameters, IAstValue returnExpression, SourceLocation sourceLocation)
+        public LambdaDeclaration(List<ProcedureParameter> parameters, IAstValue returnExpression, IntermediateRepresentation.Statements.Purity purity, SourceLocation sourceLocation)
         {
             SourceLocation = sourceLocation;
             Parameters = parameters;
             ReturnExpression = returnExpression;
+            Purity = purity;
         }
 
-        public override string ToString() => $"lambda{(Parameters.Count > 0 ? " " + string.Join(", ", Parameters) : "")}: {ReturnExpression}";
+        public override string ToString() => $"{PurityToString("lambda", Purity)}{(Parameters.Count > 0 ? " " + string.Join(", ", Parameters) : "")}: {ReturnExpression}";
     }
 }
 
@@ -164,11 +179,33 @@ namespace NoHoPython.Syntax.Parsing
 {
     partial class AstParser
     {
+        private IntermediateRepresentation.Statements.Purity ParsePurityToken(TokenType? defToken, IntermediateRepresentation.Statements.Purity defaultPurity = IntermediateRepresentation.Statements.Purity.OnlyAffectsArgumentsAndCaptured)
+        {
+            if(scanner.LastToken.Type == defToken)
+            {
+                scanner.ScanToken();
+                return defaultPurity;
+            }
+
+            IntermediateRepresentation.Statements.Purity purity = scanner.LastToken.Type switch
+            {
+                TokenType.Pure => IntermediateRepresentation.Statements.Purity.Pure,
+                TokenType.AffectsArgsOnly => IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments,
+                TokenType.Impure => IntermediateRepresentation.Statements.Purity.AffectsGlobals,
+                _ => defToken == null ? defaultPurity : throw new UnexpectedTokenException(scanner.LastToken, scanner.CurrentLocation)
+            };
+
+            if(!(purity == defaultPurity && defToken == null))
+                scanner.ScanToken();
+
+            return purity;
+        }
+
         private IAstStatement ParseProcedureDeclaration(bool mustBeProcedure = false)
         {
             SourceLocation location = scanner.CurrentLocation;
 
-            MatchAndScanToken(TokenType.Define);
+            IntermediateRepresentation.Statements.Purity purity = ParsePurityToken(TokenType.Define);
 
             MatchToken(TokenType.Identifier);
             string identifer = scanner.LastToken.Identifier;
@@ -209,7 +246,7 @@ namespace NoHoPython.Syntax.Parsing
                 scanner.ScanToken();
             
             MatchAndScanToken(TokenType.Newline);
-            return new ProcedureDeclaration(identifer, typeParameters, parameters, ParseCodeBlock(), returnType, location);
+            return new ProcedureDeclaration(identifer, typeParameters, parameters, purity, ParseCodeBlock(), returnType, location);
         }
 
         private IAstStatement ParseCDefine()
@@ -217,6 +254,8 @@ namespace NoHoPython.Syntax.Parsing
             SourceLocation location = scanner.CurrentLocation;
 
             MatchAndScanToken(TokenType.CDefine);
+            IntermediateRepresentation.Statements.Purity purity = ParsePurityToken(null);
+
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
             scanner.ScanToken();
@@ -242,24 +281,24 @@ namespace NoHoPython.Syntax.Parsing
                 {
                     string cFunctionName = scanner.LastToken.Identifier;
                     scanner.ScanToken();
-                    return new ForeignCProcedureDeclaration(identifier, cFunctionName, typeParameters, parameters, returnType, location);
+                    return new ForeignCProcedureDeclaration(identifier, cFunctionName, typeParameters, parameters, returnType, purity, location);
                 }
-                return new ForeignCProcedureDeclaration(identifier, null, typeParameters, parameters, returnType, location);
+                return new ForeignCProcedureDeclaration(identifier, null, typeParameters, parameters, returnType, purity, location);
             }
             else if (scanner.LastToken.Type == TokenType.StringLiteral)
                 return ParseForeignCDeclaration(identifier, typeParameters, location);
             else
             {
                 if (scanner.LastToken.Type == TokenType.Newline)
-                    return new CSymbolDeclaration(identifier, null, location);
+                    return new CSymbolDeclaration(identifier, null, purity != IntermediateRepresentation.Statements.Purity.Pure, location);
                 else
-                    return new CSymbolDeclaration(identifier, ParseType(), location);
+                    return new CSymbolDeclaration(identifier, ParseType(), purity != IntermediateRepresentation.Statements.Purity.Pure, location);
             }
         }
 
         private LambdaDeclaration ParseLambdaDeclaration(SourceLocation location)
         {
-            MatchAndScanToken(TokenType.Lambda);
+            IntermediateRepresentation.Statements.Purity purity = ParsePurityToken(TokenType.Lambda);
             
             List<ProcedureParameter> parameters = new();
             while(scanner.LastToken.Type != TokenType.Colon)
@@ -274,7 +313,7 @@ namespace NoHoPython.Syntax.Parsing
             }
             scanner.ScanToken();
 
-            return new LambdaDeclaration(parameters, ParseExpression(), location);
+            return new LambdaDeclaration(parameters, ParseExpression(), purity, location);
         }
     }
 }

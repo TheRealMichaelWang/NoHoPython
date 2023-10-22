@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Syntax;
 using System.Text;
@@ -200,10 +201,11 @@ namespace NoHoPython.Typing
 
         public IType ReturnType { get; private set; }
         public readonly List<IType> ParameterTypes;
+        public Purity Purity { get; private set; }
 
         public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
-        public ProcedureType(IType returnType, List<IType> parameterTypes)
+        public ProcedureType(IType returnType, List<IType> parameterTypes, Purity purityLevel)
         {
             ReturnType = returnType;
             ParameterTypes = parameterTypes;
@@ -213,6 +215,8 @@ namespace NoHoPython.Typing
         {
             if (type is ProcedureType procedureType)
             {
+                if (Purity != procedureType.Purity)
+                    return false;
                 if (ParameterTypes.Count != procedureType.ParameterTypes.Count)
                     return false;
                 if (!ReturnType.IsCompatibleWith(procedureType.ReturnType))

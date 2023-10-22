@@ -10,7 +10,7 @@ mod data:
 		int count = 0
 		int capacity
 		
-		def __init__(int capacity):
+		pure __init__(int capacity):
 			self.capacity = capacity
 			self.buffer = std::malloc(capacity)
 		
@@ -19,7 +19,7 @@ mod data:
 				destroy self.buffer + i
 			cstd::free(self.buffer)
 		
-		def __copy__() list<T>:
+		pure __copy__() list<T>:
 			copied = new list<T>(self.count)
 			copied.count = self.count
 			for i from 0 within self.count:

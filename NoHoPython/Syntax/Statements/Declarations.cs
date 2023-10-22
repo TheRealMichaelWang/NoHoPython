@@ -342,7 +342,7 @@ namespace NoHoPython.Syntax.Parsing
             List<ProcedureDeclaration> procedures = new();
             List<RecordDeclaration.RecordProperty> properties = ParseBlock(() =>
             {
-                if (scanner.LastToken.Type == TokenType.Define)
+                if (scanner.LastToken.Type == TokenType.Define || scanner.LastToken.Type == TokenType.Pure)
                 {
                     procedures.Add((ProcedureDeclaration)ParseProcedureDeclaration(true));
                     return null;

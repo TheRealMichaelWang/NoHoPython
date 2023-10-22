@@ -204,6 +204,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             Elements = tupleElements;
             ErrorReportedElement = errorReportedElement;
+
+            ITypeComparer typeComparer = new();
+            Elements.Sort((elem1, elem2) => typeComparer.Compare(elem1.Type, elem2.Type));
         }
     }
 

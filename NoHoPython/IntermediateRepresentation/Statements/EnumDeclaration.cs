@@ -230,6 +230,7 @@ namespace NoHoPython.Typing
 
         public string TypeName => Name;
         public string Identifier => IScopeSymbol.GetAbsolouteName(this);
+        public string PrototypeIdentifier => Identifier;
         public bool IsEmpty => true;
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => new EmptyTypeLiteral(this, errorReportedElement);
@@ -272,7 +273,8 @@ namespace NoHoPython.Typing
 
         public bool IsNativeCType => false;
         public string TypeName => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
-        public string Identifier => $"{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public string Identifier => IType.GetIdentifier(IScopeSymbol.GetAbsolouteName(EnumDeclaration), TypeArguments.ToArray());
+        public string PrototypeIdentifier => IType.GetPrototypeIdentifier(IScopeSymbol.GetAbsolouteName(EnumDeclaration), EnumDeclaration.TypeParameters);
         public bool IsEmpty => false;
 
         public EnumDeclaration EnumDeclaration { get; private set; }

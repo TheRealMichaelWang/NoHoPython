@@ -101,7 +101,8 @@ namespace NoHoPython.Typing
     public sealed partial class InterfaceType : IType, IPropertyContainer
     {
         public string TypeName => $"{InterfaceDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
-        public string Identifier => $"{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public string Identifier => IType.GetIdentifier(IScopeSymbol.GetAbsolouteName(InterfaceDeclaration), TypeArguments.ToArray());
+        public string PrototypeIdentifier => IType.GetPrototypeIdentifier(IScopeSymbol.GetAbsolouteName(InterfaceDeclaration), InterfaceDeclaration.TypeParameters);
         public bool IsEmpty => false;
 
         public InterfaceDeclaration InterfaceDeclaration { get; private set; }

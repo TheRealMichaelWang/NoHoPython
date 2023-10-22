@@ -3,6 +3,7 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
+using System.Text;
 
 namespace NoHoPython.Typing
 {
@@ -19,7 +20,18 @@ namespace NoHoPython.Typing
         }
 
         public string TypeName => $"tuple<{string.Join(", ", orderedValueTypes.ConvertAll((type) => type.TypeName))}>";
-        public string Identifier => $"tuple_{string.Join("_", orderedValueTypes.ConvertAll((type) => type.Identifier))}";
+        public string Identifier => IType.GetIdentifier("tuple", orderedValueTypes.ToArray());
+        public string PrototypeIdentifier
+        {
+            get
+            {
+                StringBuilder builder = new();
+                builder.Append("tuple");
+                for (int i = 0; i < orderedValueTypes.Count; i++)
+                    builder.Append("_T");
+                return builder.ToString();
+            }
+        }
         public bool IsEmpty => false;
 
         public readonly Dictionary<IType, int> ValueTypes;

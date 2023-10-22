@@ -1,11 +1,36 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
+using System.Text;
 
 namespace NoHoPython.Typing
 {
     public partial interface IType
     {
+        public static string GetIdentifier(string typeIdentifier, params IType[] typeargs)
+        {
+            StringBuilder builder = new();
+            builder.Append(typeIdentifier);
+            foreach(IType type in typeargs)
+            {
+                builder.Append('_');
+                builder.Append(type.Identifier);
+            }
+            return builder.ToString();
+        }
+
+        public static string GetPrototypeIdentifier(string typeIdentifier, List<TypeParameter> typeParameters)
+        {
+            StringBuilder builder = new();
+            builder.Append(typeIdentifier);
+            foreach (TypeParameter typeParameter in typeParameters)
+            {
+                builder.Append('_');
+                builder.Append(typeParameter.Name);
+            }
+            return builder.ToString();
+        }
+
         public bool IsNativeCType { get; }
         public bool RequiresDisposal { get; }
         public bool MustSetResponsibleDestroyer { get; }

@@ -93,11 +93,6 @@ namespace NoHoPython.Syntax
 
                     MatchTypeArgCount(1, errorReportedElement);
                     return new HandleType(typeArguments[0]);
-                case "fn":
-                case "proc":
-                    return typeArguments.Count < 1
-                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
-                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments);
                 case "purefn":
                 case "pure":
                     return typeArguments.Count < 1
@@ -109,6 +104,16 @@ namespace NoHoPython.Syntax
                     return typeArguments.Count < 1
                         ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
                         : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.AffectsGlobals);
+                case "fn":
+                case "proc":
+                case "affects_args":
+                    return typeArguments.Count < 1
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments);
+                case "affects_captured":
+                    return typeArguments.Count < 1
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArgumentsAndCaptured);
                 default:
                     {
                         IScopeSymbol typeSymbol = irBuilder.SymbolMarshaller.FindSymbol(Identifier, errorReportedElement);
@@ -229,18 +234,17 @@ namespace NoHoPython.Syntax.Parsing
         private AstType ParseType()
         {
             string identifier;
-            if (scanner.LastToken.Type == TokenType.Nothing)
-            {
-                identifier = "nothing";
-                scanner.ScanToken();
+            switch(scanner.LastToken.Type) {
+                TokenType.Nothing:
+                TokenType.AffectsArgs:
+                TokenType.AffectsCaptured:
+                TokenType.Pure:
+                    identifier = scanner.LastToken.Identifier;
+                    break;
+                default:
+                    identifier = ParseIdentifier();
+                    break;
             }
-            else if (scanner.LastToken.Type == TokenType.Pure)
-            {
-                identifier = "pure";
-                scanner.ScanToken();
-            }
-            else
-                identifier = ParseIdentifier();
 
             return scanner.LastToken.Type == TokenType.Less
                 ? new AstType(identifier, ParseTypeArguments())

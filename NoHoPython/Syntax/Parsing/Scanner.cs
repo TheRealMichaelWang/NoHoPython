@@ -374,7 +374,8 @@ namespace NoHoPython.Syntax.Parsing
                     "attributes" => TokenType.Attributes,
                     "attr" => TokenType.Attributes,
                     "pure" => TokenType.Pure,
-                    "affectsArgsOnly" => TokenType.AffectsArgsOnly,
+                    "affects_args" => TokenType.AffectsArgs,
+                    "affects_captured" => TokenType.AffectsCaptured,
                     "impure" => TokenType.Impure,
                     _ => TokenType.Identifier
                 }, keyword);

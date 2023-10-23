@@ -190,7 +190,8 @@ namespace NoHoPython.Syntax.Parsing
             IntermediateRepresentation.Statements.Purity purity = scanner.LastToken.Type switch
             {
                 TokenType.Pure => IntermediateRepresentation.Statements.Purity.Pure,
-                TokenType.AffectsArgsOnly => IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments,
+                TokenType.AffectsArgs => IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments,
+                TokenType.AffectsCaptured => IntermediateRepresentation.Statements.Purity.OnlyAffectsArgumentsAndCaptured,
                 TokenType.Impure => IntermediateRepresentation.Statements.Purity.AffectsGlobals,
                 _ => defToken == null ? defaultPurity : throw new UnexpectedTokenException(scanner.LastToken, scanner.CurrentLocation)
             };
@@ -205,7 +206,7 @@ namespace NoHoPython.Syntax.Parsing
         {
             SourceLocation location = scanner.CurrentLocation;
 
-            IntermediateRepresentation.Statements.Purity purity = ParsePurityToken(TokenType.Define);
+            IntermediateRepresentation.Statements.Purity purity = ParsePurityToken(TokenType.Define, IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments);
 
             MatchToken(TokenType.Identifier);
             string identifer = scanner.LastToken.Identifier;
@@ -254,7 +255,7 @@ namespace NoHoPython.Syntax.Parsing
             SourceLocation location = scanner.CurrentLocation;
 
             MatchAndScanToken(TokenType.CDefine);
-            IntermediateRepresentation.Statements.Purity purity = ParsePurityToken(null);
+            IntermediateRepresentation.Statements.Purity purity = ParsePurityToken(null, IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments);
 
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;

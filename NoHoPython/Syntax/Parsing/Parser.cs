@@ -442,6 +442,9 @@ namespace NoHoPython.Syntax.Parsing
             {
                 case TokenType.Define:
                 case TokenType.Pure:
+                case TokenType.AffectsArgs:
+                case TokenType.AffectsCaptured:
+                case TokenType.Impure:
                     return ParseProcedureDeclaration();
                 case TokenType.CDefine:
                     return ParseCDefine();

@@ -56,10 +56,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public enum Purity
     {
-        Pure,
-        OnlyAffectsArguments,
-        OnlyAffectsArgumentsAndCaptured,
-        AffectsGlobals
+        Pure = 0,
+        OnlyAffectsArguments = 1,
+        OnlyAffectsArgumentsAndCaptured = 2,
+        AffectsGlobals = 3
     }
 
     public sealed partial class ProcedureDeclaration : CodeBlock, IScopeSymbol, IRStatement
@@ -169,7 +169,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     if (willSet)
                         throw new CannotMutateVaraible(variable, false, errorReportedElement);
                     else
-                        return (variable, Purity >= Purity.Pure && IType.HasChildren(variable.Type)); //records can still be captured and have their properties mutated
+                        return (variable, Purity <= Purity.Pure && IType.HasChildren(variable.Type)); //records can still be captured and have their properties mutated
                 }
 #pragma warning restore CS8602
             }
@@ -183,7 +183,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 else
                 {
                     (Variable, bool) capturedVar = variable.ParentProcedure.SanitizeVariable(variable, willSet, errorReportedElement);
-                    return (variable, (Purity >= Purity.OnlyAffectsArguments && IType.HasChildren(capturedVar.Item1.Type)) || capturedVar.Item2);//records can still be captured and have their properties mutated
+                    return (variable, (Purity <= Purity.OnlyAffectsArguments && IType.HasChildren(capturedVar.Item1.Type)) || capturedVar.Item2);//records can still be captured and have their properties mutated
                 }
             }
             return (variable, false);

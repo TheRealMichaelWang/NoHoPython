@@ -173,7 +173,15 @@ namespace NoHoPython.Typing
 
     public sealed partial class ProcedureType : IType
     {
-        public string TypeName => $"fn<{ReturnType.TypeName}, {string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}>";
+        private static string GetPurityName(Purity purity) => purity switch
+        {
+            Purity.Pure => "pure",
+            Purity.OnlyAffectsArguments => "fn",
+            Purity.OnlyAffectsArgumentsAndCaptured => "affectsArgsOnly"
+        };
+
+        public string TypeName => $"{GetPurityName(Purity)}<{ReturnType.TypeName}, {string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}>";
+
         public string Identifier
         {
             get

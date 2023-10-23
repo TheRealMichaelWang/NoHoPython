@@ -337,7 +337,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public virtual void EnsureMinimumPurity(Purity purity)
         {
-            if (purity <= Purity.AffectsGlobals)
+            if (purity >= Purity.AffectsGlobals)
                 return;
 
             EnsureMinimumPurity(purity);
@@ -356,7 +356,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public override void EnsureMinimumCallLevelPurity(Purity purity)
         {
-            if(FunctionPurity <= Purity.OnlyAffectsArgumentsAndCaptured)
+            if(FunctionPurity >= Purity.OnlyAffectsArgumentsAndCaptured)
                 throw new CannotCallImpureFunctionInPureFunction(purity, FunctionPurity, ErrorReportedElement);
         }
     }
@@ -373,7 +373,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public override void EnsureMinimumCallLevelPurity(Purity purity)
         {
-            if (FunctionPurity <= Purity.AffectsGlobals)
+            if (FunctionPurity >= Purity.AffectsGlobals)
                 throw new CannotCallImpureFunctionInPureFunction(purity, FunctionPurity, ErrorReportedElement);
         }
     }
@@ -382,7 +382,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public override void EnsureMinimumCallLevelPurity(Purity purity)
         {
-            if (FunctionPurity <= Purity.AffectsGlobals)
+            if (FunctionPurity >= Purity.AffectsGlobals)
                 throw new CannotCallImpureFunctionInPureFunction(purity, FunctionPurity, ErrorReportedElement);
         }
     }
@@ -391,7 +391,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public override void EnsureMinimumCallLevelPurity(Purity purity)
         {
-            if (FunctionPurity <= Purity.AffectsGlobals)
+            if (FunctionPurity >= Purity.AffectsGlobals)
                 throw new CannotCallImpureFunctionInPureFunction(purity, FunctionPurity, ErrorReportedElement);
         }
     }
@@ -557,7 +557,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void EnsureMinimumPurity(Purity purity)
         {
-            if (CSymbol.IsMutableGlobal && purity >= Purity.OnlyAffectsArgumentsAndCaptured)
+            if (CSymbol.IsMutableGlobal && purity < Purity.AffectsGlobals)
                 throw new CannotReadMutableGlobalStateInPureFunction(ErrorReportedElement);
         }
     }

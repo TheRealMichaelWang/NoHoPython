@@ -492,10 +492,19 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (FunctionPurity <= Purity.OnlyAffectsArgumentsAndCaptured)
             {
-                Debug.Assert(Procedure.ProcedureDeclaration.CapturedVariables.Count > 0 && parentProcedure != null);
+                if(Procedure.ProcedureDeclaration.CapturedVariables.Count > 0)
+                    Debug.Assert(parentProcedure != null);
+
                 foreach (Variable variable in Procedure.ProcedureDeclaration.CapturedVariables)
-                    if (parentProcedure.SanitizeVariable(variable, false, ErrorReportedElement).Item2)
+                {
+                    if(variable.IsRecordSelf && variable.ParentProcedure == Procedure.ProcedureDeclaration)
+                    {
+                        if (parentProcedure.Purity <= Purity.OnlyAffectsArguments)
+                            throw new CannotMutateVaraible(variable, true, ErrorReportedElement);
+                    }
+                    else if (parentProcedure.SanitizeVariable(variable, false, ErrorReportedElement).Item2)
                         throw new CannotMutateVaraible(variable, true, ErrorReportedElement);
+                }
             }
         }
     }
@@ -508,8 +517,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class ForeignFunctionCall
     {
         public override Purity FunctionPurity => ForeignCProcedure.Purity;
-
-
     }
 
     partial class ArithmeticCast

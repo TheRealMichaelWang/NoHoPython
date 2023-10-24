@@ -83,6 +83,7 @@ namespace NoHoPython.Syntax
                         : new TupleType(typeArguments);
                 case "nothing":
                 case "void":
+                case "None":
                     MatchTypeArgCount(0, errorReportedElement);
                     return new NothingType();
                 case "handle":
@@ -234,12 +235,14 @@ namespace NoHoPython.Syntax.Parsing
         private AstType ParseType()
         {
             string identifier;
-            switch(scanner.LastToken.Type) {
-                TokenType.Nothing:
-                TokenType.AffectsArgs:
-                TokenType.AffectsCaptured:
-                TokenType.Pure:
+            switch(scanner.LastToken.Type) 
+            {
+                case TokenType.Nothing:
+                case TokenType.AffectsArgs:
+                case TokenType.AffectsCaptured:
+                case TokenType.Pure:
                     identifier = scanner.LastToken.Identifier;
+                    scanner.ScanToken();
                     break;
                 default:
                     identifier = ParseIdentifier();

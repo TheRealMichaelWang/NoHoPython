@@ -82,6 +82,9 @@ namespace NoHoPython.Syntax.Parsing
                     return new AssertStatement(ParseExpression(), location);
                 case TokenType.Define:
                 case TokenType.Pure:
+                case TokenType.AffectsArgs:
+                case TokenType.AffectsCaptured:
+                case TokenType.Impure:
                     return ParseProcedureDeclaration();
                 case TokenType.CDefine:
                     return ParseCDefine();
@@ -243,6 +246,9 @@ namespace NoHoPython.Syntax.Parsing
                     {
                         case TokenType.Lambda:
                         case TokenType.Pure:
+                        case TokenType.AffectsArgs:
+                        case TokenType.AffectsCaptured:
+                        case TokenType.Impure:
                             return ParseLambdaDeclaration(location);
                         case TokenType.OpenParen:
                             {

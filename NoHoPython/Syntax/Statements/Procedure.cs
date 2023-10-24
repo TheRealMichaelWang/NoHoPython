@@ -20,11 +20,12 @@ namespace NoHoPython.Syntax.Statements
             public override string ToString() => $"{Type} {Identifier}";
         }
 
-        public static string PurityToString(string? defstr, IntermediateRepresentation.Statements.Purity purity) => purity switch
+        public static string PurityToString(IntermediateRepresentation.Statements.Purity purity) => purity switch
         {
             IntermediateRepresentation.Statements.Purity.Pure => "pure",
-            IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments => defstr ?? string.Empty,
-            IntermediateRepresentation.Statements.Purity.AffectsGlobals => "global_impure",
+            IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments => "affectsArgs",
+            IntermediateRepresentation.Statements.Purity.OnlyAffectsArgumentsAndCaptured => "affectsCaptured",
+            IntermediateRepresentation.Statements.Purity.AffectsGlobals => "impure",
             _ => throw new InvalidOperationException()
         };
 
@@ -52,7 +53,7 @@ namespace NoHoPython.Syntax.Statements
             Purity = purity;
         }
 
-        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{PurityToString("def", Purity)} {Name}{(TypeParameters.Count > 0 ? $"<{string.Join(", ", TypeParameters)}>" : string.Empty)}({string.Join(", ", Parameters)}){(AnnotatedReturnType != null ? " " + AnnotatedReturnType.ToString() : "")}:\n{IAstStatement.BlockToString(indent, Statements)}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{PurityToString(Purity)} {Name}{(TypeParameters.Count > 0 ? $"<{string.Join(", ", TypeParameters)}>" : string.Empty)}({string.Join(", ", Parameters)}){(AnnotatedReturnType != null ? " " + AnnotatedReturnType.ToString() : "")}:\n{IAstStatement.BlockToString(indent, Statements)}";
     }
 
     public sealed partial class ReturnStatement : IAstStatement
@@ -171,7 +172,7 @@ namespace NoHoPython.Syntax.Values
             Purity = purity;
         }
 
-        public override string ToString() => $"{PurityToString("lambda", Purity)}{(Parameters.Count > 0 ? " " + string.Join(", ", Parameters) : "")}: {ReturnExpression}";
+        public override string ToString() => $"{PurityToString(Purity)}{(Parameters.Count > 0 ? " " + string.Join(", ", Parameters) : "")}: {ReturnExpression}";
     }
 }
 
@@ -202,11 +203,11 @@ namespace NoHoPython.Syntax.Parsing
             return purity;
         }
 
-        private IAstStatement ParseProcedureDeclaration(bool mustBeProcedure = false)
+        private IAstStatement ParseProcedureDeclaration(bool isRecordMessageReceiver = false)
         {
             SourceLocation location = scanner.CurrentLocation;
 
-            IntermediateRepresentation.Statements.Purity purity = ParsePurityToken(TokenType.Define, IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments);
+            IntermediateRepresentation.Statements.Purity purity = ParsePurityToken(TokenType.Define, isRecordMessageReceiver ? IntermediateRepresentation.Statements.Purity.OnlyAffectsArgumentsAndCaptured : IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments);
 
             MatchToken(TokenType.Identifier);
             string identifer = scanner.LastToken.Identifier;
@@ -214,7 +215,7 @@ namespace NoHoPython.Syntax.Parsing
 
             List<TypeParameter> typeParameters = (scanner.LastToken.Type == TokenType.Less) ? ParseTypeParameters() : new List<TypeParameter>();
 
-            if (mustBeProcedure)
+            if (isRecordMessageReceiver)
                 MatchAndScanToken(TokenType.OpenParen);
             else
             {

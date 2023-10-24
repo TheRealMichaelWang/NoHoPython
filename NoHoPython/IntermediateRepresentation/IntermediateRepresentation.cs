@@ -15,6 +15,7 @@ namespace NoHoPython.Syntax
         private List<ProcedureDeclaration> ProcedureDeclarations;
 
         public Stack<ProcedureDeclaration> ScopedProcedures { get; private set; }
+        public Stack<RefinementContext> Refinements { get; private set; }
         public RecordDeclaration? ScopedRecordDeclaration { get; private set; }
         public SymbolMarshaller SymbolMarshaller { get; private set; }
         
@@ -32,6 +33,7 @@ namespace NoHoPython.Syntax
             RecordDeclarations = new List<RecordDeclaration>();
             ProcedureDeclarations = new List<ProcedureDeclaration>();
             ScopedProcedures = new Stack<ProcedureDeclaration>();
+            Refinements = new Stack<RefinementContext>();
             Flags = new SortedSet<string>(flags);
             ScopedRecordDeclaration = null;
 

@@ -1,9 +1,10 @@
-﻿using NoHoPython.Scoping;
+﻿using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
-    partial class CodeBlock
+    public sealed class RefinementContext
     {
         public delegate void RefinementEmitter(IRProgram irProgram, Emitter emitter, Emitter.Promise value, Dictionary<TypeParameter, IType> typeargs);
 
@@ -37,17 +38,33 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
+        private Dictionary<Variable, RefinementEntry> VariableRefinements;
+        private RefinementContext? PreviousContext;
+
+        public RefinementContext(RefinementContext? previousContext)
+        {
+            VariableRefinements = new();
+            PreviousContext = previousContext;
+        }
+
         public RefinementEntry? GetRefinementEntry(Variable variable, bool currentContextOnly = false)
         {
             if (VariableRefinements.ContainsKey(variable))
                 return VariableRefinements[variable];
 
-            if (parentContainer == null || parentContainer is not CodeBlock || this == variable.ParentProcedure || currentContextOnly)
+            if (PreviousContext == null || currentContextOnly)
                 return null;
-            else
-                return ((CodeBlock)parentContainer).GetRefinementEntry(variable);
+            return PreviousContext.GetRefinementEntry(variable);
         }
 
         public void NewRefinementEntry(Variable variable, RefinementEntry entry) => VariableRefinements.Add(variable, entry);
+    }
+}
+
+namespace NoHoPython.Syntax
+{
+    partial class AstIRProgramBuilder
+    {
+        public void NewRefinmentContext() => Refinements.Push(new RefinementContext(Refinements.Count > 0 ? Refinements.Peek() : null));
     }
 }

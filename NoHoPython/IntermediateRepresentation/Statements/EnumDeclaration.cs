@@ -8,7 +8,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public sealed partial class EnumDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
-        public static CodeBlock.RefinementEmitter GetRefinedEnumEmitter(EnumType enumType, IType type)
+        public static RefinementContext.RefinementEmitter GetRefinedEnumEmitter(EnumType enumType, IType type)
         {
             if (type.IsEmpty)
                 return (IRProgram irProgram, Emitter emitter, Emitter.Promise value, Dictionary<TypeParameter, IType> typeargs) => emitter.Append(enumType.GetCEnumOptionForType(irProgram, type));

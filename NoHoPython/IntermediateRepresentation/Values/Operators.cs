@@ -267,9 +267,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Record { get; private set; }
         public Property Property { get; private set; }
 
-        public (IType, CodeBlock.RefinementEmitter?)? Refinements { get; private set; }
+        public (IType, RefinementContext.RefinementEmitter?)? Refinements { get; private set; }
 
-        public GetPropertyValue(IRValue record, string propertyName, (IType, CodeBlock.RefinementEmitter?)? refinements, IAstElement errorReportedElement)
+        public GetPropertyValue(IRValue record, string propertyName, (IType, RefinementContext.RefinementEmitter?)? refinements, IAstElement errorReportedElement)
         {
             Record = record;
             Refinements = refinements;
@@ -286,7 +286,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             if (record.Type is RecordType recordType && recordType.HasProperty(name))
             {
-                CodeBlock.RefinementEntry? recordRefinement = record.GetRefinementEntry(irBuilder)?.GetSubentry(name);
+                RefinementContext.RefinementEntry? recordRefinement = record.GetRefinementEntry(irBuilder)?.GetSubentry(name);
                 recordRefinement?.Clear();
                 if (recordRefinement != null)
                     value.RefineSet(irBuilder, recordRefinement);
@@ -384,12 +384,27 @@ namespace NoHoPython.Syntax.Values
         {
             IRValue lhs = Left.GenerateIntermediateRepresentationForValue(irBuilder, LogicalTokens.ContainsKey(Operator) ? Primitive.Boolean : BitwiseTokens.ContainsKey(Operator) ? Primitive.Integer : null, willRevaluate);
 
+            if (LogicalTokens.ContainsKey(Operator))
+            {
+                irBuilder.NewRefinmentContext();
+                switch (LogicalTokens[Operator])
+                {
+                    case LogicalOperator.LogicalOperation.And:
+                        lhs.RefineIfTrue(irBuilder);
+                        break;
+                    case LogicalOperator.LogicalOperation.Or:
+                        lhs.RefineIfFalse(irBuilder);
+                        break;
+                }
+                IRValue rhs = Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate);
+                irBuilder.Refinements.Pop();
+                return new LogicalOperator(LogicalTokens[Operator], lhs, rhs, irBuilder, this);
+            }
+
             return ArithmeticTokens.ContainsKey(Operator)
                 ? ArithmeticOperator.ComposeArithmeticOperation(ArithmeticTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, lhs.Type, willRevaluate), irBuilder, this)
                 : ComparativeTokens.ContainsKey(Operator)
                 ? ComparativeOperator.ComposeComparativeOperator(ComparativeTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, lhs.Type, willRevaluate), irBuilder, this)
-                : LogicalTokens.ContainsKey(Operator)
-                ? new LogicalOperator(LogicalTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), irBuilder, this)
                 : BitwiseTokens.ContainsKey(Operator)
                 ? new BitwiseOperator(BitwiseTokens[Operator], lhs, Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, willRevaluate), irBuilder, this)
                 : throw new InvalidOperationException();

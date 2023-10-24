@@ -241,23 +241,43 @@ namespace NoHoPython.Syntax.Statements
         {
             IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, false);
 
+            irBuilder.NewRefinmentContext();
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
             condition.RefineIfTrue(irBuilder);
             scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, IfTrueBlock), irBuilder);
             irBuilder.SymbolMarshaller.GoBack();
+            irBuilder.Refinements.Pop();
 
             if (scopedNextIf != null)
             {
+                irBuilder.NewRefinmentContext();
                 irBuilder.SymbolMarshaller.NavigateToScope(scopedNextIf);
+                condition.RefineIfFalse(irBuilder);
 #pragma warning disable CS8602 // NextIf is never null when scopedNextIf isn't
                 scopedNextIf.DelayedLinkSetStatements(new List<IRStatement>() { NextIf.GenerateIntermediateRepresentationForStatement(irBuilder) }, irBuilder);
 #pragma warning restore CS8602
                 irBuilder.SymbolMarshaller.GoBack();
+                irBuilder.Refinements.Pop();
                 return new IfElseBlock(condition, scopedCodeBlock, scopedNextIf, irBuilder, this);
             }
-            else return NextElse != null
-                ? new IfElseBlock(condition, scopedCodeBlock, NextElse.GenerateIRCodeBlock(irBuilder), irBuilder, this)
-                : new IntermediateRepresentation.Statements.IfBlock(condition, scopedCodeBlock, irBuilder, this);
+            else
+            {
+                if (NextElse != null)
+                {
+                    irBuilder.NewRefinmentContext();
+                    condition.RefineIfFalse(irBuilder);
+                    CodeBlock elseBlock = NextElse.GenerateIRCodeBlock(irBuilder);
+                    irBuilder.Refinements.Pop();
+                    return new IfElseBlock(condition, scopedCodeBlock, elseBlock, irBuilder, this);
+                }
+                else
+                {
+                    if (scopedCodeBlock.CodeBlockAllCodePathsReturn() || scopedCodeBlock.CodeBlockSomeCodePathsBreak())
+                        condition.RefineIfFalse(irBuilder);
+
+                    return new IntermediateRepresentation.Statements.IfBlock(condition, scopedCodeBlock, irBuilder, this);
+                }
+            }
         }
     }
 
@@ -278,9 +298,11 @@ namespace NoHoPython.Syntax.Statements
 
         public CodeBlock GenerateIRCodeBlock(AstIRProgramBuilder irBuilder)
         {
+            irBuilder.NewRefinmentContext();
             irBuilder.SymbolMarshaller.NavigateToScope(scopedToExecute);
             scopedToExecute.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute), irBuilder);
             irBuilder.SymbolMarshaller.GoBack();
+            irBuilder.Refinements.Pop();
             return scopedToExecute;
         }
     }
@@ -301,11 +323,13 @@ namespace NoHoPython.Syntax.Statements
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, true);
-            
+
+            irBuilder.NewRefinmentContext();
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
             condition.RefineIfTrue(irBuilder);
             scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute), irBuilder);
             irBuilder.SymbolMarshaller.GoBack();
+            irBuilder.Refinements.Pop();
 
             return new IntermediateRepresentation.Statements.WhileBlock(condition, scopedCodeBlock, irBuilder, this);
         }
@@ -329,10 +353,12 @@ namespace NoHoPython.Syntax.Statements
             IRValue lowerBound = ArithmeticOperator.ComposeArithmeticOperation(ArithmeticOperator.ArithmeticOperation.Subtract, LowerBound.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, false), new IntegerLiteral(1, this), irBuilder, this);
             IRValue upperBound = UpperBound.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, false);
 
+            irBuilder.NewRefinmentContext();
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);
             VariableDeclaration iteratorDeclaration = new(IteratorIdentifier, lowerBound, false, irBuilder, this);
             scopedCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, ToExecute), irBuilder);
             irBuilder.SymbolMarshaller.GoBack();
+            irBuilder.Refinements.Pop();
 
             return new IntermediateRepresentation.Statements.IterationForLoop(iteratorDeclaration, upperBound, scopedCodeBlock, this);
         }
@@ -367,16 +393,22 @@ namespace NoHoPython.Syntax.Statements
             if(matchValue.Type is EnumType enumType)
             {
                 List<IntermediateRepresentation.Statements.MatchStatement.MatchHandler> matchHandlers = new(MatchHandlers.Count);
-                foreach(MatchHandler handler in MatchHandlers)
+                foreach (MatchHandler handler in MatchHandlers)
+                {
+                    irBuilder.NewRefinmentContext();
                     matchHandlers.Add(new(matchValue, handler.MatchTypes.ConvertAll((type) => type.ToIRType(irBuilder, this)), handler.MatchIdentifier, handlerCodeBlocks[handler], handler.Statements, irBuilder, this));
+                    irBuilder.Refinements.Pop();
+                }
 
                 if(defaultHandlerCodeBlock != null)
                 {
+                    irBuilder.NewRefinmentContext();
                     irBuilder.SymbolMarshaller.NavigateToScope(defaultHandlerCodeBlock);
 #pragma warning disable CS8604 // Default handler is not null when defaultHandlerCodeBlock isn't null
                     defaultHandlerCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, DefaultHandler), irBuilder);
 #pragma warning restore CS8604
                     irBuilder.SymbolMarshaller.GoBack();
+                    irBuilder.Refinements.Pop();
                 }
 
                 return new IntermediateRepresentation.Statements.MatchStatement(matchValue, matchHandlers, defaultHandlerCodeBlock, this);
@@ -408,6 +440,21 @@ namespace NoHoPython.Syntax.Values
 {
     partial class IfElseValue
     {
-        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.IfElseValue(Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate), IfTrueValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), IfFalseValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate), irBuilder, this);
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
+        {
+            IRValue condition = Condition.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate);
+
+            irBuilder.NewRefinmentContext();
+            condition.RefineIfTrue(irBuilder);
+            IRValue ifTrueValue = IfTrueValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate);
+            irBuilder.Refinements.Pop();
+
+            irBuilder.NewRefinmentContext();
+            condition.RefineIfFalse(irBuilder);
+            IRValue ifFalseValue = IfFalseValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate);
+            irBuilder.Refinements.Pop();
+
+            return new IntermediateRepresentation.Values.IfElseValue(condition, ifTrueValue, ifFalseValue, irBuilder, this);
+        }
     }
 }

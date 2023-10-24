@@ -22,7 +22,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public List<IRStatement>? Statements { get; private set; }
         public List<Variable> LocalVariables { get; private set; }
         private List<VariableDeclaration> DeclaredVariables;
-        private Dictionary<Variable, RefinementEntry> VariableRefinements;
 
         public bool IsLoop { get; private set; }
         public int? BreakLabelId { get; private set; }
@@ -38,7 +37,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements = null;
             LocalVariables = new();
             DeclaredVariables = new();
-            VariableRefinements = new();
         }
 
         public void AddVariableDeclaration(VariableDeclaration variableDeclaration)

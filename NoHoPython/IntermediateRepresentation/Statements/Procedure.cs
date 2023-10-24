@@ -700,6 +700,7 @@ namespace NoHoPython.Syntax.Statements
 
         public IRStatement ConstructorGenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
+            irBuilder.NewRefinmentContext();
             irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
             irBuilder.ScopedProcedures.Push(IRProcedureDeclaration);
 
@@ -711,6 +712,7 @@ namespace NoHoPython.Syntax.Statements
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopedProcedures.Pop();
+            irBuilder.Refinements.Pop();
 
             return IRProcedureDeclaration;
         }
@@ -785,7 +787,7 @@ namespace NoHoPython.Syntax.Values
             return procedureSymbol is ProcedureDeclaration procedureDeclaration
                 ? (IRValue)new LinkedProcedureCall(procedureDeclaration, GenerateArguments(irBuilder, Arguments, procedureDeclaration.Parameters.ConvertAll((parameter) => parameter.Type), false), irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedType, irBuilder, this)
                 : procedureSymbol is Variable variable
-                ? AnonymousProcedureCall.ComposeCall(new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), irBuilder.SymbolMarshaller.CurrentCodeBlock.GetRefinementEntry(variable)?.Refinement, this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), irBuilder, this)
+                ? AnonymousProcedureCall.ComposeCall(new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), irBuilder.Refinements.Peek().GetRefinementEntry(variable)?.Refinement, this), Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), irBuilder, this)
                 : procedureSymbol is ForeignCProcedureDeclaration foreignFunction
                 ? new ForeignFunctionCall(foreignFunction, GenerateArguments(irBuilder, Arguments, foreignFunction.ParameterTypes, willRevaluate), expectedType, irBuilder, this)
                 : throw new NotAProcedureException(procedureSymbol, this);

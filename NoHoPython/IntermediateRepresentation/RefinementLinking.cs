@@ -34,8 +34,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             public void Clear()
             {
                 Refinement = null;
-                propertyRefinements.Clear();
+                ClearSubRefinments();
             }
+
+            public void ClearSubRefinments() => propertyRefinements.Clear();
         }
 
         private Dictionary<Variable, RefinementEntry> VariableRefinements;

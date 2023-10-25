@@ -18,7 +18,10 @@ namespace NoHoPython.IntermediateRepresentation
         //when a variable is set to ths value, this function will make the correct variable refinements 
         public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry);
 
+        //gets the refinment entry for a certain value
         public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder);
+
+        //creates a refinment entry for a certain value
         public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder);
     } 
 }

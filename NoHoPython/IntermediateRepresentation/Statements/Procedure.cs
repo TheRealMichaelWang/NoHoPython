@@ -389,8 +389,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (expectedParameters.Count != arguments.Count)
                 throw new UnexpectedArgumentsException(arguments.Select((arg) => arg.Type).ToList(), expectedParameters, errorReportedElement);
-            for(int i = 0; i < expectedParameters.Count; i++)
+            for (int i = 0; i < expectedParameters.Count; i++)
+            {
+                if(FunctionPurity <= Purity.Pure)
+                    Arguments[i].GetRefinementEntry(irBuilder)?.ClearSubRefinments();
+
                 Arguments[i] = ArithmeticCast.CastTo(Arguments[i], expectedParameters[i], irBuilder);
+            }
         }
 
         protected ProcedureCall(List<IRValue> arguments, IAstElement errorReportedElement)

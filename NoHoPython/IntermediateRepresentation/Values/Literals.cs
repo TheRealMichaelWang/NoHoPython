@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
 
@@ -298,12 +299,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public RecordType RecordPrototype { get; private set; }
 
-        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(recordPrototype.GetConstructorParameterTypes(), constructorArguments, irBuilder, errorReportedElement)
+        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(recordPrototype.GetConstructorParameterTypes(), constructorArguments, irBuilder, Purity.Pure, errorReportedElement)
         {
             RecordPrototype = recordPrototype;
         }
 
-        private AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, IAstElement errorReportedElement) : base(constructorArguments, errorReportedElement)
+        private AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, IAstElement errorReportedElement) : base(constructorArguments, Purity.Pure, errorReportedElement)
         {
             RecordPrototype = recordPrototype;
         }

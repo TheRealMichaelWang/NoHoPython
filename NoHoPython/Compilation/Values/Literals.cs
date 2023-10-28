@@ -157,7 +157,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Elements.ForEach((element) => element.ScopeForUsedTypes(typeargs, irBuilder));
         }
 
-        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => !(isTemporaryEval && !Elements.Any((elem) => elem.RequiresDisposal(irProgram, typeargs, true)) && !Elements.Any((elem) => elem.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval)) && IRValue.EvaluationOrderGuarenteed(Elements));
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => !(isTemporaryEval && !Elements.Any((elem) => elem.RequiresDisposal(irProgram, typeargs, true)) && !Elements.Any((elem) => elem.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval)) && IRValue.EvaluationOrderGuarenteed(Elements.ToArray()));
 
         public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => RequiresDisposal(irProgram, typeargs, isTemporaryEval);
 
@@ -226,7 +226,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => !(isTemporaryEval && !Elements.Any(element => element.RequiresDisposal(irProgram, typeargs, true)));
 
-        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Elements.Any((elem) => elem.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval)) || !IRValue.EvaluationOrderGuarenteed(Elements);
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Elements.Any((elem) => elem.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval)) || !IRValue.EvaluationOrderGuarenteed(Elements.ToArray());
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {

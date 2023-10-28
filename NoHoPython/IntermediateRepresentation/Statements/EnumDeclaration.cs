@@ -256,6 +256,8 @@ namespace NoHoPython.Typing
     {
         sealed partial class EnumProperty : Property
         {
+            public override bool IsReadOnly => false;
+
             public EnumType EnumType { get; private set; }
 
             public EnumProperty(string name, IType type, EnumType enumType) : base(name, type)

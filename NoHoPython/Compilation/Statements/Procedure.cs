@@ -652,7 +652,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Type.SubstituteWithTypearg(typeargs).RequiresDisposal;
 
-        protected virtual bool ArgumentEvalautionOrderGuarenteed() => IRValue.EvaluationOrderGuarenteed(Arguments);
+        protected virtual bool ArgumentEvalautionOrderGuarenteed() => IRValue.EvaluationOrderGuarenteed(Arguments.ToArray());
 
         public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Arguments.Any((arg) => arg.RequiresDisposal(irProgram, typeargs, true) || arg.MustUseDestinationPromise(irProgram, typeargs, true)) || !ArgumentEvalautionOrderGuarenteed() || irProgram.DoCallStack;
 
@@ -757,7 +757,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             List<IRValue> arguments = new List<IRValue>(Arguments);
             arguments.Insert(0, Arguments[0]);
-            return IRValue.EvaluationOrderGuarenteed(arguments);
+            return IRValue.EvaluationOrderGuarenteed(arguments.ToArray());
         }
 
         public override void EmitCall(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, List<Emitter.Promise> argPromises, Emitter.Promise responsibleDestroyer)

@@ -1,9 +1,16 @@
-﻿using NoHoPython.IntermediateRepresentation.Statements;
-using NoHoPython.Syntax;
+﻿using NoHoPython.Syntax;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
+    public sealed class RecursiveTypeCastError : IRGenerationError
+    {
+        public RecursiveTypeCastError((IType, IType) originalTransformation, IAstElement errorReportedElement) : base(errorReportedElement, $"Cannot transform type {originalTransformation.Item1.TypeName} to {originalTransformation.Item2.TypeName} because the user-defined type casts are infinitley recursive.")
+        {
+
+        }
+    }
+
     public sealed partial class ArithmeticCast : IRValue
     {
         public enum ArithmeticCastOperation
@@ -63,41 +70,50 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (typeTarget.IsCompatibleWith(value.Type))
                 return value;
 
-            //infalible type conversions
-            if (GetPropertyValue.HasMessageReceiver(value, $"to_{typeTarget.Identifier}", irBuilder))
-                return AnonymousProcedureCall.SendMessage(value, $"to_{typeTarget.Identifier}", typeTarget, new(), irBuilder, value.ErrorReportedElement, false);
-            if (GetPropertyValue.HasMessageReceiver(value, $"to_{typeTarget.PrototypeIdentifier}", irBuilder))
-                return AnonymousProcedureCall.SendMessage(value, $"to_{typeTarget.PrototypeIdentifier}", typeTarget, new(), irBuilder, value.ErrorReportedElement, false);
-
-            if (typeTarget is HandleType handleType)
+            static IRValue InternalCastTo(IRValue value, IType typeTarget, AstIRProgramBuilder irBuilder, bool explicitCast, SortedSet<(IType, IType)> activeConversions)
             {
-                if (explicitCast && value.Type is HandleType)
-                    return new HandleCast(handleType, value, value.ErrorReportedElement);
-                else if(value.Type is ArrayType)
-                    return new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement);
-                else if (value.Type is MemorySpan)
-                    return new ArrayOperator(ArrayOperator.ArrayOperation.GetSpanHandle, value, value.ErrorReportedElement);
+                if (!activeConversions.Add((value.Type, typeTarget)))
+                    throw new RecursiveTypeCastError((value.Type, typeTarget), value.ErrorReportedElement);
+
+                //infalible type conversions
+                if (GetPropertyValue.HasMessageReceiver(value, $"to_{typeTarget.Identifier}", irBuilder))
+                    return InternalCastTo(AnonymousProcedureCall.SendMessage(value, $"to_{typeTarget.Identifier}", null, new(), irBuilder, value.ErrorReportedElement), typeTarget, irBuilder, false, activeConversions);
+                if (GetPropertyValue.HasMessageReceiver(value, $"to_{typeTarget.PrototypeIdentifier}", irBuilder)) 
+                    InternalCastTo(AnonymousProcedureCall.SendMessage(value, $"to_{typeTarget.PrototypeIdentifier}", null, new(), irBuilder, value.ErrorReportedElement), typeTarget, irBuilder, false, activeConversions);
+
+                if (typeTarget is HandleType handleType)
+                {
+                    if (explicitCast && value.Type is HandleType)
+                        return new HandleCast(handleType, value, value.ErrorReportedElement);
+                    else if (value.Type is ArrayType)
+                        return new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement);
+                    else if (value.Type is MemorySpan)
+                        return new ArrayOperator(ArrayOperator.ArrayOperation.GetSpanHandle, value, value.ErrorReportedElement);
+                }
+                if (typeTarget is ArrayType && value.Type is MemorySpan)
+                    return new MarshalMemorySpanIntoArray(value, value.ErrorReportedElement);
+                if (typeTarget is IntegerType && value.Type is ArrayType)
+                    return new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayLength, value, value.ErrorReportedElement);
+                if (typeTarget is Primitive primitive)
+                    return PrimitiveCast(value, primitive);
+
+                //type conversions that could potentially fail
+                if (value.Type is EnumType enumType1 && enumType1.SupportsType(typeTarget))
+                    return new UnwrapEnumValue(value, typeTarget, irBuilder, value.ErrorReportedElement);
+                if (typeTarget is TupleType tupleTarget && value.Type is TupleType)
+                    return new MarshalIntoLowerTuple(tupleTarget, value, value.ErrorReportedElement);
+                if (typeTarget is EnumType enumType)
+                    return new MarshalIntoEnum(enumType, value, irBuilder, value.ErrorReportedElement);
+                if (typeTarget is InterfaceType interfaceType)
+                    return new MarshalIntoInterface(interfaceType, value, value.ErrorReportedElement);
+                if (typeTarget is RecordType recordType)
+                    return new AllocRecord(recordType, new List<IRValue>() { value }, irBuilder, value.ErrorReportedElement);
+
+                throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
             }
-            if (typeTarget is ArrayType && value.Type is MemorySpan)
-                return new MarshalMemorySpanIntoArray(value, value.ErrorReportedElement);
-            if(typeTarget is IntegerType && value.Type is ArrayType)
-                return new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayLength, value, value.ErrorReportedElement);
-            if (typeTarget is Primitive primitive)
-                return PrimitiveCast(value, primitive);
 
-            //type conversions that could potentially fail
-            if (value.Type is EnumType enumType1 && enumType1.SupportsType(typeTarget))
-                return new UnwrapEnumValue(value, typeTarget, irBuilder, value.ErrorReportedElement);
-            if (typeTarget is TupleType tupleTarget && value.Type is TupleType)
-                return new MarshalIntoLowerTuple(tupleTarget, value, value.ErrorReportedElement);
-            if(typeTarget is EnumType enumType)
-                return new MarshalIntoEnum(enumType, value, irBuilder, value.ErrorReportedElement);
-            if (typeTarget is InterfaceType interfaceType)
-                return new MarshalIntoInterface(interfaceType, value, value.ErrorReportedElement);
-            if (typeTarget is RecordType recordType)
-                return new AllocRecord(recordType, new List<IRValue>() { value }, irBuilder, value.ErrorReportedElement);
-
-            throw new UnexpectedTypeException(typeTarget, value.Type, value.ErrorReportedElement);
+            SortedSet<(IType, IType)> activeConversions = new SortedSet<(IType, IType)>(Comparer<(IType, IType)>.Create((a, b) => (a.Item1.Identifier + a.Item2.Identifier).CompareTo(b.Item1.Identifier + b.Item2.Identifier)));
+            return InternalCastTo(value, typeTarget, irBuilder, explicitCast, activeConversions);
         }
 
         private static IRValue PrimitiveCast(IRValue primitive, Primitive targetType)

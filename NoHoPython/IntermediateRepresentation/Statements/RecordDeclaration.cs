@@ -62,6 +62,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     public abstract partial class Property
     {
+        public abstract bool IsReadOnly { get; }
+
         public string Name { get; private set; }
         public IType Type { get; private set; }
 
@@ -76,14 +78,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public sealed partial class RecordProperty : Property, IComparable<RecordProperty>
         {
-            public bool IsReadOnly { get; private set; }
+            public override bool IsReadOnly => _isReadOnly;
+            private bool _isReadOnly;
 
             private RecordDeclaration RecordDeclaration;
             private RecordType RecordType;
 
             public RecordProperty(string name, IType type, bool isReadOnly, RecordType recordType, RecordDeclaration recordDeclaration) : base(name, type)
             {
-                IsReadOnly = isReadOnly;
+                _isReadOnly = isReadOnly;
                 RecordDeclaration = recordDeclaration;
                 RecordType = recordType;
                 DefaultValue = null;

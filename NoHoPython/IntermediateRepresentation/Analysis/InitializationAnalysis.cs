@@ -377,8 +377,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ProcedureCall
     {
-        public abstract Purity FunctionPurity { get; }
-
         public virtual void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
             Arguments.ForEach((arg) => arg.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true));
@@ -414,8 +412,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class AnonymousProcedureCall
     {
-        public override Purity FunctionPurity => ProcedureType.Purity;
-
         public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
             ProcedureValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, isUsingValue);
@@ -438,8 +434,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class OptimizedRecordMessageCall
     {
-        public override Purity FunctionPurity => ((ProcedureType)Property.Type).Purity;
-
         public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
             Record.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
@@ -471,8 +465,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class LinkedProcedureCall
     {
-        public override Purity FunctionPurity => Procedure.ProcedureDeclaration.Purity;
-
         public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
             foreach (Variable variable in Procedure.ProcedureDeclaration.CapturedVariables)
@@ -509,16 +501,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 }
             }
         }
-    }
-
-    partial class AllocRecord
-    {
-        public override Purity FunctionPurity => Purity.Pure;
-    }
-
-    partial class ForeignFunctionCall
-    {
-        public override Purity FunctionPurity => ForeignCProcedure.Purity;
     }
 
     partial class ArithmeticCast
@@ -686,7 +668,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public bool IsReadOnly => Array.IsReadOnly;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void NonMessageReceiverAnalysis()
+        {
+            Array.NonMessageReceiverAnalysis();
+            Index.NonMessageReceiverAnalysis();
+        }
     }
 
     partial class SetValueAtIndex
@@ -742,9 +728,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void NonConstructorPropertyAnalysis() => Record.NonConstructorPropertyAnalysis();
 
-        public bool IsReadOnly => Record.IsReadOnly || (Property is RecordDeclaration.RecordProperty property && property.IsReadOnly);
+        public bool IsReadOnly => Record.IsReadOnly || Property.IsReadOnly;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void NonMessageReceiverAnalysis() => Record.NonMessageReceiverAnalysis();
     }
 
     partial class SetPropertyValue

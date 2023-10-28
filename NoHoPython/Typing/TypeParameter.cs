@@ -69,6 +69,8 @@ namespace NoHoPython.Typing
     {
         sealed partial class TypeParameterProperty : Property
         {
+            public override bool IsReadOnly => true;
+
             public TypeParameter TypeParameter { get; private set; }
 
             public TypeParameterProperty(TypeParameter typeParameter, Property interfaceProperty) : base(interfaceProperty.Name, interfaceProperty.Type)

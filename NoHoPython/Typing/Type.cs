@@ -31,7 +31,7 @@ namespace NoHoPython.Typing
             return builder.ToString();
         }
       
-        public static bool HasChildren(IType type) => type is MemorySpan || type is HandleType || type is ArrayType || type is RecordType;
+        public static bool HasChildren(IType type) => type is MemorySpan || type is HandleType || type is ArrayType || type is RecordType || (type is EnumType enumType && enumType.GetOptions().Any(HasChildren));
 
         public bool IsNativeCType { get; }
         public bool RequiresDisposal { get; }

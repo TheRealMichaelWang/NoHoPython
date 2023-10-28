@@ -10,6 +10,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public sealed partial class ForeignCProperty : Property
         {
+            public override bool IsReadOnly => false;
+
             public string? AccessSource { get; private set; }
 
             public ForeignCProperty(string name, IType type, string? accessSource) : base(name, type)

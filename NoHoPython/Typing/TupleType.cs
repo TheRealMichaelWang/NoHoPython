@@ -11,6 +11,8 @@ namespace NoHoPython.Typing
     {
         sealed partial class TupleProperty : Property
         {
+            public override bool IsReadOnly => true;
+
             public int TypeNumber { get; private set; }
 
             public TupleProperty(IType type, int typeNumber) : base($"{type.Identifier}{typeNumber}", type)

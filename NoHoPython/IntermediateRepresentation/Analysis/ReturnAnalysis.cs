@@ -88,19 +88,26 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class IfBlock
     {
-        public bool AllCodePathsReturn() => false;
+        public bool AllCodePathsReturn() => Condition.IsTruey && IfTrueBlock.CodeBlockAllCodePathsReturn();
         public bool SomeCodePathsBreak() => IfTrueBlock.CodeBlockSomeCodePathsBreak();
     }
 
     partial class IfElseBlock
     {
-        public bool AllCodePathsReturn() => IfTrueBlock.CodeBlockAllCodePathsReturn() && IfFalseBlock.CodeBlockAllCodePathsReturn();
+        public bool AllCodePathsReturn()
+        {
+            if (Condition.IsTruey)
+                return IfTrueBlock.CodeBlockAllCodePathsReturn();
+            else if (Condition.IsFalsey)
+                return IfFalseBlock.CodeBlockAllCodePathsReturn();
+            return IfTrueBlock.CodeBlockAllCodePathsReturn() && IfFalseBlock.CodeBlockAllCodePathsReturn();
+        }
         public bool SomeCodePathsBreak() => IfTrueBlock.CodeBlockSomeCodePathsBreak() || IfFalseBlock.CodeBlockSomeCodePathsBreak();
     }
 
     partial class MatchStatement
     {
-        public bool AllCodePathsReturn() => MatchHandlers.TrueForAll((handler) => handler.ToExecute.CodeBlockAllCodePathsReturn());
+        public bool AllCodePathsReturn() => IsExhaustive && MatchHandlers.TrueForAll((handler) => handler.ToExecute.CodeBlockAllCodePathsReturn());
 
         public bool SomeCodePathsBreak()
         {
@@ -175,6 +182,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
     }
 
     partial class SetVariable
+    {
+        public bool AllCodePathsReturn() => false;
+        public bool SomeCodePathsBreak() => false;
+    }
+
+    partial class UnwrapEnumValue
     {
         public bool AllCodePathsReturn() => false;
         public bool SomeCodePathsBreak() => false;

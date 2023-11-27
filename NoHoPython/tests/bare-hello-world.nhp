@@ -1,5 +1,5 @@
 ﻿#this is a barebones implementation of hello world
 
 def main():
-	cdef puts(handle) None
+	cdef puts(handle<char>) None
 	puts("Hello World!")

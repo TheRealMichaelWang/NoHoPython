@@ -35,34 +35,26 @@ namespace NoHoPython.IntermediateRepresentation
         private List<ArrayType> usedArrayTypes;
         private List<IType> bufferTypes;
 
-        public void EmitArrayTypeTypedefs(StatementEmitter emitter)
+        public void EmitArrayTypeTypedefs(Emitter emitter)
         {
             foreach (ArrayType arrayType in usedArrayTypes)
                 emitter.AppendLine($"typedef struct {arrayType.GetStandardIdentifier(this)} {arrayType.GetCName(this)};");
         }
 
-        public void EmitArrayTypeCStructs(StatementEmitter emitter)
+        public void EmitArrayTypeCStructs(Emitter emitter)
         {
             foreach (ArrayType arrayType in usedArrayTypes)
                 arrayType.EmitCStruct(this, emitter);
         }
 
-        public void ForwardDeclareArrayTypes(StatementEmitter emitter)
+        public void ForwardDeclareArrayTypes(Emitter emitter)
         {
             foreach (ArrayType arrayType in usedArrayTypes)
             {
-                emitter.Append($"{arrayType.GetCName(this)} marshal{arrayType.GetStandardIdentifier(this)}({arrayType.ElementType.GetCName(this)}* buffer, int length");
-                if (arrayType.MustSetResponsibleDestroyer)
-                    emitter.Append(", void* responsible_destroyer");
-                emitter.AppendLine(");");
-
                 emitter.Append($"{arrayType.GetCName(this)} marshal_proto{arrayType.GetStandardIdentifier(this)}(int length, {arrayType.ElementType.GetCName(this)} proto");
                 if (arrayType.MustSetResponsibleDestroyer)
                     emitter.Append(", void* responsible_destroyer");
                 emitter.AppendLine(");");
-
-                if (!EmitExpressionStatements)
-                    emitter.AppendLine($"{arrayType.GetCName(this)} move{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)}* src, {arrayType.GetCName(this)} dest, void* child_agent);");
 
                 if (arrayType.ElementType.RequiresDisposal)
                 {
@@ -74,17 +66,17 @@ namespace NoHoPython.IntermediateRepresentation
             }
         }
 
-        public void EmitArrayTypeMarshallers(StatementEmitter emitter, bool doCallStack)
+        public void EmitArrayTypeMarshallers(Emitter emitter)
         {
             if (DoBoundsChecking)
             {
                 emitter.AppendLine("int nhp_bounds_check(int index, int max_length, const char* src_loc, const char* access_src) {");
                 emitter.AppendLine("\tif(index < 0 || index >= max_length) {");
 
-                if (doCallStack)
+                if (DoCallStack)
                 {
-                    CallStackReporting.EmitErrorLoc(emitter, "src_loc", "access_src", 2);
-                    CallStackReporting.EmitPrintStackTrace(emitter, 2);
+                    CallStackReporting.EmitErrorLoc(emitter, "src_loc", "access_src");
+                    CallStackReporting.EmitPrintStackTrace(emitter);
                     emitter.AppendLine("\t\tprintf(\"IndexError: Index was %i, length was %i.\\n\", index, max_length);");
                 }
                 else
@@ -102,12 +94,11 @@ namespace NoHoPython.IntermediateRepresentation
             foreach (ArrayType arrayType in usedArrayTypes)
             {
                 arrayType.EmitMarshaller(this, emitter);
-                arrayType.EmitMover(this, emitter);
                 arrayType.EmitCopier(this, emitter);
             }
         }
 
-        private void EmitBufferCopiers(StatementEmitter emitter)
+        private void EmitBufferCopiers(Emitter emitter)
         {
             foreach(IType elementType in bufferTypes)
             {
@@ -121,7 +112,7 @@ namespace NoHoPython.IntermediateRepresentation
                     emitter.AppendLine($"\t{elementType.GetCName(this)}* buf = {MemoryAnalyzer.Allocate($"sizeof({elementType.GetCName(this)}) * len")};");
                     emitter.AppendLine("\tfor(int i = 0; i < len; i++) {");
                     emitter.Append("\t\tbuf[i] = ");
-                    elementType.EmitCopyValue(this, emitter, "src[i]", "responsible_destroyer");
+                    elementType.EmitCopyValue(this, emitter, (e) => e.Append("src[i]"), (e) => e.Append("responsible_destroyer"));
                     emitter.AppendLine(";");
                     emitter.AppendLine("\t}");
                     emitter.AppendLine("\treturn buf;");
@@ -135,14 +126,14 @@ namespace NoHoPython.IntermediateRepresentation
                 emitter.AppendLine($"\t{elementType.GetCName(this)}* buf = {MemoryAnalyzer.Allocate($"count * sizeof({elementType.GetCName(this)})")};");
                 emitter.AppendLine("\tfor(int i = 0; i < count; i++) {");
                 emitter.Append("\t\tbuf[i] = ");
-                elementType.EmitCopyValue(this, emitter, "proto", "responsible_destroyer");
+                elementType.EmitCopyValue(this, emitter, (e) => e.Append("proto"), (e) => e.Append("responsible_destroyer"));
                 emitter.AppendLine(";");
                 emitter.AppendLine("\t}");
 
                 if (elementType.RequiresDisposal)
                 {
                     emitter.Append('\t');
-                    elementType.EmitFreeValue(this, emitter, "proto", "NULL");
+                    elementType.EmitFreeValue(this, emitter, (e) => e.Append("proto"), Emitter.NullPromise);
                     emitter.AppendLine();
                 }
 
@@ -164,41 +155,35 @@ namespace NoHoPython.Typing
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => true;
 
-        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
+        public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
         {
+            int indirection = emitter.AppendStartBlock();
+            emitter.Append($"{GetCName(irProgram)} to_free{indirection} = ");
+            valuePromise(emitter);
+            emitter.AppendLine(";");
             if(ElementType.RequiresDisposal)
             {
-                emitter.Append($"for(int free_i = 0; free_i < {valueCSource}.length; free_i++) {{ ");
-                ElementType.EmitFreeValue(irProgram, emitter, $"{valueCSource}.buffer[free_i]", childAgent);
-                emitter.Append("}; ");
+                emitter.AppendStartBlock($"for(int i = 0; i < to_free{indirection}.length; i++)");
+                ElementType.EmitFreeValue(irProgram, emitter, (e) => e.Append($"to_free{indirection}.buffer[i]"), childAgent);
+                emitter.AppendEndBlock();
             }
-
-            emitter.Append($"{irProgram.MemoryAnalyzer.Dealloc($"{valueCSource}.buffer", $"{valueCSource}.length * sizeof({ElementType.GetCName(irProgram)})")};");
+            emitter.AppendLine($"{irProgram.MemoryAnalyzer.Dealloc($"to_free{indirection}.buffer", $"to_free{indirection}.length * sizeof({ElementType.GetCName(irProgram)})")}");
+            emitter.AppendEndBlock();
         }
 
-        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
         {
-            if (ElementType.RequiresDisposal)
-                emitter.Append($"copy{GetStandardIdentifier(irProgram)}({valueCSource}");
-            else
-                emitter.Append($"marshal{GetStandardIdentifier(irProgram)}({valueCSource}.buffer, {valueCSource}.length");
+            primaryEmitter.Append($"copy{GetStandardIdentifier(irProgram)}(");
+            valueCSource(primaryEmitter);
 
             if (MustSetResponsibleDestroyer)
-                emitter.Append($", {responsibleDestroyer}");
+                primaryEmitter.Append($", {responsibleDestroyer}");
 
-            emitter.Append(')');
+            primaryEmitter.Append(')');
         }
 
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
-        {
-            if (irProgram.EmitExpressionStatements)
-                IType.EmitMove(this, irProgram, emitter, destC, valueCSource, childAgent);
-            else
-                emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource}, {childAgent})");
-        }
-
-        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -210,7 +195,7 @@ namespace NoHoPython.Typing
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_array_{ElementType.GetStandardIdentifier(irProgram)}";
 
-        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitCStruct(IRProgram irProgram, Emitter emitter)
         {
             if (!irProgram.DeclareCompiledType(emitter, this))
                 return;
@@ -221,22 +206,8 @@ namespace NoHoPython.Typing
             emitter.AppendLine("};");
         }
 
-        public void EmitMarshaller(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitMarshaller(IRProgram irProgram, Emitter emitter)
         {
-            emitter.Append($"{GetCName(irProgram)} marshal{GetStandardIdentifier(irProgram)}({ElementType.GetCName(irProgram)}* buffer, int length");
-
-            if (MustSetResponsibleDestroyer)
-                emitter.Append(", void* responsible_destroyer");
-
-            emitter.AppendLine(") {");
-            emitter.AppendLine($"\t{GetCName(irProgram)} to_alloc;");
-            emitter.AppendLine($"\tto_alloc.buffer = {irProgram.MemoryAnalyzer.Allocate($"length * sizeof({ElementType.GetCName(irProgram)})")};");
-            emitter.AppendLine($"\tmemcpy(to_alloc.buffer, buffer, length * sizeof({ElementType.GetCName(irProgram)}));");
-            emitter.AppendLine("\tto_alloc.length = length;");
-            
-            emitter.AppendLine("\treturn to_alloc;");
-            emitter.AppendLine("}");
-
             if (ElementType.RequiresDisposal)
             {
                 emitter.Append($"{GetCName(irProgram)} marshal_foreign{GetStandardIdentifier(irProgram)}({ElementType.GetCName(irProgram)}* buffer, int length");
@@ -275,11 +246,8 @@ namespace NoHoPython.Typing
             emitter.AppendLine("}");
         }
 
-        public void EmitCopier(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitCopier(IRProgram irProgram, Emitter emitter)
         {
-            if (!ElementType.RequiresDisposal)
-                return;
-
             emitter.Append($"{GetCName(irProgram)} copy{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_copy");
 
             if (MustSetResponsibleDestroyer)
@@ -287,28 +255,22 @@ namespace NoHoPython.Typing
 
             emitter.AppendLine(") {");
             emitter.AppendLine($"\t{GetCName(irProgram)} copied;");
-            
-            emitter.Append($"\tcopied.buffer = buffer_copy_{ElementType.GetStandardIdentifier(irProgram)}(to_copy.buffer, to_copy.length");
-            if(MustSetResponsibleDestroyer)
-                emitter.Append(", responsible_destroyer");
-            emitter.AppendLine(");");
+
+            if (ElementType.RequiresDisposal)
+            {
+                emitter.Append($"\tcopied.buffer = buffer_copy_{ElementType.GetStandardIdentifier(irProgram)}(to_copy.buffer, to_copy.length");
+                if (MustSetResponsibleDestroyer)
+                    emitter.Append(", responsible_destroyer");
+                emitter.AppendLine(");");
+            }
+            else
+            {
+                string sizeSrc = $"to_copy.length * sizeof({ElementType.GetCName(irProgram)})";
+                emitter.AppendLine($"\tcopied.buffer = memcpy({irProgram.MemoryAnalyzer.Allocate(sizeSrc)}, to_copy.buffer, {sizeSrc});");
+            }
 
             emitter.AppendLine("\tcopied.length = to_copy.length;");
             emitter.AppendLine("\treturn copied;");
-            emitter.AppendLine("}");
-        }
-
-        public void EmitMover(IRProgram irProgram, StatementEmitter emitter)
-        {
-            if (irProgram.EmitExpressionStatements)
-                return;
-
-            emitter.AppendLine($"{GetCName(irProgram)} move{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src, void* child_agent) {{");
-            emitter.Append('\t');
-            EmitFreeValue(irProgram, emitter, "(*dest)", "child_agent");
-            emitter.AppendLine();
-            emitter.AppendLine("\t*dest = src;");
-            emitter.AppendLine("\treturn src;");
             emitter.AppendLine("}");
         }
     }
@@ -326,38 +288,53 @@ namespace NoHoPython.Typing
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_{Identifier}";
 
-        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
+        public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
         {
             if (ElementType.RequiresDisposal)
             {
-                emitter.Append($"for(int free_i = 0; free_i < {Length}; free_i++) {{ ");
-                ElementType.EmitFreeValue(irProgram, emitter, $"{valueCSource}[free_i]", childAgent);
-                emitter.Append("}; ");
+                int indirection = emitter.AppendStartBlock();
+                emitter.Append($"\t{GetCName(irProgram)} to_free{indirection} = ");
+                valuePromise(emitter);
+                emitter.AppendLine(";");
+                emitter.AppendStartBlock($"for(int i = 0; i < to_free{indirection}.length; i++)");
+                ElementType.EmitFreeValue(irProgram, emitter, (e) => e.Append($"to_free{indirection}.buffer[i]"), childAgent);
+                emitter.AppendEndBlock();
+                emitter.Append($"{irProgram.MemoryAnalyzer.Dealloc($"to_free{indirection}.buffer", $"to_free{indirection}.length * sizeof({ElementType.GetCName(irProgram)})")};");
+                emitter.AppendEndBlock();
             }
-
-            emitter.Append($"{irProgram.MemoryAnalyzer.Dealloc($"{valueCSource}", $"{Length} * sizeof({ElementType.GetCName(irProgram)})")};");
+            else
+                using(Emitter valueSrcBuffer = new Emitter())
+                {
+                    valuePromise(valueSrcBuffer);
+                    emitter.Append($"{irProgram.MemoryAnalyzer.Dealloc(valueSrcBuffer.GetBuffered(), $"{Length} * sizeof({ElementType.GetCName(irProgram)})")}");
+                }
         }
 
-        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
         {
             if (ElementType.RequiresDisposal)
             {
-                emitter.Append($"buffer_copy_{ElementType.GetStandardIdentifier(irProgram)}({valueCSource}, {Length}");
+                primaryEmitter.Append($"buffer_copy_{ElementType.GetStandardIdentifier(irProgram)}(");
+                valueCSource(primaryEmitter);
+                primaryEmitter.Append($", {Length}");
                 if (ElementType.MustSetResponsibleDestroyer)
-                    emitter.Append($", {responsibleDestroyer}");
-                emitter.Append(')');
+                {
+                    primaryEmitter.Append(", ");
+                    responsibleDestroyer(primaryEmitter);
+                }
+                primaryEmitter.Append(')');
             }
             else
             {
-                string size = $"{Length} * sizeof({ElementType.GetCName(irProgram)})";
-                emitter.Append($"memcpy({irProgram.MemoryAnalyzer.Allocate(size)}, {valueCSource}, {size})");
+                string sizeSrc = $"{Length} * sizeof({ElementType.GetCName(irProgram)})";
+                primaryEmitter.Append($"memcpy({irProgram.MemoryAnalyzer.Allocate(sizeSrc)}, ");
+                valueCSource(primaryEmitter);
+                primaryEmitter.Append($", {sizeSrc})");
             }
         }
-
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent) => IType.EmitMove(this, irProgram, emitter, destC, valueCSource, childAgent);
-
-        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
+         
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -365,6 +342,6 @@ namespace NoHoPython.Typing
             irBuilder.ScopeForUsedBufferType(ElementType);
         }
 
-        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter) { }
+        public void EmitCStruct(IRProgram irProgram, Emitter emitter) { }
     }
 }

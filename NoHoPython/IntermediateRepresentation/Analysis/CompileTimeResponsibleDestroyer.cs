@@ -35,11 +35,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue? GetResponsibleDestroyer() => null;
     }
 
-    partial class InterpolatedString
-    {
-        public IRValue? GetResponsibleDestroyer() => null;
-    }
-
     partial class AnonymizeProcedure
     {
         public IRValue? GetResponsibleDestroyer() => null;
@@ -122,7 +117,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class UnwrapEnumValue
     {
-        public IRValue? GetResponsibleDestroyer() => null;
+        public IRValue? GetResponsibleDestroyer() => EnumValue.GetResponsibleDestroyer();
     }
 
     partial class CheckEnumOption
@@ -151,7 +146,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (ifTrueResponsibleDestroyer == null && ifFalseResponsibleDestroyer == null)
                     return null;
 
-                return new IfElseValue(Condition.GetPostEvalPure(), ifTrueResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ifFalseResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ErrorReportedElement);
+                return new IfElseValue(Type, Condition.GetPostEvalPure(), ifTrueResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ifFalseResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ErrorReportedElement);
             }
         }
     }

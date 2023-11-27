@@ -1,7 +1,5 @@
 ﻿include "mem.nhp"
 
-#linked lists no longer work because of restrictions on match statements; matched variables are copies of the original enum values. See issue #18 for more details
-
 enum nullable<T>:
 	T
 	None
@@ -20,7 +18,7 @@ class list<T>:
 	def __init__():
 		self.head = None
 	
-	def isEmpty() bool:
+	def get_isEmpty() bool:
 		match self.head:
 			node<T>:
 				return False
@@ -62,9 +60,8 @@ def main():
 			myList.pushBack(i)
 		mem::report()
 		
-		stop = myList.isEmpty
-		while stop() == False:
-			match res=myList.popFront():
+		while myList.isEmpty == False:
+			match myList.popFront():
 				int j:
 					printf("%i\n\0", j)
 				None:

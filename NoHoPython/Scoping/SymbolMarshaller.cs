@@ -21,11 +21,11 @@ namespace NoHoPython.Scoping
             IsHeadContainer = isHeadContainer;
         }
 
-        public virtual IScopeSymbol? FindSymbol(string identifier, IAstElement errorReportedElement) => symbols.ContainsKey(identifier) ? symbols[identifier] : null;
+        public virtual IScopeSymbol? FindSymbol(string identifier) => symbols.ContainsKey(identifier) ? symbols[identifier] : null;
 
         public virtual void DeclareSymbol(IScopeSymbol symbol, IAstElement errorReportElement)
         {
-            IScopeSymbol? existingSymbol = FindSymbol(symbol.Name, errorReportElement);
+            IScopeSymbol? existingSymbol = FindSymbol(symbol.Name);
             if (existingSymbol == null)
             {
                 symbols.Add(symbol.Name, symbol);
@@ -61,13 +61,15 @@ namespace NoHoPython.Scoping
 
             public void DelayedLinkSetStatements(List<IRStatement> statements) => this.statements.AddRange(statements);
 
-            public void ScopeForUsedTypes(Dictionary<Typing.TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => throw new InvalidOperationException();
-            public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<Typing.TypeParameter, IType> typeargs, int indent) => throw new InvalidOperationException();
+            public void ScopeForUsedTypes(Dictionary<Typing.TypeParameter, IType> typeargs, AstIRProgramBuilder irBuilder) => throw new InvalidOperationException();
+            public void Emit(IRProgram irProgram, Emitter emitter, Dictionary<Typing.TypeParameter, IType> typeargs) => throw new InvalidOperationException();
             public bool AllCodePathsReturn() => throw new InvalidOperationException();
 
             public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
             public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
             public bool SomeCodePathsBreak() => throw new InvalidOperationException();
+            public void NonMessageReceiverAnalysis() => throw new InvalidOperationException();
+            public void EnsureMinimumPurity(Purity purity) => throw new InvalidOperationException();
         }
 
         public Module CurrentModule => usedModuleStack.Peek();
@@ -97,7 +99,7 @@ namespace NoHoPython.Scoping
                 string[] parts = identifier.Split(':', StringSplitOptions.RemoveEmptyEntries);
                 for (int i = 0; i < parts.Length - 1; i++)
                 {
-                    IScopeSymbol? symbol = scopedContainer.FindSymbol(parts[i], errorReportedElement);
+                    IScopeSymbol? symbol = scopedContainer.FindSymbol(parts[i]);
                     if (symbol == null)
                         throw new SymbolNotFoundException(parts[i], scopedContainer, errorReportedElement);
                     else if (symbol is SymbolContainer symbolContainer)
@@ -115,7 +117,7 @@ namespace NoHoPython.Scoping
                 }
 
                 string finalIdentifier = parts.Last();
-                IScopeSymbol? result = scopedContainer.FindSymbol(finalIdentifier, errorReportedElement);
+                IScopeSymbol? result = scopedContainer.FindSymbol(finalIdentifier);
                 return result ?? throw new SymbolNotFoundException(finalIdentifier, scopedContainer, errorReportedElement);
             }
 
@@ -137,6 +139,48 @@ namespace NoHoPython.Scoping
                     }
             }
             throw new SymbolNotFoundException(identifier, scopeStack.Peek(), errorReportedElement);
+        }
+
+        public IScopeSymbol? FindSymbol(string identifier)
+        {
+            static IScopeSymbol? FindSymbolFromContainer(string identifier, SymbolContainer currentContainer, bool fromGlobalStack)
+            {
+                if (identifier.Contains(' '))
+                    throw new ArgumentException("Identifier cannot contain spaces.");
+
+                SymbolContainer scopedContainer = currentContainer;
+                string[] parts = identifier.Split(':', StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i < parts.Length - 1; i++)
+                {
+                    IScopeSymbol? symbol = scopedContainer.FindSymbol(parts[i]);
+                    if (symbol == null)
+                        return null;
+                    else if (symbol is SymbolContainer symbolContainer)
+                    {
+                        if (fromGlobalStack && !symbolContainer.IsGloballyNavigable)
+                            return null;
+                        scopedContainer = symbolContainer;
+                    }
+                    else
+                        return null;
+                }
+
+                string finalIdentifier = parts.Last();
+                return scopedContainer.FindSymbol(finalIdentifier);
+            }
+
+            IScopeSymbol? result = FindSymbolFromContainer(identifier, scopeStack.Peek(), false);
+            if(result == null)
+            {
+                foreach(Module usedModule in usedModuleStack)
+                {
+                    result = FindSymbolFromContainer(identifier, usedModule, true);
+                    if (result != null)
+                        break;
+                }
+            }
+
+            return result;
         }
 
         public void DeclareSymbol(IScopeSymbol symbol, IAstElement errorReportedElement) => scopeStack.Peek().DeclareSymbol(symbol, errorReportedElement);

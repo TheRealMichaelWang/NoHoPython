@@ -10,6 +10,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public sealed partial class ForeignCProperty : Property
         {
+            public override bool IsReadOnly => false;
+
             public string? AccessSource { get; private set; }
 
             public ForeignCProperty(string name, IType type, string? accessSource) : base(name, type)
@@ -35,7 +37,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public string? MarshallerDeclarations { get; private set; }
         public string CReferenceSource { get; private set; }
         public string? Copier { get; private set; }
-        public string? Mover { get; private set; }
         public string? Destructor { get; private set; }
         public string? ResponsibleDestroyerSetter { get; private set; }
 
@@ -44,7 +45,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public List<ForeignCProperty>? Properties = null;
 
-        public ForeignCDeclaration(string name, List<TypeParameter> typeParameters, bool pointerPropertyAccess, string? forwardDeclaration, string? cStructDeclaration, string? marshallerHeaders, string? marshallerDeclarations, string cReferenceSource, string? copier, string? mover, string? destructor, string? responsibleDestroyerSetter, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement)
+        public ForeignCDeclaration(string name, List<TypeParameter> typeParameters, bool pointerPropertyAccess, string? forwardDeclaration, string? cStructDeclaration, string? marshallerHeaders, string? marshallerDeclarations, string cReferenceSource, string? copier, string? destructor, string? responsibleDestroyerSetter, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement)
         {
             Name = name;
             TypeParameters = typeParameters;
@@ -56,7 +57,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             MarshallerDeclarations = marshallerDeclarations;
             CReferenceSource = cReferenceSource;
             Copier = copier;
-            Mover = mover;
             Destructor = destructor;
             ResponsibleDestroyerSetter = responsibleDestroyerSetter;
 
@@ -77,7 +77,8 @@ namespace NoHoPython.Typing
     public sealed partial class ForeignCType : IType, IPropertyContainer
     {
         public string TypeName => $"{Declaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
-        public string Identifier => $"{IScopeSymbol.GetAbsolouteName(Declaration)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public string Identifier => IType.GetIdentifier(IScopeSymbol.GetAbsolouteName(Declaration), TypeArguments.ToArray());
+        public string PrototypeIdentifier => IType.GetPrototypeIdentifier(IScopeSymbol.GetAbsolouteName(Declaration), Declaration.TypeParameters);
         public bool IsEmpty => false;
 
         public ForeignCDeclaration Declaration { get; private set; }
@@ -87,7 +88,7 @@ namespace NoHoPython.Typing
         private Lazy<Dictionary<string, ForeignCDeclaration.ForeignCProperty>> identifierPropertyMap;
         private Lazy<Dictionary<TypeParameter, IType>> typeargMap;
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
         public ForeignCType(ForeignCDeclaration declaration, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(declaration, TypeParameter.ValidateTypeArguments(declaration.TypeParameters, typeArguments, errorReportedElement))
         {
@@ -154,7 +155,7 @@ namespace NoHoPython.Syntax.Statements
 
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRDeclaration = new IntermediateRepresentation.Statements.ForeignCDeclaration(Identifier, typeParameters, Attributes.ContainsKey("ptr") || CSource.EndsWith('*'), GetOption("ForwardDeclaration"), GetOption("CStruct"), GetOption("MarshallerHeaders"), GetOption("Marshallers"), CSource, GetOption("Copy"), GetOption("Move"), GetOption("Destroy"), GetOption("ActorSetter"), irBuilder.SymbolMarshaller.CurrentModule, this);
+            IRDeclaration = new IntermediateRepresentation.Statements.ForeignCDeclaration(Identifier, typeParameters, Attributes.ContainsKey("ptr") || CSource.EndsWith('*'), GetOption("ForwardDeclaration"), GetOption("CStruct"), GetOption("MarshallerHeaders"), GetOption("Marshallers"), CSource, GetOption("Copy"), GetOption("Destroy"), GetOption("ActorSetter"), irBuilder.SymbolMarshaller.CurrentModule, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRDeclaration);
 

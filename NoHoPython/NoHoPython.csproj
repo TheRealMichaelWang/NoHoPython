@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <StartupObject>Program</StartupObject>
+    <SignAssembly>False</SignAssembly>
+    <AssemblyName>nhp</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -13,27 +15,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="stdlib\io.nhp" />
     <None Remove="stdlib\std.nhp" />
-    <None Remove="stdlib\stream.nhp" />
     <None Remove="stdlib\string.nhp" />
-    <None Remove="stdlib\textstream.nhp" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="stdlib\io.nhp">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="stdlib\std.nhp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="stdlib\stream.nhp">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="stdlib\string.nhp">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="stdlib\textstream.nhp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
@@ -58,13 +48,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="stdlib\chars.nhp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="stdlib\list.nhp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="stdlib\map.nhp">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="stdlib\shared.nhp">
+    <None Update="stdlib\time.nhp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="tests\bare-hello-world.nhp">
@@ -83,12 +73,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="tests\list2-test.nhp">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="stdlib\mem.nhp">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="stdlib\ndarray.nhp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="tests\enum-test2.nhp">

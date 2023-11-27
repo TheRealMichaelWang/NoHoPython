@@ -1,12 +1,15 @@
 ﻿include "io.nhp"
+include "textstream.nhp"
 
 def main():
-	outWriter = std::io::handleOutputStream(stdout)
+	cdef stdout std::ioptr
 
-	outWriter.writeLine("give a number...")
+	writer = new std::textWriter(new std::io::handleOutputStream(stdout))
+
+	writer.writeLine("give a number...")
 	N = input() as int
 
 	for i from 0 to 1 lshift N:
 		for j from 0 within N:
-			out.writeByte('*' if i & (1 lshift j) else ' ')
-		out.writeByte('\n')
+			writer.output.writeByte('*' if i & (1 lshift j) else ' ')
+		writer.output.writeByte('\n')

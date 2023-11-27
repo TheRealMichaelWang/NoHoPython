@@ -22,7 +22,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public List<IRStatement>? Statements { get; private set; }
         public List<Variable> LocalVariables { get; private set; }
         private List<VariableDeclaration> DeclaredVariables;
-        private Dictionary<Variable, RefinementEntry> VariableRefinements;
 
         public bool IsLoop { get; private set; }
         public int? BreakLabelId { get; private set; }
@@ -38,7 +37,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements = null;
             LocalVariables = new();
             DeclaredVariables = new();
-            VariableRefinements = new();
         }
 
         public void AddVariableDeclaration(VariableDeclaration variableDeclaration)
@@ -52,34 +50,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (Statements != null)
                 throw new InvalidOperationException();
             Statements = statements;
-        }
-
-        public List<Variable> GetCurrentLocals(ProcedureDeclaration currentProcedure)
-        {
-            if (parentContainer == null || parentContainer is not CodeBlock || this == currentProcedure)
-                return new(LocalVariables);
-            else
-            {
-                List<Variable> combined = new();
-                combined.AddRange(((CodeBlock)parentContainer).GetCurrentLocals(currentProcedure));
-                combined.AddRange(LocalVariables);
-                return combined;
-            }
-        }
-
-        public List<Variable> GetLoopLocals(IAstElement errorReportedElement)
-        {
-            if (this.IsLoop)
-                return new(LocalVariables);
-            if (parentContainer == null || parentContainer is not CodeBlock)
-                throw new UnexpectedLoopStatementException(errorReportedElement);
-            else
-            {
-                List<Variable> combined = new();
-                combined.AddRange(((CodeBlock)parentContainer).GetLoopLocals(errorReportedElement));
-                combined.AddRange(LocalVariables);
-                return combined;
-            }
         }
 
         public int GetLoopBreakLabelId(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder)
@@ -96,10 +66,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return ((CodeBlock)parentContainer).GetLoopBreakLabelId(errorReportedElement, irBuilder);
         }
 
-        public override IScopeSymbol? FindSymbol(string identifier, IAstElement errorReportedElement)
+        public override IScopeSymbol? FindSymbol(string identifier)
         {
-            IScopeSymbol? result = base.FindSymbol(identifier, errorReportedElement);
-            return result ?? (parentContainer?.FindSymbol(identifier, errorReportedElement));
+            IScopeSymbol? result = base.FindSymbol(identifier);
+            return result ?? (parentContainer?.FindSymbol(identifier));
         }
     }
 }

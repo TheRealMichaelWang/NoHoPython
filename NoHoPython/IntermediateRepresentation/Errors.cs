@@ -94,7 +94,7 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public IScopeSymbol ScopeSymbol { get; private set; }
 
-        public NotAProcedureException(IScopeSymbol scopeSymbol, IAstElement errorReportedElement) : base(errorReportedElement, $"{scopeSymbol.Name} is not a procedure. Rather it is a(n) {scopeSymbol}.")
+        public NotAProcedureException(IScopeSymbol scopeSymbol, IAstElement errorReportedElement) : base(errorReportedElement, $"{scopeSymbol.Name} is not a procedure. Rather it is a(n) {scopeSymbol.GetType().Name}.")
         {
             ScopeSymbol = scopeSymbol;
         }
@@ -114,7 +114,7 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public Variable Variable { get; private set; }
 
-        public CannotMutateVaraible(Variable capturedVariable, IAstElement errorReportedElement) : base(errorReportedElement, $"Cannot mutate captured variable or parameter {capturedVariable.Name}.")
+        public CannotMutateVaraible(Variable capturedVariable, bool isCaptured, IAstElement errorReportedElement) : base(errorReportedElement, $"Cannot mutate {(isCaptured ? "captured variable" : "parameter")} {capturedVariable.Name}.")
         {
             Variable = capturedVariable;
         }
@@ -171,6 +171,16 @@ namespace NoHoPython.IntermediateRepresentation
         public RecordDeclaration RecordDeclaration { get; private set; }
 
         public RecordMustDefineConstructorError(RecordDeclaration recordDeclaration) : base(recordDeclaration.ErrorReportedElement, $"Record {recordDeclaration.Name} doesn't define a constructor (do so using __init__).")
+        {
+            RecordDeclaration = recordDeclaration;
+        }
+    }
+
+    public sealed class RecordConstructorMustBePure : IRGenerationError
+    {
+        public RecordDeclaration RecordDeclaration { get; private set; }
+
+        public RecordConstructorMustBePure(RecordDeclaration recordDeclaration, IAstElement? errorReportedElement=null, bool isConstructor=true) : base(errorReportedElement ?? recordDeclaration.ErrorReportedElement, $"Record {recordDeclaration.Name}'s {(isConstructor ? "constructor" : "copier")} must be marked as pure.")
         {
             RecordDeclaration = recordDeclaration;
         }
@@ -238,6 +248,14 @@ namespace NoHoPython.IntermediateRepresentation
     public sealed class UnexpectedStringSymbolException : IRGenerationError
     {
         public UnexpectedStringSymbolException(IAstElement errorReportedElement) : base(errorReportedElement, "The string symbol is not a class declaration. Don't mess around with string.nhp. It's a really bad idea.")
+        {
+
+        }
+    }
+
+    public sealed class DefaultHandlerUnreachable : IRGenerationError
+    {
+        public DefaultHandlerUnreachable(IAstElement errorReportedElement) : base(errorReportedElement, "Default handler for match statement unreachable because all options have been handled.")
         {
 
         }

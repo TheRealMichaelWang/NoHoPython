@@ -33,7 +33,7 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public readonly Dictionary<ForeignCDeclaration, List<ForeignCType>> ForeignTypeOverloads;
 
-        public void ForwardDeclareForeignTypes(StatementEmitter emitter)
+        public void ForwardDeclareForeignTypes(Emitter emitter)
         {
             foreach (ForeignCDeclaration foreignDeclaration in ForeignTypeOverloads.Keys)
             {
@@ -55,18 +55,18 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-            public override bool EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource, string responsibleDestroyer)
+            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer)
             {
                 ForeignCType foreignCType = (ForeignCType)propertyContainer;
 
                 if (AccessSource == null)
                 {
-                    emitter.Append(valueCSource);
+                    value(emitter);
                     emitter.Append(foreignCType.Declaration.PointerPropertyAccess ? "->" : ".");
                     emitter.Append(Name);
                 }
                 else
-                    emitter.Append(foreignCType.GetSource(AccessSource, irProgram, valueCSource, responsibleDestroyer));
+                    emitter.Append(foreignCType.GetSource(AccessSource, irProgram, value, responsibleDestroyer));
                 
                 return false;
             }
@@ -74,7 +74,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public void ForwardDeclareType(IRProgram irProgram, StatementEmitter emitter)
+        public void ForwardDeclareType(IRProgram irProgram, Emitter emitter)
         {
             if (!irProgram.ForeignTypeOverloads.ContainsKey(this))
                 return;
@@ -85,7 +85,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine(foreignCType.GetSource(CStructDeclaration, irProgram));
         }
 
-        public void ForwardDeclare(IRProgram irProgram, StatementEmitter emitter)
+        public void ForwardDeclare(IRProgram irProgram, Emitter emitter)
         {
             if (!irProgram.ForeignTypeOverloads.ContainsKey(this))
                 return;
@@ -96,7 +96,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 emitter.AppendLine(foreignCType.GetSource(MarshallerHeaders, irProgram));
         }
 
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent)
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs)
         {
             if (!irProgram.ForeignTypeOverloads.ContainsKey(this))
                 return;
@@ -104,7 +104,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return;
 
             foreach (ForeignCType foreignCType in irProgram.ForeignTypeOverloads[this])
-                emitter.AppendLine(foreignCType.GetSource(MarshallerDeclarations, irProgram));
+                primaryEmitter.AppendLine(foreignCType.GetSource(MarshallerDeclarations, irProgram));
         }
     }
 }
@@ -134,35 +134,22 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => GetSource(Declaration.CReferenceSource, irProgram);
 
-        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
+        public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
         {
             if (Declaration.Destructor != null)
-                emitter.Append(GetSource(Declaration.Destructor, irProgram, valueCSource, childAgent));
+                emitter.Append(GetSource(Declaration.Destructor, irProgram, valuePromise, childAgent));
         }
 
-        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
         {
             if (Declaration.Copier != null)
-                emitter.Append(GetSource(Declaration.Copier, irProgram, valueCSource, responsibleDestroyer));
+                primaryEmitter.Append(GetSource(Declaration.Copier, irProgram, valueCSource, responsibleDestroyer));
             else
-                emitter.Append(valueCSource);
+                valueCSource(primaryEmitter);
         }
 
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
-        {
-            if (Declaration.Mover == null)
-            {
-                if (Declaration.Destructor == null)
-                    emitter.Append($"{destC} = {valueCSource}");
-                else
-                    IType.EmitMove(this, irProgram, emitter, destC, valueCSource, childAgent);
-            }
-            else
-                emitter.Append(GetSource(Declaration.Mover, irProgram, valueCSource).Replace("##AGENT", childAgent));
-        }
-
-        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -173,7 +160,7 @@ namespace NoHoPython.Typing
             }
         }
 
-        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitCStruct(IRProgram irProgram, Emitter emitter)
         {
             if (Declaration.CStructDeclaration != null)
                 emitter.AppendLine(GetSource(Declaration.CStructDeclaration, irProgram));

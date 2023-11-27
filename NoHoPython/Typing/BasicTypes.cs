@@ -1,6 +1,9 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Scoping;
 using NoHoPython.Syntax;
+using System.Text;
 
 namespace NoHoPython.Typing
 {
@@ -15,20 +18,27 @@ namespace NoHoPython.Typing
         public static readonly HandleType CString = new(new CharacterType());
         public static readonly NothingType Nothing = new(); //not a primitive but also commonly used
 
-        public static RecordType GetStringType(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        public static IType GetStringType(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
-            if (irBuilder.SymbolMarshaller.FindSymbol("string", errorReportedElement) is IntermediateRepresentation.Statements.RecordDeclaration recordDeclaration)
-                return new RecordType(recordDeclaration, new(), errorReportedElement);
-            throw new UnexpectedStringSymbolException(errorReportedElement);
+            try 
+            {
+                AstType standardStringType = new AstType("string", new());
+                return standardStringType.ToIRType(irBuilder, errorReportedElement);
+            }
+            catch (SymbolNotFoundException)
+            {
+                return new ArrayType(Character);
+            }
         }
 
         public abstract string TypeName { get; }
         public string Identifier => TypeName;
+        public string PrototypeIdentifier => Identifier;
         public bool IsEmpty => false;
 
         public abstract int Id { get; }
 
-        public abstract IRValue GetDefaultValue(IAstElement errorReportedElement);
+        public abstract IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder);
 
         public abstract bool IsCompatibleWith(IType type);
         public abstract IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeArgs);
@@ -39,7 +49,7 @@ namespace NoHoPython.Typing
                 throw new UnexpectedTypeException(this, errorReportedElement);
         }
 
-        public virtual IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
+        public virtual IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder) => ArithmeticCast.CastTo(argument, this, irBuilder);
 
         public override string ToString() => TypeName;
         public override int GetHashCode() => Id;
@@ -50,7 +60,7 @@ namespace NoHoPython.Typing
         public override string TypeName => "int";
         public override int Id => 0;
 
-        public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new IntegerLiteral(0, errorReportedElement);
+        public override IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new IntegerLiteral(0, errorReportedElement);
 
         public override bool IsCompatibleWith(IType type)
         {
@@ -63,7 +73,7 @@ namespace NoHoPython.Typing
         public override string TypeName => "dec";
         public override int Id => 1;
 
-        public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new DecimalLiteral(0, errorReportedElement);
+        public override IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new DecimalLiteral(0, errorReportedElement);
 
         public override bool IsCompatibleWith(IType type)
         {
@@ -76,7 +86,7 @@ namespace NoHoPython.Typing
         public override string TypeName { get => "char"; }
         public override int Id => 2;
 
-        public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new CharacterLiteral('\0', errorReportedElement);
+        public override IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new CharacterLiteral('\0', errorReportedElement);
 
         public override bool IsCompatibleWith(IType type)
         {
@@ -89,7 +99,7 @@ namespace NoHoPython.Typing
         public override string TypeName => "bool";
         public override int Id => 3;
 
-        public override IRValue GetDefaultValue(IAstElement errorReportedElement) => new FalseLiteral(errorReportedElement);
+        public override IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new FalseLiteral(errorReportedElement);
 
         public override bool IsCompatibleWith(IType type)
         {
@@ -102,7 +112,7 @@ namespace NoHoPython.Typing
         public override string TypeName => $"handle<{ValueType.TypeName}>";
         public override int Id => 4;
 
-        public override IRValue GetDefaultValue(IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+        public override IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
         public IType ValueType { get; private set; }
 
@@ -118,9 +128,10 @@ namespace NoHoPython.Typing
     {
         public string TypeName => "nothing";
         public string Identifier => "nothing";
+        public string PrototypeIdentifier => "nothing";
         public bool IsEmpty => true;
 
-        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new EmptyTypeLiteral(Primitive.Nothing, errorReportedElement);
+        public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new EmptyTypeLiteral(Primitive.Nothing, errorReportedElement);
 
         public bool IsCompatibleWith(IType type) => type is NothingType;
 
@@ -131,11 +142,12 @@ namespace NoHoPython.Typing
     {
         public string TypeName => $"array<{ElementType.TypeName}>";
         public string Identifier => $"array_{ElementType.Identifier}";
+        public string PrototypeIdentifier => $"array_T";
         public bool IsEmpty => false;
 
         public IType ElementType { get; private set; }
 
-        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new ArrayLiteral(ElementType, new(), errorReportedElement);
+        public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new ArrayLiteral(ElementType, new(), irBuilder, errorReportedElement);
 
         public ArrayType(IType elementType)
         {
@@ -149,12 +161,13 @@ namespace NoHoPython.Typing
     {
         public string TypeName => $"span<{ElementType.TypeName}, {Length}>";
         public string Identifier => $"span_{ElementType.Identifier}_of_{Length}";
+        public string PrototypeIdentifier => $"span_T_of_{Length}";
         public bool IsEmpty => false;
 
         public IType ElementType { get; private set; }
         public int Length { get; private set; }
 
-        public IRValue GetDefaultValue(IAstElement errorReportedElement) => new ArrayLiteral(ElementType, new(), errorReportedElement);
+        public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new ArrayLiteral(ElementType, new(), irBuilder, errorReportedElement);
 
         public MemorySpan(IType elementType, int length)
         {
@@ -167,16 +180,47 @@ namespace NoHoPython.Typing
 
     public sealed partial class ProcedureType : IType
     {
-        public string TypeName => $"fn<{ReturnType.TypeName}, {string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}>";
-        public string Identifier => $"proc_{string.Join(string.Empty, ParameterTypes.ConvertAll((type) => $"{type.Identifier}_"))}ret_{ReturnType.Identifier}";
+        private static string GetPurityName(Purity purity) => purity switch
+        {
+            Purity.Pure => "pure",
+            Purity.OnlyAffectsArguments => "fn",
+            Purity.OnlyAffectsArgumentsAndCaptured => "affectsArgsOnly"
+        };
+
+        public string TypeName => $"{GetPurityName(Purity)}<{ReturnType.TypeName}, {string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}>";
+
+        public string Identifier
+        {
+            get
+            {
+                List<IType> typeargs = new(ParameterTypes);
+                typeargs.Insert(0, ReturnType);
+                return IType.GetIdentifier("fn", typeargs.ToArray());
+            }
+        
+        }
+        public string PrototypeIdentifier
+        {
+            get
+            {
+                StringBuilder builder = new();
+                builder.Append("fn_");
+                builder.Append(ReturnType is NothingType ? "None" : "RT");
+                for (int i = 0; i < ParameterTypes.Count; i++)
+                    builder.Append("_T");
+                return builder.ToString();
+            }
+        }
+
         public bool IsEmpty => false;
 
         public IType ReturnType { get; private set; }
         public readonly List<IType> ParameterTypes;
+        public Purity Purity { get; private set; }
 
-        public IRValue GetDefaultValue(IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+        public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
-        public ProcedureType(IType returnType, List<IType> parameterTypes)
+        public ProcedureType(IType returnType, List<IType> parameterTypes, Purity purityLevel)
         {
             ReturnType = returnType;
             ParameterTypes = parameterTypes;
@@ -186,6 +230,8 @@ namespace NoHoPython.Typing
         {
             if (type is ProcedureType procedureType)
             {
+                if (Purity != procedureType.Purity)
+                    return false;
                 if (ParameterTypes.Count != procedureType.ParameterTypes.Count)
                     return false;
                 if (!ReturnType.IsCompatibleWith(procedureType.ReturnType))

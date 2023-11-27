@@ -296,7 +296,7 @@ namespace NoHoPython.Syntax.Parsing
             else
                 scanner.ScanToken();
 
-            List<AstType> Options = ParseBlock(ParseType);
+            List<AstType> Options = ParseBlock(() => ParseType(false));
             return new EnumDeclaration(identifier, typeParameters, requiredImplementedInterfaces, Options, ParseAttributesTable(), location);
         }
 
@@ -342,17 +342,20 @@ namespace NoHoPython.Syntax.Parsing
             List<ProcedureDeclaration> procedures = new();
             List<RecordDeclaration.RecordProperty> properties = ParseBlock(() =>
             {
-                if (scanner.LastToken.Type == TokenType.Define)
-                {
-                    procedures.Add((ProcedureDeclaration)ParseProcedureDeclaration(true));
-                    return null;
-                }
-
                 bool isReadonly = false;
-                if (scanner.LastToken.Type == TokenType.Readonly)
+                switch (scanner.LastToken.Type)
                 {
-                    isReadonly = true;
-                    scanner.ScanToken();
+                    case TokenType.Define:
+                    case TokenType.Pure:
+                    case TokenType.AffectsArgs:
+                    case TokenType.AffectsCaptured:
+                    case TokenType.Impure:
+                        procedures.Add((ProcedureDeclaration)ParseProcedureDeclaration(true));
+                        return null;
+                    case TokenType.Readonly:
+                        isReadonly = true;
+                        scanner.ScanToken();
+                        break;
                 }
 
                 AstType type = ParseType();

@@ -3,6 +3,7 @@ using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
+using System.Text;
 
 namespace NoHoPython.Typing
 {
@@ -10,6 +11,8 @@ namespace NoHoPython.Typing
     {
         sealed partial class TupleProperty : Property
         {
+            public override bool IsReadOnly => true;
+
             public int TypeNumber { get; private set; }
 
             public TupleProperty(IType type, int typeNumber) : base($"{type.Identifier}{typeNumber}", type)
@@ -19,14 +22,25 @@ namespace NoHoPython.Typing
         }
 
         public string TypeName => $"tuple<{string.Join(", ", orderedValueTypes.ConvertAll((type) => type.TypeName))}>";
-        public string Identifier => $"tuple_{string.Join("_", orderedValueTypes.ConvertAll((type) => type.Identifier))}";
+        public string Identifier => IType.GetIdentifier("tuple", orderedValueTypes.ToArray());
+        public string PrototypeIdentifier
+        {
+            get
+            {
+                StringBuilder builder = new();
+                builder.Append("tuple");
+                for (int i = 0; i < orderedValueTypes.Count; i++)
+                    builder.Append("_T");
+                return builder.ToString();
+            }
+        }
         public bool IsEmpty => false;
 
         public readonly Dictionary<IType, int> ValueTypes;
         private readonly List<IType> orderedValueTypes;
         private readonly Dictionary<string, Property> properties; 
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => new TupleLiteral(orderedValueTypes.ConvertAll((type) => type.GetDefaultValue(errorReportedElement)), errorReportedElement);
+        public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new TupleLiteral(orderedValueTypes.ConvertAll((type) => type.GetDefaultValue(errorReportedElement, irBuilder)), errorReportedElement);
 
         public TupleType(List<IType> valueTypes)
         {

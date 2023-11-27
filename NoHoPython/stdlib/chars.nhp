@@ -1,0 +1,33 @@
+﻿cinclude "<ctype.h>"
+
+mod typeExt:
+	cdef pure char_get_isAlNum(char c) bool "isalnum"
+	cdef pure char_get_isAlpha(char c) bool "isalpha"
+	cdef pure char_get_isDigit(char c) bool "isdigit"
+	cdef pure char_get_isBlank(char c) bool "isblank"
+	cdef pure char_get_isUpper(char c) bool "isupper"
+	cdef pure char_get_isLower(char c) bool "islower"
+
+	cdef pure char_toUpper(char c) char "toupper"
+	cdef pure char_toLower(char c) char "toupper"
+
+	pure array_char_toUpper(array<char> str) array<char>:
+		toret = str
+		for i from 0 within toret:
+			toret[i] = str[i].toUpper()
+		return toret
+	
+	pure array_char_toLower(array<char> str) array<char>:
+		toret = str
+		for i from 0 within toret:
+			toret[i] = str[i].toLower()
+		return toret
+		
+	pure array_char_trim(array<char> str) option<array<char>>:
+		start = 0
+		while start < str as int and str[start].isBlank:
+			start = start + 1
+		stop = str as int - 1
+		while stop >= start and str[stop].isBlank:
+			stop = stop - 1
+		return str.subArray(start, (stop - start) + 1)

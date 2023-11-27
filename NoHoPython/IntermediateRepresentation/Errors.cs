@@ -94,7 +94,7 @@ namespace NoHoPython.IntermediateRepresentation
     {
         public IScopeSymbol ScopeSymbol { get; private set; }
 
-        public NotAProcedureException(IScopeSymbol scopeSymbol, IAstElement errorReportedElement) : base(errorReportedElement, $"{scopeSymbol.Name} is not a procedure. Rather it is a(n) {scopeSymbol}.")
+        public NotAProcedureException(IScopeSymbol scopeSymbol, IAstElement errorReportedElement) : base(errorReportedElement, $"{scopeSymbol.Name} is not a procedure. Rather it is a(n) {scopeSymbol.GetType().Name}.")
         {
             ScopeSymbol = scopeSymbol;
         }

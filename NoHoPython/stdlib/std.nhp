@@ -55,7 +55,7 @@ mod typeExt:
 		return results
 	
 	pure array_T_reduce<T>(array<T> a, pure<T, T, T> add, option<T> initial) option<T>:
-		reduce_settings = (initial, 0) if initial is T else (a.safe_get(0) as T, 1)
+		reduce_settings = (initial, 0) if initial is T else ((a.safe_get(0) as option<T>) as T, 1)
 		accum = reduce_settings.T0
 		offset = reduce_settings.int0
 		for i from offset within a:
@@ -85,7 +85,7 @@ mod typeExt:
 		results.addRange(b)
 		return results
 
-	pure array_T_copyTo<T>(array<T> src, array<T> offset, int index):
+	affectsArgs array_T_copyTo<T>(array<T> src, array<T> dest, int offset):
 		for i from 0 within src:
 			dest[offset + i] = src[i]
 	

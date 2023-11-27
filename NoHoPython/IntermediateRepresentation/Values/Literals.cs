@@ -360,7 +360,7 @@ namespace NoHoPython.Syntax.Values
             IType stringType = Primitive.GetStringType(irBuilder, this);
             IScopeSymbol interpolater = irBuilder.SymbolMarshaller.FindSymbol("stringImpl:interpolate", this);
             if (interpolater is ProcedureDeclaration procedureDeclaration)
-                IntermediateRepresentation.Values.ArithmeticCast.CastTo(new IntermediateRepresentation.Values.LinkedProcedureCall(procedureDeclaration, new() { new IntermediateRepresentation.Values.ArrayLiteral(stringType, InterpolatedValues.ConvertAll(value => IntermediateRepresentation.Values.ArithmeticCast.CastTo(value.GenerateIntermediateRepresentationForValue(irBuilder, stringType, willRevaluate), stringType, irBuilder)), irBuilder, this) }, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), stringType, irBuilder, this), stringType, irBuilder);
+                return IntermediateRepresentation.Values.ArithmeticCast.CastTo(new IntermediateRepresentation.Values.LinkedProcedureCall(procedureDeclaration, new() { new IntermediateRepresentation.Values.ArrayLiteral(stringType, InterpolatedValues.ConvertAll(value => IntermediateRepresentation.Values.ArithmeticCast.CastTo(value.GenerateIntermediateRepresentationForValue(irBuilder, stringType, willRevaluate), stringType, irBuilder)), irBuilder, this) }, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), stringType, irBuilder, this), stringType, irBuilder);
             throw new NotAProcedureException(interpolater, this);
         }
     }

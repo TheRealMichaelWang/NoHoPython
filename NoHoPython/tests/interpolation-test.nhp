@@ -2,11 +2,11 @@
 	string name
 	int age
 
-	def __init__(string name, int age):
+	pure __init__(string name, int age):
 		self.name = name
 		self.age = age
 
-	def to_string() string:
+	pure to_string() string:
 		return $"Name: {self.name}, Age: {self.age}"
 
 def interpol_str_test():

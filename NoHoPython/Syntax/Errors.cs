@@ -4,26 +4,33 @@ namespace NoHoPython.Syntax
 {
     public abstract class SyntaxError : Exception
     {
-        public SourceLocation SourceLocation { get; private set; }
+        public SourceLocation? SourceLocation { get; private set; }
 
-        public SyntaxError(SourceLocation sourceLocation, string message) : base(message)
+        public SyntaxError(SourceLocation? sourceLocation, string message) : base(message)
         {
             SourceLocation = sourceLocation;
         }
 
         public void Print()
         {
-            string rawLine = File.ReadAllLines(SourceLocation.File)[SourceLocation.Row - 1];
+            if(!SourceLocation.HasValue)
+            {
+                Console.WriteLine($"Syntax Error: {Message}");
+                Console.WriteLine("No valid source location provided; error occured in top-level inclusion. Perhaps user specified file wasn't found, or std.nhp - a requried standard library file - wasn't found.");
+                return;
+            }
+
+            string rawLine = File.ReadAllLines(SourceLocation.Value.File)[SourceLocation.Value.Row - 1];
             string errorLine = rawLine.TrimStart('\t');
             int trimmedTabs = rawLine.Length - errorLine.Length + 2;
 
             Console.WriteLine($"Syntax Error: {Message}");
-            Console.WriteLine($"\nin file {SourceLocation.File}:\n");
+            Console.WriteLine($"\nin file {SourceLocation.Value.File}:\n");
 
-            Console.WriteLine($"{SourceLocation.Row}:\t{errorLine}");
+            Console.WriteLine($"{SourceLocation.Value.Row}:\t{errorLine}");
 
             Console.Write('\t');
-            for (int i = trimmedTabs; i < SourceLocation.Column - 1; i++)
+            for (int i = trimmedTabs; i < SourceLocation.Value.Column - 1; i++)
                 Console.Write(' ');
             Console.WriteLine('^');
         }

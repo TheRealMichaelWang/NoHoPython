@@ -1,4 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
 
@@ -77,13 +79,31 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public FalseLiteral(IAstElement errorReportedElement) => ErrorReportedElement = errorReportedElement;
     }
 
+    public sealed partial class NullPointerLiteral : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public bool IsTruey => false;
+        public bool IsFalsey => true;
+
+        public IType Type { get; private set; }
+
+        public NullPointerLiteral(IType expectedType, IAstElement errorReportedElement)
+        {
+            if (!(expectedType is HandleType || (expectedType is ForeignCType foreignType && foreignType.Declaration.PointerPropertyAccess)))
+                throw new UnexpectedTypeException(expectedType, errorReportedElement);
+
+            Type = expectedType;
+            ErrorReportedElement = errorReportedElement;
+        }
+    }
+
     public sealed partial class StaticCStringLiteral : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
-        public IType Type => Primitive.Handle;
+        public IType Type => Primitive.CString;
         
         public string String { get; private set; }
 
@@ -123,17 +143,24 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public readonly List<IRValue> Elements;
 
-        public ArrayLiteral(IType elementType, List<IRValue> elements, IAstElement errorReportedElement)
+        public ArrayLiteral(IType elementType, List<IRValue> elements, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             ElementType = elementType;
             Elements = elements;
             ErrorReportedElement = errorReportedElement;
 
             for (int i = 0; i < elements.Count; i++)
-                elements[i] = ArithmeticCast.CastTo(elements[i], ElementType);
+                elements[i] = ArithmeticCast.CastTo(elements[i], ElementType, irBuilder);
         }
 
-        public ArrayLiteral(List<IRValue> elements, IAstElement errorReportedElement)
+        private ArrayLiteral(IType elementType, List<IRValue> elements, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            ElementType = elementType;
+            Elements = elements;
+        }
+
+        public ArrayLiteral(List<IRValue> elements, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             Elements = new List<IRValue>(elements.Count);
             ErrorReportedElement = errorReportedElement;
@@ -143,7 +170,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 try
                 {
                     for (int i = 0; i < elements.Count; i++)
-                        Elements.Add(ArithmeticCast.CastTo(elements[i], type));
+                        Elements.Add(ArithmeticCast.CastTo(elements[i], type, irBuilder));
                     return true;
                 }
                 catch (UnexpectedTypeException)
@@ -171,52 +198,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
-        public TupleType TupleType => new TupleType(TupleElements.ConvertAll((elem) => elem.Type));
+        public TupleType TupleType => new TupleType(Elements.ConvertAll((elem) => elem.Type));
 
-        public readonly List<IRValue> TupleElements;
+        public readonly List<IRValue> Elements;
 
         public TupleLiteral(List<IRValue> tupleElements, IAstElement errorReportedElement)
         {
-            TupleElements = tupleElements;
+            Elements = tupleElements;
             ErrorReportedElement = errorReportedElement;
 
-            //sort tuple elements
-            ITypeComparer comparer = new();
-            TupleElements.Sort((a, b) => comparer.Compare(a.Type, b.Type));
-        }
-    }
-
-    public sealed partial class InterpolatedString : IRValue
-    {
-        public IAstElement ErrorReportedElement { get; private set; }
-
-        public IType Type => TargetArrayChar ? new ArrayType(Primitive.Character) : Primitive.Handle;
-
-        public bool IsTruey => false;
-        public bool IsFalsey => false;
-
-        public readonly List<object> InterpolatedValues; //all objects are either IRValue or string
-
-        private bool TargetArrayChar;
-
-        public InterpolatedString(List<object> interpolatedValues, bool targetArrayChar, IAstElement errorReportedElement)
-        {
-            InterpolatedValues = new(interpolatedValues.Count);
-            ErrorReportedElement = errorReportedElement;
-            TargetArrayChar = targetArrayChar;
-
-            for (int i = 0; i < interpolatedValues.Count; i++)
-            {
-                if (interpolatedValues[i] is IRValue irValue)
-                    InterpolatedValues.Add(irValue);
-                else if (interpolatedValues[i] is string str)
-                {
-                    if (str != string.Empty)
-                        InterpolatedValues.Add(str);
-                }
-                else
-                    throw new InvalidOperationException();
-            }
+            ITypeComparer typeComparer = new();
+            Elements.Sort((elem1, elem2) => typeComparer.Compare(elem1.Type, elem2.Type));
         }
     }
 
@@ -231,12 +223,20 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue Length { get; private set; }
         public IRValue ProtoValue { get; private set; }
 
+        public AllocArray(IType elementType, IRValue length, IRValue protoValue, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            ElementType = elementType;
+            Length = ArithmeticCast.CastTo(length, Primitive.Integer, irBuilder);
+            ProtoValue = ArithmeticCast.CastTo(protoValue, ElementType, irBuilder);
+        }
+
         public AllocArray(IType elementType, IRValue length, IRValue protoValue, IAstElement errorReportedElement)
         {
             ErrorReportedElement = errorReportedElement;
             ElementType = elementType;
-            Length = ArithmeticCast.CastTo(length, Primitive.Integer);
-            ProtoValue = ArithmeticCast.CastTo(protoValue, ElementType);
+            Length = length;
+            ProtoValue = protoValue;
         }
     }
 
@@ -266,7 +266,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public RecordType RecordPrototype { get; private set; }
 
-        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, IAstElement errorReportedElement) : base(recordPrototype.GetConstructorParameterTypes(), constructorArguments, errorReportedElement)
+        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(recordPrototype.GetConstructorParameterTypes(), constructorArguments, irBuilder, Purity.Pure, errorReportedElement)
+        {
+            RecordPrototype = recordPrototype;
+        }
+
+        private AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, IAstElement errorReportedElement) : base(constructorArguments, Purity.Pure, errorReportedElement)
         {
             RecordPrototype = recordPrototype;
         }
@@ -305,6 +310,11 @@ namespace NoHoPython.Syntax.Values
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.EmptyTypeLiteral(Primitive.Nothing, this);
     }
 
+    partial class NullPointerLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.NullPointerLiteral(expectedType ?? Primitive.Handle, this);
+    }
+
     partial class ArrayLiteral
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
@@ -317,9 +327,9 @@ namespace NoHoPython.Syntax.Values
 
             List<IRValue> elements = Elements.ConvertAll((IAstValue element) => element.GenerateIntermediateRepresentationForValue(irBuilder, inferedElementType, willRevaluate));
             if (inferedElementType != null)
-                return new IntermediateRepresentation.Values.ArrayLiteral(inferedElementType, elements, this);
+                return new IntermediateRepresentation.Values.ArrayLiteral(inferedElementType, elements, irBuilder, this);
             else
-                return new IntermediateRepresentation.Values.ArrayLiteral(elements, this);
+                return new IntermediateRepresentation.Values.ArrayLiteral(elements, irBuilder, this);
         }
     }
 
@@ -329,12 +339,17 @@ namespace NoHoPython.Syntax.Values
         {
             if((expectedType is ArrayType arrayType && arrayType.ElementType is CharacterType) || (expectedType is MemorySpan spanType && spanType.ElementType is CharacterType)) //return array of string
             {
-                return new IntermediateRepresentation.Values.ArrayLiteral(Primitive.Character, String.ToList().ConvertAll((c) => (IRValue)new IntermediateRepresentation.Values.CharacterLiteral(c, this)), this);
+                return new IntermediateRepresentation.Values.ArrayLiteral(Primitive.Character, String.ToList().ConvertAll((c) => (IRValue)new IntermediateRepresentation.Values.CharacterLiteral(c, this)), irBuilder, this);
             }
             else if(expectedType is HandleType)
                 return new IntermediateRepresentation.Values.StaticCStringLiteral(String, this);
 
-            return new IntermediateRepresentation.Values.AllocRecord(Primitive.GetStringType(irBuilder, this), new List<IRValue>() { new IntermediateRepresentation.Values.StaticCStringLiteral(String, this), new IntermediateRepresentation.Values.TrueLiteral(this) }, this);
+            IScopeSymbol stringMarshaller = irBuilder.SymbolMarshaller.FindSymbol("stringImpl:makeString", this);
+            if(stringMarshaller is ProcedureDeclaration procedureDeclaration)
+            {
+                return new IntermediateRepresentation.Values.LinkedProcedureCall(procedureDeclaration, new() { new IntermediateRepresentation.Values.StaticCStringLiteral(String, this), new IntermediateRepresentation.Values.IntegerLiteral(String.Length, this) }, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), Primitive.GetStringType(irBuilder, this), irBuilder, this);
+            }
+            throw new NotAProcedureException(stringMarshaller, this);
         }
     }
 
@@ -342,39 +357,11 @@ namespace NoHoPython.Syntax.Values
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
-            List<object> IRInterpolatedValues = new();
-
-            RecordType stringType = Primitive.GetStringType(irBuilder, this);
-            foreach (object value in InterpolatedValues)
-            {
-                if (value is IAstValue astValue)
-                {
-                    IRValue irValue = astValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate);
-
-                    if (!irValue.Type.HasFormatSpecifier)
-                    {
-                        try
-                        {
-                            irValue = IntermediateRepresentation.Values.ArithmeticCast.CastTo(irValue, stringType);
-                        }
-                        catch
-                        {
-                            irValue = IntermediateRepresentation.Values.ArithmeticCast.CastTo(irValue, new ArrayType(Primitive.Character));
-                        }
-                    }
-
-                    IRInterpolatedValues.Add(irValue);
-                }
-                else
-#pragma warning disable CS8604 // Possible null reference argument.
-                    IRInterpolatedValues.Add(value as string);
-#pragma warning restore CS8604 // Possible null reference argument.
-            }
-
-            if (expectedType is ArrayType arrayType && arrayType.ElementType is CharacterType)
-                return new IntermediateRepresentation.Values.InterpolatedString(IRInterpolatedValues, true, this);
-
-            return new IntermediateRepresentation.Values.AllocRecord(Primitive.GetStringType(irBuilder, this), new List<IRValue>() { new IntermediateRepresentation.Values.InterpolatedString(IRInterpolatedValues, false, this), new IntermediateRepresentation.Values.FalseLiteral(this) }, this);
+            IType stringType = Primitive.GetStringType(irBuilder, this);
+            IScopeSymbol interpolater = irBuilder.SymbolMarshaller.FindSymbol("stringImpl:interpolate", this);
+            if (interpolater is ProcedureDeclaration procedureDeclaration)
+                return IntermediateRepresentation.Values.ArithmeticCast.CastTo(new IntermediateRepresentation.Values.LinkedProcedureCall(procedureDeclaration, new() { new IntermediateRepresentation.Values.ArrayLiteral(stringType, InterpolatedValues.ConvertAll(value => IntermediateRepresentation.Values.ArithmeticCast.CastTo(value.GenerateIntermediateRepresentationForValue(irBuilder, stringType, willRevaluate), stringType, irBuilder)), irBuilder, this) }, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), stringType, irBuilder, this), stringType, irBuilder);
+            throw new NotAProcedureException(interpolater, this);
         }
     }
 
@@ -388,7 +375,7 @@ namespace NoHoPython.Syntax.Values
                 ? expectedArrayType.ElementType
                 : throw new UnexpectedTypeException(expectedType ?? Primitive.Nothing, this);
 
-            IRValue protoIRValue = ProtoValue == null ? elementType.GetDefaultValue(this) : ProtoValue.GenerateIntermediateRepresentationForValue(irBuilder, elementType, willRevaluate);
+            IRValue protoIRValue = ProtoValue == null ? elementType.GetDefaultValue(this, irBuilder) : ProtoValue.GenerateIntermediateRepresentationForValue(irBuilder, elementType, willRevaluate);
 
             if (Length is IntegerLiteral integerLiteral)
                 return new IntermediateRepresentation.Values.AllocMemorySpan(elementType, (int)integerLiteral.Number, protoIRValue, this);
@@ -408,7 +395,7 @@ namespace NoHoPython.Syntax.Values
                 : throw new UnexpectedTypeException(expectedType ?? Primitive.Nothing, this);
 
             return prototype is RecordType record
-                ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), this)
+                ? (IRValue)new IntermediateRepresentation.Values.AllocRecord(record, Arguments.ConvertAll((IAstValue argument) => argument.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate)), irBuilder, this)
                 : throw new UnexpectedTypeException(prototype, this);
         }
     }

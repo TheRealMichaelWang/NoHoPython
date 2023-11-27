@@ -1,7 +1,5 @@
 ﻿include "mem.nhp"
 
-#linked lists no longer work because of restrictions on match statements; matched variables are copies of the original enum values. See issue #18 for more details
-
 enum nullable<T>:
 	T
 	None
@@ -20,9 +18,9 @@ class list<T>:
 	def __init__():
 		self.head = None
 	
-	def isEmpty() bool:
+	def get_isEmpty() bool:
 		match self.head:
-			node<T> head:
+			node<T>:
 				return False
 			None:
 				return True
@@ -33,28 +31,28 @@ class list<T>:
 	def pushBack(T elem):
 		def internalPushBack(node<T> parent):
 			match parent.next:
-				node<T> next:
-					internalPushBack(next)
+				node<T>:
+					internalPushBack(parent.next)
 				None:
 					parent.next = new node<T>(elem, None)
 		match self.head:
-			node<T> head:
-				internalPushBack(head)
+			node<T>:
+				internalPushBack(self.head)
 			None:
 				self.head = new node<T>(elem, None)
 	
 	def popFront() nullable<T>:
 		match self.head:
-			node<T> head:
-				toret = head.elem
-				self.head = head.next
+			node<T>:
+				toret = self.head.elem
+				self.head = self.head.next
 				return toret
 			None:
 				return None
 
 def main():
 	def test():
-		cdef printf(handle, int) None
+		cdef printf(handle<char>, int) None
 		mem::report()
 		myList = new list<int>()
 		
@@ -62,12 +60,12 @@ def main():
 			myList.pushBack(i)
 		mem::report()
 		
-		stop = myList.isEmpty
-		while stop() == False:
-			match res=myList.popFront():
+		while myList.isEmpty == False:
+			match myList.popFront():
 				int j:
-					printf(fmt="%i\n\0", j)
+					printf("%i\n\0", j)
 				None:
 					break
+		mem::report()
 	
 	mem::leaksan(test)

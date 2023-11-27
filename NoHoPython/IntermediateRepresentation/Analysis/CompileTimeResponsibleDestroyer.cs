@@ -35,11 +35,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue? GetResponsibleDestroyer() => null;
     }
 
-    partial class InterpolatedString
-    {
-        public IRValue? GetResponsibleDestroyer() => null;
-    }
-
     partial class AnonymizeProcedure
     {
         public IRValue? GetResponsibleDestroyer() => null;
@@ -51,6 +46,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     }
 
     partial class ArithmeticCast
+    {
+        public IRValue? GetResponsibleDestroyer() => null;
+    }
+
+    partial class HandleCast
     {
         public IRValue? GetResponsibleDestroyer() => null;
     }
@@ -117,7 +117,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class UnwrapEnumValue
     {
-        public IRValue? GetResponsibleDestroyer() => null;
+        public IRValue? GetResponsibleDestroyer() => EnumValue.GetResponsibleDestroyer();
     }
 
     partial class CheckEnumOption
@@ -146,8 +146,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (ifTrueResponsibleDestroyer == null && ifFalseResponsibleDestroyer == null)
                     return null;
 
-                IRValue nullPtr = ArithmeticCast.CastTo(new IntegerLiteral(0, ErrorReportedElement), Primitive.Handle);
-                return new IfElseValue(Condition.GetPostEvalPure(), ifTrueResponsibleDestroyer ?? nullPtr, ifFalseResponsibleDestroyer ?? nullPtr, ErrorReportedElement);
+                return new IfElseValue(Type, Condition.GetPostEvalPure(), ifTrueResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ifFalseResponsibleDestroyer ?? new NullPointerLiteral(Primitive.Handle, ErrorReportedElement), ErrorReportedElement);
             }
         }
     }
@@ -193,6 +192,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     }
 
     partial class FalseLiteral
+    {
+        public IRValue? GetResponsibleDestroyer() => null;
+    }
+
+    partial class NullPointerLiteral
     {
         public IRValue? GetResponsibleDestroyer() => null;
     }

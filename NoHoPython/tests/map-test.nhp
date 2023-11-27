@@ -2,18 +2,10 @@
 include "io.nhp"
 
 def main():
-	def dj2b(array<char> str) int:
-		accum = 0
-		for i from 0 within str:
-			accum = (accum * 33) + str[i]
-		return accum
+	mapRaw = new data::treemap<string, string>(std::fastStrcmp)
+	map = mapRaw as data::map<string, string>
 	
-	input = io::input()
-	output = io::output()
-	#map = new data::hashmap<array<char>, array<char>>(dj2b, 256)
-	mapRaw = new data::treemap<array<char>, array<char>>(lambda array<char> a, array<char> b: dj2b(a) - dj2b(b))
-	map = mapRaw as data::map<array<char>, array<char>>
 	while True:
-		name = input.readLine()
+		name = input()
 		map.emplace(name, name)
-		output.writeLine(map.get(name))
+		print(map.get(name))

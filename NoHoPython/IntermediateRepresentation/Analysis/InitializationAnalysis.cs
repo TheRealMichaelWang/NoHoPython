@@ -1,18 +1,34 @@
 ﻿using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
+using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.IntermediateRepresentation
 {
     partial interface IRValue
     {
+        public bool IsReadOnly { get; }
+
+        //analyzes code, and property initialization, within a constructor
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue);
+       
+        //analyzes code within message receivers (record methods) that aren't constructors
         public void NonConstructorPropertyAnalysis();
+
+        //analyzes code outside of record methods
+        public void NonMessageReceiverAnalysis();
     }
 
     partial interface IRStatement
     {
+        //analyzes property initialization within a constructor
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration);
+
+        //analyzes code within message receivers (record methods) that aren't constructors
         public void NonConstructorPropertyAnalysis();
+
+        //analyzes code outside of record methods
+        public void NonMessageReceiverAnalysis();
     }
 }
 
@@ -22,43 +38,52 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
         public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
+        public void NonMessageReceiverAnalysis() => throw new InvalidOperationException();
     }
 
     partial class InterfaceDeclaration
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
         public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
+        public void NonMessageReceiverAnalysis() => throw new InvalidOperationException();
     }
 
     partial class RecordDeclaration
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
         public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
+        public void NonMessageReceiverAnalysis() => throw new InvalidOperationException();
     }
 
-    partial class ProcedureDeclaration
+    partial class ForeignCDeclaration
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
+        public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
+        public void NonMessageReceiverAnalysis() => throw new InvalidOperationException();
     }
 
     partial class ForeignCProcedureDeclaration
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
         public void NonConstructorPropertyAnalysis() { }
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class CSymbolDeclaration
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
         public void NonConstructorPropertyAnalysis() { }
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class CodeBlock
     {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-        public void CodeBlockAnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Statements.ForEach((statement) => statement.AnalyzePropertyInitialization(initializedProperties, recordDeclaration));
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Statements.ForEach((statement) => statement.AnalyzePropertyInitialization(initializedProperties, recordDeclaration));
 
         public void NonConstructorPropertyAnalysis() => Statements.ForEach((statement) => statement.NonConstructorPropertyAnalysis());
+
+        public void NonMessageReceiverAnalysis() => Statements.ForEach((statement) => statement.NonMessageReceiverAnalysis());
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
     }
 
@@ -66,30 +91,39 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
         public void NonConstructorPropertyAnalysis() { }
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class AssertStatement
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Condition.AnalyzePropertyInitialization(initializedProperties,recordDeclaration, true);
         public void NonConstructorPropertyAnalysis() => Condition.NonConstructorPropertyAnalysis();
+        public void NonMessageReceiverAnalysis() => Condition.NonMessageReceiverAnalysis();
     }
 
     partial class IfBlock
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
         public void NonConstructorPropertyAnalysis() => IfTrueBlock.NonConstructorPropertyAnalysis();
+        public void NonMessageReceiverAnalysis() => IfTrueBlock.NonMessageReceiverAnalysis();
     }
 
     partial class IfElseBlock
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
         {
-            SortedSet<RecordDeclaration.RecordProperty> ifTrueInitialized = new();
-            SortedSet<RecordDeclaration.RecordProperty> ifFalseInitialized = new();
+            SortedSet<RecordDeclaration.RecordProperty> ifTrueInitialized = new(initializedProperties);
+            SortedSet<RecordDeclaration.RecordProperty> ifFalseInitialized = new(initializedProperties);
 
             Condition.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            IfTrueBlock.CodeBlockAnalyzePropertyInitialization(ifTrueInitialized, recordDeclaration);
-            IfFalseBlock.CodeBlockAnalyzePropertyInitialization(ifFalseInitialized, recordDeclaration);
+            IfTrueBlock.AnalyzePropertyInitialization(ifTrueInitialized, recordDeclaration);
+            IfFalseBlock.AnalyzePropertyInitialization(ifFalseInitialized, recordDeclaration);
+
+            foreach(RecordDeclaration.RecordProperty property in initializedProperties)
+            {
+                ifTrueInitialized.Remove(property);
+                ifFalseInitialized.Remove(property);
+            }
 
             foreach (RecordDeclaration.RecordProperty initializedProperty in ifTrueInitialized)
                 if (ifFalseInitialized.Contains(initializedProperty))
@@ -102,6 +136,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             IfTrueBlock.NonConstructorPropertyAnalysis();
             IfFalseBlock.NonConstructorPropertyAnalysis();
         }
+
+        public void NonMessageReceiverAnalysis()
+        {
+            Condition.NonMessageReceiverAnalysis();
+            IfTrueBlock.NonMessageReceiverAnalysis();
+            IfFalseBlock.NonMessageReceiverAnalysis();
+        }
     }
 
     partial class WhileBlock
@@ -112,6 +153,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             Condition.NonConstructorPropertyAnalysis();
             WhileTrueBlock.NonConstructorPropertyAnalysis();
+        }
+
+        public void NonMessageReceiverAnalysis()
+        {
+            Condition.NonMessageReceiverAnalysis();
+            WhileTrueBlock.NonMessageReceiverAnalysis();
         }
     }
 
@@ -129,23 +176,47 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             UpperBound.NonConstructorPropertyAnalysis();
             IterationBlock.NonConstructorPropertyAnalysis();
         }
+
+        public void NonMessageReceiverAnalysis()
+        {
+            IteratorVariableDeclaration.NonMessageReceiverAnalysis();
+            UpperBound.NonMessageReceiverAnalysis();
+            IterationBlock.NonMessageReceiverAnalysis();
+        }
     }
 
     partial class MatchStatement
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
         {
+            if (!IsExhaustive)
+                return;
+
             List<SortedSet<RecordDeclaration.RecordProperty>> handlerInitialized = new(MatchHandlers.Count);
-            foreach(MatchHandler handler in MatchHandlers)
+
+            if (DefaultHandler != null)
             {
-                SortedSet<RecordDeclaration.RecordProperty> handlerInitted = new();
-                handler.ToExecute.CodeBlockAnalyzePropertyInitialization(handlerInitted, recordDeclaration);
+                SortedSet<RecordDeclaration.RecordProperty> defaultInitialized = new(initializedProperties);
+                DefaultHandler.AnalyzePropertyInitialization(defaultInitialized, recordDeclaration);
+                handlerInitialized.Add(defaultInitialized);
+            }
+
+            foreach (MatchHandler handler in MatchHandlers)
+            {
+                SortedSet<RecordDeclaration.RecordProperty> handlerInitted = new(initializedProperties);
+                handler.ToExecute.AnalyzePropertyInitialization(handlerInitted, recordDeclaration);
                 handlerInitialized.Add(handlerInitted);
             }
-            if(handlerInitialized.Count > 0)
+            if (handlerInitialized.Count > 0)
             {
+                foreach(SortedSet<RecordDeclaration.RecordProperty> s in handlerInitialized)
+                {
+                    foreach (RecordDeclaration.RecordProperty prop in initializedProperties)
+                        s.Remove(prop);
+                }
+
                 SortedSet<RecordDeclaration.RecordProperty> commonInit = handlerInitialized[0];
-                foreach(RecordDeclaration.RecordProperty common in commonInit)
+                foreach (RecordDeclaration.RecordProperty common in commonInit)
                 {
                     bool initFlag = true;
                     for (int i = 1; i < handlerInitialized.Count; i++)
@@ -160,7 +231,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void NonConstructorPropertyAnalysis() => MatchHandlers.ForEach((handler) => handler.ToExecute.NonConstructorPropertyAnalysis());
+        public void NonConstructorPropertyAnalysis()
+        {
+            DefaultHandler?.NonConstructorPropertyAnalysis();
+            MatchHandlers.ForEach((handler) => handler.ToExecute.NonConstructorPropertyAnalysis());
+        }
+
+        public void NonMessageReceiverAnalysis()
+        {
+            DefaultHandler?.NonMessageReceiverAnalysis();
+            MatchHandlers.ForEach((handler) => handler.ToExecute.NonMessageReceiverAnalysis());
+        }
     }
 
     partial class ReturnStatement
@@ -168,6 +249,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ToReturn.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
         public void NonConstructorPropertyAnalysis() => ToReturn.NonConstructorPropertyAnalysis();
+
+        public void NonMessageReceiverAnalysis() => ToReturn.NonMessageReceiverAnalysis();
     }
 
     partial class AbortStatement
@@ -175,21 +258,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AbortMessage?.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
         public void NonConstructorPropertyAnalysis() => AbortMessage?.NonConstructorPropertyAnalysis();
+
+        public void NonMessageReceiverAnalysis() => AbortMessage?.NonMessageReceiverAnalysis();
     }
 
     partial class MemoryDestroy
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
-        {
-            Address.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            Index?.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-        }
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Address.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis()
-        {
-            Address.NonConstructorPropertyAnalysis();
-            Index?.NonConstructorPropertyAnalysis();
-        }
+        public void NonConstructorPropertyAnalysis() => Address.NonConstructorPropertyAnalysis();
+
+        public void NonMessageReceiverAnalysis() => Address.NonMessageReceiverAnalysis();
     }
 }
 
@@ -208,6 +287,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Length.NonConstructorPropertyAnalysis();
             ProtoValue.NonConstructorPropertyAnalysis();
         }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis()
+        {
+            Length.NonMessageReceiverAnalysis();
+            ProtoValue.NonMessageReceiverAnalysis();
+        }
     }
 
     partial class AllocMemorySpan
@@ -215,6 +302,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => ProtoValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
         public void NonConstructorPropertyAnalysis() => ProtoValue.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => ProtoValue.NonMessageReceiverAnalysis();
     }
 
     partial class ArrayLiteral
@@ -222,13 +313,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Elements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true));
 
         public void NonConstructorPropertyAnalysis() => Elements.ForEach((element) => element.NonConstructorPropertyAnalysis());
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => Elements.ForEach((element) => element.NonConstructorPropertyAnalysis());
     }
 
     partial class TupleLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => TupleElements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true));
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Elements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true));
 
-        public void NonConstructorPropertyAnalysis() => TupleElements.ForEach((element) => element.NonConstructorPropertyAnalysis());
+        public void NonConstructorPropertyAnalysis() => Elements.ForEach((element) => element.NonConstructorPropertyAnalysis());
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => Elements.ForEach((element) => element.NonMessageReceiverAnalysis());
     }
 
     partial class MarshalIntoLowerTuple
@@ -236,21 +335,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true); 
         
         public void NonConstructorPropertyAnalysis() => Value.NonConstructorPropertyAnalysis();
-    }
 
-    partial class InterpolatedString
-    {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsed) => InterpolatedValues.ForEach((value) =>
-        {
-            if (value is IRValue irValue)
-                irValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-        });
+        public bool IsReadOnly => false;
 
-        public void NonConstructorPropertyAnalysis() => InterpolatedValues.ForEach((value) =>
-        {
-            if (value is IRValue irValue)
-                irValue.NonConstructorPropertyAnalysis();
-        });
+        public void NonMessageReceiverAnalysis() => Value.NonMessageReceiverAnalysis();
     }
 
     partial class AnonymizeProcedure
@@ -258,23 +346,66 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class ProcedureCall
     {
-        public virtual void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Arguments.ForEach((arg) => arg.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true));
+        public virtual void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        {
+            Arguments.ForEach((arg) => arg.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true));
+            AnalyzeReadonlyCall();
+        }
 
         public virtual void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
 
-        public void NonConstructorPropertyAnalysis() => Arguments.ForEach((arg) => arg.NonConstructorPropertyAnalysis());
+        public virtual void NonConstructorPropertyAnalysis()
+        {
+            Arguments.ForEach((arg) => arg.NonConstructorPropertyAnalysis());
+            AnalyzeReadonlyCall();
+        }
+
+        protected virtual void AnalyzeReadonlyCall()
+        {
+            if (FunctionPurity == Purity.Pure)
+                return;
+
+            foreach (IRValue argument in Arguments)
+                if (argument.IsReadOnly && IType.HasChildren(argument.Type))
+                    throw new CannotMutateReadonlyValue(argument, ErrorReportedElement);
+        }
+
+        public bool IsReadOnly => false;
+
+        public virtual void NonMessageReceiverAnalysis() 
+        {
+            Arguments.ForEach((arg) => arg.NonMessageReceiverAnalysis());
+            AnalyzeReadonlyCall();
+        } 
     }
 
     partial class AnonymousProcedureCall
     {
         public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
+            ProcedureValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, isUsingValue);
             if(!recordDeclaration.AllPropertiesInitialized(initializedProperties))
                 throw new CannotUseUninitializedSelf(ErrorReportedElement);
+        }
+
+        public override void NonConstructorPropertyAnalysis()
+        {
+            ProcedureValue.NonConstructorPropertyAnalysis();
+            base.NonConstructorPropertyAnalysis();
+        }
+
+        public override void NonMessageReceiverAnalysis()
+        {
+            ProcedureValue.NonMessageReceiverAnalysis();
+            base.NonMessageReceiverAnalysis();
         }
     }
 
@@ -284,6 +415,28 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             Record.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
             base.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, isUsingValue);
+        }
+
+        public override void NonConstructorPropertyAnalysis()
+        {
+            Record.NonConstructorPropertyAnalysis();
+            base.NonConstructorPropertyAnalysis();
+        }
+
+        public override void NonMessageReceiverAnalysis()
+        {
+            Record.NonMessageReceiverAnalysis();
+            base.NonMessageReceiverAnalysis();
+        }
+
+        protected override void AnalyzeReadonlyCall()
+        {
+            if (FunctionPurity == Purity.Pure)
+                return;
+
+            if (Record.IsReadOnly)
+                throw new CannotMutateReadonlyValue(Record, ErrorReportedElement);
+            base.AnalyzeReadonlyCall();
         }
     }
 
@@ -298,6 +451,33 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             base.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, isUsingValue);
         }
+
+        protected override void AnalyzeReadonlyCall()
+        {
+            if (FunctionPurity == Purity.Pure)
+                return;
+
+            base.AnalyzeReadonlyCall();
+
+            if (FunctionPurity <= Purity.OnlyAffectsArgumentsAndCaptured)
+            {
+                if (Procedure.ProcedureDeclaration.CapturedVariables.Count > 0)
+                {
+                    Debug.Assert(parentProcedure != null);
+
+                    foreach (Variable variable in Procedure.ProcedureDeclaration.CapturedVariables)
+                    {
+                        if (variable.IsRecordSelf && variable.ParentProcedure == Procedure.ProcedureDeclaration)
+                        {
+                            if (parentProcedure.Purity <= Purity.OnlyAffectsArguments)
+                                throw new CannotMutateVaraible(variable, true, ErrorReportedElement);
+                        }
+                        else if (parentProcedure.SanitizeVariable(variable, false, ErrorReportedElement).Item2)
+                            throw new CannotMutateVaraible(variable, true, ErrorReportedElement);
+                    }
+                }
+            }
+        }
     }
 
     partial class ArithmeticCast
@@ -305,6 +485,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
         public void NonConstructorPropertyAnalysis() => Input.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => Input.NonMessageReceiverAnalysis();
+    }
+
+    partial class HandleCast
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+
+        public void NonConstructorPropertyAnalysis() => Input.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => Input.NonMessageReceiverAnalysis();
     }
 
     partial class ArrayOperator
@@ -312,6 +507,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => ArrayValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
         public void NonConstructorPropertyAnalysis() => ArrayValue.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => ArrayValue.NonMessageReceiverAnalysis();
     }
 
     partial class SizeofOperator
@@ -319,6 +518,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class MemorySet
@@ -328,6 +531,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Address.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
             Index.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
             Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+
+            if (Address.IsReadOnly)
+                throw new CannotMutateReadonlyValue(Address, ErrorReportedElement);
         }
 
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
@@ -337,6 +543,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Address.NonConstructorPropertyAnalysis();
             Index.NonConstructorPropertyAnalysis();
             Value.NonConstructorPropertyAnalysis();
+
+            if (Address.IsReadOnly)
+                throw new CannotMutateReadonlyValue(Address, ErrorReportedElement);
+        }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis()
+        {
+            Address.NonMessageReceiverAnalysis();
+            Index.NonMessageReceiverAnalysis();
+            Value.NonMessageReceiverAnalysis();
+
+            if (Address.IsReadOnly)
+                throw new CannotMutateReadonlyValue(Address, ErrorReportedElement);
         }
     }
 
@@ -353,6 +574,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Length.NonConstructorPropertyAnalysis();
             Address.NonConstructorPropertyAnalysis();
         }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis()
+        {
+            Length.NonMessageReceiverAnalysis();
+            Address.NonMessageReceiverAnalysis();
+        }
     }
 
     partial class MarshalMemorySpanIntoArray
@@ -360,6 +589,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Span.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
         public void NonConstructorPropertyAnalysis() => Span.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => Span.NonMessageReceiverAnalysis();
     }
 
     partial class BinaryOperator
@@ -375,12 +608,25 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Left.NonConstructorPropertyAnalysis();
             Right.NonConstructorPropertyAnalysis();
         }
+
+        public virtual bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis()
+        {
+            Left.NonMessageReceiverAnalysis();
+            Right.NonMessageReceiverAnalysis();
+        }
     }
 
     partial class LogicalOperator
     {
         //only examine left hand only side because of short circuiting
         public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Left.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+    }
+
+    partial class MemoryGet
+    {
+        public override bool IsReadOnly => Left.IsReadOnly;
     }
 
     partial class GetValueAtIndex
@@ -396,6 +642,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Array.NonConstructorPropertyAnalysis();
             Index.NonConstructorPropertyAnalysis();
         }
+
+        public bool IsReadOnly => Array.IsReadOnly;
+
+        public void NonMessageReceiverAnalysis()
+        {
+            Array.NonMessageReceiverAnalysis();
+            Index.NonMessageReceiverAnalysis();
+        }
     }
 
     partial class SetValueAtIndex
@@ -405,6 +659,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Array.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
             Index.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
             Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+
+            if (Array.IsReadOnly)
+                throw new CannotMutateReadonlyValue(Array, ErrorReportedElement);
         }
 
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
@@ -414,6 +671,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Array.NonConstructorPropertyAnalysis();
             Index.NonConstructorPropertyAnalysis();
             Value.NonConstructorPropertyAnalysis();
+
+            if (Array.IsReadOnly)
+                throw new CannotMutateReadonlyValue(Array, ErrorReportedElement);
+        }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis()
+        {
+            Array.NonMessageReceiverAnalysis();
+            Index.NonMessageReceiverAnalysis();
+            Value.NonMessageReceiverAnalysis();
+
+            if (Array.IsReadOnly)
+                throw new CannotMutateReadonlyValue(Array, ErrorReportedElement);
         }
     }
 
@@ -432,6 +704,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
 
         public void NonConstructorPropertyAnalysis() => Record.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => Record.IsReadOnly || Property.IsReadOnly;
+
+        public void NonMessageReceiverAnalysis() => Record.NonMessageReceiverAnalysis();
     }
 
     partial class SetPropertyValue
@@ -443,21 +719,35 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Record.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
             Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
-            if (!Property.HasDefaultValue && Record is VariableReference variableReference && variableReference.Variable.IsRecordSelf)
+            if (!Property.HasDefaultValue && Record is VariableReference variableReference && variableReference.Variable.IsRecordSelf && !initializedProperties.Contains(Property))
             {
                 initializedProperties.Add(Property);
                 IsInitializingProperty = true;
             }
             else if (Property.IsReadOnly)
-                throw new CannotMutateReadonlyPropertyException(Property, ErrorReportedElement);
+                throw new CannotMutateReadonlyProperty(Property, ErrorReportedElement);
+            else if (Record.IsReadOnly)
+                throw new CannotMutateReadonlyValue(Record, ErrorReportedElement);
         }
 
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
 
         public void NonConstructorPropertyAnalysis()
         {
-            if (Property.IsReadOnly)
-                throw new CannotMutateReadonlyPropertyException(Property, ErrorReportedElement);
+            Record.NonConstructorPropertyAnalysis();
+
+            if (IsReadOnly)
+                throw new CannotMutateReadonlyValue(Record, ErrorReportedElement);
+        }
+
+        public bool IsReadOnly => Property.IsReadOnly || Record.IsReadOnly;
+
+        public void NonMessageReceiverAnalysis()
+        {
+            Record.NonMessageReceiverAnalysis();
+
+            if (IsReadOnly)
+                throw new CannotMutateReadonlyValue(Record, ErrorReportedElement);
         }
     }
 
@@ -466,13 +756,23 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
         public void NonConstructorPropertyAnalysis() => Value.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => Value.NonMessageReceiverAnalysis();
     }
 
     partial class UnwrapEnumValue
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => EnumValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+
         public void NonConstructorPropertyAnalysis() => EnumValue.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => EnumValue.NonMessageReceiverAnalysis();
     }
 
     partial class CheckEnumOption
@@ -480,6 +780,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => EnumValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
         public void NonConstructorPropertyAnalysis() => EnumValue.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => EnumValue.NonMessageReceiverAnalysis();
     }
 
     partial class MarshalIntoInterface
@@ -487,18 +791,28 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
 
         public void NonConstructorPropertyAnalysis() => Value.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => Value.NonMessageReceiverAnalysis();
     }
 
     partial class IfElseValue
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            SortedSet<RecordDeclaration.RecordProperty> ifTrueInitialized = new();
-            SortedSet<RecordDeclaration.RecordProperty> ifFalseInitialized = new();
+            SortedSet<RecordDeclaration.RecordProperty> ifTrueInitialized = new(initializedProperties);
+            SortedSet<RecordDeclaration.RecordProperty> ifFalseInitialized = new(initializedProperties);
 
             Condition.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
             IfTrueValue.AnalyzePropertyInitialization(ifTrueInitialized, recordDeclaration, isUsingValue);
             IfTrueValue.AnalyzePropertyInitialization(ifFalseInitialized, recordDeclaration, isUsingValue);
+
+            foreach (RecordDeclaration.RecordProperty property in initializedProperties)
+            {
+                ifTrueInitialized.Remove(property);
+                ifFalseInitialized.Remove(property);
+            }
 
             foreach (RecordDeclaration.RecordProperty initializedProperty in ifTrueInitialized)
                 if (ifFalseInitialized.Contains(initializedProperty))
@@ -506,6 +820,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
 
         public void NonConstructorPropertyAnalysis()
+        {
+            Condition.NonConstructorPropertyAnalysis();
+            IfTrueValue.NonConstructorPropertyAnalysis();
+            IfFalseValue.NonConstructorPropertyAnalysis();
+        }
+
+        public bool IsReadOnly => IfTrueValue.IsReadOnly || IfFalseValue.IsReadOnly;
+
+        public void NonMessageReceiverAnalysis()
         {
             Condition.NonConstructorPropertyAnalysis();
             IfTrueValue.NonConstructorPropertyAnalysis();
@@ -520,6 +843,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
 
         public void NonConstructorPropertyAnalysis() => InitialValue.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => InitialValue.NonMessageReceiverAnalysis();
     }
 
     partial class SetVariable
@@ -528,6 +855,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
 
         public void NonConstructorPropertyAnalysis() => SetValue.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => SetValue.NonMessageReceiverAnalysis();
     }
 
     partial class VariableReference
@@ -539,6 +870,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => IsConstant;
+
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class CSymbolReference
@@ -546,6 +881,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => true;
+
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class CharacterLiteral
@@ -553,6 +892,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class DecimalLiteral
@@ -560,6 +903,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class IntegerLiteral
@@ -567,6 +914,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class TrueLiteral
@@ -574,6 +925,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class FalseLiteral
@@ -581,6 +936,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() { }
+    }
+
+    partial class NullPointerLiteral
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+
+        public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class StaticCStringLiteral
@@ -588,6 +958,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() { }
     }
 
     partial class EmptyTypeLiteral
@@ -595,5 +969,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
         public void NonConstructorPropertyAnalysis() { }
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() { }
     }
 }

@@ -9,6 +9,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
     {
         public sealed partial class InterfaceProperty : Property
         {
+            public override bool IsReadOnly => true;
+
             public InterfaceProperty(string name, IType type) : base(name, type) { }
 
             public bool SatisfiesRequirement(Property property) => property.Name == Name && Type.IsCompatibleWith(property.Type);
@@ -83,16 +85,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Value = value;
             ErrorReportedElement = errorReportedElement;
 
-            if (value.Type is TypeParameterReference typeParameterReference)
-            {
-                if (typeParameterReference.TypeParameter.RequiredImplementedInterface is not null && typeParameterReference.TypeParameter.RequiredImplementedInterface is IPropertyContainer requiredContainer)
-                {
-                    if (!TargetType.SupportsProperties(requiredContainer.GetProperties()))
-                        throw new UnexpectedTypeException(typeParameterReference, errorReportedElement);
-                }
-                else
-                    throw new UnexpectedTypeException(typeParameterReference, errorReportedElement);
-            }
             if (value.Type is IPropertyContainer propertyContainer)
             {
                 if (!TargetType.SupportsProperties(propertyContainer.GetProperties()))
@@ -102,7 +94,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 throw new UnexpectedTypeException(value.Type, errorReportedElement);
         }
 
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => ArithmeticCast.CastTo(Value.SubstituteWithTypearg(typeargs), TargetType.SubstituteWithTypearg(typeargs));
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MarshalIntoInterface((InterfaceType)TargetType.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 }
 
@@ -111,7 +103,8 @@ namespace NoHoPython.Typing
     public sealed partial class InterfaceType : IType, IPropertyContainer
     {
         public string TypeName => $"{InterfaceDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
-        public string Identifier => $"{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}{(TypeArguments.Count == 0 ? string.Empty : $"_with_{string.Join("_", TypeArguments.ConvertAll((arg) => arg.TypeName))}")}";
+        public string Identifier => IType.GetIdentifier(IScopeSymbol.GetAbsolouteName(InterfaceDeclaration), TypeArguments.ToArray());
+        public string PrototypeIdentifier => IType.GetPrototypeIdentifier(IScopeSymbol.GetAbsolouteName(InterfaceDeclaration), InterfaceDeclaration.TypeParameters);
         public bool IsEmpty => false;
 
         public InterfaceDeclaration InterfaceDeclaration { get; private set; }
@@ -120,7 +113,7 @@ namespace NoHoPython.Typing
         private Lazy<List<InterfaceDeclaration.InterfaceProperty>> requiredImplementedProperties;
         private Lazy<Dictionary<string, InterfaceDeclaration.InterfaceProperty>> identifierPropertyMap;
 
-        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement) => throw new NoDefaultValueError(this, errorReportedElement);
+        public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
         public InterfaceType(InterfaceDeclaration interfaceDeclaration, List<IType> typeArguments, Syntax.IAstElement errorReportedElement) : this(interfaceDeclaration, TypeParameter.ValidateTypeArguments(interfaceDeclaration.TypeParameters, typeArguments, errorReportedElement))
         {
@@ -209,7 +202,7 @@ namespace NoHoPython.Syntax.Statements
         public void ForwardDeclare(AstIRProgramBuilder irBuilder)
         {
             irBuilder.SymbolMarshaller.NavigateToScope(IRInterfaceDeclaration);
-            IRInterfaceDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((InterfaceProperty property) => new IntermediateRepresentation.Statements.InterfaceDeclaration.InterfaceProperty(property.Identifier, property.Type.ToIRType(irBuilder, this))));
+            IRInterfaceDeclaration.DelayedLinkSetProperties(Properties.ConvertAll((property) => new IntermediateRepresentation.Statements.InterfaceDeclaration.InterfaceProperty(property.Item2, property.Item1.ToIRType(irBuilder, this))));
             irBuilder.SymbolMarshaller.GoBack();
         }
 

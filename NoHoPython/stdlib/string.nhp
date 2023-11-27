@@ -1,232 +1,193 @@
-﻿#North Hollywood Python Standard Library
+﻿# North Hollywood Python
+# (C) Michael Wang, 2021-2023
 
-#string.nhp
-#This file contains the standard library definiton of the string class, which is the usual type of all string literals. Do not modify or remove this file.
+# Standard String Library
+# This library implments standard string behavior - including the default string type, how strings are interpolated, how common primitives are converted to strings and vice versa.
+# This library doesn't depend on sprint
 
-mod std:
-	#like c-sharp StringBuilder, stringBuilder in nhp can construct variable length strings performantly
-	class stringBuilder:
-		handle cstr
-		int length = 0
-		int capacity
+def string array<char>
 
-		def __init__(int capacity):
-			cdef malloc(int) handle
+mod stringImpl:
+	pure makeString(handle<char> str, int length) string:
+		return marshal char[length](str)
 
-			self.capacity = capacity
-			self.cstr = malloc(capacity)
-			assert self.cstr != NULL
+	pure interpolate(array<string> toInterpolate) string:
+		count = 0
+		for i from 0 within toInterpolate:
+			count = count + toInterpolate[i] as int
+		buffer = new std::list<char>(count)
+		for i from 0 within toInterpolate:
+			buffer.addRange(toInterpolate[i])
+		return buffer
 
-		def __copy__() stringBuilder:
-			cdef memcpy(handle, handle, int) None
+mod typeExt:
+	pure bool_to_string(bool b) string:
+		return "True" if b else "False"
 
-			copiedBuilder = new stringBuilder(self.length)
-			memcpy(copiedBuilder.cstr, self.cstr, self.length)
-			copiedBuilder.length = self.length
+	pure char_to_string(char c) string:
+		return [c]
 
-			return copiedBuilder
+	pure int_to_string(int i) string:
+		x = i
+		buffer = new std::list<char>(10)
+		if x < 0:
+			buffer.pushBack('-')
+			x = -x
+		while x != 0:
+			buffer.pushBack(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'][x % 10])
+			x = x / 10
+		return buffer
 
-		def __del__():
-			cdef free(handle) None
-			free(self.cstr)
+	pure dec_to_string(dec dd) string:
+		d = dd
+		buffer = new std::list<char>(10)
+		if d < 0:
+			buffer.pushBack('-')
+			d = -d
 
-		def to_string() string:
-			cdef malloc(int) handle
-			cdef memcpy(handle, handle, int) None
-
-			newCStr = malloc(self.length + 1)
-			assert newCStr != NULL
-
-			memcpy(newCStr, self.cstr, self.length)
-			newCStr[self.length] = 0 as char
-
-			return new string(newCStr, false)
-
-		def ensureCapacity(int newCapacity):
-			cdef realloc(handle, int) handle
-
-			if newCapacity <= self.capacity:
-				return
-
-			self.capacity = newCapacity
-			self.cstr = realloc(self.cstr, self.capacity)
-			assert self.cstr != NULL
-
-		def appendChar(char c):
-			ensureCapacity(self.length + 1)
-			self.cstr[self.length] = c
-			self.length = self.length + 1
-
-		def appendCPtr(handle str, int length):
-			cdef memcpy(handle, handle, int) None
-
-			if length == 0:
-				return
-
-			ensureCapacity(length + self.capacity)
-
-			memcpy(self.cstr as int + self.length, str, length)
-			self.length = self.length + length
-
-		def appendCStr(handle cstr):
-			cdef strlen(handle) int
-			appendCPtr(cstr, strlen(cstr))
-
-		def appendArray(array<char> str):
-			appendCPtr(str as handle, str as int)
-
-		def append(string str):
-			appendCPtr(str.cstr, str.length)
-
-	def makeString(array<char> buf) string:
-		cdef malloc(int) handle
-		cdef memcpy(handle, handle, int) None
-
-		cstr = malloc(buf as int + 1)
-		assert cstr != NULL
-
-		memcpy(cstr, buf, buf)
-		cstr[buf as int] = 0 as char
-
-		return new string(cstr, false)
-
-	def strcmp(string a, string b) int:
-		return a.compare(b)
-
-	def fastStrcmp(string a, string b) int:
-		return a.hash - b.hash
-
-	#dj2b is a simple hashing algorithm
-	def dj2b(handle str, int length) int:
-		hash = 5381
-
-		for i from 0 within length:
-			#hash = hash * 33 + c
-			hash = ((hash lshift 5) + hash) + (str[i] as char)
-
-		return hash
-
-#default definition of a string. This is not a built in class per say, but all string literals are turned into the class defined below. DO NOT MODIFY
-class string:
-	handle cstr
-	bool isStatic
-	
-	int length
-	int hash
-	
-	def __init__(handle cstr, bool isStatic):
-		cdef strlen(handle) int
+		fpart = d % 1.0
+		ipart = (d - fpart) as int
 		
-		self.cstr = cstr
-		self.isStatic = isStatic
-		self.length = strlen(cstr)
-		self.hash = std::dj2b(cstr, self.length)
+		while ipart != 0:
+			buffer.pushBack(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'][ipart % 10])
+			ipart = ipart / 10
 		
-	def __copy__() string:
-		cdef malloc(int) handle
-		cdef strcpy(handle, handle) None
-		
-		newCStr = malloc(self.length + 1)
-		assert newCStr != NULL
-		
-		strcpy(newCStr, self.cstr)
-		
-		return new string(newCStr, false)
-		
-	def __del__():
-		cdef free(handle) None
-		if self.isStatic == False:
-			free(self.cstr)
-			
-	def to_array_char() array<char>:
-		return marshal char[self.length](self.cstr)
+		if fpart > 0:
+			buffer.pushBack('.')
+			while fpart > 0:
+				fpart = fpart * 10
+				buffer.pushBack(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'][(fpart % 1.0) as int])
 
-	def to_int() int:
-		cdef atol(handle) int
-		return atol(self.cstr)
+		return buffer
 
-	def to_dec() dec:
-		cdef atof(handle) dec
-		return atof(self.cstr)
-	
-	def compare(string s) int:
-		cdef strcmp(handle, handle) int
-		return strcmp(self.cstr, s.cstr)
-	
-	def getAtIndex(int i) char:
-		assert i >= 0 and i < self.length
-		return self.cstr[i] as char
 		
-	def add(string str) string:
-		cdef malloc(int) handle
-		cdef memcpy(handle, handle, int) None
+	pure string_parseBool(string str) option<bool>:
+		if str == "true" or str == "True":
+			return true
+		elif str == "false" or str == "False":
+			return false
+		return None
+
+	pure string_parseInt(string str) option<int>:
+		if str as int == 0:
+			return None
+
+		i = 0
+		accum = 0
+		factor = 1
+		negate = false
 		
-		concatCStr = malloc(self.length + str.length + 1)
-		assert concatCStr != NULL
-		
-		memcpy(concatCStr, self.cstr, self.length)
-		memcpy((concatCStr as int + self.length), str.cstr, str.length)
-		concatCStr[self.length + str.length] = 0 as char
-		
-		return new string(concatCStr, false)
-		
-	def substring(int i, int length) string:
-		cdef malloc(int) handle
-		cdef memcpy(handle, handle, int) None
-		
-		assert i >= 0 and i < self.length
-		assert i + length <= self.length
-		
-		destCStr = malloc(length + 1)
-		assert destCStr != NULL
-		
-		memcpy(destCStr, (self.cstr as int + i), length)
-		destCStr[length] = 0 as char
-		
-		return new string(destCStr, false)
-		
-	def find(string substr, int startIndex) int:
-		def matchPattern(int offset) bool:
-			for i from 0 within substr.length:
-				if self.cstr[i + offset] as char != substr.cstr[i] as char:
+		if str[0] == '-':
+			if str as int < 2:
+				return None
+			i = 1
+			negate = true
+
+		for j from i to str:
+			sigInd = str as int - j
+			if str[sigInd].isDigit == False:
+				return None
+			accum = (str[sigInd] - '0') * factor
+			factor = factor * 10
+		return -accum if negate else accum
+
+	pure string_parseDec(string str) option<dec>:
+		decimalLoc = str.searchChar('.', 0)
+		if decimalLoc == -1:
+			return (str.parseInt() as int) as dec
+		if decimalLoc == str as int - 1:
+			return None
+		intPart = str.subArray(0, decimalLoc).parseInt() as dec
+		fracPart = 0
+		fracDigits = str as int - (decimalLoc + 1)
+		factor = 0.1
+		for i from 0 within fracDigits:
+			if str[decimalLoc + 1 + i].isDigit == False:
+				return None
+			digit = (str[decimalLoc + 1 + i] - '0') as dec
+			fracPart = fracPart * (digit * factor)
+			factor = factor / 10
+		return intPart + fracPart
+
+	pure string_equals(string a, string b) bool:
+		if a as int != b as int:
+			return false
+		for i from 0 within a:
+			if a[i] != b[i]:
+				return false
+		return true
+
+	pure string_compare(string a, string b) int:
+		i = 0
+		while True:
+			if i == a as int:
+				return -b[i] if i < b as int else 0
+			if i == b as int:
+				return a[i]
+			if a[i] != b[i]:
+				break
+		return a[i] - b[i]
+
+	pure string_searchChar(string str, char c, int offset) int:
+		if offset >= str as int:
+			return -1
+
+		for i from offset within str:
+			if str[i] == c:
+				return i
+		return -1
+
+	pure string_searchPattern(string str, string pattern, int offset) int:
+		pure matchPattern(int index) bool:
+			for i from 0 within pattern:
+				if pattern[i] != str[offset + i]:
 					return false
 			return true
-			
-		for i from startIndex within self.length - substr.length:
+
+		if str as int < pattern as int:
+			return -1
+
+		for i from 0 within str as int - pattern as int:
 			if matchPattern(i):
 				return i
 		return -1
-		
-	def contains(string substr) bool:
-		return find(substr, 0) != -1
-		
-	def replace(string findStr, string replaceStr) string:
-		builder = new std::stringBuilder(self.length)
-		
-		i = 0
-		while True:
-			end = find(findStr, i)
-			if end == -1:
-				builder.appendCPtr(self.cstr as int + i, self.length - i)
-				return builder
-			else:
-				builder.appendCPtr(self.cstr as int + i, end - i)
-				builder.append(replaceStr)
-				i = end + findStr.length
-				
-	def split(string delim, bool includeEmpty) array<string>:
-		parts = new data::list<string>(10)
 
-		i = 0
-		while True:
-			end = find(delim, i)
-			if end == -1:
-				if i != self.length:
-					parts.pushBack(substring(i, self.length - i))
-				
-				return parts.toArray()
-			else:
-				if end != i:
-					parts.pushBack(substring(i, end - i))
-				
-				i = end + delim.length
+	pure string_startsWith(string str, string pattern) bool:
+		for i from 0 within pattern as int:
+			if i >= str as int:
+				return false
+			if str[i] != pattern[i]:
+				return false
+		return true
+
+	pure string_splitPattern(string str, string splitPattern, bool removeEmptyEntries) array<string>:
+		parts = new std::list<string>(4)
+		offset = 0
+		while (i = str.searchPattern(splitPattern, offset)) != -1:
+			if (removeEmptyEntries and i == offset) == False:
+				parts.pushBack(str.subArray(offset, i - offset))
+			offset = i + splitPattern as int
+		if (removeEmptyEntries and offset == str as int) == False:
+			parts.pushBack(str.subArray(offset, str as int - offset))
+		return parts
+
+	pure string_splitChar(string str, char splitChar, bool removeEmptyEntries) array<string>:
+		parts = new std::list<string>(4)
+		offset = 0
+		while (i = str.searchChar(splitChar, offset)) != -1:
+			if (removeEmptyEntries and i == offset) == False:
+				parts.pushBack(str.subArray(offset, i - offset))
+			offset = i + 1
+		if (removeEmptyEntries and offset == str as int) == False:
+			parts.pushBack(str.subArray(offset, str as int - offset))
+		return parts
+
+	pure string_replace(string str, string pattern, string replace) string:
+		result = new std::list<char>(str as int)
+		offset = 0
+		while (i = str.searchPattern(pattern, offset)) != -1:
+			result.addRange(str.subArray(offset, i - offset))
+			result.addRange(replace)
+			offset = i + pattern as int
+		result.addRange(str.subArray(offset, str as int - offset))
+		return result

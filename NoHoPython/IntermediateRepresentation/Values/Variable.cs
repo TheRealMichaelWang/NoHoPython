@@ -18,11 +18,11 @@ namespace NoHoPython.Scoping
         public SymbolContainer ParentContainer => ParentProcedure;
         public IAstElement ErrorReportedElement { get; private set; }
 
-        public string GetStandardIdentifier() => $"_nhp_var_{Name}";
+        public string GetStandardIdentifier() => $"nhp_var_{Name}";
 
-        public Variable(IType type, string name, ProcedureDeclaration parentProcedure, bool isRecordSelf, IAstElement errorReportedElement)
+        public Variable(IType initialType, string name, ProcedureDeclaration parentProcedure, bool isRecordSelf, IAstElement errorReportedElement)
         {
-            Type = type;
+            Type = initialType;
             Name = name;
             ParentProcedure = parentProcedure;
             IsRecordSelf = isRecordSelf;
@@ -37,31 +37,15 @@ namespace NoHoPython.Scoping
 
         public IType Type { get; private set; }
         public string Name { get; private set; }
+        public bool IsMutableGlobal { get; private set; }
 
-        public CSymbol(IType type, string name, SymbolContainer parentContainer, IAstElement errorReportedElement)
+        public CSymbol(IType type, string name, bool isMutableGlobal, SymbolContainer parentContainer, IAstElement errorReportedElement)
         {
             Type = type;
             Name = name;
+            IsMutableGlobal = isMutableGlobal;
             ParentContainer = parentContainer;
             ErrorReportedElement = errorReportedElement;
-        }
-    }
-
-    public class VariableContainer : SymbolContainer
-    {
-        protected SymbolContainer parentContainer;
-
-        public override bool IsGloballyNavigable => false;
-
-        public VariableContainer(SymbolContainer parentContainer) : base()
-        {
-            this.parentContainer = parentContainer;
-        }
-
-        public override IScopeSymbol? FindSymbol(string identifier, Syntax.IAstElement errorReportedElement)
-        {
-            IScopeSymbol? result = base.FindSymbol(identifier, errorReportedElement);
-            return result ?? (parentContainer?.FindSymbol(identifier, errorReportedElement));
         }
     }
 }
@@ -71,20 +55,22 @@ namespace NoHoPython.IntermediateRepresentation.Values
     public sealed partial class VariableReference : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
-        public IType Type => Variable.Type;
+        public IType Type => Refinements.HasValue ? Refinements.Value.Item1 : Variable.Type;
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
         public Variable Variable { get; private set; }
+        public (IType, RefinementContext.RefinementEmitter?)? Refinements { get; private set; }
 
-        public VariableReference(Variable variable, bool isConstant, IAstElement errorReportedElement)
+        public VariableReference(Variable variable, bool isConstant, (IType, RefinementContext.RefinementEmitter?)? refinements, IAstElement errorReportedElement)
         {
             Variable = variable;
             IsConstant = isConstant;
+            Refinements = refinements;
             ErrorReportedElement = errorReportedElement;
         }
 
-        public VariableReference(Tuple<Variable, bool> santizeResult, IAstElement errorReportedElement) : this(santizeResult.Item1, santizeResult.Item2, errorReportedElement)
+        public VariableReference((Variable, bool) santizeResult, (IType, RefinementContext.RefinementEmitter?)? refinements, IAstElement errorReportedElement) : this(santizeResult.Item1, santizeResult.Item2, refinements, errorReportedElement)
         {
 
         }
@@ -106,11 +92,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public VariableDeclaration(string name, IRValue setValue, bool willRevaluate, AstIRProgramBuilder irBuilder, IAstElement errorReportedELement)
         {
-            irBuilder.SymbolMarshaller.DeclareSymbol(Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false, errorReportedELement), errorReportedELement);
-            irBuilder.SymbolMarshaller.CurrentCodeBlock.AddVariableDeclaration(this);
+            Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false, errorReportedELement);
             InitialValue = setValue;
             WillRevaluate = willRevaluate;
             ErrorReportedElement = errorReportedELement;
+
+            irBuilder.SymbolMarshaller.DeclareSymbol(Variable, errorReportedELement);
+            irBuilder.SymbolMarshaller.CurrentCodeBlock.AddVariableDeclaration(this);
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => throw new InvalidOperationException();
@@ -127,11 +115,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public Variable Variable { get; private set; }
         public IRValue SetValue { get; private set; }
 
-        public SetVariable(Variable variable, IRValue value, IAstElement errorReportedElement)
+        public SetVariable(Variable variable, IRValue value, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
             Variable = variable;
             ErrorReportedElement = errorReportedElement;
-            SetValue = ArithmeticCast.CastTo(value, Variable.Type);
+            SetValue = ArithmeticCast.CastTo(value, Variable.Type, irBuilder);
+        }
+
+        private SetVariable(Variable variable, IRValue setValue, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            Variable = variable;
+            SetValue = setValue;
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => throw new InvalidOperationException();
@@ -181,7 +176,7 @@ namespace NoHoPython.Syntax.Values
         {
             IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
             return valueSymbol is Variable variable
-                ? new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), this)
+                ? new IntermediateRepresentation.Values.VariableReference(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, false, this), irBuilder.Refinements.Peek().GetRefinementEntry(variable)?.Refinement, this)
                 : valueSymbol is ProcedureDeclaration procedureDeclaration
                 ? (IRValue)new AnonymizeProcedure(procedureDeclaration, expectedType == null ? false : expectedType is HandleType, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek())
                 : valueSymbol is CSymbol cSymbol
@@ -204,9 +199,27 @@ namespace NoHoPython.Syntax.Values
             try
             {
                 IScopeSymbol valueSymbol = irBuilder.SymbolMarshaller.FindSymbol(Name, this);
-                return valueSymbol is Variable variable
-                    ? (IRValue)new IntermediateRepresentation.Values.SetVariable(irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, true, this).Item1, SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type, willRevaluate), this)
-                    : throw new NotAVariableException(valueSymbol, this);
+
+                if(valueSymbol is Variable variable)
+                {
+                    variable = irBuilder.ScopedProcedures.Peek().SanitizeVariable(variable, true, this).Item1;
+                    
+                    IRValue setTo = SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type, willRevaluate);
+                    
+                    RefinementContext.RefinementEntry? refinementEntry = irBuilder.Refinements.Peek().GetRefinementEntry(variable, true);
+                    refinementEntry?.Clear();
+                    if(refinementEntry != null)
+                        setTo.RefineSet(irBuilder, refinementEntry);
+                    else
+                    {
+                        RefinementContext.RefinementEntry newEntry = new(null, new());
+                        setTo.RefineSet(irBuilder, newEntry);
+                        irBuilder.Refinements.Peek().NewRefinementEntry(variable, newEntry);
+                    }
+
+                    return new IntermediateRepresentation.Values.SetVariable(variable, setTo, irBuilder, this);
+                }
+                throw new NotAVariableException(valueSymbol, this);
             }
             catch (SymbolNotFoundException)
             {
@@ -224,7 +237,7 @@ namespace NoHoPython.Syntax.Values
         public void ForwardDeclare(AstIRProgramBuilder irBuilder) 
         {
             IType type = Type == null ? Primitive.Integer : Type.ToIRType(irBuilder, this);
-            irBuilder.SymbolMarshaller.DeclareSymbol(CSymbol = new CSymbol(type, Name, irBuilder.SymbolMarshaller.CurrentScope, this), this);
+            irBuilder.SymbolMarshaller.DeclareSymbol(CSymbol = new CSymbol(type, Name, IsMutableGlobal, irBuilder.SymbolMarshaller.CurrentScope, this), this);
         }
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder) => new IntermediateRepresentation.Statements.CSymbolDeclaration(CSymbol, this);

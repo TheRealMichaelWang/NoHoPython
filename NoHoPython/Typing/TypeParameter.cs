@@ -1,7 +1,9 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.Typing
 {
@@ -15,6 +17,18 @@ namespace NoHoPython.Typing
                 if (!typeParameters[i].SupportsType(typeArguments[i]))
                     throw new UnexpectedTypeException(new TypeParameterReference(typeParameters[i]), typeArguments[i], errorReportedElement);
             return typeArguments;
+        }
+
+        public static Lazy<Dictionary<TypeParameter, IType>> GetTypeargMap(List<TypeParameter> typeParameters, List<IType> typeArguments)
+        {
+            Debug.Assert(typeParameters.Count == typeArguments.Count);
+            return new Lazy<Dictionary<TypeParameter, IType>>(() =>
+            {
+                Dictionary<TypeParameter, IType> typeargMap = new(typeParameters.Count);
+                for (int i = 0; i < typeParameters.Count; i++)
+                    typeargMap.Add(typeParameters[i], typeArguments[i]);
+                return typeargMap;
+            });
         }
 
         public static void MatchTypeargs(Dictionary<TypeParameter, IType> typeargs, List<IType> existingTypeArguments, List<IType> arguments, Syntax.IAstElement errorReportedElement)
@@ -39,13 +53,35 @@ namespace NoHoPython.Typing
             ErrorReportedElement = errorReportedElement;
         }
 
-        public bool SupportsType(IType type) => RequiredImplementedInterface == null || RequiredImplementedInterface.IsCompatibleWith(type);
+        public bool SupportsType(IType type)
+        {
+            if (RequiredImplementedInterface == null)
+                return true;
+
+            if(type is IPropertyContainer propertyContainer)
+                return RequiredImplementedInterface.SupportsProperties(propertyContainer.GetProperties());
+
+            return false;
+        }
     }
 
-    public sealed partial class TypeParameterReference : IType
+    public sealed partial class TypeParameterReference : IType, IPropertyContainer
     {
+        sealed partial class TypeParameterProperty : Property
+        {
+            public override bool IsReadOnly => true;
+
+            public TypeParameter TypeParameter { get; private set; }
+
+            public TypeParameterProperty(TypeParameter typeParameter, Property interfaceProperty) : base(interfaceProperty.Name, interfaceProperty.Type)
+            {
+                TypeParameter = typeParameter;
+            }
+        }
+
         public string TypeName => TypeParameter.Name;
         public string Identifier => TypeName;
+        public string PrototypeIdentifier => Identifier;
         public bool IsEmpty => false;
 
         public TypeParameter TypeParameter { get; private set; }
@@ -59,6 +95,14 @@ namespace NoHoPython.Typing
         {
             return type is TypeParameterReference typeParameterReference && TypeParameter == typeParameterReference.TypeParameter;
         }
+
+        public bool HasProperty(string property) => TypeParameter.RequiredImplementedInterface != null && TypeParameter.RequiredImplementedInterface.HasProperty(property);
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+        public Property FindProperty(string property) => new TypeParameterProperty(TypeParameter, TypeParameter.RequiredImplementedInterface.FindProperty(property));
+#pragma warning restore CS8602 
+
+        public List<Property> GetProperties() => TypeParameter.RequiredImplementedInterface == null ? new() : TypeParameter.RequiredImplementedInterface.GetProperties().ConvertAll((prop) => (Property)new TypeParameterProperty(TypeParameter, prop));
 
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs)
         {
@@ -83,20 +127,44 @@ namespace NoHoPython.Typing
             }
         }
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder)
         {
             if (typeargs.ContainsKey(TypeParameter))
             {
-                return typeargs[TypeParameter].IsCompatibleWith(argument.Type) ? argument : ArithmeticCast.CastTo(argument, typeargs[TypeParameter]);
+                return typeargs[TypeParameter].IsCompatibleWith(argument.Type) ? argument : ArithmeticCast.CastTo(argument, typeargs[TypeParameter], irBuilder);
             }
             else
             {
 #pragma warning disable CS8604 //not actually possible because supports type always returns true if null
-                IRValue newArgument = TypeParameter.SupportsType(argument.Type) ? argument : ArithmeticCast.CastTo(argument, TypeParameter.RequiredImplementedInterface);
+                IRValue newArgument = TypeParameter.SupportsType(argument.Type) ? argument : ArithmeticCast.CastTo(argument, TypeParameter.RequiredImplementedInterface, irBuilder);
 #pragma warning restore CS8604 
                 typeargs.Add(TypeParameter, newArgument.Type);
                 return newArgument;
             }
+        }
+    }
+
+    partial class HandleType
+    {
+        public override IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleType(ValueType.SubstituteWithTypearg(typeargs));
+
+        public override void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
+        {
+            if (argument is HandleType handleType)
+                ValueType.MatchTypeArgumentWithType(typeargs, handleType.ValueType, errorReportedElement);
+            else
+                throw new UnexpectedTypeException(argument, errorReportedElement);
+        }
+
+        public override IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            if (argument.Type is HandleType handleType)
+            {
+                ValueType.MatchTypeArgumentWithType(typeargs, handleType.ValueType, argument.ErrorReportedElement);
+                return argument;
+            }
+            else
+                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs), irBuilder), irBuilder);
         }
     }
 
@@ -112,7 +180,7 @@ namespace NoHoPython.Typing
                 throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder)
         {
             if (argument.Type is ArrayType arrayType)
             {
@@ -120,7 +188,7 @@ namespace NoHoPython.Typing
                 return argument;
             }
             else
-                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs)));
+                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs), irBuilder), irBuilder);
         }
     }
 
@@ -136,7 +204,7 @@ namespace NoHoPython.Typing
                 throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder)
         {
             if (argument.Type is MemorySpan memorySpan)
             {
@@ -144,7 +212,7 @@ namespace NoHoPython.Typing
                 return argument;
             }
             else
-                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs)));
+                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs), irBuilder), irBuilder);
         }
     }
 
@@ -168,11 +236,6 @@ namespace NoHoPython.Typing
         public override IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new IntegerType();
     }
 
-    partial class HandleType
-    {
-        public override IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleType();
-    }
-
     partial class NothingType
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NothingType();
@@ -183,7 +246,7 @@ namespace NoHoPython.Typing
                 throw new UnexpectedTypeException(this, errorReportedElement);
         }
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder) => ArithmeticCast.CastTo(argument, this, irBuilder);
     }
 
     partial class EmptyEnumOption
@@ -196,7 +259,7 @@ namespace NoHoPython.Typing
                 throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument) => ArithmeticCast.CastTo(argument, this);
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder) => ArithmeticCast.CastTo(argument, this, irBuilder);
     }
 
     partial class EnumType
@@ -211,7 +274,7 @@ namespace NoHoPython.Typing
                 throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder)
         {
             if (argument.Type is EnumType enumType && EnumDeclaration == enumType.EnumDeclaration)
             {
@@ -219,7 +282,7 @@ namespace NoHoPython.Typing
                 return argument;
             }
             else
-                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs)));
+                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs), irBuilder), irBuilder);
         }
     }
 
@@ -235,7 +298,7 @@ namespace NoHoPython.Typing
                 throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder)
         {
             if (argument.Type is RecordType recordType && RecordPrototype == recordType.RecordPrototype)
             {
@@ -243,7 +306,7 @@ namespace NoHoPython.Typing
                 return argument;
             }
             else
-                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs)));
+                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs), irBuilder), irBuilder);
         }
     }
 
@@ -259,7 +322,7 @@ namespace NoHoPython.Typing
                 throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder)
         {
             if (argument.Type is InterfaceType interfaceType && InterfaceDeclaration == interfaceType.InterfaceDeclaration)
             {
@@ -267,13 +330,37 @@ namespace NoHoPython.Typing
                 return argument;
             }
             else
-                return ArithmeticCast.CastTo(argument, this);
+                return ArithmeticCast.CastTo(argument, this, irBuilder);
+        }
+    }
+
+    partial class ForeignCType
+    {
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ForeignCType(Declaration, TypeArguments.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList());
+
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
+        {
+            if (argument is ForeignCType foreignCType && Declaration == foreignCType.Declaration)
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, foreignCType.TypeArguments, errorReportedElement);
+            else
+                throw new UnexpectedTypeException(argument, errorReportedElement);
+        }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            if (argument.Type is ForeignCType foreignCType && Declaration == foreignCType.Declaration)
+            {
+                TypeParameter.MatchTypeargs(typeargs, TypeArguments, foreignCType.TypeArguments, argument.ErrorReportedElement);
+                return argument;
+            }
+            else
+                return ArithmeticCast.CastTo(argument, this, irBuilder);
         }
     }
 
     partial class ProcedureType
     {
-        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureType(ReturnType.SubstituteWithTypearg(typeargs), ParameterTypes.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList());
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureType(ReturnType.SubstituteWithTypearg(typeargs), ParameterTypes.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList(), Purity);
 
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
@@ -286,7 +373,7 @@ namespace NoHoPython.Typing
                 throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder)
         {
             if (argument.Type is ProcedureType procedureType)
             {
@@ -295,7 +382,7 @@ namespace NoHoPython.Typing
                 return argument;
             }
             else
-                return ArithmeticCast.CastTo(argument, this);
+                return ArithmeticCast.CastTo(argument, this, irBuilder);
         }
     }
 
@@ -311,7 +398,7 @@ namespace NoHoPython.Typing
                 throw new UnexpectedTypeException(argument, errorReportedElement);
         }
 
-        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument)
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder)
         {
             if (argument.Type is TupleType tupleType)
             {
@@ -319,7 +406,7 @@ namespace NoHoPython.Typing
                 return argument;
             }
             else
-                return ArithmeticCast.CastTo(argument, this);
+                return ArithmeticCast.CastTo(argument, this, irBuilder);
         }
     }
 }
@@ -351,6 +438,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new FalseLiteral(ErrorReportedElement);
     }
 
+    partial class NullPointerLiteral
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new NullPointerLiteral((HandleType)Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
     partial class StaticCStringLiteral
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new StaticCStringLiteral(String, ErrorReportedElement);
@@ -368,17 +460,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class TupleLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new TupleLiteral(TupleElements.Select((IRValue element) => element.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new TupleLiteral(Elements.Select((IRValue element) => element.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
     }
 
     partial class MarshalIntoLowerTuple
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MarshalIntoLowerTuple((TupleType)TargetType.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
-    }
-
-    partial class InterpolatedString
-    {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new InterpolatedString(InterpolatedValues.ConvertAll((value) => value is IRValue irValue ? irValue.SubstituteWithTypearg(typeargs) : value), TargetArrayChar, ErrorReportedElement);
     }
 
     partial class AllocArray
@@ -406,9 +493,19 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticCast(Operation, Input.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
+    partial class HandleCast
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleCast((HandleType)TargetHandleType.SubstituteWithTypearg(typeargs), Input.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
     partial class ArithmeticOperator
     {
-        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticOperator(Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ArithmeticOperator(Type.SubstituteWithTypearg(typeargs), Operation, Left.SubstituteWithTypearg(typeargs), Right.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
+    partial class PointerAddOperator
+    {
+        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new PointerAddOperator(Address.SubstituteWithTypearg(typeargs), Offset.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class ArrayOperator
@@ -463,7 +560,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class GetValueAtIndex
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetValueAtIndex(Array.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetValueAtIndex(Type.SubstituteWithTypearg(typeargs), Array.SubstituteWithTypearg(typeargs), Index.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class SetValueAtIndex
@@ -473,11 +570,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class GetPropertyValue
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new GetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.Name, ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs)
+        {
+            Debug.Assert(Refinements == null);
+            return new GetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.Name, null, ErrorReportedElement);
+        }
     }
 
     partial class SetPropertyValue
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new SetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.Name, Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new SetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.SubstituteWithTypeargs(typeargs), Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 }

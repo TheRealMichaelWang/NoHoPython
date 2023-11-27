@@ -5,72 +5,65 @@ using System.Text;
 
 namespace NoHoPython.IntermediateRepresentation
 {
-    public interface IEmitter
+    public sealed class Emitter : IDisposable
     {
-        public void Append(string str);
-        public void Append(char c);
-    }
+        public delegate void SetPromise(Promise valueEmitPromise);
+        public delegate void Promise(Emitter emitter);
 
-    public sealed class BufferedEmitter : IEmitter
-    {
-        public static string EmitBufferedValue(IRValue value, IRProgram irProgram, Dictionary<Typing.TypeParameter, IType> typeArgs, string responsibleDestroyer)
+        public static string GetPromiseSource(Promise promise)
         {
-            BufferedEmitter bufferedEmitter = new();
-            value.Emit(irProgram, bufferedEmitter, typeArgs, responsibleDestroyer, false);
-            return bufferedEmitter.ToString();
+            using(Emitter e = new())
+            {
+                promise(e);
+                return e.GetBuffered();
+            }
         }
 
-        public static string EmittedBufferedMemorySafe(IRValue value, IRProgram irProgram, Dictionary<Typing.TypeParameter, IType> typeArgs)
-        {
-            BufferedEmitter bufferedEmitter = new();
-            IRValue.EmitMemorySafe(value, irProgram, bufferedEmitter, typeArgs);
-            return bufferedEmitter.ToString();
-        }
+        public static Promise NullPromise = (emitter) => emitter.Append("NULL");
 
-        private StringBuilder builder;
-
-        public BufferedEmitter()
-        {
-            builder = new();
-        }
-
-        public BufferedEmitter(int capacity)
-        {
-            builder = new(capacity);
-        }
-
-        public void Append(string str)
-        {
-            Debug.Assert(!str.Contains('\n'));
-            builder.Append(str);
-        }
-
-        public void Append(char c)
-        {
-            Debug.Assert(c != '\n');
-            builder.Append(c);
-        }
-
-        public override string ToString() => builder.ToString();
-    }
-
-    public sealed class StatementEmitter : IEmitter, IDisposable
-    {
-        private StreamWriter writer;
+        private TextWriter writer;
+        private Stream stream;
         private StringBuilder currentLineBuilder;
-        private IRProgram irProgram;
 
         public SourceLocation? LastSourceLocation { get; set; }
+        public bool EmitLineDirectives { get; private set; }
+        private int Indirection;
+        private Stack<Promise> resourceDestructors;
+        private Stack<int> blockDestructionFrames;
+        private Stack<int> loopDestructorFrames;
+        private Stack<int> functionDestructorFrames;
 
-        public StatementEmitter(string outputPath, IRProgram irProgram)
+        public bool BufferMode { get; private set; }
+
+        public Emitter(string outputPath, bool emitLineDirectives)
         {
-            this.irProgram = irProgram;
-
             if (File.Exists(outputPath))
                 File.Delete(outputPath);
 
-            writer = new(new FileStream(outputPath, FileMode.OpenOrCreate, FileAccess.Write));
+            BufferMode = false;
+            EmitLineDirectives = emitLineDirectives;
+            Indirection = 0;
+            stream = new FileStream(outputPath, FileMode.CreateNew, FileAccess.Write);
+            writer = new StreamWriter(stream, Encoding.UTF8);
             currentLineBuilder = new();
+            resourceDestructors = new();
+            blockDestructionFrames = new();
+            loopDestructorFrames = new();
+            functionDestructorFrames = new();
+        }
+
+        public Emitter()
+        {
+            BufferMode = true;
+            EmitLineDirectives = false;
+            Indirection = 0;
+            stream = new MemoryStream();
+            writer = new StreamWriter(stream, new UTF8Encoding(false));
+            currentLineBuilder = new();
+            resourceDestructors = new();
+            blockDestructionFrames = new();
+            loopDestructorFrames = new();
+            functionDestructorFrames = new();
         }
 
         public void Append(string str)
@@ -85,6 +78,12 @@ namespace NoHoPython.IntermediateRepresentation
             currentLineBuilder.Append(c);
         }
 
+        public void AppendLine(char c)
+        {
+            currentLineBuilder.Append(c);
+            AppendLine();
+        }
+
         public void AppendLine(string str)
         {
             currentLineBuilder.Append(str);
@@ -93,19 +92,118 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void AppendLine()
         {
-            if (irProgram.EmitLineDirectives && LastSourceLocation.HasValue)
+            if (BufferMode)
+                throw new InvalidOperationException();
+
+            if (EmitLineDirectives && LastSourceLocation.HasValue)
             {
-                BufferedEmitter bufferedEmitter = new();
-                LastSourceLocation.Value.EmitLineDirective(bufferedEmitter);
-                writer.WriteLine(bufferedEmitter.ToString());
+                LastSourceLocation.Value.EmitLineDirective(this);
+                writer.WriteLine();
             }
 
-            writer.WriteLine(currentLineBuilder.ToString());
-            currentLineBuilder.Clear();
+            Flush(true);
+            writer.WriteLine();
+        }
+
+        public int AppendStartBlock(string str)
+        {
+            currentLineBuilder.Append(str);
+            return AppendStartBlock();
+        }
+
+        public int AppendStartBlock()
+        {
+            if (currentLineBuilder.Length > 0)
+                currentLineBuilder.Append(' ');
+            currentLineBuilder.Append('{');
+            AppendLine();
+            Indirection++;
+
+            blockDestructionFrames.Push(resourceDestructors.Count);
+            
+            return Indirection;
+        }
+
+        public void AppendEndBlock()
+        {
+            Debug.Assert(currentLineBuilder.Length == 0);
+            DestroyResources(blockDestructionFrames.Peek(), blockDestructionFrames.Pop());
+            currentLineBuilder.Append('}');
+            Indirection--;
+            AppendLine();
+        }
+
+        public void DeclareLoopBlock() => loopDestructorFrames.Push(resourceDestructors.Count);
+        public void DeclareFunctionBlock() => functionDestructorFrames.Push(resourceDestructors.Count);
+        public void EndLoopBlock() => DestroyResources(loopDestructorFrames.Peek(), loopDestructorFrames.Pop());
+        public void EndFunctionBlock() => DestroyResources(functionDestructorFrames.Peek(), functionDestructorFrames.Pop());
+
+        public void DestroyBlockResources() => DestroyResources(blockDestructionFrames.Peek(), blockDestructionFrames.Peek());
+        public void DestroyLoopResources() => DestroyResources(loopDestructorFrames.Peek(), blockDestructionFrames.Peek());
+        public void DestroyFunctionResources() => DestroyResources(functionDestructorFrames.Peek(), blockDestructionFrames.Peek());
+        public void AssumeBlockResources()
+        {
+            while(resourceDestructors.Count > blockDestructionFrames.Peek())
+                resourceDestructors.Pop();
+        }
+
+        private void DestroyResources(int depth, int frameLimit)
+        {
+            Stack<Promise> recoveredPromises = new();
+            while (resourceDestructors.Count > depth)
+            {
+                Promise p = resourceDestructors.Pop();
+                p(this);
+                if (resourceDestructors.Count < frameLimit)
+                    recoveredPromises.Push(p);
+            }
+            foreach (Promise promise in recoveredPromises)
+                resourceDestructors.Push(promise);
+        }
+
+        public void SetArgument(IRValue irValue, string location, IRProgram irProgram, Dictionary<Typing.TypeParameter, IType> typeargs, bool isTemporary, Promise? responsibleDestroyer = null)
+        {
+            responsibleDestroyer = responsibleDestroyer ?? NullPromise;
+            irValue.Emit(irProgram, this, typeargs, (promise) =>
+            {
+                Append(location);
+                Append(" = ");
+                promise(this);
+                AppendLine(';');
+            }, responsibleDestroyer, isTemporary);
+
+            if (!irValue.RequiresDisposal(irProgram, typeargs, isTemporary))
+                return;
+
+            resourceDestructors.Push((emitter) => irValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (e) => e.Append(location), responsibleDestroyer));
+        }
+
+        public void AddResourceDestructor(Promise resourceDestructor) => resourceDestructors.Push(resourceDestructor);
+
+        public string GetBuffered()
+        {
+            DestroyResources(0, 0);
+            Flush();
+            MemoryStream memoryStream = (MemoryStream)stream;
+            return Encoding.UTF8.GetString(memoryStream.ToArray());
         }
 
         #region disposing
         private bool isDisposed = false;
+
+        public void Flush(bool suppressFlush=false)
+        {
+            if (currentLineBuilder.Length == 0)
+                return;
+
+            for (int i = 0; i < Indirection; i++)
+                writer.Write('\t');
+
+            writer.Write(currentLineBuilder.ToString());
+            if(!suppressFlush)
+                writer.Flush();
+            currentLineBuilder.Clear();
+        }
 
         public void Dispose()
         {
@@ -120,6 +218,8 @@ namespace NoHoPython.IntermediateRepresentation
             if (disposing)
             {
                 // free managed resources
+                DestroyResources(0, 0);
+                Flush();
                 writer.Close();
                 writer.Dispose();
             }

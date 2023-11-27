@@ -3,16 +3,14 @@ include "io.nhp"
 include "mem.nhp"
 
 def listTest():
-	out = io::output()
-
 	list = new data::list<int>(5)
 	for i from 1 to 20:
 		list.pushBack(i)
-	list.forall(lambda int i: out.writeLine(i))
+	list.forall(lambda int i: print(i))
 
-	arr = list.toArray()
+	arr = list as array<int>
 	for i from 0 within arr:
-		out.writeLine(arr[i])
+		print(arr[i])
 
 def main():
 	mem::leaksan(listTest)

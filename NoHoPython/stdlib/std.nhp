@@ -1,4 +1,7 @@
-cdef NULL handle
+include "list.nhp"
+include "string.nhp"
+include "chars.nhp"
+cinclude "<stdio.h>"
 
 def pair<A, B> tuple<A, B>
 def triple<A, B, C> tuple<A, B, C>
@@ -6,3 +9,122 @@ def triple<A, B, C> tuple<A, B, C>
 enum option<T>:
 	T
 	None
+
+mod typeExt:
+
+	pure int_max(int a, int b) int:
+		return a if a > b else b
+
+	pure int_min(int a, int b) int:
+		return a if a < b else b
+
+	pure dec_max(dec a, dec b) dec:
+		return a if a > b else b
+
+	pure dec_min(dec a, dec b) dec:
+		return a if a < b else b
+
+	pure array_T_safe_get<T>(array<T> a, int i) option<T>:
+		if i >= 0 and i < a as int:
+			return a[i]
+		return None
+
+	pure array_T_safeGetAtIndex<T>(array<T> a, int i) option<T>:
+		if i < 0 or i >= a as int:
+			return None
+		return a[i]
+
+	pure array_T_forall<T>(array<T> toiter, pure<None, T> todo):
+		for i from 0 within toiter:
+			todo(toiter[i])
+		
+	pure array_T_map<T, K>(array<T> toiter, pure<K, T> transform) array<K>:
+		results = new std::list<K>(toiter)
+	
+		for i from 0 within toiter:
+			results.pushBack(transform(toiter[i]))
+		
+		return results
+	
+	pure array_T_filter<T>(array<T> tofilter, pure<bool, T> shouldKeep) array<T>:
+		results = new std::list<T>(10)
+	
+		for i from 0 within tofilter:
+			if shouldKeep(tofilter[i]):
+				results.pushBack(tofilter[i])
+		return results
+	
+	pure array_T_reduce<T>(array<T> a, pure<T, T, T> add, option<T> initial) option<T>:
+		reduce_settings = (initial, 0) if initial is T else ((a.safe_get(0) as option<T>) as T, 1)
+		accum = reduce_settings.T0
+		offset = reduce_settings.int0
+		for i from offset within a:
+			accum = add(accum, a[i])
+		return accum
+	
+	pure array_T_subArray<T>(array<T> a, int offset, int length) option<array<T>>:
+		if offset < 0 or offset + length > a as int:
+			return None
+		
+		results = new std::list<T>(length)
+		for i from 0 within length:
+			results.pushBack(a[i + offset])
+		return results
+
+	pure array_T_reverse<T>(array<T> a) array<T>:
+		copied = a
+		for i from 0 within a as int / 2:
+			temp = copied[i]
+			copied[i] = copied[a as int - (i + 1)]
+			copied[a as int - (i + 1)] = temp
+		return copied
+	
+	pure array_T_add<T>(array<T> a, array<T> b) array<T>:
+		results = new std::list<T>(a as int + b as int)
+		results.addRange(a)
+		results.addRange(b)
+		return results
+
+	affectsArgs array_T_copyTo<T>(array<T> src, array<T> dest, int offset):
+		for i from 0 within src:
+			dest[offset + i] = src[i]
+	
+mod std:
+	cdef pure malloc<T>(int size) handle<T>
+	cdef pure realloc<T>(handle<T> buf, int size) handle<T>
+	cdef affectsArgs free<T>(handle<T> ptr) handle<T>
+	cdef affectsArgs memcpy<T>(handle<T> dest, handle<T> src, int size) handle<T>
+	cdef affectsArgs memmove<T>(handle<T> dest, handle<T> src, int size) handle<T>
+
+	pure sort<T>(array<T> buffer, pure<int, T, T> compare) array<T>:
+		copy = buffer
+		
+		affectsCaptured swap(int a, int b):
+			temp = copy[a]
+			copy[a] = copy[b]
+			copy[b] = temp
+		
+		sorted = False
+		while sorted == False:
+			sorted = True
+			for i from 1 within copy as int:
+				if compare(copy[i], copy[i - 1]) < 0:
+					swap(i, i - 1)
+					sorted = False
+		return copy
+
+pure print(array<char> s):
+	cdef putchar(char) None
+
+	for i from 0 within s:
+		putchar(s[i])
+
+pure input() string:
+	cdef getchar() char
+	cdef EOF char
+
+	line = new std::list<char>(10)
+	while (c = getchar()) != '\n' and c != EOF:
+		line.pushBack(c)
+
+	return line

@@ -1,6 +1,7 @@
 ﻿using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Syntax;
+using NoHoPython.Typing;
 
 namespace NoHoPython.Syntax
 {
@@ -14,8 +15,10 @@ namespace NoHoPython.Syntax
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
-    public partial class CodeBlock : VariableContainer
+    public partial class CodeBlock : SymbolContainer
     {
+        public override bool IsGloballyNavigable => false;
+
         public List<IRStatement>? Statements { get; private set; }
         public List<Variable> LocalVariables { get; private set; }
         private List<VariableDeclaration> DeclaredVariables;
@@ -23,15 +26,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public bool IsLoop { get; private set; }
         public int? BreakLabelId { get; private set; }
 
+        protected SymbolContainer parentContainer;
         public SourceLocation BlockBeginLocation { get; private set; }
 
-        public CodeBlock(SymbolContainer parent, bool isLoop, SourceLocation blockBeginLocation) : base(parent)
+        public CodeBlock(SymbolContainer parentContainer, bool isLoop, SourceLocation blockBeginLocation)
         {
             IsLoop = isLoop;
+            this.parentContainer = parentContainer;
             BlockBeginLocation = blockBeginLocation;
             Statements = null;
-            LocalVariables = new List<Variable>();
-            DeclaredVariables = new List<VariableDeclaration>();
+            LocalVariables = new();
+            DeclaredVariables = new();
         }
 
         public void AddVariableDeclaration(VariableDeclaration variableDeclaration)
@@ -47,34 +52,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Statements = statements;
         }
 
-        public List<Variable> GetCurrentLocals(ProcedureDeclaration currentProcedure)
-        {
-            if (parentContainer == null || parentContainer is not CodeBlock || this == currentProcedure)
-                return new(LocalVariables);
-            else
-            {
-                List<Variable> combined = new();
-                combined.AddRange(((CodeBlock)parentContainer).GetCurrentLocals(currentProcedure));
-                combined.AddRange(LocalVariables);
-                return combined;
-            }
-        }
-
-        public List<Variable> GetLoopLocals(IAstElement errorReportedElement)
-        {
-            if (this.IsLoop)
-                return new(LocalVariables);
-            if (parentContainer == null || parentContainer is not CodeBlock)
-                throw new UnexpectedLoopStatementException(errorReportedElement);
-            else
-            {
-                List<Variable> combined = new();
-                combined.AddRange(((CodeBlock)parentContainer).GetLoopLocals(errorReportedElement));
-                combined.AddRange(LocalVariables);
-                return combined;
-            }
-        }
-
         public int GetLoopBreakLabelId(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder)
         {
             if (this.IsLoop)
@@ -87,6 +64,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 throw new UnexpectedLoopStatementException(errorReportedElement);
             else
                 return ((CodeBlock)parentContainer).GetLoopBreakLabelId(errorReportedElement, irBuilder);
+        }
+
+        public override IScopeSymbol? FindSymbol(string identifier)
+        {
+            IScopeSymbol? result = base.FindSymbol(identifier);
+            return result ?? (parentContainer?.FindSymbol(identifier));
         }
     }
 }

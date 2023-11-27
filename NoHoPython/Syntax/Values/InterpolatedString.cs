@@ -7,27 +7,27 @@ namespace NoHoPython.Syntax.Values
     {
         public SourceLocation SourceLocation { get; set; }
 
-        public readonly List<object> InterpolatedValues; //only string or IAstValue
+        public readonly List<IAstValue> InterpolatedValues; //only string or IAstValue
 
         public InterpolatedString(List<object> interpolatedValues, SourceLocation sourceLocation)
         {
             SourceLocation = sourceLocation;
-            InterpolatedValues = interpolatedValues;
 
-            if (!InterpolatedValues.TrueForAll((value) => value is string || value is IAstValue))
+            if (!interpolatedValues.TrueForAll((value) => value is string || value is IAstValue))
                 throw new InvalidOperationException();
+            InterpolatedValues = interpolatedValues.ConvertAll((interpolatedValue) => interpolatedValue is IAstValue astValue ? astValue : new StringLiteral((string)interpolatedValue, sourceLocation));
         }
 
         public override string ToString()
         {
             StringBuilder builder = new();
             builder.Append("$\"");
-            foreach (object value in InterpolatedValues)
+            foreach (IAstValue value in InterpolatedValues)
             {
-                if (value is IAstValue astValue)
-                    builder.Append($"{{{astValue}}}");
+                if (value is StringLiteral literal)
+                    builder.Append(literal.String);
                 else
-                    builder.Append(value as string);
+                    builder.Append($"{{{value}}}");
             }
             builder.Append('\"');
             return builder.ToString();

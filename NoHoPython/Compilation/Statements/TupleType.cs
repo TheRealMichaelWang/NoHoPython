@@ -15,7 +15,8 @@ namespace NoHoPython.Syntax
                 return false;
 
             usedTupleTypes.Add(tupleType);
-            typeDependencyTree.Add(tupleType, new HashSet<IType>(tupleType.ValueTypes.Keys.Where((type) => type is not RecordType)));
+
+            DeclareTypeDependencies(tupleType, tupleType.ValueTypes.Keys.ToArray());
 
             return true;
         }
@@ -28,35 +29,38 @@ namespace NoHoPython.IntermediateRepresentation
     {
         private List<TupleType> usedTupleTypes;
 
-        private void EmitTupleTypeTypedefs(StatementEmitter emitter)
+        private void EmitTupleTypeTypedefs(Emitter emitter)
         {
             foreach(TupleType usedTupleType in usedTupleTypes)
                 emitter.AppendLine($"typedef struct {usedTupleType.GetStandardIdentifier(this)} {usedTupleType.GetCName(this)};");
         }
 
-        private void EmitTupleCStructs(StatementEmitter emitter)
+        private void EmitTupleCStructs(Emitter emitter)
         {
             foreach(TupleType usedTupleType in usedTupleTypes)
                 usedTupleType.EmitCStruct(this, emitter);
         }
 
-        private void ForwardDeclareTupleTypes(StatementEmitter emitter)
+        private void ForwardDeclareTupleTypes(Emitter emitter)
         {
             foreach(TupleType usedTupleType in usedTupleTypes)
             {
-                usedTupleType.EmitDestructorHeader(this, emitter);
-                emitter.AppendLine(";");
-                usedTupleType.EmitMoverHeader(this, emitter);
+                if (!usedTupleType.RequiresDisposal)
+                    continue;
+
+                usedTupleType.EmitCopierHeader(this, emitter);
                 emitter.AppendLine(";");
             }
         }
 
-        private void EmitTupleTypeMarshallers(StatementEmitter emitter)
+        private void EmitTupleTypeMarshallers(Emitter emitter)
         {
             foreach (TupleType usedTupleType in usedTupleTypes)
             {
-                usedTupleType.EmitDestructor(this, emitter);
-                usedTupleType.EmitMover(this, emitter);
+                if (!usedTupleType.RequiresDisposal)
+                    continue;
+
+                usedTupleType.EmitCopier(this, emitter);
             }
         }
     }
@@ -68,17 +72,17 @@ namespace NoHoPython.Typing
     {
         partial class TupleProperty
         {
-            public override bool RequiresDisposal => false;
+            public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-            public override bool EmitGet(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, string valueCSource, string responsibleDestroyer)
+            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer)
             {
                 Debug.Assert(propertyContainer is TupleType);
 
                 IType realPropertyType = Type.SubstituteWithTypearg(typeargs);
                 Debug.Assert(realPropertyType is not TypeParameterReference);
 
-                emitter.Append($"{valueCSource}.{realPropertyType.Identifier}{TypeNumber}");
-
+                value(emitter);
+                emitter.Append($".{realPropertyType.Identifier}{TypeNumber}");
                 return false;
             }
         }
@@ -86,6 +90,7 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => true;
         public bool RequiresDisposal => ValueTypes.Keys.Any((type) => type.RequiresDisposal);
         public bool MustSetResponsibleDestroyer => ValueTypes.Keys.Any((type) => type.MustSetResponsibleDestroyer);
+        public bool IsTypeDependency => true;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo)
         {
@@ -96,65 +101,47 @@ namespace NoHoPython.Typing
             return effectInfo[this] = ValueTypes.Keys.Any((type) => type.TypeParameterAffectsCodegen(effectInfo));
         }
 
-        public string GetStandardIdentifier(IRProgram irProgram) => $"_nhp_tuple_{Identifier}";
+        public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_tuple_{Identifier}";
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
-        public void EmitFreeValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string childAgent)
+        public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
         {
             if (RequiresDisposal)
             {
-                emitter.Append($"free_{GetStandardIdentifier(irProgram)}({valueCSource}");
-                if (MustSetResponsibleDestroyer)
-                    emitter.Append($", {childAgent}");
-                emitter.Append(");");
-            }
-        }
+                int indirection = emitter.AppendStartBlock();
+                emitter.Append($"{GetCName(irProgram)} to_free{indirection} = ");
+                valuePromise(emitter);
+                emitter.AppendLine(";");
 
-        public void EmitCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer)
-        {
-            if (RequiresDisposal)
-            {
-                emitter.Append($"({GetCName(irProgram)}){{");
-
-                bool emitCommaSeparator = false;
                 foreach (KeyValuePair<IType, int> valuePair in ValueTypes)
                 {
-                    for (int i = 0; i < valuePair.Value; i++)
-                    {
-                        if (emitCommaSeparator)
-                            emitter.Append(", ");
-                        else
-                            emitCommaSeparator = true;
-
-                        emitter.Append($".{valuePair.Key.Identifier}{i} = ");
-                        valuePair.Key.EmitCopyValue(irProgram, emitter, $"{valueCSource}.{valuePair.Key.Identifier}{i}", responsibleDestroyer);
-                    }
+                    if (valuePair.Key.RequiresDisposal)
+                        for (int i = 0; i < valuePair.Value; i++)
+                            valuePair.Key.EmitFreeValue(irProgram, emitter, (e) => e.Append($"to_free{indirection}.{valuePair.Key.Identifier}{i}"), childAgent);
                 }
-                emitter.Append('}');
+                emitter.AppendEndBlock();
             }
-            else
-                emitter.Append(valueCSource);
         }
 
-        public void EmitMoveValue(IRProgram irProgram, IEmitter emitter, string destC, string valueCSource, string childAgent)
+        public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
         {
             if (RequiresDisposal)
             {
-                if (irProgram.EmitExpressionStatements)
-                    IType.EmitMove(this, irProgram, emitter, destC, valueCSource, childAgent);
-                else
+                primaryEmitter.Append($"copy_{GetStandardIdentifier(irProgram)}(");
+                valueCSource(primaryEmitter);
+                if (MustSetResponsibleDestroyer)
                 {
-                    emitter.Append($"move{GetStandardIdentifier(irProgram)}(&{destC}, {valueCSource}");
-                    if (MustSetResponsibleDestroyer)
-                        emitter.Append($", {childAgent})");
+                    primaryEmitter.Append(", ");
+                    responsibleDestroyer(primaryEmitter);
                 }
-            }
+                primaryEmitter.Append(')');
+            }    
             else
-                emitter.Append($"({destC} = {valueCSource})");
+                valueCSource(primaryEmitter);
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, IEmitter emitter, string valueCSource, string newRecordCSource) => EmitCopyValue(irProgram, emitter, valueCSource, newRecordCSource);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -165,12 +152,12 @@ namespace NoHoPython.Typing
             }
         }
 
-        public void EmitCStruct(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitCStruct(IRProgram irProgram, Emitter emitter)
         {
             if (!irProgram.DeclareCompiledType(emitter, this))
                 return;
 
-            emitter.AppendLine($"struct _nhp_tuple_{Identifier} {{");
+            emitter.AppendLine($"struct nhp_tuple_{Identifier} {{");
             foreach(KeyValuePair<IType, int> valuePair in ValueTypes)
             {
                 for (int i = 0; i < valuePair.Value; i++)
@@ -179,56 +166,29 @@ namespace NoHoPython.Typing
             emitter.AppendLine("};");
         }
 
-        public void EmitDestructorHeader(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitCopierHeader(IRProgram irProgram, Emitter emitter)
         {
-            emitter.Append($"void free_{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_free");
+            emitter.Append($"{GetCName(irProgram)} copy_{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_copy");
             if (MustSetResponsibleDestroyer)
-                emitter.Append(", void* child_agent");
+                emitter.Append(", void* responsible_destroyer");
             emitter.Append(')');
         }
 
-        public void EmitMoverHeader(IRProgram irProgram, StatementEmitter emitter)
+        public void EmitCopier(IRProgram irProgram, Emitter emitter)
         {
-            emitter.Append($"{GetCName(irProgram)} move{GetStandardIdentifier(irProgram)}({GetCName(irProgram)}* dest, {GetCName(irProgram)} src");
-            if (MustSetResponsibleDestroyer)
-                emitter.Append(", void* child_agent");
-            emitter.Append(')');
-        }
-
-        public void EmitDestructor(IRProgram irProgram, StatementEmitter emitter)
-        {
-            EmitDestructorHeader(irProgram, emitter);
+            EmitCopierHeader(irProgram, emitter);
             emitter.AppendLine(" {");
-
+            emitter.AppendLine($"\t{GetCName(irProgram)} to_ret;");
             foreach (KeyValuePair<IType, int> valuePair in ValueTypes)
             {
-                if (valuePair.Key.RequiresDisposal) {
-                    for (int i = 0; i < valuePair.Value; i++)
-                    {
-                        emitter.Append('\t');
-                        valuePair.Key.EmitFreeValue(irProgram, emitter, $"to_free.{valuePair.Key.Identifier}{i}", "child_agent");
-                        emitter.AppendLine();
-                    }
+                for (int i = 0; i < valuePair.Value; i++)
+                {
+                    emitter.Append($"\tto_ret.{valuePair.Key.Identifier}{i} = ");
+                    valuePair.Key.EmitCopyValue(irProgram, emitter, (e) => e.Append($"to_copy.{valuePair.Key.Identifier}{i}"), (e) => e.Append("responsible_destroyer"));
+                    emitter.AppendLine(";");
                 }
             }
-
-            emitter.AppendLine("}");
-        }
-
-        public void EmitMover(IRProgram irProgram, StatementEmitter emitter)
-        {
-            if (irProgram.EmitExpressionStatements)
-                return;
-
-            EmitMoverHeader(irProgram, emitter);
-            emitter.AppendLine("{");
-            emitter.Append("\t");
-            EmitFreeValue(irProgram, emitter, "*dest", "child_agent");
-            emitter.AppendLine();
-            emitter.Append("\t*dest = ");
-            EmitCopyValue(irProgram, emitter, "src", "child_agent");
-            emitter.AppendLine(";");
-            emitter.AppendLine("\treturn src;");
+            emitter.AppendLine("\treturn to_ret;");
             emitter.AppendLine("}");
         }
     }

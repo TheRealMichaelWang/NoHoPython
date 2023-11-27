@@ -3,6 +3,28 @@ using System.Text;
 
 namespace NoHoPython.Syntax.Statements
 {
+    public static class AttributeTableExtensions
+    {
+        public static string ToString(this Dictionary<string, string?> attributeTable, int indent)
+        {
+            if (attributeTable.Count == 0)
+                return string.Empty;
+
+            StringBuilder builder = new();
+
+            builder.AppendLine($"\n{IAstStatement.Indent(indent)}attributes:");
+            foreach (KeyValuePair<string, string?> attribute in attributeTable)
+            {
+                if (attribute.Value != null)
+                    builder.AppendLine($"{IAstStatement.Indent(indent + 1)}{attribute.Key} : {attribute.Value}");
+                else
+                    builder.AppendLine($"{IAstStatement.Indent(indent + 1)}{attribute.Key}");
+            }
+
+            return builder.ToString();
+        }
+    }
+
     public sealed partial class EnumDeclaration : IAstStatement
     {
         public SourceLocation SourceLocation { get; private set; }
@@ -12,8 +34,10 @@ namespace NoHoPython.Syntax.Statements
         public readonly List<AstType> RequiredImplementedInterfaces;
         public readonly List<AstType> Options;
 
+        public readonly Dictionary<string, string?> Attributes;
+
 #pragma warning disable CS8618 // IREnumDeclaration initialized upon IR generation
-        public EnumDeclaration(string identifier, List<TypeParameter> typeParameters, List<AstType> requiredImplementedInterfaces, List<AstType> options, SourceLocation sourceLocation)
+        public EnumDeclaration(string identifier, List<TypeParameter> typeParameters, List<AstType> requiredImplementedInterfaces, List<AstType> options, Dictionary<string, string?> attributes, SourceLocation sourceLocation)
 #pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
@@ -21,6 +45,7 @@ namespace NoHoPython.Syntax.Statements
             TypeParameters = typeParameters;
             RequiredImplementedInterfaces = requiredImplementedInterfaces;
             Options = options;
+            Attributes = attributes;
         }
 
         public string ToString(int indent)
@@ -33,34 +58,23 @@ namespace NoHoPython.Syntax.Statements
 
             foreach (AstType option in Options)
                 builder.Append($"\n{IAstStatement.Indent(indent + 1)}{option}");
+
+            builder.Append(Attributes.ToString(indent));
+
             return builder.ToString();
         }
     }
 
     public sealed partial class InterfaceDeclaration : IAstStatement
     {
-        public sealed class InterfaceProperty
-        {
-            public AstType Type { get; private set; }
-            public readonly string Identifier;
-
-            public InterfaceProperty(AstType type, string identifier)
-            {
-                Type = type;
-                Identifier = identifier;
-            }
-
-            public override string ToString() => $"{Type} {Identifier}";
-        }
-
         public SourceLocation SourceLocation { get; private set; }
 
         public readonly string Identifier;
         public readonly List<TypeParameter> TypeParameters;
-        public readonly List<InterfaceProperty> Properties;
+        public readonly List<(AstType, string)> Properties;
 
 #pragma warning disable CS8618 //IRInterfaceDeclaration initialized upon generating IR 
-        public InterfaceDeclaration(string identifier, List<TypeParameter> typeParameters, List<InterfaceProperty> properties, SourceLocation sourceLocation)
+        public InterfaceDeclaration(string identifier, List<TypeParameter> typeParameters, List<(AstType, string)> properties, SourceLocation sourceLocation)
 #pragma warning restore CS8618 
         {
             SourceLocation = sourceLocation;
@@ -77,8 +91,8 @@ namespace NoHoPython.Syntax.Statements
                 builder.Append($"<{string.Join(", ", TypeParameters)}>");
             builder.Append(':');
 
-            foreach (InterfaceProperty property in Properties)
-                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property}");
+            foreach ((AstType, string) property in Properties)
+                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property.Item1.ToString()} {property.Item2}");
             return builder.ToString();
         }
     }
@@ -155,6 +169,49 @@ namespace NoHoPython.Syntax.Statements
         }
     }
 
+    public sealed partial class ForeignCDeclaration : IAstStatement
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public string Identifier { get; private set; }
+        public string CSource { get; private set; }
+        public readonly List<TypeParameter> TypeParameters;
+        public readonly Dictionary<string, string?> Attributes;
+        public List<(AstType, string, string?)> Properties;
+
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        public ForeignCDeclaration(string identifier, string cSource, List<TypeParameter> typeParameters, Dictionary<string, string?> attributes, List<(AstType, string, string?)> properties, SourceLocation sourceLocation)
+#pragma warning restore CS8618 
+        {
+            Identifier = identifier;
+            CSource = cSource;
+            TypeParameters = typeParameters;
+            Attributes = attributes;
+            Properties = properties;
+            SourceLocation = sourceLocation;
+        }
+
+        public string ToString(int indent)
+        {
+            StringBuilder builder = new();
+            builder.Append($"{IAstStatement.Indent(indent)}cdef {Identifier}");
+            if (TypeParameters.Count > 0)
+                builder.Append($"<{string.Join(", ", TypeParameters)}>");
+            builder.Append($" \"{CSource}\":");
+
+            foreach ((AstType, string, string?) property in Properties)
+            {
+                builder.Append($"\n{IAstStatement.Indent(indent + 1)}{property.Item1.ToString()} {property.Item2}");
+                if (property.Item3 != null)
+                    builder.Append($" \"{property.Item3}\"");
+            }
+
+            builder.AppendLine(Attributes.ToString(indent));
+
+            return builder.ToString();
+        }
+    }
+
     public sealed partial class ModuleContainer : IAstStatement
     {
         public SourceLocation SourceLocation { get; private set; }
@@ -183,7 +240,9 @@ namespace NoHoPython.Syntax.Statements
 
         public AstType DefinedType { get; private set; }
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public TypedefDeclaration(string identifier, List<TypeParameter> typeParameters, AstType definedType, SourceLocation sourceLocation)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             Identifier = identifier;
             TypeParameters = typeParameters;
@@ -237,8 +296,8 @@ namespace NoHoPython.Syntax.Parsing
             else
                 scanner.ScanToken();
 
-            List<AstType> Options = ParseBlock(ParseType);
-            return new EnumDeclaration(identifier, typeParameters, requiredImplementedInterfaces, Options, location);
+            List<AstType> Options = ParseBlock(() => ParseType(false));
+            return new EnumDeclaration(identifier, typeParameters, requiredImplementedInterfaces, Options, ParseAttributesTable(), location);
         }
 
         private InterfaceDeclaration ParseInterfaceDeclaration()
@@ -255,15 +314,15 @@ namespace NoHoPython.Syntax.Parsing
             MatchAndScanToken(TokenType.Colon);
             MatchAndScanToken(TokenType.Newline);
 
-            List<InterfaceDeclaration.InterfaceProperty> interfaceProperties = ParseBlock(() =>
+            List<(AstType, string)> properties = ParseBlock(() =>
             {
                 AstType type = ParseType();
                 MatchToken(TokenType.Identifier);
                 string identifier = scanner.LastToken.Identifier;
                 scanner.ScanToken();
-                return new InterfaceDeclaration.InterfaceProperty(type, identifier);
+                return (type, identifier);
             });
-            return new InterfaceDeclaration(identifier, typeParameters, interfaceProperties, location);
+            return new InterfaceDeclaration(identifier, typeParameters, properties, location);
         }
 
         private RecordDeclaration ParseRecordDeclaration()
@@ -283,17 +342,20 @@ namespace NoHoPython.Syntax.Parsing
             List<ProcedureDeclaration> procedures = new();
             List<RecordDeclaration.RecordProperty> properties = ParseBlock(() =>
             {
-                if (scanner.LastToken.Type == TokenType.Define)
-                {
-                    procedures.Add((ProcedureDeclaration)ParseProcedureDeclaration(true));
-                    return null;
-                }
-
                 bool isReadonly = false;
-                if (scanner.LastToken.Type == TokenType.Readonly)
+                switch (scanner.LastToken.Type)
                 {
-                    isReadonly = true;
-                    scanner.ScanToken();
+                    case TokenType.Define:
+                    case TokenType.Pure:
+                    case TokenType.AffectsArgs:
+                    case TokenType.AffectsCaptured:
+                    case TokenType.Impure:
+                        procedures.Add((ProcedureDeclaration)ParseProcedureDeclaration(true));
+                        return null;
+                    case TokenType.Readonly:
+                        isReadonly = true;
+                        scanner.ScanToken();
+                        break;
                 }
 
                 AstType type = ParseType();
@@ -312,6 +374,41 @@ namespace NoHoPython.Syntax.Parsing
             return new RecordDeclaration(identifier, typeParameters, properties, procedures, location);
         }
 
+        private ForeignCDeclaration ParseForeignCDeclaration(string identifier, List<TypeParameter> typeParameters, SourceLocation sourceLocation)
+        {
+            MatchToken(TokenType.StringLiteral);
+            string csource = scanner.LastToken.Identifier;
+            scanner.ScanToken();
+
+            if (scanner.LastToken.Type == TokenType.Colon)
+            {
+                scanner.ScanToken();
+                MatchAndScanToken(TokenType.Newline);
+
+                List<(AstType, string, string?)> properties = ParseBlock(() =>
+                {
+                    AstType type = ParseType();
+                    MatchToken(TokenType.Identifier);
+                    string identifier = scanner.LastToken.Identifier;
+                    scanner.ScanToken();
+
+                    string? accessSource = null;
+                    if (scanner.LastToken.Type == TokenType.StringLiteral)
+                    {
+                        accessSource = scanner.LastToken.Identifier;
+                        scanner.ScanToken();
+                    }
+                    return (type, identifier, accessSource);
+                });
+                
+                return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), properties, sourceLocation);
+            }
+            else
+            {
+                return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), new(), sourceLocation);
+            }
+        }
+
         private ModuleContainer ParseModule()
         {
             SourceLocation location = scanner.CurrentLocation;
@@ -325,6 +422,33 @@ namespace NoHoPython.Syntax.Parsing
 
             List<IAstStatement> statements = ParseBlock(ParseTopLevel);
             return new ModuleContainer(identifier, statements, location);
+        }
+
+        private Dictionary<string, string?> ParseAttributesTable()
+        {
+            if (!NextLine(TokenType.Attributes))
+                return new();
+
+            scanner.ScanToken();
+
+            MatchAndScanToken(TokenType.Colon);
+            MatchAndScanToken(TokenType.Newline);
+
+            return new(ParseBlock(() =>
+            {
+                MatchToken(TokenType.Identifier);
+                string identifier = scanner.LastToken.Identifier;
+                scanner.ScanToken();
+
+                if (scanner.LastToken.Type != TokenType.Colon)
+                    return new KeyValuePair<string, string?>(identifier, null);
+                scanner.ScanToken();
+
+                MatchToken(TokenType.StringLiteral);
+                string value = scanner.LastToken.Identifier;
+                scanner.ScanToken();
+                return new KeyValuePair<string, string?>(identifier, value);
+            }));
         }
     }
 }

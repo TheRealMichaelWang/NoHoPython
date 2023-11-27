@@ -1,5 +1,6 @@
 ﻿using NoHoPython.Syntax.Parsing;
 using NoHoPython.Syntax.Statements;
+using System.Text;
 
 namespace NoHoPython.Syntax.Statements
 {
@@ -109,19 +110,36 @@ namespace NoHoPython.Syntax.Statements
     {
         public sealed partial class MatchHandler
         {
-            public AstType MatchType { get; private set; }
+            public List<AstType> MatchTypes { get; private set; }
             public string? MatchIdentifier { get; private set; }
 
             public readonly List<IAstStatement> Statements;
 
-            public MatchHandler(AstType matchType, string? matchIdentifier, List<IAstStatement> statements)
+            public MatchHandler(List<AstType> matchTypes, string? matchIdentifier, List<IAstStatement> statements)
             {
-                MatchType = matchType;
+                MatchTypes = matchTypes;
                 MatchIdentifier = matchIdentifier;
                 Statements = statements;
             }
 
-            public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{MatchType}{(MatchIdentifier == null ? string.Empty : $" {MatchIdentifier}")}:\n{IAstStatement.BlockToString(indent, Statements)}";
+            public string ToString(int indent)
+            {
+                StringBuilder builder = new StringBuilder();
+                foreach (AstType matchType in MatchTypes)
+                {
+                    builder.Append($"{IAstStatement.Indent(indent)}{matchType}");
+                    if (matchType != MatchTypes.Last())
+                        builder.AppendLine(",");
+                }
+
+                if (MatchIdentifier != null)
+                    builder.Append($" {MatchIdentifier}");
+                builder.AppendLine(":");
+
+                builder.Append(IAstStatement.BlockToString(indent, Statements));
+
+                return builder.ToString();
+            }
         }
 
         public SourceLocation SourceLocation { get; private set; }
@@ -178,19 +196,15 @@ namespace NoHoPython.Syntax.Statements
     {
         public SourceLocation SourceLocation { get; private set; }
         
-        public AstType Type { get; private set; }
         public IAstValue Address { get; private set; }
-        public IAstValue? Index { get; private set; }
 
-        public DestroyStatement(AstType type, IAstValue address, IAstValue? index, SourceLocation sourceLocation)
+        public DestroyStatement(IAstValue address, SourceLocation sourceLocation)
         {
-            Type = type;
             SourceLocation = sourceLocation;
             Address = address;
-            Index = index;
         }
 
-        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}destroy {Type} {Address}{(Index == null ? string.Empty : $"[{Index}]")}";
+        public string ToString(int indent) => $"{IAstStatement.Indent(indent)}destroy {Address}";
     }
 }
 
@@ -347,10 +361,17 @@ namespace NoHoPython.Syntax.Parsing
                     return null;
                 }
 
-                AstType type = ParseType();
+                List<AstType> matchTypes = new();
+                matchTypes.Add(ParseType());
+                while(scanner.LastToken.Type == TokenType.Comma)
+                {
+                    scanner.ScanToken();
+                    NextLine();
+                    matchTypes.Add(ParseType());
+                }
 
                 string? identifier = null;
-                if (scanner.LastToken.Type == TokenType.Identifier)
+                if (scanner.LastToken.Type == TokenType.Identifier && matchTypes.Count == 1)
                 {
                     identifier = scanner.LastToken.Identifier;
                     scanner.ScanToken();
@@ -358,7 +379,7 @@ namespace NoHoPython.Syntax.Parsing
 
                 MatchAndScanToken(TokenType.Colon);
                 MatchAndScanToken(TokenType.Newline);
-                return new MatchStatement.MatchHandler(type, identifier, ParseCodeBlock());
+                return new MatchStatement.MatchHandler(matchTypes, identifier, ParseCodeBlock());
             });
 
             return new MatchStatement(toMatch, handlers, defautHandler, location);

@@ -50,7 +50,13 @@
         Flag,
         As,
         Readonly,
+        Pure,
+        AffectsArgs,
+        AffectsCaptured,
+        Impure,
         Nothing,
+        Null,
+        Attributes,
 
         //symbols
         OpenBracket,

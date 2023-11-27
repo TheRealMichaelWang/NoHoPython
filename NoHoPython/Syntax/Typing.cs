@@ -35,6 +35,62 @@ namespace NoHoPython.Syntax
 
     public sealed partial class AstType
     {
+        public static readonly Dictionary<string, int> KnownTypeParameterCounts = new()
+        {
+            {"char", 0},
+            {"chr", 0},
+            {"bool", 0},
+            {"int", 0},
+            {"dec", 0},
+            {"array", 1},
+            {"None", 0},
+            {"nothing", 0},
+            {"void", 0}
+        };
+
+        public static readonly Dictionary<string, int> KnownTypeParameterMinimumCounts = new()
+        {
+            {"tuple", 2},
+            {"handle", 0},
+            {"ptr", 0},
+            {"pointer", 0},
+            {"purefn", 1},
+            {"pure", 1},
+            {"impure", 1},
+            {"global_impure", 1},
+            {"global", 1},
+            {"fn", 1},
+            {"proc", 1},
+            {"affects_args", 1},
+            {"affects_captured", 1},
+        };
+
+        public static readonly Dictionary<string, int> KnownTypeParameterMaximumCounts = new()
+        {
+            {"array", 1},
+            {"handle", 1},
+            {"ptr", 1},
+            {"pointer", 1}
+        };
+
+        public static int GetMinTypeargs(string identifier)
+        {
+            if (KnownTypeParameterMinimumCounts.ContainsKey(identifier))
+                return KnownTypeParameterMinimumCounts[identifier];
+            else if (KnownTypeParameterCounts.ContainsKey(identifier))
+                return KnownTypeParameterCounts[identifier];
+            return 0;
+        }
+
+        public static int GetMaxTypeargs(string identifier)
+        {
+            if (KnownTypeParameterMaximumCounts.ContainsKey(identifier))
+                return KnownTypeParameterMaximumCounts[identifier];
+            else if (KnownTypeParameterCounts.ContainsKey(identifier))
+                return KnownTypeParameterCounts[identifier];
+            return int.MaxValue;
+        }
+
         public readonly string Identifier;
         public readonly List<AstType> TypeArguments;
 
@@ -81,20 +137,40 @@ namespace NoHoPython.Syntax
                     return typeArguments.Count < 2
                         ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
                         : new TupleType(typeArguments);
+                case "nothing":
+                case "void":
+                case "None":
+                    MatchTypeArgCount(0, errorReportedElement);
+                    return new NothingType();
                 case "handle":
                 case "ptr":
                 case "pointer":
-                    MatchTypeArgCount(0, errorReportedElement);
-                    return new HandleType();
-                case "nothing":
-                case "void":
-                    MatchTypeArgCount(0, errorReportedElement);
-                    return new NothingType();
-                case "fn":
-                case "proc":
+                    if (typeArguments.Count == 0)
+                        return Primitive.Handle;
+
+                    MatchTypeArgCount(1, errorReportedElement);
+                    return new HandleType(typeArguments[0]);
+                case "purefn":
+                case "pure":
                     return typeArguments.Count < 1
                         ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
-                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1));
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.Pure);
+                case "impure":
+                case "global":
+                case "global_impure":
+                    return typeArguments.Count < 1
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.AffectsGlobals);
+                case "fn":
+                case "proc":
+                case "affects_args":
+                    return typeArguments.Count < 1
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments);
+                case "affects_captured":
+                    return typeArguments.Count < 1
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArgumentsAndCaptured);
                 default:
                     {
                         IScopeSymbol typeSymbol = irBuilder.SymbolMarshaller.FindSymbol(Identifier, errorReportedElement);
@@ -111,6 +187,8 @@ namespace NoHoPython.Syntax
                             return new InterfaceType(interfaceDeclaration, typeArguments, errorReportedElement);
                         else if (typeSymbol is IntermediateRepresentation.Statements.EnumDeclaration enumDeclaration)
                             return new EnumType(enumDeclaration, typeArguments, errorReportedElement);
+                        else if (typeSymbol is IntermediateRepresentation.Statements.ForeignCDeclaration foreignDeclaration)
+                            return new ForeignCType(foreignDeclaration, typeArguments, errorReportedElement);
                         else if (typeSymbol is IntermediateRepresentation.Statements.TypedefDeclaration typedefDeclaration)
                             return TypedefToIRType(typedefDeclaration, typeArguments, irBuilder, errorReportedElement);
                         else if (typeSymbol is IType symbolType)
@@ -143,7 +221,7 @@ namespace NoHoPython.Syntax.Values
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) 
         {
             IType targetType = TargetType.ToIRType(irBuilder, this);
-            return ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentationForValue(irBuilder, targetType, willRevaluate), targetType);
+            return ArithmeticCast.CastTo(ToCast.GenerateIntermediateRepresentationForValue(irBuilder, targetType, willRevaluate), targetType, irBuilder, true);
         }
     }
 }
@@ -164,12 +242,12 @@ namespace NoHoPython.Syntax.Parsing
                     MatchToken(TokenType.Identifier);
                     identifier = scanner.LastToken.Identifier;
                 }
-                scanner.ScanToken();
+                scanner.ScanToken(true);
 
                 if (scanner.LastToken.Type == TokenType.Colon)
                 {
-                    scanner.ScanToken();
-                    return new TypeParameter(identifier, ParseType());
+                    scanner.ScanToken(true);
+                    return new TypeParameter(identifier, ParseType(true));
                 }
                 else
                     return new TypeParameter(identifier, null);
@@ -180,7 +258,7 @@ namespace NoHoPython.Syntax.Parsing
             List<TypeParameter> typeParameters = new();
             while (true)
             {
-                scanner.ScanToken();
+                scanner.ScanToken(true);
                 typeParameters.Add(ParseTypeParameter());
 
                 if (scanner.LastToken.Type == TokenType.More)
@@ -192,37 +270,63 @@ namespace NoHoPython.Syntax.Parsing
             return typeParameters;
         }
 
-        private List<AstType> ParseTypeArguments()
+        private List<AstType> ParseTypeArguments(int minTypeargs, int maxTypeargs, bool isTypeArgument = false)
         {
-            MatchToken(TokenType.Less);
+            if (maxTypeargs == 0)
+                return new();
 
+            MatchToken(TokenType.Less);
+            scanner.ScanToken(true);
             List<AstType> typeArguments = new();
-            while (true)
+            while(true)
             {
-                scanner.ScanToken();
-                typeArguments.Add(ParseType());
-                if (scanner.LastToken.Type == TokenType.More)
+                typeArguments.Add(ParseType(true));
+
+                if (typeArguments.Count == maxTypeargs)
+                {
+                    MatchToken(TokenType.More);
+                    scanner.ScanToken(isTypeArgument);
                     break;
-                else
+                }
+                else if(typeArguments.Count < minTypeargs)
+                {
                     MatchToken(TokenType.Comma);
+                    scanner.ScanToken(true);
+                }
+                else if(scanner.LastToken.Type == TokenType.More)
+                {
+                    scanner.ScanToken(isTypeArgument);
+                    break;
+                }
+                else
+                {
+                    MatchToken(TokenType.Comma);
+                    scanner.ScanToken(true);
+                }
             }
-            scanner.ScanToken();
             return typeArguments;
         }
 
-        private AstType ParseType()
+        private AstType ParseType(bool isTypeArgument=false)
         {
             string identifier;
-            if (scanner.LastToken.Type == TokenType.Nothing)
+            switch(scanner.LastToken.Type) 
             {
-                identifier = "nothing";
-                scanner.ScanToken();
+                case TokenType.Nothing:
+                case TokenType.AffectsArgs:
+                case TokenType.AffectsCaptured:
+                case TokenType.Pure:
+                case TokenType.Impure:
+                    identifier = scanner.LastToken.Identifier;
+                    scanner.ScanToken(isTypeArgument);
+                    break;
+                default:
+                    identifier = ParseIdentifier(isTypeArgument);
+                    break;
             }
-            else
-                identifier = ParseIdentifier();
 
             return scanner.LastToken.Type == TokenType.Less
-                ? new AstType(identifier, ParseTypeArguments())
+                ? new AstType(identifier, ParseTypeArguments(AstType.GetMinTypeargs(identifier), AstType.GetMaxTypeargs(identifier), isTypeArgument))
                 : new AstType(identifier, new List<AstType>());
         }
     }

@@ -25,6 +25,7 @@ public static class Program
         {
             DateTime compileStart = DateTime.Now;
 
+            Console.WriteLine("Parsing...");
             AstParser sourceParser = new AstParser(new Scanner(args[0], $"{Environment.CurrentDirectory}/stdlib"));
             List<IAstStatement> statements = sourceParser.ParseAll();
 
@@ -53,8 +54,10 @@ public static class Program
 
             for (int i = 2; i < args.Length; i++)
                 flags.Add(args[i]);
+
+            Console.WriteLine("Linking...");
             AstIRProgramBuilder astIRProgramBuilder = new(statements, flags);
-            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), args.Contains("-noassert"), !args.Contains("-nogcc"), args.Contains("-callstack") || args.Contains("-stacktrace"), args.Contains("-namert"), args.Contains("-linedir") || args.Contains("-ggdb"), args.Contains("-main"), memoryAnalyzer);
+            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), args.Contains("-noassert"), args.Contains("-callstack") || args.Contains("-stacktrace"), args.Contains("-namert"), args.Contains("-linedir") || args.Contains("-ggdb"), args.Contains("-main"), memoryAnalyzer);
             sourceParser.IncludeCFiles(program);
 
             string outputFile;
@@ -63,10 +66,11 @@ public static class Program
             else
                 outputFile = "out.c";
 
+            Console.WriteLine("Compiling...");
             if (args.Contains("-header"))
             {
                 string headerName = outputFile.EndsWith(".c") ? outputFile.Replace(".c", ".h") : outputFile + ".h";
-                program.IncludeCFile(headerName);
+                program.IncludeCFile((headerName, null));
                 program.Emit(outputFile, headerName);
             }
             else

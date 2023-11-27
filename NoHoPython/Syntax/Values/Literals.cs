@@ -62,12 +62,14 @@ namespace NoHoPython.Syntax.Values
 
         public override string ToString()
         {
-            BufferedEmitter emitter = new(String.Length);
-            emitter.Append('\"');
-            foreach (char c in String)
-                IntermediateRepresentation.Values.CharacterLiteral.EmitCChar(emitter, c, false);
-            emitter.Append('\"');
-            return emitter.ToString();
+            using(Emitter emitter = new())
+            {
+                emitter.Append('\"');
+                foreach (char c in String)
+                    IntermediateRepresentation.Values.CharacterLiteral.EmitCChar(emitter, c, false);
+                emitter.Append('\"');
+                return emitter.GetBuffered();
+            }
         }
     }
 
@@ -156,6 +158,18 @@ namespace NoHoPython.Syntax.Values
         }
 
         public override string ToString() => "Nothing";
+    }
+
+    public sealed partial class NullPointerLiteral : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public NullPointerLiteral(SourceLocation sourceLocation)
+        {
+            SourceLocation = sourceLocation;
+        }
+
+        public override string ToString() => "NULL";
     }
 
     public sealed partial class InstantiateNewRecord : IAstValue

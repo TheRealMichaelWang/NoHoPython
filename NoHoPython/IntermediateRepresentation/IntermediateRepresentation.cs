@@ -3,6 +3,7 @@ using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.Syntax
 {
@@ -14,6 +15,7 @@ namespace NoHoPython.Syntax
         private List<ProcedureDeclaration> ProcedureDeclarations;
 
         public Stack<ProcedureDeclaration> ScopedProcedures { get; private set; }
+        public Stack<RefinementContext> Refinements { get; private set; }
         public RecordDeclaration? ScopedRecordDeclaration { get; private set; }
         public SymbolMarshaller SymbolMarshaller { get; private set; }
         
@@ -31,6 +33,7 @@ namespace NoHoPython.Syntax
             RecordDeclarations = new List<RecordDeclaration>();
             ProcedureDeclarations = new List<ProcedureDeclaration>();
             ScopedProcedures = new Stack<ProcedureDeclaration>();
+            Refinements = new Stack<RefinementContext>();
             Flags = new SortedSet<string>(flags);
             ScopedRecordDeclaration = null;
 
@@ -61,7 +64,19 @@ namespace NoHoPython.Syntax
         public void AddEnumDeclaration(EnumDeclaration enumDeclaration) => EnumDeclarations.Add(enumDeclaration);
         public void AddProcDeclaration(ProcedureDeclaration procedureDeclaration) => ProcedureDeclarations.Add(procedureDeclaration);
 
-        public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, bool mainEntryPoint, MemoryAnalyzer memoryAnalyzer)
+        public void DeclareTypeDependencies(IType type, params IType[] dependencies)
+        {
+            Debug.Assert(!typeDependencyTree.ContainsKey(type));
+
+            HashSet<IType> dependencySet = new(new ITypeComparer());
+            foreach (IType dependency in dependencies)
+                if (dependency.IsTypeDependency)
+                    dependencySet.Add(dependency);
+
+            typeDependencyTree.Add(type, dependencySet);
+        }
+
+        public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, bool mainEntryPoint, MemoryAnalyzer memoryAnalyzer)
         {
             List<ProcedureDeclaration> compileHeads = new();
             foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
@@ -77,15 +92,15 @@ namespace NoHoPython.Syntax
                 procedureDeclaration.ScopeAsCompileHead(this);
             ScopeForAllSecondaryProcedures();
 
-            return new(doBoundsChecking, eliminateAsserts, emitExpressionStatements, doCallStack, nameRuntimeTypes, emitLineDirectives,
-                RecordDeclarations, InterfaceDeclarations, EnumDeclarations, ProcedureDeclarations, new List<string>()
+            return new(doBoundsChecking, eliminateAsserts, doCallStack, nameRuntimeTypes, emitLineDirectives,
+                RecordDeclarations, InterfaceDeclarations, EnumDeclarations, foreignTypeOverloads.Keys.ToList(), ProcedureDeclarations, new List<string>()
                 {
                     "<stdio.h>",
                     "<stdlib.h>",
                     "<string.h>",
                     "<math.h>"
                 },
-                usedArrayTypes.ToList(), usedTupleTypes.ToList(), bufferTypes.ToList(), uniqueProcedureTypes, usedProcedureReferences, procedureOverloads, enumTypeOverloads, interfaceTypeOverloads, recordTypeOverloads, typeDependencyTree, memoryAnalyzer);
+                usedArrayTypes.ToList(), usedTupleTypes.ToList(), bufferTypes.ToList(), uniqueProcedureTypes, usedProcedureReferences, procedureOverloads, enumTypeOverloads, interfaceTypeOverloads, recordTypeOverloads, foreignTypeOverloads, typeDependencyTree, memoryAnalyzer);
         }
     }
 }
@@ -102,7 +117,8 @@ namespace NoHoPython.IntermediateRepresentation
 
     public partial interface IRValue : IRElement
     {
-        public bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval);
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval);
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval);
 
         public IType Type { get; }
         public bool IsTruey { get; }
@@ -112,13 +128,13 @@ namespace NoHoPython.IntermediateRepresentation
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
 
         //emit corresponding C code
-        public void Emit(IRProgram irProgram, IEmitter emitter, Dictionary<TypeParameter, IType> typeargs, string responsibleDestroyer, bool isTemporaryEval);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval);
     }
 
     public partial interface IRStatement : IRElement
     {
         //emit corresponding C code
-        public void Emit(IRProgram irProgram, StatementEmitter emitter, Dictionary<TypeParameter, IType> typeargs, int indent);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs);
     }
 
     public sealed partial class IRProgram
@@ -126,13 +142,13 @@ namespace NoHoPython.IntermediateRepresentation
         public readonly List<RecordDeclaration> RecordDeclarations;
         public readonly List<InterfaceDeclaration> InterfaceDeclarations;
         public readonly List<EnumDeclaration> EnumDeclarations;
+        public readonly List<ForeignCDeclaration> ForeignCDeclarations;
         public readonly List<ProcedureDeclaration> ProcedureDeclarations;
 
-        public readonly SortedSet<string> IncludedCFiles;
+        public readonly Dictionary<string, string[]?> IncludedCFiles;
 
         public bool DoBoundsChecking { get; private set; }
         public bool EliminateAsserts { get; private set; }
-        public bool EmitExpressionStatements { get; private set; }
         public bool DoCallStack { get; private set; }
         public bool NameRuntimeTypes { get; private set; }
         public bool EmitLineDirectives { get;private set; } 
@@ -142,13 +158,10 @@ namespace NoHoPython.IntermediateRepresentation
 
         public MemoryAnalyzer MemoryAnalyzer { get; private set; }
 
-        public int ExpressionDepth;
-
-        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool emitExpressionStatements, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<TupleType> usedTupleTypes, List<IType> bufferTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
+        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ForeignCDeclaration> foreignCDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<TupleType> usedTupleTypes, List<IType> bufferTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<ForeignCDeclaration, List<ForeignCType>> foreignTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
         {
             DoBoundsChecking = doBoundsChecking;
             EliminateAsserts = eliminateAsserts;
-            EmitExpressionStatements = emitExpressionStatements;
             DoCallStack = doCallStack;
             NameRuntimeTypes = nameRuntimeTypes;
             EmitLineDirectives = emitLineDirectives;
@@ -157,7 +170,8 @@ namespace NoHoPython.IntermediateRepresentation
             InterfaceDeclarations = interfaceDeclarations;
             EnumDeclarations = enumDeclarations;
             ProcedureDeclarations = procedureDeclarations;
-            IncludedCFiles = new SortedSet<string>(includedCFiles);
+            ForeignCDeclarations = foreignCDeclarations;
+            IncludedCFiles = new(includedCFiles.Count);
 
             this.uniqueProcedureTypes = uniqueProcedureTypes;
             this.usedArrayTypes = usedArrayTypes;
@@ -168,6 +182,7 @@ namespace NoHoPython.IntermediateRepresentation
             EnumTypeOverloads = enumTypeOverloads;
             InterfaceTypeOverloads = interfaceTypeOverload;
             RecordTypeOverloads = recordTypeOverloads;
+            ForeignTypeOverloads = foreignTypeOverloads;
 
             MemoryAnalyzer = memoryAnalyzer;
             this.typeDependencyTree = typeDependencyTree;
@@ -187,24 +202,34 @@ namespace NoHoPython.IntermediateRepresentation
             }
             foreach (IType type in typeDependencyTree.Keys)
                 SantizeNoCircularDependencies(type, new List<IType>());
+            foreach (string includedFile in includedCFiles)
+                IncludedCFiles.Add(includedFile, null);
         }
 
-        public void IncludeCFile(string cFile)
+        public void IncludeCFile((string, string[]?) toInclude)
         {
-            if (!IncludedCFiles.Contains(cFile))
-                IncludedCFiles.Add(cFile);
+            if (!IncludedCFiles.ContainsKey(toInclude.Item1))
+                IncludedCFiles.Add(toInclude.Item1, toInclude.Item2);
         }
 
-        public bool DeclareCompiledType(StatementEmitter emitter, IType type)
+        public bool DeclareCompiledType(Emitter emitter, IType type)
         {
+            if (!type.IsTypeDependency)
+                return true;
+
             if (!compiledTypes.Add(type))
                 return false;
             CompileUncompiledDependencies(emitter, type);
             return true;
         }
 
-        public void CompileUncompiledDependencies(StatementEmitter emitter, IType type)
+        public void CompileUncompiledDependencies(Emitter emitter, IType type)
         {
+            if (!type.IsTypeDependency)
+                return;
+            if (!typeDependencyTree.ContainsKey(type))
+                return;
+
             foreach (IType dependency in typeDependencyTree[type])
                 if (!compiledTypes.Contains(dependency))
                     dependency.EmitCStruct(this, emitter);
@@ -212,21 +237,25 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void Emit(string outputFile, string? headerFile)
         {
-            using (StatementEmitter emitter = new(outputFile, this))
-            using(StatementEmitter headerEmitter = (headerFile == null) ? emitter : new StatementEmitter(headerFile, this))
+            using(Emitter emitter = new(outputFile, EmitLineDirectives))
+            using(Emitter headerEmitter = (headerFile == null) ? emitter : new Emitter(headerFile, false))
             {
-                ExpressionDepth = 0;
-
                 if (headerEmitter != emitter)
                 {
                     headerEmitter.AppendLine("#ifndef _NHP_HEADER_GUARD_");
                     headerEmitter.AppendLine("#define _NHP_HEADER_GUARD_");
                 }
-                foreach (string includedCFile in IncludedCFiles)
-                    if (includedCFile.StartsWith('<'))
-                        emitter.AppendLine($"#include {includedCFile}");
+                foreach (var includedCFile in IncludedCFiles)
+                {
+                    if (includedCFile.Value != null)
+                        foreach (string preincludeDefinition in includedCFile.Value)
+                            emitter.AppendLine($"#define {preincludeDefinition}");
+
+                    if (includedCFile.Key.StartsWith('<'))
+                        emitter.AppendLine($"#include {includedCFile.Key}");
                     else
-                        emitter.AppendLine($"#include \"{includedCFile}\"");
+                        emitter.AppendLine($"#include \"{includedCFile.Key}\"");
+                }
                 emitter.AppendLine();
 
                 //emit typedefs
@@ -237,6 +266,7 @@ namespace NoHoPython.IntermediateRepresentation
                 ForwardDeclareInterfaceTypes(headerEmitter);
                 EmitAnonProcedureTypedefs(headerEmitter);
                 ForwardDeclareRecordTypes(headerEmitter);
+                ForwardDeclareForeignTypes(headerEmitter);
 
                 //emit c structs
                 RecordDeclaration.EmitRecordMaskProto(headerEmitter);
@@ -245,7 +275,7 @@ namespace NoHoPython.IntermediateRepresentation
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclareType(this, headerEmitter));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclareType(this, headerEmitter));
                 RecordDeclarations.ForEach((record) => record.ForwardDeclareType(this, headerEmitter));
-                ForwardDeclareAnonProcedureTypes(this, headerEmitter);
+                ForeignCDeclarations.ForEach((foreign) => foreign.ForwardDeclareType(this, headerEmitter));
 
                 //emit function headers
                 ForwardDeclareArrayTypes(headerEmitter);
@@ -253,6 +283,7 @@ namespace NoHoPython.IntermediateRepresentation
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclare(this, headerEmitter));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, headerEmitter));
                 RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, headerEmitter));
+                ForeignCDeclarations.ForEach((foreign) => foreign.ForwardDeclare(this, headerEmitter));
                 usedProcedureReferences.ForEach((procedure) => procedure.EmitCaptureContextCStruct(this, headerEmitter, usedProcedureReferences.FindAll((procedureReference) => procedureReference.IsAnonymous)));
                 ProcedureDeclarations.ForEach((procedure) => procedure.ForwardDeclareActual(this, headerEmitter));
 
@@ -271,13 +302,13 @@ namespace NoHoPython.IntermediateRepresentation
                 //emit function behavior
                 EmitAnonProcedureCapturedContecies(emitter);
                 EmitBufferCopiers(emitter);
-                EmitArrayTypeMarshallers(emitter, DoCallStack);
+                EmitArrayTypeMarshallers(emitter);
                 EmitTupleTypeMarshallers(emitter);
-                EmitAnonProcedureMovers(this, emitter);
-                EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new(), 0));
-                InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(this, emitter, new(), 0));
-                RecordDeclarations.ForEach((record) => record.Emit(this, emitter, new(), 0));
-                ProcedureDeclarations.ForEach((proc) => proc.EmitActual(this, emitter, 0));
+                EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new()));
+                InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(this, emitter, new()));
+                RecordDeclarations.ForEach((record) => record.Emit(this, emitter, new()));
+                ForeignCDeclarations.ForEach((foreign) => foreign.Emit(this, emitter, new()));
+                ProcedureDeclarations.ForEach((proc) => proc.EmitActual(this, emitter));
             }
         }
     }

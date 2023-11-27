@@ -654,6 +654,20 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         protected virtual bool ArgumentEvalautionOrderGuarenteed() => IRValue.EvaluationOrderGuarenteed(Arguments.ToArray());
 
+        protected virtual bool ShouldBufferArg(int i, IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs)
+        {
+            if (Arguments[i].MustUseDestinationPromise(irProgram, typeargs, true) || Arguments[i].RequiresDisposal(irProgram, typeargs, true))
+                return true;
+
+            if (Arguments[i].IsPure && Arguments[i].IsConstant)
+                return false;
+
+            for (int j = 0; j < Arguments.Count; j++)
+                if (j != i && (Arguments[i].IsAffectedByEvaluation(Arguments[j]) || Arguments[j].IsAffectedByEvaluation(Arguments[i])))
+                    return true;
+            return false;
+        }
+
         public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Arguments.Any((arg) => arg.RequiresDisposal(irProgram, typeargs, true) || arg.MustUseDestinationPromise(irProgram, typeargs, true)) || !ArgumentEvalautionOrderGuarenteed() || irProgram.DoCallStack;
 
         public virtual void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
@@ -666,7 +680,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            bool shouldBufferArg(int i) => !Arguments[i].IsConstant || Arguments[i].MustUseDestinationPromise(irProgram, typeargs, true) || Arguments[i].RequiresDisposal(irProgram, typeargs, true);
+            bool shouldBufferArg(int i) => ShouldBufferArg(i, irProgram, typeargs);
 
             if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
             {
@@ -888,13 +902,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public override void EmitCall(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, List<Emitter.Promise> argPromises, Emitter.Promise responsibleDestroyer)
         {
-            primaryEmitter.Append(ForeignCProcedure.CFunctionName ?? ForeignCProcedure.Name);
-            primaryEmitter.Append('(');
-            EmitArguments(primaryEmitter, argPromises);
-            primaryEmitter.Append(')');
+            if(ForeignCProcedure.CFunctionName == null)
+            {
+                primaryEmitter.Append(ForeignCProcedure.Name);
+                primaryEmitter.Append('(');
+                EmitArguments(primaryEmitter, argPromises);
+                primaryEmitter.Append(')');
 
-            if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer && responsibleDestroyer != Emitter.NullPromise)
-                throw new CannotConfigureResponsibleDestroyerError(this, Type.SubstituteWithTypearg(typeargs));
+                if (Type.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer && responsibleDestroyer != Emitter.NullPromise)
+                    throw new CannotConfigureResponsibleDestroyerError(this, Type.SubstituteWithTypearg(typeargs));
+            }
+            else
+                primaryEmitter.Append(GetSource(ForeignCProcedure.CFunctionName, irProgram, argPromises, responsibleDestroyer));
         }
     }
 }

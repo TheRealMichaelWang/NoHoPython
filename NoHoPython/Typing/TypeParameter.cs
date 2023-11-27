@@ -468,11 +468,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MarshalIntoLowerTuple((TupleType)TargetType.SubstituteWithTypearg(typeargs), Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
-    partial class InterpolatedString
-    {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new InterpolatedString(InterpolatedValues.ConvertAll((value) => value is IRValue irValue ? irValue.SubstituteWithTypearg(typeargs) : value), TargetArrayChar, ErrorReportedElement);
-    }
-
     partial class AllocArray
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AllocArray(ElementType.SubstituteWithTypearg(typeargs), Length.SubstituteWithTypearg(typeargs), ProtoValue.SubstituteWithTypearg(typeargs), ErrorReportedElement);

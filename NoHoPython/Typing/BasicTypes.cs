@@ -1,6 +1,7 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.IntermediateRepresentation.Values;
+using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 using System.Text;
 
@@ -17,11 +18,17 @@ namespace NoHoPython.Typing
         public static readonly HandleType CString = new(new CharacterType());
         public static readonly NothingType Nothing = new(); //not a primitive but also commonly used
 
-        public static RecordType GetStringType(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        public static IType GetStringType(AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
-            if (irBuilder.SymbolMarshaller.FindSymbol("string", errorReportedElement) is IntermediateRepresentation.Statements.RecordDeclaration recordDeclaration)
-                return new RecordType(recordDeclaration, new(), errorReportedElement);
-            throw new UnexpectedStringSymbolException(errorReportedElement);
+            try 
+            {
+                AstType standardStringType = new AstType("string", new());
+                return standardStringType.ToIRType(irBuilder, errorReportedElement);
+            }
+            catch (SymbolNotFoundException)
+            {
+                return new ArrayType(Character);
+            }
         }
 
         public abstract string TypeName { get; }

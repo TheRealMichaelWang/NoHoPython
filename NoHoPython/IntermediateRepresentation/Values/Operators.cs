@@ -51,16 +51,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public static IRValue ComposeComparativeOperator(CompareOperation operation, IRValue left, IRValue right, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
-            if (GetPropertyValue.HasMessageReceiver(left, "compare", irBuilder))
-                return new ComparativeOperator(operation, AnonymousProcedureCall.SendMessage(left, "compare", Primitive.Integer, new List<IRValue>()
-                    {
-                        right
-                    }, irBuilder, errorReportedElement), new IntegerLiteral(0, errorReportedElement), errorReportedElement);
-            if(GetPropertyValue.HasMessageReceiver(right, "compare", irBuilder))
-                return new ComparativeOperator(reversedCompareOperations[operation], AnonymousProcedureCall.SendMessage(right, "compare", Primitive.Integer, new List<IRValue>()
-                    {
-                        left
-                    }, irBuilder, errorReportedElement), new IntegerLiteral(0, errorReportedElement), errorReportedElement);
             if (operation == CompareOperation.Equals || operation == CompareOperation.NotEquals)
             {
                 if (GetPropertyValue.HasMessageReceiver(left, "equals", irBuilder))
@@ -74,6 +64,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         left
                     }, irBuilder, errorReportedElement);
             }
+            if (GetPropertyValue.HasMessageReceiver(left, "compare", irBuilder))
+                return new ComparativeOperator(operation, AnonymousProcedureCall.SendMessage(left, "compare", Primitive.Integer, new List<IRValue>()
+                    {
+                        right
+                    }, irBuilder, errorReportedElement), new IntegerLiteral(0, errorReportedElement), errorReportedElement);
+            if(GetPropertyValue.HasMessageReceiver(right, "compare", irBuilder))
+                return new ComparativeOperator(reversedCompareOperations[operation], AnonymousProcedureCall.SendMessage(right, "compare", Primitive.Integer, new List<IRValue>()
+                    {
+                        left
+                    }, irBuilder, errorReportedElement), new IntegerLiteral(0, errorReportedElement), errorReportedElement);
 
             return new ComparativeOperator(operation, left, right, irBuilder, errorReportedElement);
         }
@@ -90,6 +90,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 throw new UnexpectedTypeException(left.Type, left.ErrorReportedElement);
             if (right.Type is not Primitive && !(right.Type is ForeignCType rightForeignCType && rightForeignCType.Declaration.PointerPropertyAccess))
                 throw new UnexpectedTypeException(right.Type, right.ErrorReportedElement);
+
+            if (left.Type is DecimalType && right.Type is not DecimalType)
+                Right = ArithmeticCast.CastTo(right, Primitive.Decimal, irBuilder);
+            if (right.Type is DecimalType && left.Type is not DecimalType)
+                Left = ArithmeticCast.CastTo(left, Primitive.Decimal, irBuilder);
         }
 
         private ComparativeOperator(CompareOperation operation, IRValue left, IRValue right, IAstElement errorReportedElement) : base(left, right, errorReportedElement)
@@ -236,17 +241,25 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class GetPropertyValue : IRValue
     {
-        public static bool HasMessageReceiver(IRValue value, string name, AstIRProgramBuilder irBuilder)
+        public static bool HasMessageReceiver(IType type, string name, IAstElement errorReportedElement, AstIRProgramBuilder irBuilder)
         {
-            if(value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty(name))
+            if(type is IPropertyContainer propertyContainer && propertyContainer.HasProperty(name))
                 return true;
             
-            IScopeSymbol? messageReceiver = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.Identifier}_{name}");
+            IScopeSymbol? messageReceiver = irBuilder.SymbolMarshaller.FindSymbol($"typeExt:{type.Identifier}_{name}");
             if(messageReceiver == null)
-                messageReceiver = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.PrototypeIdentifier}_{name}");
-            
-            return messageReceiver != null && messageReceiver is ProcedureDeclaration;
+                messageReceiver = irBuilder.SymbolMarshaller.FindSymbol($"typeExt:{type.PrototypeIdentifier}_{name}");
+
+            if(messageReceiver == null && type.IsCompatibleWith(Primitive.GetStringType(irBuilder, errorReportedElement)))
+                messageReceiver = irBuilder.SymbolMarshaller.FindSymbol($"typeExt:string_{name}");
+
+            if (messageReceiver == null && type is EnumType enumType)
+                return enumType.GetOptions().Any(option => HasMessageReceiver(option, name, errorReportedElement, irBuilder));
+
+            return messageReceiver is ProcedureDeclaration || messageReceiver is ForeignCProcedureDeclaration;
         }
+
+        public static bool HasMessageReceiver(IRValue value, string name, AstIRProgramBuilder irBuilder) => HasMessageReceiver(value.Type, name, value.ErrorReportedElement, irBuilder);
 
         public static IRValue ComposeGetProperty(IRValue record, string name, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {

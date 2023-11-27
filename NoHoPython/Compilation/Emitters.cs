@@ -10,6 +10,15 @@ namespace NoHoPython.IntermediateRepresentation
         public delegate void SetPromise(Promise valueEmitPromise);
         public delegate void Promise(Emitter emitter);
 
+        public static string GetPromiseSource(Promise promise)
+        {
+            using(Emitter e = new())
+            {
+                promise(e);
+                return e.GetBuffered();
+            }
+        }
+
         public static Promise NullPromise = (emitter) => emitter.Append("NULL");
 
         private TextWriter writer;

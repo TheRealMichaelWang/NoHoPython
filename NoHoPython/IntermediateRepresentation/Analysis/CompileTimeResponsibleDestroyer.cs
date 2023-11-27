@@ -35,11 +35,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue? GetResponsibleDestroyer() => null;
     }
 
-    partial class InterpolatedString
-    {
-        public IRValue? GetResponsibleDestroyer() => null;
-    }
-
     partial class AnonymizeProcedure
     {
         public IRValue? GetResponsibleDestroyer() => null;

@@ -393,42 +393,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void GetCoMutatedValues(List<IRValue> coMutatedValues) => coMutatedValues.Add(this);
     }
 
-    partial class InterpolatedString
-    {
-        public bool IsPure => InterpolatedValues.TrueForAll((value) => value is IRValue irValue ? irValue.IsPure : true);
-        public bool IsConstant => InterpolatedValues.TrueForAll((value) => value is IRValue irValue ? irValue.IsConstant : true);
-
-        public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
-
-        public void EnsureMinimumPurity(Purity purity) => InterpolatedValues.ForEach((value) =>
-        {
-            if (value is IRValue irValue)
-                irValue.EnsureMinimumPurity(purity);
-        });
-
-        public void GetMutatedValues(List<IRValue> affectedValues) => InterpolatedValues.ForEach((value) =>
-        {
-            if (value is IRValue irValue)
-                irValue.GetMutatedValues(affectedValues);
-        });
-
-        public bool IsAffectedByMutation(IRValue mutatedValue) => InterpolatedValues.Any((value) =>
-        {
-            if (value is IRValue irValue)
-                return irValue.IsAffectedByMutation(mutatedValue);
-            return false;
-        });
-
-        public bool IsAffectedByEvaluation(IRValue evaluatedValue) => InterpolatedValues.Any((value) =>
-        {
-            if (value is IRValue irValue)
-                return irValue.IsAffectedByEvaluation(evaluatedValue);
-            return false;
-        });
-
-        public void GetCoMutatedValues(List<IRValue> coMutatedValues) => coMutatedValues.Add(this);
-    }
-
     partial class AllocArray
     {
         public bool IsPure => Length.IsPure && ProtoValue.IsPure;

@@ -188,19 +188,22 @@ namespace NoHoPython.Syntax.Parsing
                 return defaultPurity;
             }
 
-            IntermediateRepresentation.Statements.Purity purity = scanner.LastToken.Type switch
+            IntermediateRepresentation.Statements.Purity? purity = scanner.LastToken.Type switch
             {
                 TokenType.Pure => IntermediateRepresentation.Statements.Purity.Pure,
                 TokenType.AffectsArgs => IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments,
                 TokenType.AffectsCaptured => IntermediateRepresentation.Statements.Purity.OnlyAffectsArgumentsAndCaptured,
                 TokenType.Impure => IntermediateRepresentation.Statements.Purity.AffectsGlobals,
-                _ => defToken == null ? defaultPurity : throw new UnexpectedTokenException(scanner.LastToken, scanner.CurrentLocation)
+                _ => defToken == null ? null : throw new UnexpectedTokenException(scanner.LastToken, scanner.CurrentLocation)
             };
 
-            if(!(purity == defaultPurity && defToken == null))
+            if (purity.HasValue)
+            {
                 scanner.ScanToken();
-
-            return purity;
+                return purity.Value;
+            }
+            else
+                return defaultPurity;
         }
 
         private IAstStatement ParseProcedureDeclaration(bool isRecordMessageReceiver = false)

@@ -341,29 +341,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void NonMessageReceiverAnalysis() => Value.NonMessageReceiverAnalysis();
     }
 
-    partial class InterpolatedString
-    {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsed) => InterpolatedValues.ForEach((value) =>
-        {
-            if (value is IRValue irValue)
-                irValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-        });
-
-        public void NonConstructorPropertyAnalysis() => InterpolatedValues.ForEach((value) =>
-        {
-            if (value is IRValue irValue)
-                irValue.NonConstructorPropertyAnalysis();
-        });
-
-        public bool IsReadOnly => false;
-
-        public void NonMessageReceiverAnalysis() => InterpolatedValues.ForEach((value) =>
-        {
-            if (value is IRValue irValue)
-                irValue.NonMessageReceiverAnalysis();
-        });
-    }
-
     partial class AnonymizeProcedure
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }

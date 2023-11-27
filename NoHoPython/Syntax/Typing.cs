@@ -35,6 +35,62 @@ namespace NoHoPython.Syntax
 
     public sealed partial class AstType
     {
+        public static readonly Dictionary<string, int> KnownTypeParameterCounts = new()
+        {
+            {"char", 0},
+            {"chr", 0},
+            {"bool", 0},
+            {"int", 0},
+            {"dec", 0},
+            {"array", 1},
+            {"None", 0},
+            {"nothing", 0},
+            {"void", 0}
+        };
+
+        public static readonly Dictionary<string, int> KnownTypeParameterMinimumCounts = new()
+        {
+            {"tuple", 2},
+            {"handle", 0},
+            {"ptr", 0},
+            {"pointer", 0},
+            {"purefn", 1},
+            {"pure", 1},
+            {"impure", 1},
+            {"global_impure", 1},
+            {"global", 1},
+            {"fn", 1},
+            {"proc", 1},
+            {"affects_args", 1},
+            {"affects_captured", 1},
+        };
+
+        public static readonly Dictionary<string, int> KnownTypeParameterMaximumCounts = new()
+        {
+            {"array", 1},
+            {"handle", 1},
+            {"ptr", 1},
+            {"pointer", 1}
+        };
+
+        public static int GetMinTypeargs(string identifier)
+        {
+            if (KnownTypeParameterMinimumCounts.ContainsKey(identifier))
+                return KnownTypeParameterMinimumCounts[identifier];
+            else if (KnownTypeParameterCounts.ContainsKey(identifier))
+                return KnownTypeParameterCounts[identifier];
+            return 0;
+        }
+
+        public static int GetMaxTypeargs(string identifier)
+        {
+            if (KnownTypeParameterMaximumCounts.ContainsKey(identifier))
+                return KnownTypeParameterMaximumCounts[identifier];
+            else if (KnownTypeParameterCounts.ContainsKey(identifier))
+                return KnownTypeParameterCounts[identifier];
+            return int.MaxValue;
+        }
+
         public readonly string Identifier;
         public readonly List<AstType> TypeArguments;
 
@@ -186,12 +242,12 @@ namespace NoHoPython.Syntax.Parsing
                     MatchToken(TokenType.Identifier);
                     identifier = scanner.LastToken.Identifier;
                 }
-                scanner.ScanToken();
+                scanner.ScanToken(true);
 
                 if (scanner.LastToken.Type == TokenType.Colon)
                 {
-                    scanner.ScanToken();
-                    return new TypeParameter(identifier, ParseType());
+                    scanner.ScanToken(true);
+                    return new TypeParameter(identifier, ParseType(true));
                 }
                 else
                     return new TypeParameter(identifier, null);
@@ -202,7 +258,7 @@ namespace NoHoPython.Syntax.Parsing
             List<TypeParameter> typeParameters = new();
             while (true)
             {
-                scanner.ScanToken();
+                scanner.ScanToken(true);
                 typeParameters.Add(ParseTypeParameter());
 
                 if (scanner.LastToken.Type == TokenType.More)
@@ -214,25 +270,44 @@ namespace NoHoPython.Syntax.Parsing
             return typeParameters;
         }
 
-        private List<AstType> ParseTypeArguments()
+        private List<AstType> ParseTypeArguments(int minTypeargs, int maxTypeargs, bool isTypeArgument = false)
         {
-            MatchToken(TokenType.Less);
+            if (maxTypeargs == 0)
+                return new();
 
+            MatchToken(TokenType.Less);
+            scanner.ScanToken(true);
             List<AstType> typeArguments = new();
-            while (true)
+            while(true)
             {
-                scanner.ScanToken();
-                typeArguments.Add(ParseType());
-                if (scanner.LastToken.Type == TokenType.More)
+                typeArguments.Add(ParseType(true));
+
+                if (typeArguments.Count == maxTypeargs)
+                {
+                    MatchToken(TokenType.More);
+                    scanner.ScanToken(isTypeArgument);
                     break;
-                else
+                }
+                else if(typeArguments.Count < minTypeargs)
+                {
                     MatchToken(TokenType.Comma);
+                    scanner.ScanToken(true);
+                }
+                else if(scanner.LastToken.Type == TokenType.More)
+                {
+                    scanner.ScanToken(isTypeArgument);
+                    break;
+                }
+                else
+                {
+                    MatchToken(TokenType.Comma);
+                    scanner.ScanToken(true);
+                }
             }
-            scanner.ScanToken();
             return typeArguments;
         }
 
-        private AstType ParseType()
+        private AstType ParseType(bool isTypeArgument=false)
         {
             string identifier;
             switch(scanner.LastToken.Type) 
@@ -241,16 +316,17 @@ namespace NoHoPython.Syntax.Parsing
                 case TokenType.AffectsArgs:
                 case TokenType.AffectsCaptured:
                 case TokenType.Pure:
+                case TokenType.Impure:
                     identifier = scanner.LastToken.Identifier;
-                    scanner.ScanToken();
+                    scanner.ScanToken(isTypeArgument);
                     break;
                 default:
-                    identifier = ParseIdentifier();
+                    identifier = ParseIdentifier(isTypeArgument);
                     break;
             }
 
             return scanner.LastToken.Type == TokenType.Less
-                ? new AstType(identifier, ParseTypeArguments())
+                ? new AstType(identifier, ParseTypeArguments(AstType.GetMinTypeargs(identifier), AstType.GetMaxTypeargs(identifier), isTypeArgument))
                 : new AstType(identifier, new List<AstType>());
         }
     }

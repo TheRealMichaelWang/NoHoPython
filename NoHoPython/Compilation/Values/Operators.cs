@@ -89,20 +89,41 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         protected override void EmitExpression(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise left, Emitter.Promise right)
         {
-            primaryEmitter.Append('(');
-            left(primaryEmitter);
-            primaryEmitter.Append(Operation switch
+            if (Left.Type is DecimalType)
             {
-                CompareOperation.Equals => " == ",
-                CompareOperation.NotEquals => " != ",
-                CompareOperation.More => " > ",
-                CompareOperation.Less => " < ",
-                CompareOperation.MoreEqual => " >= ",
-                CompareOperation.LessEqual => " <= ",
-                _ => throw new InvalidOperationException()
-            });
-            right(primaryEmitter);
-            primaryEmitter.Append(')');
+                primaryEmitter.Append(Operation switch
+                {
+                    CompareOperation.Equals => "!islessgreater",
+                    CompareOperation.NotEquals => "islessgreater",
+                    CompareOperation.More => "isgreater",
+                    CompareOperation.Less => "isless",
+                    CompareOperation.MoreEqual => "isgreaterequal",
+                    CompareOperation.LessEqual => "islessequal",
+                    _ => throw new InvalidOperationException()
+                });
+                primaryEmitter.Append('(');
+                left(primaryEmitter);
+                primaryEmitter.Append(", ");
+                right(primaryEmitter);
+                primaryEmitter.Append(')');
+            }
+            else
+            {
+                primaryEmitter.Append('(');
+                left(primaryEmitter);
+                primaryEmitter.Append(Operation switch
+                {
+                    CompareOperation.Equals => " == ",
+                    CompareOperation.NotEquals => " != ",
+                    CompareOperation.More => " > ",
+                    CompareOperation.Less => " < ",
+                    CompareOperation.MoreEqual => " >= ",
+                    CompareOperation.LessEqual => " <= ",
+                    _ => throw new InvalidOperationException()
+                });
+                right(primaryEmitter);
+                primaryEmitter.Append(')');
+            }
         }
 
         public override void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)

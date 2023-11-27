@@ -1,5 +1,6 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.Scoping;
 using NoHoPython.Syntax;
 using NoHoPython.Typing;
 
@@ -211,40 +212,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public sealed partial class InterpolatedString : IRValue
-    {
-        public IAstElement ErrorReportedElement { get; private set; }
-
-        public IType Type => TargetArrayChar ? new ArrayType(Primitive.Character) : Primitive.CString;
-
-        public bool IsTruey => false;
-        public bool IsFalsey => false;
-
-        public readonly List<object> InterpolatedValues; //all objects are either IRValue or string
-
-        private bool TargetArrayChar;
-
-        public InterpolatedString(List<object> interpolatedValues, bool targetArrayChar, IAstElement errorReportedElement)
-        {
-            InterpolatedValues = new(interpolatedValues.Count);
-            ErrorReportedElement = errorReportedElement;
-            TargetArrayChar = targetArrayChar;
-
-            for (int i = 0; i < interpolatedValues.Count; i++)
-            {
-                if (interpolatedValues[i] is IRValue irValue)
-                    InterpolatedValues.Add(irValue);
-                else if (interpolatedValues[i] is string str)
-                {
-                    if (str != string.Empty)
-                        InterpolatedValues.Add(str);
-                }
-                else
-                    throw new InvalidOperationException();
-            }
-        }
-    }
-
     public sealed partial class AllocArray : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
@@ -377,7 +344,12 @@ namespace NoHoPython.Syntax.Values
             else if(expectedType is HandleType)
                 return new IntermediateRepresentation.Values.StaticCStringLiteral(String, this);
 
-            return new IntermediateRepresentation.Values.AllocRecord(Primitive.GetStringType(irBuilder, this), new List<IRValue>() { new IntermediateRepresentation.Values.StaticCStringLiteral(String, this), new IntermediateRepresentation.Values.TrueLiteral(this) }, irBuilder, this);
+            IScopeSymbol stringMarshaller = irBuilder.SymbolMarshaller.FindSymbol("stringImpl:makeString", this);
+            if(stringMarshaller is ProcedureDeclaration procedureDeclaration)
+            {
+                return new IntermediateRepresentation.Values.LinkedProcedureCall(procedureDeclaration, new() { new IntermediateRepresentation.Values.StaticCStringLiteral(String, this), new IntermediateRepresentation.Values.IntegerLiteral(String.Length, this) }, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), Primitive.GetStringType(irBuilder, this), irBuilder, this);
+            }
+            throw new NotAProcedureException(stringMarshaller, this);
         }
     }
 
@@ -385,39 +357,11 @@ namespace NoHoPython.Syntax.Values
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
-            List<object> IRInterpolatedValues = new();
-
-            RecordType stringType = Primitive.GetStringType(irBuilder, this);
-            foreach (object value in InterpolatedValues)
-            {
-                if (value is IAstValue astValue)
-                {
-                    IRValue irValue = astValue.GenerateIntermediateRepresentationForValue(irBuilder, null, willRevaluate);
-
-                    if (!irValue.Type.HasFormatSpecifier)
-                    {
-                        try
-                        {
-                            irValue = IntermediateRepresentation.Values.ArithmeticCast.CastTo(irValue, stringType, irBuilder);
-                        }
-                        catch
-                        {
-                            irValue = IntermediateRepresentation.Values.ArithmeticCast.CastTo(irValue, new ArrayType(Primitive.Character), irBuilder);
-                        }
-                    }
-
-                    IRInterpolatedValues.Add(irValue);
-                }
-                else
-#pragma warning disable CS8604 // Possible null reference argument.
-                    IRInterpolatedValues.Add(value as string);
-#pragma warning restore CS8604 // Possible null reference argument.
-            }
-
-            if (expectedType is ArrayType arrayType && arrayType.ElementType is CharacterType)
-                return new IntermediateRepresentation.Values.InterpolatedString(IRInterpolatedValues, true, this);
-
-            return new IntermediateRepresentation.Values.AllocRecord(Primitive.GetStringType(irBuilder, this), new List<IRValue>() { new IntermediateRepresentation.Values.InterpolatedString(IRInterpolatedValues, false, this), new IntermediateRepresentation.Values.FalseLiteral(this) }, irBuilder, this);
+            IType stringType = Primitive.GetStringType(irBuilder, this);
+            IScopeSymbol interpolater = irBuilder.SymbolMarshaller.FindSymbol("stringImpl:interpolate", this);
+            if (interpolater is ProcedureDeclaration procedureDeclaration)
+                IntermediateRepresentation.Values.ArithmeticCast.CastTo(new IntermediateRepresentation.Values.LinkedProcedureCall(procedureDeclaration, new() { new IntermediateRepresentation.Values.ArrayLiteral(stringType, InterpolatedValues.ConvertAll(value => IntermediateRepresentation.Values.ArithmeticCast.CastTo(value.GenerateIntermediateRepresentationForValue(irBuilder, stringType, willRevaluate), stringType, irBuilder)), irBuilder, this) }, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), stringType, irBuilder, this), stringType, irBuilder);
+            throw new NotAProcedureException(interpolater, this);
         }
     }
 

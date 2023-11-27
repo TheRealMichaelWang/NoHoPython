@@ -447,26 +447,43 @@ namespace NoHoPython.IntermediateRepresentation.Values
             return new AnonymousProcedureCall(procedureValue, arguments, irBuilder, errorReportedElement);
         }
 
-        public static IRValue SendMessage(IRValue value, string receiverName, IType? expectedReturnType, List<IRValue> arguments, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement){
+        public static IRValue SendMessage(IRValue value, string receiverName, IType? expectedReturnType, List<IRValue> arguments, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement, bool finalCast = true){
             if(value.Type is IPropertyContainer propertyContainer && propertyContainer.HasProperty(receiverName))
                 return ComposeCall(GetPropertyValue.ComposeGetProperty(value, receiverName, irBuilder, errorReportedElement), arguments, irBuilder, errorReportedElement);
             
-            IScopeSymbol? procedure = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.Identifier}_{receiverName}");
+            IScopeSymbol? procedure = irBuilder.SymbolMarshaller.FindSymbol($"typeExt:{value.Type.Identifier}_{receiverName}");
             if(procedure == null)
-                procedure = irBuilder.SymbolMarshaller.FindSymbol($"{value.Type.PrototypeIdentifier}_{receiverName}");
-
-            if (procedure is ProcedureDeclaration procedureDeclaration)
+                procedure = irBuilder.SymbolMarshaller.FindSymbol($"typeExt:{value.Type.PrototypeIdentifier}_{receiverName}");
+            if(procedure == null && value.Type is EnumType enumType)
             {
-                List<IRValue> newArguments = new List<IRValue>(arguments);
-                arguments.Insert(0, value);
+                foreach(IType option in enumType.GetOptions())
+                    if(GetPropertyValue.HasMessageReceiver(option, receiverName, value.ErrorReportedElement, irBuilder))
+                        return SendMessage(new UnwrapEnumValue(value, option, irBuilder, value.ErrorReportedElement), receiverName, expectedReturnType, arguments, irBuilder, errorReportedElement);
+            }
+            if (procedure == null)
+            {
+                if (value.Type.IsCompatibleWith(Primitive.GetStringType(irBuilder, value.ErrorReportedElement)))
+                    procedure = irBuilder.SymbolMarshaller.FindSymbol($"typeExt:string_{receiverName}", errorReportedElement);
+                else
+                    throw new SymbolNotFoundException($"typeExt:{value.Type.Identifier}_{receiverName}", irBuilder.SymbolMarshaller.CurrentScope, value.ErrorReportedElement);
+            }
 
-                IRValue toreturn = new LinkedProcedureCall(procedureDeclaration, newArguments, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedReturnType, irBuilder, errorReportedElement);
-                if (expectedReturnType == null)
+            List<IRValue> newArguments = new List<IRValue>(arguments);
+            newArguments.Insert(0, value);
+            IRValue? toreturn = null;
+            if (procedure is ProcedureDeclaration procedureDeclaration)
+                toreturn = new LinkedProcedureCall(procedureDeclaration, newArguments, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), expectedReturnType, irBuilder, errorReportedElement);
+            else if (procedure is ForeignCProcedureDeclaration foreignCProcedureDeclaration)
+                toreturn = new ForeignFunctionCall(foreignCProcedureDeclaration, newArguments, expectedReturnType, irBuilder, errorReportedElement);
+
+            if(toreturn != null)
+            {
+                if (expectedReturnType == null || !finalCast)
                     return toreturn;
                 else
                     return ArithmeticCast.CastTo(toreturn, expectedReturnType, irBuilder);
             }
-            throw new InvalidOperationException();
+            throw new NotAProcedureException(procedure, errorReportedElement);
         }
 
         public override IType Type => ProcedureType.ReturnType;
@@ -624,7 +641,7 @@ namespace NoHoPython.Syntax.Statements
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
-            RecordType stringRecordType = Primitive.GetStringType(irBuilder, this);
+            IType stringType = Primitive.GetStringType(irBuilder, this);
 
             IRValue? abortMessage = null;
             if(AbortMessage != null)
@@ -632,7 +649,7 @@ namespace NoHoPython.Syntax.Statements
                 if (AbortMessage is StringLiteral)
                     return new IntermediateRepresentation.Statements.AbortStatement(AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.CString, false), this);
 
-                abortMessage = ArithmeticCast.CastTo(AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, stringRecordType, false), stringRecordType, irBuilder);
+                abortMessage = ArithmeticCast.CastTo(AbortMessage.GenerateIntermediateRepresentationForValue(irBuilder, stringType, false), stringType, irBuilder);
                 try
                 {
                     abortMessage = ArithmeticCast.CastTo(abortMessage, new ArrayType(Primitive.Character), irBuilder);

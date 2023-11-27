@@ -1,5 +1,6 @@
 ﻿using NoHoPython.Syntax;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
@@ -65,21 +66,23 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ArithmeticCastOperation.IntToHandle
         };
 
-        public static IRValue CastTo(IRValue value, IType typeTarget, AstIRProgramBuilder irBuilder, bool explicitCast=false)
+        public static IRValue CastTo(IRValue value, IType typeTarget, AstIRProgramBuilder irBuilder, bool explicitCast = false)
         {
-            if (typeTarget.IsCompatibleWith(value.Type))
-                return value;
-
             static IRValue InternalCastTo(IRValue value, IType typeTarget, AstIRProgramBuilder irBuilder, bool explicitCast, SortedSet<(IType, IType)> activeConversions)
             {
+                if (typeTarget.IsCompatibleWith(value.Type))
+                    return value;
+
                 if (!activeConversions.Add((value.Type, typeTarget)))
                     throw new RecursiveTypeCastError((value.Type, typeTarget), value.ErrorReportedElement);
 
                 //infalible type conversions
                 if (GetPropertyValue.HasMessageReceiver(value, $"to_{typeTarget.Identifier}", irBuilder))
-                    return InternalCastTo(AnonymousProcedureCall.SendMessage(value, $"to_{typeTarget.Identifier}", null, new(), irBuilder, value.ErrorReportedElement), typeTarget, irBuilder, false, activeConversions);
-                if (GetPropertyValue.HasMessageReceiver(value, $"to_{typeTarget.PrototypeIdentifier}", irBuilder)) 
-                    InternalCastTo(AnonymousProcedureCall.SendMessage(value, $"to_{typeTarget.PrototypeIdentifier}", null, new(), irBuilder, value.ErrorReportedElement), typeTarget, irBuilder, false, activeConversions);
+                    return InternalCastTo(AnonymousProcedureCall.SendMessage(value, $"to_{typeTarget.Identifier}", typeTarget, new(), irBuilder, value.ErrorReportedElement), typeTarget, irBuilder, false, activeConversions);
+                if (GetPropertyValue.HasMessageReceiver(value, $"to_{typeTarget.PrototypeIdentifier}", irBuilder))
+                    return InternalCastTo(AnonymousProcedureCall.SendMessage(value, $"to_{typeTarget.PrototypeIdentifier}", typeTarget, new(), irBuilder, value.ErrorReportedElement), typeTarget, irBuilder, false, activeConversions);
+                if (GetPropertyValue.HasMessageReceiver(value, "to_string", irBuilder) && typeTarget.IsCompatibleWith(Primitive.GetStringType(irBuilder, value.ErrorReportedElement)))
+                    return InternalCastTo(AnonymousProcedureCall.SendMessage(value, "to_string", Primitive.GetStringType(irBuilder, value.ErrorReportedElement), new(), irBuilder, value.ErrorReportedElement), Primitive.GetStringType(irBuilder, value.ErrorReportedElement), irBuilder, false, activeConversions);
 
                 if (typeTarget is HandleType handleType)
                 {
@@ -94,12 +97,27 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     return new MarshalMemorySpanIntoArray(value, value.ErrorReportedElement);
                 if (typeTarget is IntegerType && value.Type is ArrayType)
                     return new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayLength, value, value.ErrorReportedElement);
-                if (typeTarget is Primitive primitive)
-                    return PrimitiveCast(value, primitive);
+                if (value.Type is EnumType enumType1)
+                { 
+                    if(enumType1.SupportsType(typeTarget))
+                        return new UnwrapEnumValue(value, typeTarget, irBuilder, value.ErrorReportedElement);
+                    foreach(IType option in enumType1.GetOptions())
+                    {
+                        try
+                        {
+                            SortedSet<(IType, IType)> newActiveConversions = new(activeConversions, activeConversions.Comparer);
+                            return InternalCastTo(new UnwrapEnumValue(value, option, irBuilder, value.ErrorReportedElement), typeTarget, irBuilder, false, newActiveConversions);
+                        }
+                        catch (UnexpectedTypeException)
+                        {
+
+                        }
+                    }
+                }
 
                 //type conversions that could potentially fail
-                if (value.Type is EnumType enumType1 && enumType1.SupportsType(typeTarget))
-                    return new UnwrapEnumValue(value, typeTarget, irBuilder, value.ErrorReportedElement);
+                if (typeTarget is Primitive primitive)
+                    return PrimitiveCast(value, primitive);
                 if (typeTarget is TupleType tupleTarget && value.Type is TupleType)
                     return new MarshalIntoLowerTuple(tupleTarget, value, value.ErrorReportedElement);
                 if (typeTarget is EnumType enumType)
@@ -118,16 +136,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         private static IRValue PrimitiveCast(IRValue primitive, Primitive targetType)
         {
+            Debug.Assert(!targetType.IsCompatibleWith(primitive.Type));
+                
             if (primitive.Type is not Primitive)
                 if (primitive.Type is ArrayType)
                     return targetType is IntegerType
                         ? new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayLength, primitive, primitive.ErrorReportedElement)
                         : throw new UnexpectedTypeException(targetType, primitive.Type, primitive.ErrorReportedElement);
                 else
-                    throw new UnexpectedTypeException(primitive.Type, primitive.ErrorReportedElement);
-
-            if (targetType.IsCompatibleWith(primitive.Type))
-                throw new UnexpectedTypeException(primitive.Type, primitive.ErrorReportedElement);
+                    throw new UnexpectedTypeException(targetType, primitive.Type, primitive.ErrorReportedElement);
 
             Primitive input = (Primitive)primitive.Type;
             return targetType is IntegerType
@@ -269,6 +286,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 Type = Primitive.Integer;
                 Left = ArithmeticCast.CastTo(left, Primitive.Integer, irBuilder);
+            }
+            else if(left.Type is Primitive || right.Type is Primitive)
+            {
+                Type = Primitive.Integer;
+                Left = ArithmeticCast.CastTo(Left, Primitive.Integer, irBuilder);
+                Right = ArithmeticCast.CastTo(Right, Primitive.Integer, irBuilder);
             }
             else
                 throw new UnexpectedTypeException(left.Type, errorReportedElement);

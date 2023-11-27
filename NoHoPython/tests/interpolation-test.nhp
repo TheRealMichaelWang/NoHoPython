@@ -1,11 +1,8 @@
-﻿include "io.nhp"
-include "mem.nhp"
-
-class person:
-	array<char> name
+﻿class person:
+	string name
 	int age
 
-	def __init__(array<char> name, int age):
+	def __init__(string name, int age):
 		self.name = name
 		self.age = age
 
@@ -32,6 +29,3 @@ def interpol_str_test():
 	print($"You're {you}!")
 
 	#abort $"Yo, {name}, interpolated strings make aborts way easier!"
-
-def main():
-	mem::leaksan(interpol_str_test)

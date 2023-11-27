@@ -296,7 +296,7 @@ namespace NoHoPython.Syntax.Parsing
             else
                 scanner.ScanToken();
 
-            List<AstType> Options = ParseBlock(ParseType);
+            List<AstType> Options = ParseBlock(() => ParseType(false));
             return new EnumDeclaration(identifier, typeParameters, requiredImplementedInterfaces, Options, ParseAttributesTable(), location);
         }
 

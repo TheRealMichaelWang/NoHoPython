@@ -1,154 +1,149 @@
-mod data:
-	def list_T_convertList<T, X>(list<T> input, fn<X, T> convert) list<X>:
-		converted = new list<X>(input.count)
-		for i from 0 within input.count:
-			converted.pushBack(convert(input[i]))
-		return converted
-	
+mod typeExt:
+	pure array_T_to_std_list_T<T>(array<T> a) std::list<T>:
+		toret = new std::list<T>(a as int)
+		toret.addRange(a)
+		return toret
+
+	pure std_list_T_forall<T>(std::list<T> l, pure<None, T> todo):
+		for i from 0 within l.count:
+			todo(l.buffer[i])
+
+	pure std_list_T_map<T, K>(std::list<T> l, pure<K, T> convert) std::list<K>: 
+		res = new std::list<K>(l.count)
+		for i from 0 within l.count:
+			res.pushBack(convert(l.buffer[i]))
+		return res
+
+	pure std_list_T_filter<T>(std::list<T> l, pure<bool, T> cond) std::list<T>:
+		res = new std::list<T>(l.count)
+		for i from 0 within l.count:
+			if cond(l.buffer[i]):
+				res.pushBack(l.buffer[i])
+		return res
+
+	pure std_list_T_add<T>(std::list<T> l, array<T> a) std::list<T>:
+		res = new std::list<T>(l.count)
+		res.addRange(l)
+		res.addRange(a)
+		return res
+
+mod std:
 	class list<T>:
 		handle<T> buffer
-		int count = 0
 		int capacity
+		int count = 0
 		
 		pure __init__(int capacity):
 			self.capacity = capacity
-			self.buffer = std::malloc(capacity)
-		
-		def __del__():
-			for i from 0 within self.count:
-				destroy self.buffer + i
-			cstd::free(self.buffer)
-		
+			self.buffer = malloc(self.capacity * sizeof(T))
+			assert self.buffer != NULL
+			
 		pure __copy__() list<T>:
 			copied = new list<T>(self.count)
 			copied.count = self.count
 			for i from 0 within self.count:
 				copied.buffer[i] = self.buffer[i]
 			return copied
+			
+		pure __del__():
+			for i from 0 within self.count:
+				destroy self.buffer + i
+			free(self.buffer)
 		
+		pure getAtIndex(int i) option<T>:
+			if i < 0 or i >= self.count:
+				return None
+			return self.buffer[i]
+			
+		def setAtIndex(int i, T elem) option<T>:
+			if i < 0 or i >= self.count:
+				return None
+			destroy self.buffer + i
+			return self.buffer[i] = elem
+			
 		def clear():
 			for i from 0 within self.count:
 				destroy self.buffer + i
 			self.count = 0
-		
-		def getAtIndex(int i) T:
-			if i < 0 or i >= self.count:
-				abort "Index out of range."
-			return self.buffer[i]
-		
-		def setAtIndex(int i, T elem) T:
-			if i < 0 or i >= self.count:
-				abort "Index out of range."
-			destroy self.buffer + i
-			return self.buffer[i] = elem
-		
-		def add(list<T> toadd) list<T>:
-			res = new list<T>(self.count + toadd.count)
-			res.addRange(self)
-			res.addRange(toadd)
-			return res
-		
-		def ensureCapacity(int capacity):
-			if self.capacity >= capacity:
-				return
 			
-			self.capacity = capacity + 10
-			self.buffer = std::realloc(self.buffer, self.capacity)
-		
-		def pushFront(T elem):
-			ensureCapacity(self.count + 1)
-			std::memcpy(self.buffer + 1, self.buffer, self.count)
-			self.buffer[0] = elem
-			self.count = self.count + 1
-		
-		def pushBack(T elem):
-			ensureCapacity(self.count + 1)
+		def ensureCapacity(int capacity) bool:
+			if capacity <= self.capacity:
+				return true
+				
+			self.buffer = std::realloc(self.buffer, capacity)
+			if self.buffer == NULL:
+				return false
+				
+			self.capacity = capacity
+			return true
+			
+		def pushBack(T elem) bool:
+			if ensureCapacity(self.count + 1) == False:
+				return False
+			
 			self.buffer[self.count] = elem
 			self.count = self.count + 1
-		
-		def insert(int index, T elem):
-			ensureCapacity(self.count + 1)
-			std::memcpy(self.buffer + (index + 1), self.buffer + index, self.count - index)
+			
+			return true
+			
+		def pushFront(T elem) bool:
+			if ensureCapacity(self.count + 1) == False:
+				return false
+				
+			memmove(self.buffer + 1, self.buffer, self.count * sizeof(T))
+			self.buffer[0] = elem
+			self.count = self.count + 1
+			
+			return true
+			
+		def popFront() option<T>:
+			if self.count < 1:
+				return None
+			
+			elem = self.buffer[0]
+			destroy self.buffer
+			self.count = self.count - 1
+			memmove(self.buffer, self.buffer + 1, self.count * sizeof(T))
+			return elem
+			
+		def popBack() option<T>:
+			if self.count < 1:
+				return None
+				
+			self.count = self.count - 1
+			elem = self.buffer[self.count]
+			destroy self.buffer + self.count
+			
+			return elem
+			
+		def insert(int index, T elem) bool:
+			if index < 0 or index > self.count:
+				return false
+			if ensureCapacity(self.count + 1) == False:
+				return false
+			
+			memmove(self.buffer + index + 1, self.buffer + index, (self.count - index) * sizeof(T))
 			self.buffer[index] = elem
 			self.count = self.count + 1
-		
-		def addBuffer(array<T> buf):
-			ensureCapacity(self.count + buf as int)
+			
+			return true
+			
+		def remove(int index) bool:
+			if index < 0 or index >= self.count:
+				return false
+			
+			destroy self.buffer + index
+			memmove(self.buffer + index, self.buffer + index + 1, self.count - (index + 1))
+			self.count = self.count - 1
+			return true
+			
+		def addRange(array<T> buf) bool:
+			if ensureCapacity(self.count + buf as int) == False:
+				return false
 			for i from 0 within buf:
 				self.buffer[self.count + i] = buf[i]
 			self.count = self.count + buf as int
-		
-		def addRange(list<T> range):
-			ensureCapacity(self.count + range.count)
-			for i from 0 within range.count:
-				self.buffer[self.count + i] = range.buffer[i] as T
-			self.count = self.count + range.count
-		
-		def remove(fn<bool, T> compare) bool:
-			for i from 0 within self.count:
-				if compare(self.buffer[i] as T):
-					destroy self.buffer + i
-					std::memcpy(self.buffer + i, self.buffer + i + 1, self.count - (i + 1))
-					self.count = self.count - 1
-					return True
-			return False
-
-		def popFront() T:
-			popped = getAtIndex(0)
-			destroy self.buffer
-			self.count = self.count - 1
-			std::memcpy(self.buffer, self.buffer + 1, self.count)
-			return popped
-		
-		def popBack() T:
-			popped = getAtIndex(self.count - 1)
-			self.count = self.count - 1
-			destroy self.buffer + self.count
-			return popped
-		
+			return true
+			
 		def to_array_T() array<T>:
 			return marshal T[self.count](self.buffer)
-		
-		def forall(fn<None, T> todo):
-			for i from 0 within self.count:
-				todo(self.buffer[i])
-
-		def forallWithIndex(fn<None, T, int> todo):
-			for i from 0 within self.count:
-				todo(self.buffer[i], i)
-		
-		def sort(fn<int, T, T> compare):
-			sorted = False
-			tempBuf = std::malloc(1) as handle<T>
-			while sorted == False:
-				sorted = True
-				for i from 1 within self.count:
-					if compare(self.buffer[i], self.buffer[i - 1]) < 0:
-						larger = self.buffer + ((i - 1) * sizeof(T))
-						smaller = self.buffer + (i * sizeof(T))
-						std::memcpy(tempBuf, larger, 1)
-						std::memcpy(larger, smaller, 1)
-						std::memcpy(smaller, tempBuf, 1)
-						sorted = False
-			cstd::free(tempBuf)
-		
-		def map(fn<T, T> transform) list<T>:
-			mapped = new list<T>(self.count)
-			mapped.count = self.count
-			for i from 0 within self.count:
-				value = transform(self.buffer[i] as T)
-				mapped.buffer[i] = value
-			return mapped
-
-		def filter(fn<bool, T> keep) list<T>:
-			kept = new list<T>(self.count)
-			for i from 0 within self.count:
-				if keep(self.buffer[i] as T):
-					kept.pushBack(self.buffer[i] as T)
-			return kept
-		
-		def reduce(fn<T, T, T> combine) T:
-			accum = getAtIndex(0)
-			for i from 1 within self.count:
-				accum = combine(accum, self.buffer[i] as T)
-			return accum

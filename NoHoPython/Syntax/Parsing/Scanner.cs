@@ -32,6 +32,14 @@ namespace NoHoPython.Syntax.Parsing
 
     public sealed partial class Scanner
     {
+        public sealed class CannotIncludeFileException : SyntaxError
+        {
+            public CannotIncludeFileException(string filePath, SourceLocation? errorReportedElement) : base(errorReportedElement, $"Cannot include nhp source {filePath}.")
+            {
+
+            }
+        }
+
         private sealed class FileVisitor
         {
             public SourceLocation CurrentLocation => new(Row, Column, FileName);
@@ -45,7 +53,7 @@ namespace NoHoPython.Syntax.Parsing
 
             StreamReader reader;
 
-            public FileVisitor(string fileName, Scanner scanner)
+            public FileVisitor(string fileName, Scanner scanner, SourceLocation? errorReportedElement)
             {
                 if (!File.Exists(fileName))
                 {
@@ -63,7 +71,7 @@ namespace NoHoPython.Syntax.Parsing
                             goto file_found;
                         }
                     }
-                    throw new FileNotFoundException(fileName);
+                    throw new CannotIncludeFileException(fileName, errorReportedElement);
                 }
 
             file_found:
@@ -155,16 +163,14 @@ namespace NoHoPython.Syntax.Parsing
             visitorStack = new Stack<FileVisitor>();
             visitedFiles = new SortedSet<string>();
 
-            IncludeFile(firstFileToVisit);
-            IncludeFile("std.nhp");
-            IncludeFile("string.nhp");
-            IncludeFile("list.nhp");
+            IncludeFile(firstFileToVisit, null);
+            IncludeFile("std.nhp", null);
             ScanToken();
         }
 
-        public void IncludeFile(string fileName)
+        public void IncludeFile(string fileName, SourceLocation? errorReportedElement)
         {
-            FileVisitor visitor = new(fileName, this);
+            FileVisitor visitor = new(fileName, this, errorReportedElement);
             if (visitedFiles.Contains(visitor.FileName))
                 return;
 
@@ -206,7 +212,7 @@ namespace NoHoPython.Syntax.Parsing
             return scanned;
         }
 
-        private TokenType ScanSymbol()
+        private TokenType ScanSymbol(bool isParsingType)
         {
             char symChar = lastChar;
             ScanChar();
@@ -274,6 +280,11 @@ namespace NoHoPython.Syntax.Parsing
                         ScanChar();
                         return TokenType.MoreEqual;
                     }
+                    else if(!isParsingType && lastChar == '>')
+                    {
+                        ScanChar();
+                        return TokenType.ShiftRight;
+                    }
                     else
                         return TokenType.More;
                 case '<':
@@ -281,6 +292,11 @@ namespace NoHoPython.Syntax.Parsing
                     {
                         ScanChar();
                         return TokenType.LessEqual;
+                    }
+                    else if (lastChar == '<')
+                    {
+                        ScanChar();
+                        return TokenType.ShiftLeft;
                     }
                     else
                         return TokenType.Less;
@@ -305,7 +321,7 @@ namespace NoHoPython.Syntax.Parsing
             }
         }
 
-        public Token ScanToken()
+        public Token ScanToken(bool isParsingType=false)
         {
             while (lastChar == '\r' || lastChar == ' ')
                 ScanChar();
@@ -363,8 +379,6 @@ namespace NoHoPython.Syntax.Parsing
                     "and" => TokenType.And,
                     "or" => TokenType.Or,
                     "xor" => TokenType.Or,
-                    "lshift" => TokenType.ShiftLeft,
-                    "rshift" => TokenType.ShiftRight,
                     "new" => TokenType.New,
                     "marshal" => TokenType.Marshal,
                     "flag" => TokenType.Flag,
@@ -375,7 +389,9 @@ namespace NoHoPython.Syntax.Parsing
                     "attr" => TokenType.Attributes,
                     "pure" => TokenType.Pure,
                     "affects_args" => TokenType.AffectsArgs,
+                    "affectsArgs" => TokenType.AffectsArgs,
                     "affects_captured" => TokenType.AffectsCaptured,
+                    "affectsCaptured" => TokenType.AffectsCaptured,
                     "impure" => TokenType.Impure,
                     _ => TokenType.Identifier
                 }, keyword);
@@ -426,13 +442,13 @@ namespace NoHoPython.Syntax.Parsing
                 {
                     ScanChar();
                 } while (lastChar != '\0' && lastChar != '\n');
-                return ScanToken();
+                return ScanToken(isParsingType);
             }
             else
             {
                 Token? interpolatedTok = ContinueParseInterpolated();
                 if (interpolatedTok == null)
-                    return LastToken = new Token(ScanSymbol(), string.Empty);
+                    return LastToken = new Token(ScanSymbol(isParsingType), string.Empty);
                 else
                     return LastToken = interpolatedTok.Value;
             }

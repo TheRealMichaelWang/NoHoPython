@@ -220,10 +220,11 @@ namespace NoHoPython.Typing
 
         public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
-        public ProcedureType(IType returnType, List<IType> parameterTypes, Purity purityLevel)
+        public ProcedureType(IType returnType, List<IType> parameterTypes, Purity purity)
         {
             ReturnType = returnType;
             ParameterTypes = parameterTypes;
+            Purity = purity;
         }
 
         public bool IsCompatibleWith(IType type)

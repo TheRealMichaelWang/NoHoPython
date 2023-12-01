@@ -6,15 +6,24 @@ namespace NoHoPython.Syntax.Statements
 {
     public sealed partial class ProcedureDeclaration : IAstStatement
     {
-        public sealed class ProcedureParameter
+        public enum Type
+        {
+            Constructor,
+            MessageReceiver,
+            Normal
+        }
+
+        public sealed partial class ProcedureParameter
         {
             public readonly string Identifier;
             public AstType Type { get; private set; }
+            public bool IsReadOnly { get; private set; }
 
-            public ProcedureParameter(string identifier, AstType type)
+            public ProcedureParameter(string identifier, AstType type, bool isReadOnly)
             {
                 Identifier = identifier;
                 Type = type;
+                IsReadOnly = isReadOnly;
             }
 
             public override string ToString() => $"{Type} {Identifier}";
@@ -31,7 +40,8 @@ namespace NoHoPython.Syntax.Statements
 
         public SourceLocation SourceLocation { get; private set; }
 
-        public readonly string Name;
+        public string Name { get; private set; }
+        public Type DeclarationType { get; private set; }
         public readonly List<TypeParameter> TypeParameters;
         public readonly List<ProcedureParameter> Parameters;
         public readonly List<IAstStatement> Statements;
@@ -41,10 +51,11 @@ namespace NoHoPython.Syntax.Statements
         public IntermediateRepresentation.Statements.Purity Purity { get; private set; }
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, List<ProcedureParameter> parameters, IntermediateRepresentation.Statements.Purity purity, List<IAstStatement> statements, AstType? annotatedReturnType, SourceLocation sourceLocation)
+        public ProcedureDeclaration(string name, List<TypeParameter> typeParameters, List<ProcedureParameter> parameters, Type declarationType, IntermediateRepresentation.Statements.Purity purity, List<IAstStatement> statements, AstType? annotatedReturnType, SourceLocation sourceLocation)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             Name = name;
+            DeclarationType = declarationType;
             Statements = statements;
             SourceLocation = sourceLocation;
             Parameters = parameters;
@@ -206,6 +217,21 @@ namespace NoHoPython.Syntax.Parsing
                 return defaultPurity;
         }
 
+        private ProcedureParameter ParseProcedureParameter()
+        {
+            bool isReadOnly = false;
+            if (scanner.LastToken.Type == TokenType.Readonly)
+            {
+                isReadOnly = true;
+                scanner.ScanToken();
+            }
+            AstType paramType = ParseType();
+            MatchToken(TokenType.Identifier);
+            ProcedureParameter toret = new(scanner.LastToken.Identifier, paramType, isReadOnly);
+            scanner.ScanToken();
+            return toret;
+        }
+
         private IAstStatement ParseProcedureDeclaration(bool isRecordMessageReceiver = false)
         {
             SourceLocation location = scanner.CurrentLocation;
@@ -230,11 +256,7 @@ namespace NoHoPython.Syntax.Parsing
             List<ProcedureParameter> parameters = new();
             while (scanner.LastToken.Type != TokenType.CloseParen)
             {
-                AstType paramType = ParseType();
-                MatchToken(TokenType.Identifier);
-                parameters.Add(new(scanner.LastToken.Identifier, paramType));
-                scanner.ScanToken();
-
+                parameters.Add(ParseProcedureParameter());
                 if (scanner.LastToken.Type != TokenType.CloseParen)
                     MatchAndScanToken(TokenType.Comma);
             }
@@ -251,7 +273,7 @@ namespace NoHoPython.Syntax.Parsing
                 scanner.ScanToken();
             
             MatchAndScanToken(TokenType.Newline);
-            return new ProcedureDeclaration(identifer, typeParameters, parameters, purity, ParseCodeBlock(), returnType, location);
+            return new ProcedureDeclaration(identifer, typeParameters, parameters, isRecordMessageReceiver ? (identifer == "__init__" ? ProcedureDeclaration.Type.Constructor : ProcedureDeclaration.Type.MessageReceiver) : ProcedureDeclaration.Type.Normal, purity, ParseCodeBlock(), returnType, location);
         }
 
         private IAstStatement ParseCDefine()
@@ -308,11 +330,7 @@ namespace NoHoPython.Syntax.Parsing
             List<ProcedureParameter> parameters = new();
             while(scanner.LastToken.Type != TokenType.Colon)
             {
-                AstType paramType = ParseType();
-                MatchToken(TokenType.Identifier);
-                parameters.Add(new(scanner.LastToken.Identifier, paramType));
-                scanner.ScanToken();
-
+                parameters.Add(ParseProcedureParameter());
                 if (scanner.LastToken.Type != TokenType.Colon)
                     MatchAndScanToken(TokenType.Comma);
             }

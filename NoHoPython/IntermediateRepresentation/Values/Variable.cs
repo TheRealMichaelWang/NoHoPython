@@ -13,6 +13,7 @@ namespace NoHoPython.Scoping
 
         public IType Type { get; private set; }
         public string Name { get; private set; }
+        public bool IsReadOnly { get; private set; }
 
         public ProcedureDeclaration ParentProcedure;
         public SymbolContainer ParentContainer => ParentProcedure;
@@ -20,10 +21,11 @@ namespace NoHoPython.Scoping
 
         public string GetStandardIdentifier() => $"nhp_var_{Name}";
 
-        public Variable(IType initialType, string name, ProcedureDeclaration parentProcedure, bool isRecordSelf, IAstElement errorReportedElement)
+        public Variable(IType initialType, string name, bool isReadOnly, ProcedureDeclaration parentProcedure, bool isRecordSelf, IAstElement errorReportedElement)
         {
             Type = initialType;
             Name = name;
+            IsReadOnly = isReadOnly;
             ParentProcedure = parentProcedure;
             IsRecordSelf = isRecordSelf;
             ErrorReportedElement = errorReportedElement;
@@ -92,7 +94,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public VariableDeclaration(string name, IRValue setValue, bool willRevaluate, AstIRProgramBuilder irBuilder, IAstElement errorReportedELement)
         {
-            Variable = new Variable(setValue.Type, name, irBuilder.ScopedProcedures.Peek(), false, errorReportedELement);
+            Variable = new Variable(setValue.Type, name, false, irBuilder.ScopedProcedures.Peek(), false, errorReportedELement);
             InitialValue = setValue;
             WillRevaluate = willRevaluate;
             ErrorReportedElement = errorReportedELement;
@@ -120,13 +122,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Variable = variable;
             ErrorReportedElement = errorReportedElement;
             SetValue = ArithmeticCast.CastTo(value, Variable.Type, irBuilder);
-        }
-
-        private SetVariable(Variable variable, IRValue setValue, IAstElement errorReportedElement)
-        {
-            ErrorReportedElement = errorReportedElement;
-            Variable = variable;
-            SetValue = setValue;
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => throw new InvalidOperationException();

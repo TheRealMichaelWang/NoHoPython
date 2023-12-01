@@ -137,7 +137,7 @@ mod std:
 			self.count = self.count - 1
 			return true
 			
-		def addRange(array<T> buf) bool:
+		def addRange(readonly array<T> buf) bool:
 			if ensureCapacity(self.count + buf as int) == False:
 				return false
 			for i from 0 within buf:
@@ -145,5 +145,5 @@ mod std:
 			self.count = self.count + buf as int
 			return true
 			
-		def to_array_T() array<T>:
+		pure to_array_T() array<T>:
 			return marshal T[self.count](self.buffer)

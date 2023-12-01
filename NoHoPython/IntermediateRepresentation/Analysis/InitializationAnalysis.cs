@@ -434,9 +434,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (FunctionPurity == Purity.Pure)
                 return;
 
-            if (Record.IsReadOnly)
+            if (Record.IsReadOnly && FunctionPurity >= Purity.OnlyAffectsArgumentsAndCaptured)
                 throw new CannotMutateReadonlyValue(Record, ErrorReportedElement);
-            base.AnalyzeReadonlyCall();
+
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            Debug.Assert(Arguments.Count >= 1);
+            List<Variable> parameters = ((RecordType)Record.Type).RecordPrototype.GetMessageReceiver(Property.Name).Parameters;
+            for (int i = 1; i < Arguments.Count; i++)
+                if (!parameters[i - 1].IsReadOnly && Arguments[i].IsReadOnly && IType.HasChildren(Arguments[i].Type))
+                    throw new CannotMutateReadonlyValue(Arguments[i], ErrorReportedElement);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
         }
     }
 
@@ -457,7 +466,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (FunctionPurity == Purity.Pure)
                 return;
 
-            base.AnalyzeReadonlyCall();
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            for(int i = 0; i < Arguments.Count; i++)
+                if (!Procedure.ProcedureDeclaration.Parameters[i].IsReadOnly && Arguments[i].IsReadOnly && IType.HasChildren(Arguments[i].Type))
+                    throw new CannotMutateReadonlyValue(Arguments[i], ErrorReportedElement);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
             if (FunctionPurity <= Purity.OnlyAffectsArgumentsAndCaptured)
             {

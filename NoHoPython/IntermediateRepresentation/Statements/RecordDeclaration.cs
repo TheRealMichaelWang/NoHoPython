@@ -118,6 +118,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         private List<RecordProperty>? properties;
         private Dictionary<string, IRValue> defaultValues;
+        private SortedSet<string> messageReceiverNames;
 
         public ProcedureDeclaration Constructor { get; private set; }
         public ProcedureDeclaration? Destructor { get; private set; }
@@ -139,6 +140,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Destructor = null;
             Copier = null;
             defaultValues = new();
+            messageReceiverNames = new();
         }
 
         public List<RecordProperty> GetRecordProperties(RecordType recordType)
@@ -165,6 +167,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             this.properties = properties;
             IPropertyContainer.SanitizePropertyNames(properties.ConvertAll((prop) => (Property)prop), ErrorReportedElement);
         }
+
+        public void DeclareMessageReceiver(string name) => messageReceiverNames.Add(name);
 
         public void DelayedLinkSetConstructor(ProcedureDeclaration constructor, ProcedureDeclaration? destructor, ProcedureDeclaration? copier)
         {
@@ -196,6 +200,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 #pragma warning disable CS8602 // Only called during IR generation, following linking
         public bool AllPropertiesInitialized(SortedSet<RecordProperty> initializedProperties) => properties.TrueForAll(property => initializedProperties.Contains(property));
 #pragma warning restore CS8602
+
+        public ProcedureDeclaration? GetMessageReceiver(string name)
+        {
+            if (!messageReceiverNames.Contains(name))
+                return null;
+            return ((AnonymizeProcedure)defaultValues[name]).Procedure.ProcedureDeclaration;
+        }
     }
 }
 
@@ -316,6 +327,7 @@ namespace NoHoPython.Syntax.Statements
                     var recordProperty = messageReciever.GenerateProperty(irBuilder, selfType);
                     IRProperties.Add(recordProperty);
                     messageRecieverPropertyMap.Add(messageReciever, recordProperty);
+                    IRRecordDeclaration.DeclareMessageReceiver(messageReciever.Name);
                 }
             }
 
@@ -343,13 +355,13 @@ namespace NoHoPython.Syntax.Statements
             IntermediateRepresentation.Statements.ProcedureDeclaration? Copier = null;
             MessageRecievers.ForEach((ProcedureDeclaration reciever) => {
                 if (reciever.Name == "__init__")
-                    Constructor = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.ConstructorGenerateIntermediateRepresentationForStatement(irBuilder);
+                    Constructor = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
                 else if (reciever.Name == "__del__")
-                    Destructor = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.RecordGenerateIntermediateRepresentationForStatement(irBuilder);
+                    Destructor = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
                 else if (reciever.Name == "__copy__")
-                    Copier = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.RecordGenerateIntermediateRepresentationForStatement(irBuilder);
+                    Copier = (IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder);
                 else
-                    messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure((IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.RecordGenerateIntermediateRepresentationForStatement(irBuilder), false, reciever, null), irBuilder);
+                    messageRecieverPropertyMap[reciever].DelayedLinkSetDefaultValue(new AnonymizeProcedure((IntermediateRepresentation.Statements.ProcedureDeclaration)reciever.GenerateIntermediateRepresentationForStatement(irBuilder), false, reciever, null), irBuilder);
             });
 
             if (Constructor == null)

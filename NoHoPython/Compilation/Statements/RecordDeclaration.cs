@@ -72,7 +72,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => OptimizeMessageReciever;
 
-            public bool OptimizeMessageReciever => Type is ProcedureType && HasDefaultValue && IsReadOnly && RecordDeclaration.defaultValues[Name] is AnonymizeProcedure anonymizeProcedure && anonymizeProcedure.Procedure.ProcedureDeclaration.CapturedVariables.Count == 1 && anonymizeProcedure.Procedure.ProcedureDeclaration.CapturedVariables[0].IsRecordSelf;
+            public bool OptimizeMessageReciever => RecordDeclaration.messageReceiverNames.Contains(Name);
             public bool HasDefaultValue => RecordDeclaration.defaultValues.ContainsKey(Name);
 
             public IRValue? DefaultValue { get; private set; }

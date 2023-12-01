@@ -16,10 +16,10 @@ namespace NoHoPython.Syntax
         private void LinkCapturedVariables()
         {
             Dictionary<ProcedureDeclaration, HashSet<ProcedureDeclaration>> dependentProcedures = new(ProcedureDeclarations.Count);
-            HashSet<ProcedureDeclaration> unprocessedProcedures = new(ProcedureDeclarations);
-            foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
+            HashSet<ProcedureDeclaration> unprocessedProcedures = new(ProcedureDeclarations.ConvertAll(e => e.Item1));
+            foreach (ProcedureDeclaration procedureDeclaration in unprocessedProcedures)
                 dependentProcedures.Add(procedureDeclaration, new());
-            foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
+            foreach (ProcedureDeclaration procedureDeclaration in unprocessedProcedures)
                 if(procedureDeclaration.CapturedVariables.Count > 0)
                     foreach (ProcedureDeclaration callSite in procedureDeclaration.CallSiteProcedures)
                         if(!procedureDeclaration.IsChildProcedure(callSite))
@@ -164,12 +164,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (variable.ParentProcedure == this)
             {
 #pragma warning disable CS8602 // Parameters linked after initialization
-                if (Parameters.Contains(variable))
+                if (Parameters.Contains(variable) || variable.IsReadOnly)
                 {
                     if (willSet)
                         throw new CannotMutateVaraible(variable, false, errorReportedElement);
                     else
-                        return (variable, Purity <= Purity.Pure && IType.HasChildren(variable.Type)); //records can still be captured and have their properties mutated
+                        return (variable, Purity <= Purity.Pure && IType.HasChildren(variable.Type) || variable.IsReadOnly); //records can still be captured and have their properties mutated
                 }
 #pragma warning restore CS8602
             }
@@ -666,6 +666,11 @@ namespace NoHoPython.Syntax.Statements
 
     partial class ProcedureDeclaration
     {
+        partial class ProcedureParameter
+        {
+            public Variable ToIRVariable(AstIRProgramBuilder irBuilder, IntermediateRepresentation.Statements.ProcedureDeclaration IRProcedureDeclaration, IAstElement errorReportedElement) => new Variable(Type.ToIRType(irBuilder, errorReportedElement), Identifier, IsReadOnly, IRProcedureDeclaration, false, errorReportedElement);
+        }
+
         private IntermediateRepresentation.Statements.ProcedureDeclaration IRProcedureDeclaration;
 
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
@@ -686,12 +691,12 @@ namespace NoHoPython.Syntax.Statements
                 irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
             IRProcedureDeclaration.DelayedLinkSetReturnType(AnnotatedReturnType == null ? Primitive.Nothing : AnnotatedReturnType.ToIRType(irBuilder, this));
 
-            List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, IRProcedureDeclaration, false, this));
+            List<Variable> parameters = Parameters.ConvertAll((ProcedureParameter parameter) => parameter.ToIRVariable(irBuilder, IRProcedureDeclaration, this));
             IRProcedureDeclaration.DelayedLinkSetParameters(parameters);
 
             if (oldScope is IntermediateRepresentation.Statements.RecordDeclaration parentRecord)
             {
-                Variable selfVariable = new(parentRecord.GetSelfType(irBuilder), "self", IRProcedureDeclaration, true, this);
+                Variable selfVariable = new(parentRecord.GetSelfType(irBuilder), "self", false, IRProcedureDeclaration, true, this);
                 irBuilder.SymbolMarshaller.DeclareSymbol(selfVariable, this);
                 IRProcedureDeclaration.CapturedVariables.Add(selfVariable);
             }
@@ -701,7 +706,7 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopedProcedures.Pop();
 
-            irBuilder.AddProcDeclaration(IRProcedureDeclaration);
+            irBuilder.AddProcDeclaration(IRProcedureDeclaration, DeclarationType);
         }
 
 #pragma warning disable CS8602 // Only called after ForwardDeclare, when parameter is initialized
@@ -710,7 +715,7 @@ namespace NoHoPython.Syntax.Statements
 #pragma warning restore CS8604
 #pragma warning restore CS8602
 
-        public IRStatement ConstructorGenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
+        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             irBuilder.NewRefinmentContext();
             irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
@@ -727,20 +732,6 @@ namespace NoHoPython.Syntax.Statements
             irBuilder.Refinements.Pop();
 
             return IRProcedureDeclaration;
-        }
-
-        public IRStatement RecordGenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
-        {
-            IRStatement toret = ConstructorGenerateIntermediateRepresentationForStatement(irBuilder);
-            toret.NonConstructorPropertyAnalysis();
-            return toret;
-        }
-
-        public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
-        {
-            IRStatement toret = ConstructorGenerateIntermediateRepresentationForStatement(irBuilder);
-            toret.NonMessageReceiverAnalysis();
-            return toret;
         }
     }
 
@@ -830,7 +821,7 @@ namespace NoHoPython.Syntax.Values
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
         {
             ProcedureDeclaration lamdaDeclaration = new($"lambdaNo{irBuilder.GetLambdaId()}", new(), Purity, null, irBuilder.SymbolMarshaller.CurrentScope, (IScopeSymbol)irBuilder.CurrentMasterScope, this);
-            List<Variable> parameters = Parameters.ConvertAll((parameter) => new Variable(parameter.Type.ToIRType(irBuilder, this), parameter.Identifier, lamdaDeclaration, false, this));
+            List<Variable> parameters = Parameters.ConvertAll((parameter) => parameter.ToIRVariable(irBuilder, lamdaDeclaration, this));
             lamdaDeclaration.DelayedLinkSetParameters(parameters);
             
             irBuilder.SymbolMarshaller.NavigateToScope(lamdaDeclaration);
@@ -856,7 +847,7 @@ namespace NoHoPython.Syntax.Values
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopedProcedures.Pop();
-            irBuilder.AddProcDeclaration(lamdaDeclaration);
+            irBuilder.AddProcDeclaration(lamdaDeclaration, Statements.ProcedureDeclaration.Type.Normal);
             return new AnonymizeProcedure(lamdaDeclaration, expectedType == null ? false : expectedType is HandleType, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek());
         }
     }

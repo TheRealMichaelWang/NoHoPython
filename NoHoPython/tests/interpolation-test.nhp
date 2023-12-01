@@ -16,7 +16,7 @@ def interpol_str_test():
 
 	print($"Hello there, {name}! You are a bold one!")
 
-	age = input() as int
+	age = input().parseInt() as int
 	print($"Nice, you're {age} year(s) old!")
 
 	#test two interpolated values

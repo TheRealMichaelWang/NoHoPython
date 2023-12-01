@@ -12,7 +12,7 @@ namespace NoHoPython.Syntax
         private List<EnumDeclaration> EnumDeclarations;
         private List<InterfaceDeclaration> InterfaceDeclarations;
         private List<RecordDeclaration> RecordDeclarations;
-        private List<ProcedureDeclaration> ProcedureDeclarations;
+        private List<(ProcedureDeclaration, Statements.ProcedureDeclaration.Type)> ProcedureDeclarations;
 
         public Stack<ProcedureDeclaration> ScopedProcedures { get; private set; }
         public Stack<RefinementContext> Refinements { get; private set; }
@@ -31,7 +31,7 @@ namespace NoHoPython.Syntax
             EnumDeclarations = new List<EnumDeclaration>();
             InterfaceDeclarations = new List<InterfaceDeclaration>();
             RecordDeclarations = new List<RecordDeclaration>();
-            ProcedureDeclarations = new List<ProcedureDeclaration>();
+            ProcedureDeclarations = new();
             ScopedProcedures = new Stack<ProcedureDeclaration>();
             Refinements = new Stack<RefinementContext>();
             Flags = new SortedSet<string>(flags);
@@ -62,7 +62,7 @@ namespace NoHoPython.Syntax
         public void AddRecordDeclaration(RecordDeclaration recordDeclaration) => RecordDeclarations.Add(recordDeclaration);
         public void AddInterfaceDeclaration(InterfaceDeclaration interfaceDeclaration) => InterfaceDeclarations.Add(interfaceDeclaration);
         public void AddEnumDeclaration(EnumDeclaration enumDeclaration) => EnumDeclarations.Add(enumDeclaration);
-        public void AddProcDeclaration(ProcedureDeclaration procedureDeclaration) => ProcedureDeclarations.Add(procedureDeclaration);
+        public void AddProcDeclaration(ProcedureDeclaration procedureDeclaration, Statements.ProcedureDeclaration.Type type) => ProcedureDeclarations.Add((procedureDeclaration, type));
 
         public void DeclareTypeDependencies(IType type, params IType[] dependencies)
         {
@@ -79,7 +79,7 @@ namespace NoHoPython.Syntax
         public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, bool mainEntryPoint, MemoryAnalyzer memoryAnalyzer)
         {
             List<ProcedureDeclaration> compileHeads = new();
-            foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations)
+            foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations.ConvertAll(e => e.Item1))
                 if (mainEntryPoint)
                 {
                     if(procedureDeclaration.IsCompileHead && procedureDeclaration.Name == "main")
@@ -91,9 +91,20 @@ namespace NoHoPython.Syntax
             foreach (ProcedureDeclaration procedureDeclaration in compileHeads)
                 procedureDeclaration.ScopeAsCompileHead(this);
             ScopeForAllSecondaryProcedures();
+            
+            foreach(var toAnalyze in ProcedureDeclarations)
+                switch (toAnalyze.Item2)
+                {
+                    case Statements.ProcedureDeclaration.Type.MessageReceiver:
+                        toAnalyze.Item1.NonConstructorPropertyAnalysis();
+                        break;
+                    case Statements.ProcedureDeclaration.Type.Normal:
+                        toAnalyze.Item1.NonMessageReceiverAnalysis();
+                        break;
+                }
 
             return new(doBoundsChecking, eliminateAsserts, doCallStack, nameRuntimeTypes, emitLineDirectives,
-                RecordDeclarations, InterfaceDeclarations, EnumDeclarations, foreignTypeOverloads.Keys.ToList(), ProcedureDeclarations, new List<string>()
+                RecordDeclarations, InterfaceDeclarations, EnumDeclarations, foreignTypeOverloads.Keys.ToList(), ProcedureDeclarations.ConvertAll((p) => p.Item1), new List<string>()
                 {
                     "<stdio.h>",
                     "<stdlib.h>",

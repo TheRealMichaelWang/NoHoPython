@@ -97,8 +97,8 @@ namespace NoHoPython.IntermediateRepresentation
 
             if (EmitLineDirectives && LastSourceLocation.HasValue)
             {
-                LastSourceLocation.Value.EmitLineDirective(this);
-                writer.WriteLine();
+                writer.WriteLine(LastSourceLocation.Value.GetLineDirective());
+                //LastSourceLocation = null;
             }
 
             Flush(true);
@@ -175,7 +175,7 @@ namespace NoHoPython.IntermediateRepresentation
             if (!irValue.RequiresDisposal(irProgram, typeargs, isTemporary))
                 return;
 
-            resourceDestructors.Push((emitter) => irValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (e) => e.Append(location), responsibleDestroyer));
+            AddResourceDestructor(emitter => irValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (e) => e.Append(location), responsibleDestroyer));
         }
 
         public void AddResourceDestructor(Promise resourceDestructor) => resourceDestructors.Push(resourceDestructor);

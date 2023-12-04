@@ -132,7 +132,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 if ((Operation == CompareOperation.Equals && Left.IsTruey) || (Operation == CompareOperation.NotEquals && Left.IsFalsey))
                 {
-                    Right.Emit(irProgram, primaryEmitter, typeargs, destination, Emitter.NullPromise, true);
+                    Right.Emit(irProgram, primaryEmitter, typeargs, rightPromise => destination((emitter) =>
+                    {
+                        if (Right.Type is not BooleanType)
+                            emitter.Append("(int)");
+                        rightPromise(emitter);
+                    }), Emitter.NullPromise, true);
                     return;
                 }
                 else if ((Operation == CompareOperation.Equals && Left.IsFalsey) || (Operation == CompareOperation.NotEquals && Left.IsTruey))
@@ -140,19 +145,28 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     Right.Emit(irProgram, primaryEmitter, typeargs, (rightPromise) => destination((emitter) =>
                     {
                         emitter.Append('!');
+                        if (Right.Type is not BooleanType)
+                            emitter.Append("(int)");
                         rightPromise(emitter);
                     }), Emitter.NullPromise, true);
                     return;
                 }
                 else if ((Operation == CompareOperation.Equals && Right.IsTruey) || (Operation == CompareOperation.NotEquals && Right.IsFalsey))
                 {
-                    Left.Emit(irProgram, primaryEmitter, typeargs, destination, Emitter.NullPromise, true);
+                    Left.Emit(irProgram, primaryEmitter, typeargs, leftPromise => destination((emitter) =>
+                    {
+                        if (Left.Type is not BooleanType)
+                            emitter.Append("(int)");
+                        leftPromise(emitter);
+                    }), Emitter.NullPromise, true);
                     return;
                 }
                 else if ((Operation == CompareOperation.Equals && Right.IsFalsey) || (Operation == CompareOperation.NotEquals && Right.IsTruey))
                 {
                     Left.Emit(irProgram, primaryEmitter, typeargs, (leftPromise) => destination((emitter) =>
                     {
+                        if (Left.Type is not BooleanType)
+                            emitter.Append("(int)");
                         emitter.Append('!');
                         leftPromise(emitter);
                     }), Emitter.NullPromise, true);
@@ -189,12 +203,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return;
             }
 
-            if (Left.IsTruey || Left.IsFalsey)
+            if ((Left.IsTruey && Operation == LogicalOperation.And) || (Left.IsFalsey && Operation == LogicalOperation.Or))
             {
                 Right.Emit(irProgram, primaryEmitter, typeargs, destination, Emitter.NullPromise, true);
                 return;
             }
-            else if (Right.IsTruey || Right.IsFalsey)
+            else if ((Right.IsTruey && Operation == LogicalOperation.And) || (Right.IsFalsey && Operation == LogicalOperation.Or))
             {
                 Left.Emit(irProgram, primaryEmitter, typeargs, destination, Emitter.NullPromise, true);
                 return;
@@ -283,17 +297,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (Array.Type is ArrayType)
                         emitter.Append(".buffer");
                     emitter.Append('[');
-                    if (irProgram.DoBoundsChecking)
-                    {
-                        emitter.Append($"nhp_bounds_check(ind{indirection}, ");
-                        if (Array.Type is MemorySpan memorySpan)
-                            emitter.Append(memorySpan.Length.ToString());
-                        else
-                            emitter.Append($"arr{indirection}.length");
-                        emitter.Append(')');
-                    }
-                    else
-                        emitter.Append($"ind{indirection}");
+                    EmitBoundsCheck(irProgram, primaryEmitter, e => e.Append($"ind{indirection}"), new(e => e.Append($"arr{indirection}")), Array.Type, ErrorReportedElement);
                     emitter.Append(']');
                 });
 
@@ -306,25 +310,35 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (Array.Type is ArrayType)
                         emitter.Append(".buffer");
                     emitter.Append('[');
-                    if (irProgram.DoBoundsChecking)
-                    {
-                        emitter.Append("nhp_bounds_check(");
-                        IRValue.EmitDirect(irProgram, emitter, Index, typeargs, Emitter.NullPromise, true);
-                        emitter.Append(", ");
-                        if (Array.Type is MemorySpan memorySpan)
-                            emitter.Append(memorySpan.Length.ToString());
-                        else
-                        {
-                            Debug.Assert(!Array.GetPostEvalPure().RequiresDisposal(irProgram, typeargs, true));
-                            IRValue.EmitDirect(irProgram, emitter, Array.GetPostEvalPure(), typeargs, Emitter.NullPromise, true);
-                            emitter.Append(".length");
-                        }
-                        emitter.Append(')');
-                    }
-                    else
-                        IRValue.EmitDirect(irProgram, emitter, Index, typeargs, Emitter.NullPromise, true);
+                    EmitBoundsCheck(irProgram, primaryEmitter, IRValue.EmitDirectPromise(irProgram, Index, typeargs, Emitter.NullPromise, true), new(() => IRValue.EmitDirectPromise(irProgram, Array.GetPostEvalPure(), typeargs, Emitter.NullPromise, true)), Array.Type, ErrorReportedElement);
                     emitter.Append(']');
                 });
+        }
+
+        public static void EmitBoundsCheck(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise index, Lazy<Emitter.Promise> postEvalPureArray, IType arrayType, Syntax.IAstElement errorReportedElement)
+        {
+            if (irProgram.DoBoundsChecking)
+            {
+                primaryEmitter.Append("nhp_bounds_check(");
+                index(primaryEmitter);
+                primaryEmitter.Append(", ");
+                if (arrayType is MemorySpan memorySpan)
+                    primaryEmitter.Append($"{memorySpan.Length}");
+                else if (arrayType is ArrayType)
+                {
+                    postEvalPureArray.Value(primaryEmitter);
+                    primaryEmitter.Append(".length");
+                }
+                else
+                    throw new InvalidOperationException();
+                primaryEmitter.Append(", ");
+                CharacterLiteral.EmitCString(primaryEmitter, errorReportedElement.SourceLocation.ToString(), false, true);
+                primaryEmitter.Append(", ");
+                errorReportedElement.EmitSrcAsCString(primaryEmitter);
+                primaryEmitter.Append(')');
+            }
+            else
+                index(primaryEmitter);
         }
     }
 
@@ -340,7 +354,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
 
-        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Array.MustUseDestinationPromise(irProgram, typeargs, true) || Index.MustUseDestinationPromise(irProgram, typeargs, true) || Value.MustUseDestinationPromise(irProgram, typeargs, false) || !IRValue.EvaluationOrderGuarenteed(Array, Index, Value) || !IRValue.HasPostEvalPure(Array) || Value.Type.SubstituteWithTypearg(typeargs).RequiresDisposal;
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Array.MustUseDestinationPromise(irProgram, typeargs, true) || Index.MustUseDestinationPromise(irProgram, typeargs, true) || Value.MustUseDestinationPromise(irProgram, typeargs, false) || !IRValue.EvaluationOrderGuarenteed(Array, Index, Value) || (!IRValue.HasPostEvalPure(Array) && Array.Type is ArrayType) || Value.Type.SubstituteWithTypearg(typeargs).RequiresDisposal;
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
@@ -362,19 +376,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 Index.Emit(irProgram, primaryEmitter, typeargs, (indexPromise) =>
                 {
                     primaryEmitter.Append($"ind{indirection} = ");
-                    if (irProgram.DoBoundsChecking)
-                    {
-                        primaryEmitter.Append("nhp_bounds_check(");
-                        indexPromise(primaryEmitter);
-                        primaryEmitter.Append(", ");
-                        if (Array.Type is MemorySpan memorySpan)
-                            primaryEmitter.Append(memorySpan.Length.ToString());
-                        else
-                            primaryEmitter.Append($"arr{indirection}.length");
-                        primaryEmitter.Append(')');
-                    }
-                    else
-                        indexPromise(primaryEmitter);
+                    GetValueAtIndex.EmitBoundsCheck(irProgram, primaryEmitter, indexPromise, new(e => e.Append($"arr{indirection}")), Array.Type, ErrorReportedElement);
                     primaryEmitter.AppendLine(';');
                 }, Emitter.NullPromise, true);
                 Value.Emit(irProgram, primaryEmitter, typeargs, (valuePromise) =>
@@ -410,23 +412,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (Array.Type is ArrayType)
                         emitter.Append(".buffer");
                     emitter.Append('[');
-                    if (irProgram.DoBoundsChecking)
-                    {
-                        emitter.Append("nhp_bounds_check(");
-                        IRValue.EmitDirect(irProgram, emitter, Index, typeargs, Emitter.NullPromise, true);
-                        emitter.Append(", ");
-                        if (Array.Type is MemorySpan memorySpan)
-                            emitter.Append(memorySpan.Length.ToString());
-                        else
-                        {
-                            Debug.Assert(!Array.GetPostEvalPure().RequiresDisposal(irProgram, typeargs, true));
-                            IRValue.EmitDirect(irProgram, emitter, Array.GetPostEvalPure(), typeargs, Emitter.NullPromise, true);
-                            emitter.Append(".length");
-                        }
-                        emitter.Append(')');
-                    }
-                    else
-                        IRValue.EmitDirect(irProgram, emitter, Index, typeargs, Emitter.NullPromise, true);
+                    GetValueAtIndex.EmitBoundsCheck(irProgram, primaryEmitter, IRValue.EmitDirectPromise(irProgram, Index, typeargs, Emitter.NullPromise, true), new(() => IRValue.EmitDirectPromise(irProgram, Array.GetPostEvalPure(), typeargs, Emitter.NullPromise, true)), Array.Type, ErrorReportedElement);
                     emitter.Append("] = ");
                     IRValue.EmitDirect(irProgram, emitter, Value, typeargs, arrayResponsibleDestroyer, false);
                     emitter.Append(')');

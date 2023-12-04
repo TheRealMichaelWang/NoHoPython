@@ -351,7 +351,7 @@ namespace NoHoPython.Syntax.Statements
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
             IRValue lowerBound = ArithmeticOperator.ComposeArithmeticOperation(ArithmeticOperator.ArithmeticOperation.Subtract, LowerBound.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, false), new IntegerLiteral(1, this), irBuilder, this);
-            IRValue upperBound = UpperBound.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, false);
+            IRValue upperBound = ArithmeticCast.CastTo(UpperBound.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Integer, false), Primitive.Integer, irBuilder);
 
             irBuilder.NewRefinmentContext();
             irBuilder.SymbolMarshaller.NavigateToScope(scopedCodeBlock);

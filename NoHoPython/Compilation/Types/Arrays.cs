@@ -56,13 +56,13 @@ namespace NoHoPython.IntermediateRepresentation
                     emitter.Append(", void* responsible_destroyer");
                 emitter.AppendLine(");");
 
-                if (arrayType.ElementType.RequiresDisposal)
-                {
+                //if (arrayType.ElementType.RequiresDisposal)
+                //{
                     emitter.AppendLine($"{arrayType.GetCName(this)} copy{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_copy");
                     if (arrayType.MustSetResponsibleDestroyer)
                         emitter.Append(", void* responsible_destroyer");
                     emitter.Append(");");
-                }
+                //}
             }
         }
 

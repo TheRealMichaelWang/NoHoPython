@@ -147,3 +147,10 @@ mod std:
 			
 		pure to_array_T() array<T>:
 			return marshal T[self.count](self.buffer)
+
+		pure reverse() list<T>:
+			reversed = new list<T>(self.count)
+			reversed.count = self.count
+			for i from 0 within self.count:
+				reversed.buffer[i] = self.buffer[self.count - (i + 1)]
+			return reversed

@@ -113,11 +113,12 @@ mod std:
 					sorted = False
 		return copy
 
-pure print(array<char> s):
-	cdef putchar(char) None
+impure print(readonly array<char> s):
+	cdef impure putchar(char) None
 
 	for i from 0 within s:
 		putchar(s[i])
+	putchar('\n')
 
 pure input() string:
 	cdef getchar() char

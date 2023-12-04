@@ -167,12 +167,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 int indirection = primaryEmitter.AppendStartBlock();
 
-                primaryEmitter.AppendLine($"{ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)}* res{indirection} = {irProgram.MemoryAnalyzer.Allocate(Elements.Count.ToString())};");
+                primaryEmitter.AppendLine($"{ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)}* res{indirection} = {irProgram.MemoryAnalyzer.Allocate($"{Elements.Count} * sizeof({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)})")};");
                 for (int i = 0; i < Elements.Count; i++)
                 {
                     Elements[i].Emit(irProgram, primaryEmitter, typeargs, (elemPromise) =>
                     {
-                        primaryEmitter.Append($"res[{i}] = ");
+                        primaryEmitter.Append($"res{indirection}[{i}] = ");
 
                         if (Elements[i].RequiresDisposal(irProgram, typeargs, isTemporaryEval) || !RequiresDisposal(irProgram, typeargs, isTemporaryEval))
                             elemPromise(primaryEmitter);
@@ -183,7 +183,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     }, responsibleDestroyer, isTemporaryEval);
                     if (ElementType.SubstituteWithTypearg(typeargs).RequiresDisposal)
                         primaryEmitter.AddResourceDestructor((emitter) => ElementType.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (e) => e.Append($"res[{i}]"), Emitter.NullPromise));
-                    primaryEmitter.AppendLine();
                 }
                 primaryEmitter.AssumeBlockResources();
                 destination((emitter) => primaryEmitter.Append($"res{indirection}"));

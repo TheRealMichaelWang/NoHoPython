@@ -9,7 +9,7 @@
 	pure to_string() string:
 		return $"Name: {self.name}, Age: {self.age}"
 
-def interpol_str_test():
+impure main():
 	print($"{{I}} like string interpolation!")
 
 	name = input()

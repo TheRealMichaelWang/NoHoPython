@@ -28,12 +28,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
-            void EmitCorrectCopy(IRValue irValue)
+            void EmitCorrectCopy(IRValue irValue, Emitter emitter)
             {
                 if (RequiresDisposal(irProgram, typeargs, isTemporaryEval) && !irValue.RequiresDisposal(irProgram, typeargs, false))
-                    irValue.Emit(irProgram, primaryEmitter, typeargs, (promise) => destination((emitter) => irValue.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, promise, responsibleDestroyer)), responsibleDestroyer, false);
+                    irValue.Emit(irProgram, emitter, typeargs, (valPromise) => irValue.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valPromise, responsibleDestroyer), responsibleDestroyer, isTemporaryEval);
                 else
-                    irValue.Emit(irProgram, primaryEmitter, typeargs, destination, responsibleDestroyer, false);
+                    IRValue.EmitDirect(irProgram, emitter, irValue, typeargs, responsibleDestroyer, isTemporaryEval);
             }
 
             if (MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval))
@@ -44,9 +44,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     IRValue.EmitAsStatement(irProgram, primaryEmitter, Condition, typeargs);
 
                 if (Condition.IsTruey)
-                    EmitCorrectCopy(IfTrueValue);
+                    EmitCorrectCopy(IfTrueValue, primaryEmitter);
                 else if (Condition.IsFalsey)
-                    EmitCorrectCopy(IfFalseValue);
+                    EmitCorrectCopy(IfFalseValue, primaryEmitter);
                 else
                 {
                     if (Condition.MustUseDestinationPromise(irProgram, typeargs, true))
@@ -61,10 +61,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         IRValue.EmitDirect(irProgram, primaryEmitter, Condition, typeargs, Emitter.NullPromise, true);
                         primaryEmitter.AppendStartBlock(")");
                     }
-                    EmitCorrectCopy(IfTrueValue);
+                    EmitCorrectCopy(IfTrueValue, primaryEmitter);
                     primaryEmitter.AppendEndBlock();
                     primaryEmitter.AppendStartBlock("else");
-                    EmitCorrectCopy(IfFalseValue);
+                    EmitCorrectCopy(IfFalseValue, primaryEmitter);
                     primaryEmitter.AppendEndBlock();
                 }
                 primaryEmitter.AppendEndBlock();
@@ -75,9 +75,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     emitter.Append("((");
                     IRValue.EmitDirect(irProgram, emitter, Condition, typeargs, Emitter.NullPromise, true);
                     emitter.Append(") ? (");
-                    EmitCorrectCopy(IfTrueValue);
+                    EmitCorrectCopy(IfTrueValue, emitter);
                     emitter.Append(") : (");
-                    EmitCorrectCopy(IfFalseValue);
+                    EmitCorrectCopy(IfFalseValue, emitter);
                     emitter.Append("))");
                 });
         }

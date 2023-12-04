@@ -36,7 +36,7 @@ mod typeExt:
 		while x != 0:
 			buffer.pushBack(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'][x % 10])
 			x = x / 10
-		return buffer
+		return buffer.reverse()
 
 	pure dec_to_string(dec dd) string:
 		d = dd
@@ -83,13 +83,13 @@ mod typeExt:
 			i = 1
 			negate = true
 
-		for j from i to str:
-			sigInd = str as int - j
+		for j from i within str:
+			sigInd = str as int - ((j - i) + 1)
 			if str[sigInd].isDigit == False:
 				return None
-			accum = (str[sigInd] - '0') * factor
+			accum = accum + (str[sigInd] - '0') * factor
 			factor = factor * 10
-		return -accum if negate else accum
+		return (-accum) if negate else accum
 
 	pure string_parseDec(string str) option<dec>:
 		decimalLoc = str.searchChar('.', 0)
@@ -105,7 +105,7 @@ mod typeExt:
 			if str[decimalLoc + 1 + i].isDigit == False:
 				return None
 			digit = (str[decimalLoc + 1 + i] - '0') as dec
-			fracPart = fracPart * (digit * factor)
+			fracPart = fracPart + (digit * factor)
 			factor = factor / 10
 		return intPart + fracPart
 

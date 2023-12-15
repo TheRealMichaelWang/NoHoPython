@@ -1,0 +1,80 @@
+﻿include "list.nhp"
+
+mod std:
+	class map<K, V>:
+		list<tuple<int, V>> buckets
+		pure<int, K> hasher
+
+		pure __init__(pure<int, K> hasher, int initBucketCap):
+			self.hasher = hasher
+			self.buckets = new list<tuple<int, V>>(initBucketCap)
+
+		pure contains(K key) bool:
+			hash = self.hasher(key)
+			low = 0
+			high = buckets.count
+			
+			while low < high:
+				mid = (high + low) / 2
+				midHash = self.buckets[mid].int0
+				if hash == midHash:
+					return true
+				if hash < midHash:
+					high = mid
+				else:
+					low = mid + 1
+			return false
+
+		pure getAtIndex(K key) option<V>:
+			hash = self.hasher(key)
+			low = 0
+			high = buckets.count
+			
+			while low < high:
+				mid = (high + low) / 2
+				midBucket = self.buckets[mid]
+				if hash == midBucket.int0:
+					return midBucket.V0
+				if hash < midBucket.int0:
+					high = mid
+				else:
+					low = mid + 1
+
+			return None
+
+		def setAtIndex(K key, V value) option<V>:
+			hash = self.hasher(key)
+			low = 0
+			high = buckets.count
+			
+			while low < high:
+				mid = (high + low) / 2
+				midHash = self.buckets[mid].int0
+				if hash == midHash:
+					self.buckets[mid] = (hash, value)
+					return value
+				if hash < midHash:
+					high = mid
+				else:
+					low = mid + 1
+
+			if self.buckets.insert(low, (hash, value)) == False:
+				return None
+
+			return value
+
+		def remove(K key) bool:
+			hash = self.hasher(key)
+			low = 0
+			high = buckets.count
+			
+			while low < high:
+				mid = (high + low) / 2
+				midHash = self.buckets[mid].int0
+				if hash == midHash:
+					return self.buckets.remove(mid)
+				if hash < midHash:
+					high = mid
+				else:
+					low = mid + 1
+			return false

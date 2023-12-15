@@ -1,0 +1,25 @@
+﻿mod std:
+	mod leaksan:
+		cdef report() "memoryReport" None
+
+		def run(fn<None> action):
+			def leaksan(fn<None> todo):
+			cdef active_allocs int
+			cdef active_memory_usage int
+
+			if flag "mem0":
+				abort "Memory analysis must be enabled to detect memory leaks."
+			elif flag "mem2":
+				preMem = active_memory_usage
+				preAllocs = active_allocs
+				todo()
+				currentAllocs = active_allocs
+				if currentAllocs > preAllocs:
+					currentMem = active_memory_usage
+					abort $"Memory leak detected! {currentMem-preMem} byte(s) leaked, {currentAllocs - preAllocs} alloc(s) leaked."
+			elif flag "mem1":
+				preAllocs = active_allocs
+				todo()
+				currentAllocs = active_allocs
+				if currentAllocs > preAllocs:
+					abort $"Memory leak detected! {currentAllocs - preAllocs} alloc(s) leaked!"

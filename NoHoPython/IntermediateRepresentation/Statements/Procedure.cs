@@ -443,7 +443,27 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (procedureValue is GetPropertyValue getProperty && getProperty.Property is RecordDeclaration.RecordProperty property && property.OptimizeMessageReciever)
                 return new OptimizedRecordMessageCall(property, getProperty.Record, arguments, irBuilder, errorReportedElement);
             else if (procedureValue is AnonymizeProcedure anonymizeProcedure)
+            {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+                if (anonymizeProcedure.Procedure.ProcedureDeclaration.Parameters.Count == 1 && anonymizeProcedure.Procedure.ProcedureDeclaration.Statements != null && anonymizeProcedure.Procedure.ProcedureDeclaration.Statements.Count == 1)
+                {
+                    IRStatement onlyStatement = anonymizeProcedure.Procedure.ProcedureDeclaration.Statements[0];
+                    bool doubleCheck = false;
+                check_if_lamda:
+                    if (onlyStatement is LinkedProcedureCall procedureCall && procedureCall.Arguments.Count == 1 && procedureCall.Arguments[0] is VariableReference variableReference && variableReference.Variable == anonymizeProcedure.Procedure.ProcedureDeclaration.Parameters[0])
+                    {
+                        return new AnonymizeProcedure(procedureCall.Procedure.ProcedureDeclaration, false, errorReportedElement, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek());
+                    }
+                    if(!doubleCheck && onlyStatement is ReturnStatement returnStatement && returnStatement.ToReturn is LinkedProcedureCall procedureCall1)
+                    {
+                        onlyStatement = procedureCall1;
+                        doubleCheck = true;
+                        goto check_if_lamda;
+                    }
+                }
                 return new LinkedProcedureCall(anonymizeProcedure.Procedure, arguments, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), irBuilder, errorReportedElement);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+            }
             return new AnonymousProcedureCall(procedureValue, arguments, irBuilder, errorReportedElement);
         }
 

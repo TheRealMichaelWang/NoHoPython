@@ -1,29 +1,21 @@
-﻿include "mem.nhp"
-
-enum nullable<T>:
-	T
-	None
+﻿include "leaksan.nhp"
 
 class node<T>:
 	T elem
-	nullable<node<T>> next
+	option<node<T>> next
 	
-	def __init__(T elem, nullable<node<T>> next):
+	pure __init__(T elem, option<node<T>> next):
 		self.elem = elem
 		self.next = next
 
 class list<T>:
-	nullable<node<T>> head
+	option<node<T>> head
 	
-	def __init__():
+	pure __init__():
 		self.head = None
 	
-	def get_isEmpty() bool:
-		match self.head:
-			node<T>:
-				return False
-			None:
-				return True
+	pure get_isEmpty() bool:
+		return self.head is node<T>
 	
 	def pushFront(T elem):
 		self.head = new node<T>(elem, self.head)
@@ -41,7 +33,7 @@ class list<T>:
 			None:
 				self.head = new node<T>(elem, None)
 	
-	def popFront() nullable<T>:
+	def popFront() option<T>:
 		match self.head:
 			node<T>:
 				toret = self.head.elem
@@ -50,22 +42,21 @@ class list<T>:
 			None:
 				return None
 
-def main():
-	def test():
-		cdef printf(handle<char>, int) None
-		mem::report()
+pure main():
+	pure test():
+		std::leaksan::report()
 		myList = new list<int>()
 		
 		for i from 1 to 20:
 			myList.pushBack(i)
 		mem::report()
 		
-		while myList.isEmpty == False:
+		while True:
 			match myList.popFront():
 				int j:
-					printf("%i\n\0", j)
+					print(j)
 				None:
 					break
 		mem::report()
 	
-	mem::leaksan(test)
+	std::leaksan::run(test)

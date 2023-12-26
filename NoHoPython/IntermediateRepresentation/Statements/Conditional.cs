@@ -121,7 +121,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             MatchHandlers = matchHandlers;
             DefaultHandler = defaultHandler;
 
-            IsExhaustive = ((EnumType)MatchValue.Type).GetOptions().Any((option) => !matchHandlers.Any((handler) => handler.MatchTypes.Any((type) => type.IsCompatibleWith(option))));
+            IsExhaustive = !((EnumType)MatchValue.Type).GetOptions().Any((option) => !matchHandlers.Any((handler) => handler.MatchTypes.Any((type) => type.IsCompatibleWith(option))));
 
             if(defaultHandler != null)
             {

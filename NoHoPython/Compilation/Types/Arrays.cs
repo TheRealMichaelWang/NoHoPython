@@ -177,7 +177,10 @@ namespace NoHoPython.Typing
             valueCSource(primaryEmitter);
 
             if (MustSetResponsibleDestroyer)
-                primaryEmitter.Append($", {responsibleDestroyer}");
+            {
+                primaryEmitter.Append(", ");
+                responsibleDestroyer(primaryEmitter);
+            }
 
             primaryEmitter.Append(')');
         }

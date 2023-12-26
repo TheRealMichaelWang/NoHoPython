@@ -283,8 +283,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     primaryEmitter.AppendLine($"if(!cond{indirection}) {{ break; }}");
             }
 
-            WhileTrueBlock.Emit(irProgram, primaryEmitter, typeargs);
-            primaryEmitter.AppendEndBlock();
+            WhileTrueBlock.EmitInitialize(irProgram, primaryEmitter, typeargs);
+            WhileTrueBlock.EmitNoOpen(irProgram, primaryEmitter, typeargs, false);
             primaryEmitter.EndLoopBlock();
         }
     }

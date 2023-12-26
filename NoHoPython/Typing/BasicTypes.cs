@@ -180,14 +180,16 @@ namespace NoHoPython.Typing
 
     public sealed partial class ProcedureType : IType
     {
+#pragma warning disable CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).
         private static string GetPurityName(Purity purity) => purity switch
         {
             Purity.Pure => "pure",
             Purity.OnlyAffectsArguments => "fn",
             Purity.OnlyAffectsArgumentsAndCaptured => "affectsArgsOnly"
         };
+#pragma warning restore CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).
 
-        public string TypeName => $"{GetPurityName(Purity)}<{ReturnType.TypeName}, {string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}>";
+        public string TypeName => $"{GetPurityName(Purity)}<{ReturnType.TypeName}{string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}>";
 
         public string Identifier
         {

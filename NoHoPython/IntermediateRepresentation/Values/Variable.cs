@@ -14,6 +14,7 @@ namespace NoHoPython.Scoping
         public IType Type { get; private set; }
         public string Name { get; private set; }
         public bool IsReadOnly { get; private set; }
+        public int ResourceDestructorId { get; private set; }
 
         public ProcedureDeclaration ParentProcedure;
         public SymbolContainer ParentContainer => ParentProcedure;
@@ -29,6 +30,14 @@ namespace NoHoPython.Scoping
             ParentProcedure = parentProcedure;
             IsRecordSelf = isRecordSelf;
             ErrorReportedElement = errorReportedElement;
+            ResourceDestructorId = -1;
+        }
+
+        public void DelayedLinkSetResourceDestructorId(int i)
+        {
+            if (ResourceDestructorId != -1)
+                throw new InvalidOperationException();
+            ResourceDestructorId = i;
         }
     }
 

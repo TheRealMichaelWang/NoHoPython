@@ -16,6 +16,16 @@ namespace NoHoPython.Compilation
 
         public string Allocate(string size) => $"{((Mode == AnalysisMode.None && !ProtectAllocFailure) ? "malloc" : "nhp_malloc")}({size})";
         public string Dealloc(string ptr, string size) => $"{(Mode == AnalysisMode.None ? "free" : "nhp_free")}({ptr}{(Mode >= AnalysisMode.UsageMagnitudeCheck ? ", " + size : string.Empty)});";
+        
+        public string Realloc(string ptr, string oldSize, string newSize)
+        {
+            if (Mode == AnalysisMode.None && !ProtectAllocFailure)
+                return $"realloc({ptr}, {newSize})";
+
+            if (Mode >= AnalysisMode.LeakSanityCheck)
+                return $"nhp_realloc({ptr}, {oldSize}, {newSize})";
+            return $"nhp_realloc({ptr}, {newSize})";
+        }
 
         public void EmitAllocate(Emitter emitter, Emitter.Promise sizePromise)
         {
@@ -68,8 +78,9 @@ namespace NoHoPython.Compilation
             {
                 emitter.AppendLine("\tvoid* buffer = malloc(size);");
                 emitter.AppendLine("\tif(!buffer) {");
-                emitter.AppendLine("\t\tputs(\"Memory Allocation Faliure (malloc returned NULL)\")");
+                emitter.AppendLine("\t\tputs(\"Memory Allocation Faliure (malloc returned NULL)\");");
                 emitter.AppendLine("\t\tmemoryReport();");
+                emitter.AppendLine("\t\tabort();");
                 emitter.AppendLine("\t}");
             }
 
@@ -91,7 +102,35 @@ namespace NoHoPython.Compilation
             emitter.AppendLine("}");
             #endregion
 
-            #region emit_destructor
+            #region emitReallocator
+            if(Mode >= AnalysisMode.None)
+            {
+                if (Mode >= AnalysisMode.UsageMagnitudeCheck)
+                {
+                    emitter.AppendStartBlock("static void* nhp_realloc(void* original, int ogSize, int newSize)");
+                    emitter.AppendLine("active_memory_usage += (newSize - ogSize);");
+                    emitter.AppendLine("peak_memory_usage = (active_memory_usage > peak_memory_usage) ? active_memory_usage : peak_memory_usage;");
+                }
+                else
+                    emitter.AppendStartBlock("static void* nhp_realloc(void* original, int newSize)");
+
+                if (ProtectAllocFailure)
+                {
+                    emitter.AppendLine("void* buffer = realloc(original, newSize);");
+                    emitter.AppendStartBlock("if(!buffer)");
+                    emitter.AppendLine("puts(\"Memory Allocation Faliure (realloc returned NULL)\");");
+                    emitter.AppendLine("memoryReport();");
+                    emitter.AppendLine("abort();");
+                    emitter.AppendEndBlock();
+                    emitter.AppendLine("return buffer;");
+                }
+                else
+                    emitter.AppendLine("return realloc(original, newSize);");
+                emitter.AppendEndBlock();
+            }
+            #endregion
+
+            #region emitDestructor
             if (Mode > AnalysisMode.None)
             {
                 if(Mode >= AnalysisMode.UsageMagnitudeCheck)

@@ -536,7 +536,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (!IsAnonymous || !ProcedureDeclaration.CapturedVariables.Any((variable) => variable.IsRecordSelf) || complementaryProcedureReference != null)
                 return;
 
-            emitter.AppendLine($"{ProcedureType.StandardProcedureType} record_copy{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_copy_anon, {RecordType.StandardRecordMask} record) {{");
+            emitter.AppendLine($"{ProcedureType.StandardProcedureType} record_copy{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_copy_anon, void* record) {{");
             emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* to_copy = ({GetClosureCaptureCType(irProgram)}*)to_copy_anon;");
             emitter.Append($"\treturn capture_{GetStandardIdentifier(irProgram)}(");
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
@@ -565,6 +565,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (ToReturn is VariableReference variableReference && parentProcedure.IsLocalVariable(variableReference.Variable))
                 {
                     localToReturn = variableReference.Variable;
+                    primaryEmitter.ExemptResourceFromDestruction(localToReturn.ResourceDestructorId);
                     primaryEmitter.AppendLine($"nhp_toret = {localToReturn.GetStandardIdentifier()};");
                 }
                 else

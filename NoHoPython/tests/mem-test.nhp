@@ -1,20 +1,23 @@
-﻿include "mem.nhp"
+﻿include "leaksan.nhp"
 
 class cell:
-	fn<None> myFn
+	affectsCaptured<None> myFn
 	array<cell> cells
-	def __init__():
+	
+	pure __init__():
 		self.cells = [<cell>]
 		self.myFn = self.stuff
+	
 	def stuff():
 		self.cells = new cell[10](new cell())
 		self.cells[3].myFn = self.mychild
+	
 	def mychild():
 		pass
 
-def main():
-	def test():
-		mem::report()
+affectsCaptured main():
+	affectsCaptured test():
+		std::leaksan::report()
 		testobj = new cell()
 		testobj.stuff()
-	mem::leaksan(test)
+	std::leaksan::run(test)

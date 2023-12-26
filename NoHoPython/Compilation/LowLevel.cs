@@ -199,7 +199,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 emitter.Append($"(({type.GetCName(irProgram)}){{ .buffer = ");
                 spanPromise(emitter);
                 emitter.Append($", .length = {memorySpan.Length}}})");
-            }), Emitter.NullPromise, isTemporaryEval);
+            }), responsibleDestroyer, isTemporaryEval);
         }
     }
 
@@ -245,7 +245,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                             emitter.Append(", ");
 
                         emitter.Append($".{property.Name} = ");
-                        property.Type.EmitCopyValue(irProgram, emitter, IRValue.EmitDirectPromise(irProgram, Value, typeargs, Emitter.NullPromise, true), responsibleDestroyer);
+                        property.Type.EmitCopyValue(irProgram, emitter, IRValue.EmitDirectPromise(irProgram, Value, typeargs, responsibleDestroyer, true), responsibleDestroyer);
                         emitter.Append($".{property.Name}");
                     }
                     emitter.Append('}');

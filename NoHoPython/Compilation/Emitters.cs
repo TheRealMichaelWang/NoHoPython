@@ -32,6 +32,7 @@ namespace NoHoPython.IntermediateRepresentation
         private Stack<int> blockDestructionFrames;
         private Stack<int> loopDestructorFrames;
         private Stack<int> functionDestructorFrames;
+        private SortedSet<int> destructionExemptions;
 
         public bool BufferMode { get; private set; }
 
@@ -50,6 +51,7 @@ namespace NoHoPython.IntermediateRepresentation
             blockDestructionFrames = new();
             loopDestructorFrames = new();
             functionDestructorFrames = new();
+            destructionExemptions = new();
         }
 
         public Emitter()
@@ -64,6 +66,7 @@ namespace NoHoPython.IntermediateRepresentation
             blockDestructionFrames = new();
             loopDestructorFrames = new();
             functionDestructorFrames = new();
+            destructionExemptions = new();
         }
 
         public void Append(string str)
@@ -150,10 +153,14 @@ namespace NoHoPython.IntermediateRepresentation
         private void DestroyResources(int depth, int frameLimit)
         {
             Stack<Promise> recoveredPromises = new();
-            while (resourceDestructors.Count > depth)
+            int exemption_id;
+            while ((exemption_id = resourceDestructors.Count) > depth)
             {
                 Promise p = resourceDestructors.Pop();
-                p(this);
+                if (destructionExemptions.Contains(exemption_id))
+                    destructionExemptions.Remove(exemption_id);
+                else
+                    p(this);
                 if (resourceDestructors.Count < frameLimit)
                     recoveredPromises.Push(p);
             }
@@ -178,7 +185,17 @@ namespace NoHoPython.IntermediateRepresentation
             AddResourceDestructor(emitter => irValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (e) => e.Append(location), responsibleDestroyer));
         }
 
-        public void AddResourceDestructor(Promise resourceDestructor) => resourceDestructors.Push(resourceDestructor);
+        public void ExemptResourceFromDestruction(int exemptionId)
+        {
+            Debug.Assert(exemptionId <= resourceDestructors.Count && exemptionId >= 0);
+            destructionExemptions.Add(exemptionId);
+        }
+
+        public int AddResourceDestructor(Promise resourceDestructor)
+        {
+            resourceDestructors.Push(resourceDestructor);
+            return resourceDestructors.Count;
+        }
 
         public string GetBuffered()
         {

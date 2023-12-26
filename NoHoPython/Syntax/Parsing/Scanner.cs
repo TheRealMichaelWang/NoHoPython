@@ -154,6 +154,7 @@ namespace NoHoPython.Syntax.Parsing
 
         public Token LastToken { get; private set; }
         private char lastChar => visitorStack.Peek().LastChar;
+        private Token? PeekToretToken;
 
         private readonly string standardLibraryDirectory;
 
@@ -162,6 +163,7 @@ namespace NoHoPython.Syntax.Parsing
             this.standardLibraryDirectory = standardLibraryDirectory.Replace('\\', '/');
             visitorStack = new Stack<FileVisitor>();
             visitedFiles = new SortedSet<string>();
+            PeekToretToken = null;
 
             IncludeFile(firstFileToVisit, null);
             IncludeFile("std.nhp", null);
@@ -321,8 +323,28 @@ namespace NoHoPython.Syntax.Parsing
             }
         }
 
+        public Token PeekToken(bool isParsingType=false)
+        {
+            if(PeekToretToken.HasValue)
+                return PeekToretToken.Value;
+
+            Token currentLastToken = LastToken;
+            Token nextToken = ScanToken(isParsingType);
+            PeekToretToken = nextToken;
+            LastToken = currentLastToken;
+            return nextToken;
+        }
+
         public Token ScanToken(bool isParsingType=false)
         {
+            if(PeekToretToken.HasValue)
+            {
+                Token toret = PeekToretToken.Value;
+                LastToken = toret;
+                PeekToretToken = null;
+                return toret;
+            }
+
             while (lastChar == '\r' || lastChar == ' ')
                 ScanChar();
 

@@ -405,10 +405,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
             primaryEmitter.Append($"construct_{recordType.GetOriginalStandardIdentifer(irProgram)}(");
             EmitArguments(primaryEmitter, argPromises);
 
-            if (Arguments.Count > 0)
-                primaryEmitter.Append(", ");
-            primaryEmitter.Append($"({RecordType.StandardRecordMask})");
-            responsibleDestroyer(primaryEmitter);
+            if (recordType.IsCircularDataStructure)
+            {
+                if (Arguments.Count > 0)
+                    primaryEmitter.Append(", ");
+                primaryEmitter.Append($"(nhp_trace_obj_t*)");
+                responsibleDestroyer(primaryEmitter);
+            }
             primaryEmitter.Append(')');
         }
     }

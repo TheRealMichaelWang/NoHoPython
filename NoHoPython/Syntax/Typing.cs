@@ -164,10 +164,12 @@ namespace NoHoPython.Syntax
                 case "fn":
                 case "proc":
                 case "affects_args":
+                case "affectsArgs":
                     return typeArguments.Count < 1
                         ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
                         : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments);
                 case "affects_captured":
+                case "affectsCaptured":
                     return typeArguments.Count < 1
                         ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
                         : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArgumentsAndCaptured);

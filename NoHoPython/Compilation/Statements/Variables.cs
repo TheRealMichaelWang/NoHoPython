@@ -1,19 +1,4 @@
-﻿using NoHoPython.IntermediateRepresentation;
-using NoHoPython.IntermediateRepresentation.Statements;
-using NoHoPython.Typing;
-
-namespace NoHoPython.Scoping
-{
-    partial class Variable
-    {
-        //depreceated because of Emitter.SetArgument
-        //public void EmitCFree(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs)
-        //{
-        //    if (Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
-        //        Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (emitter) => emitter.Append(GetStandardIdentifier()), Emitter.NullPromise);
-        //}
-    }
-}
+﻿using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
@@ -99,7 +84,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 });
 
             if(Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
-                primaryEmitter.AddResourceDestructor((emitter) => {
+                Variable.DelayedLinkSetResourceDestructorId(primaryEmitter.AddResourceDestructor((emitter) => {
                     if (WillRevaluate)
                         emitter.AppendStartBlock($"if(init_{Variable.GetStandardIdentifier()})");
 
@@ -107,7 +92,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                     if (WillRevaluate)
                         emitter.AppendEndBlock();
-                });
+                }));
         }
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);

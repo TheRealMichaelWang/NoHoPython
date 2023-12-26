@@ -280,7 +280,8 @@ namespace NoHoPython.IntermediateRepresentation
                 ForwardDeclareForeignTypes(headerEmitter);
 
                 //emit c structs
-                RecordDeclaration.EmitRecordMaskProto(headerEmitter);
+                MemoryAnalyzer.EmitAnalyzers(emitter);
+                RecordDeclaration.EmitRecordMaskProto(this, headerEmitter);
                 EmitArrayTypeCStructs(headerEmitter);
                 EmitTupleCStructs(headerEmitter);
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclareType(this, headerEmitter));
@@ -302,9 +303,7 @@ namespace NoHoPython.IntermediateRepresentation
                     headerEmitter.AppendLine("#endif");
 
                 //emit utility functions
-                MemoryAnalyzer.EmitAnalyzers(emitter);
                 ProcedureType.EmitStandardAnonymizer(this, emitter);
-                RecordDeclaration.EmitRecordChildFinder(emitter);
                 if (DoCallStack)
                     CallStackReporting.EmitReporter(emitter);
                 if (!EliminateAsserts)

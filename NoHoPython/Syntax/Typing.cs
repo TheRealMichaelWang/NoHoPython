@@ -150,6 +150,9 @@ namespace NoHoPython.Syntax
 
                     MatchTypeArgCount(1, errorReportedElement);
                     return new HandleType(typeArguments[0]);
+                case "ref":
+                    MatchTypeArgCount(1, errorReportedElement);
+                    return new ReferenceType(typeArguments[0], false);
                 case "purefn":
                 case "pure":
                     return typeArguments.Count < 1
@@ -320,6 +323,10 @@ namespace NoHoPython.Syntax.Parsing
                 case TokenType.Pure:
                 case TokenType.Impure:
                     identifier = scanner.LastToken.Identifier;
+                    scanner.ScanToken(isTypeArgument);
+                    break;
+                case TokenType.Reference:
+                    identifier = "ref";
                     scanner.ScanToken(isTypeArgument);
                     break;
                 default:

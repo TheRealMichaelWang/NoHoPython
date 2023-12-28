@@ -17,6 +17,11 @@ namespace NoHoPython.Typing
         public void ScopeForUsedTypeParameters(AstIRProgramBuilder irBuilder) => ElementType.ScopeForUsedTypeParameters(irBuilder);
     }
 
+    partial class ReferenceType
+    {
+        public void ScopeForUsedTypeParameters(AstIRProgramBuilder irBuilder) => ElementType.ScopeForUsedTypeParameters(irBuilder);
+    }
+
     partial class MemorySpan
     {
         public void ScopeForUsedTypeParameters(AstIRProgramBuilder irBuilder) => ElementType.ScopeForUsedTypeParameters(irBuilder);

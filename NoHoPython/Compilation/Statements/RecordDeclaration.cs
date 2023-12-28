@@ -168,7 +168,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             emitter.AppendLine("child->nhp_parent_count = 1;");
             emitter.AppendLine("nhp_trace_obj_t** parents = child->parent_info.parents;");
             emitter.AppendLine("child->parent_info.parent = parents[kept];");
-            emitter.AppendLine($"{irProgram.MemoryAnalyzer.Dealloc("parents", "2 * sizeof(nhp_trace_obj_t*)")};");
+            emitter.AppendLine(irProgram.MemoryAnalyzer.Dealloc("parents", "2 * sizeof(nhp_trace_obj_t*)"));
             emitter.AppendLine("return 1;");
             emitter.AppendEndBlock();
             emitter.AppendStartBlock("for(int i = 0; i < child->nhp_parent_count; i++)");
@@ -202,7 +202,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             emitter.AppendStartBlock("static void nhp_trace_destroy(nhp_trace_obj_t* trace_unit)");
             emitter.AppendLine("if(trace_unit->nhp_parent_count <= 1) { return; }");
-            emitter.AppendLine($"{irProgram.MemoryAnalyzer.Dealloc("trace_unit->parent_info.parents", "trace_unit->nhp_parent_count * sizeof(nhp_trace_obj_t*)")};");
+            emitter.AppendLine(irProgram.MemoryAnalyzer.Dealloc("trace_unit->parent_info.parents", "trace_unit->nhp_parent_count * sizeof(nhp_trace_obj_t*)"));
             emitter.AppendLine("return;");
             emitter.AppendEndBlock();
         }
@@ -347,7 +347,7 @@ namespace NoHoPython.Typing
             if(property.Type is RecordType recordType)
             {
                 if (recordType.IsCompatibleWith(this))
-                    return false; //inconclusive
+                    return RecordPrototype.PassByReference; //inconclusive
 
                 if (recordType.IsCircularDataStructure)
                     return true;
@@ -571,7 +571,7 @@ namespace NoHoPython.Typing
                 if (recordProperty.Type.RequiresDisposal && !recordProperty.OptimizeMessageReciever)
                     recordProperty.Type.EmitFreeValue(irProgram, emitter, (e) => e.Append($"record->{recordProperty.Name}"), (e) => e.Append("record"));
 
-            emitter.AppendLine($"{irProgram.MemoryAnalyzer.Dealloc("record", GetCHeapSizer(irProgram))}");
+            emitter.AppendLine(irProgram.MemoryAnalyzer.Dealloc("record", GetCHeapSizer(irProgram)));
             emitter.AppendEndBlock();
         }
 

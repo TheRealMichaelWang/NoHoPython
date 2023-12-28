@@ -498,23 +498,23 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (!IsAnonymous || !ProcedureDeclaration.CapturedVariables.Any((variable) => variable.Type.RequiresDisposal) || complementaryProcedureReference != null)
                 return;
 
-            emitter.AppendLine($"void free{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_free_anon, void* child_agent) {{");
-            emitter.AppendLine($"\t{GetClosureCaptureCType(irProgram)}* to_free = ({GetClosureCaptureCType(irProgram)}*)to_free_anon;");
+            emitter.AppendStartBlock($"void free{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_free_anon, void* child_agent)");
+            emitter.AppendLine($"{GetClosureCaptureCType(irProgram)}* to_free = ({GetClosureCaptureCType(irProgram)}*)to_free_anon;");
 
-            emitter.AppendLine("\tif(to_free->nhp_lock)");
-            emitter.AppendLine("\t\treturn;");
-            emitter.AppendLine("\tto_free->nhp_lock = 1;");
+            emitter.AppendStartBlock("if(to_free->nhp_lock)");
+            emitter.AppendLine("return;");
+            emitter.AppendEndBlock();
+            emitter.AppendLine("to_free->nhp_lock = 1;");
 
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables) 
                 if (capturedVariable.Type.SubstituteWithTypearg(typeArguments).RequiresDisposal)
                 {
-                    emitter.Append('\t');
                     capturedVariable.Type.SubstituteWithTypearg(typeArguments).EmitFreeValue(irProgram, emitter, (e) => e.Append($"to_free->{capturedVariable.GetStandardIdentifier()}"), (e) => e.Append("child_agent"));
                     emitter.AppendLine();
                 }
 
-            emitter.AppendLine($"\t{irProgram.MemoryAnalyzer.Dealloc("to_free", $"sizeof({GetClosureCaptureCType(irProgram)})")}");
-            emitter.AppendLine("}");
+            emitter.AppendLine(irProgram.MemoryAnalyzer.Dealloc("to_free", $"sizeof({GetClosureCaptureCType(irProgram)})"));
+            emitter.AppendEndBlock();
         }
 
         public void EmitAnonCopier(IRProgram irProgram, Emitter emitter)

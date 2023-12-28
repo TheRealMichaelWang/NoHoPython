@@ -198,6 +198,32 @@ namespace NoHoPython.Typing
         public bool ContainsType(IType type) => ElementType.IsCompatibleWith(type) || ElementType.ContainsType(type);
     }
 
+    partial class ReferenceType
+    {
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ReferenceType(ElementType.SubstituteWithTypearg(typeargs), IsReleased);
+
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
+        {
+            if (argument is ReferenceType arrayType)
+                ElementType.MatchTypeArgumentWithType(typeargs, arrayType.ElementType, errorReportedElement);
+            else
+                throw new UnexpectedTypeException(argument, errorReportedElement);
+        }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            if (argument.Type is ReferenceType arrayType)
+            {
+                ElementType.MatchTypeArgumentWithType(typeargs, arrayType.ElementType, argument.ErrorReportedElement);
+                return argument;
+            }
+            else
+                return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs), irBuilder), irBuilder);
+        }
+
+        public bool ContainsType(IType type) => ElementType.IsCompatibleWith(type) || ElementType.ContainsType(type);
+    }
+
     partial class MemorySpan
     {
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new MemorySpan(ElementType.SubstituteWithTypearg(typeargs), Length);

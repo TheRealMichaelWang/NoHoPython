@@ -153,7 +153,7 @@ namespace NoHoPython.Typing
         public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;
         public bool IsTypeDependency => true;
 
-        public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => true;
+        public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => ElementType.TypeParameterAffectsCodegen(effectInfo);
 
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
         {
@@ -167,7 +167,7 @@ namespace NoHoPython.Typing
                 ElementType.EmitFreeValue(irProgram, emitter, (e) => e.Append($"to_free{indirection}.buffer[i]"), childAgent);
                 emitter.AppendEndBlock();
             }
-            emitter.AppendLine($"{irProgram.MemoryAnalyzer.Dealloc($"to_free{indirection}.buffer", $"to_free{indirection}.length * sizeof({ElementType.GetCName(irProgram)})")}");
+            emitter.AppendLine(irProgram.MemoryAnalyzer.Dealloc($"to_free{indirection}.buffer", $"to_free{indirection}.length * sizeof({ElementType.GetCName(irProgram)})"));
             emitter.AppendEndBlock();
         }
 
@@ -302,14 +302,14 @@ namespace NoHoPython.Typing
                 emitter.AppendStartBlock($"for(int i = 0; i < to_free{indirection}.length; i++)");
                 ElementType.EmitFreeValue(irProgram, emitter, (e) => e.Append($"to_free{indirection}.buffer[i]"), childAgent);
                 emitter.AppendEndBlock();
-                emitter.Append($"{irProgram.MemoryAnalyzer.Dealloc($"to_free{indirection}.buffer", $"to_free{indirection}.length * sizeof({ElementType.GetCName(irProgram)})")};");
+                emitter.Append(irProgram.MemoryAnalyzer.Dealloc($"to_free{indirection}.buffer", $"to_free{indirection}.length * sizeof({ElementType.GetCName(irProgram)})"));
                 emitter.AppendEndBlock();
             }
             else
                 using(Emitter valueSrcBuffer = new Emitter())
                 {
                     valuePromise(valueSrcBuffer);
-                    emitter.Append($"{irProgram.MemoryAnalyzer.Dealloc(valueSrcBuffer.GetBuffered(), $"{Length} * sizeof({ElementType.GetCName(irProgram)})")}");
+                    emitter.Append(irProgram.MemoryAnalyzer.Dealloc(valueSrcBuffer.GetBuffered(), $"{Length} * sizeof({ElementType.GetCName(irProgram)})"));
                 }
         }
 

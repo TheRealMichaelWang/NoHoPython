@@ -63,6 +63,7 @@ namespace NoHoPython.Typing
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement);
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder);
+        public bool ContainsType(IType type);
 
         public string? ToString() => TypeName;
     }

@@ -136,26 +136,32 @@ namespace NoHoPython.Syntax.Statements
 
         public SourceLocation SourceLocation { get; private set; }
 
-        public readonly string Identifier;
+        public string Identifier { get; private set; }
         public readonly List<TypeParameter> TypeParameters;
         public readonly List<RecordProperty> Properties;
         public readonly List<ProcedureDeclaration> MessageRecievers;
+        public bool PassByReference { get; private set; }
 
 #pragma warning disable CS8618 // IRRecordDeclaration is initialized upon generating IR
-        public RecordDeclaration(string identifier, List<TypeParameter> typeParameters, List<RecordProperty> properties, List<ProcedureDeclaration> messageRecievers, SourceLocation sourceLocation)
+        public RecordDeclaration(string identifier, List<TypeParameter> typeParameters, List<RecordProperty> properties, List<ProcedureDeclaration> messageRecievers, bool passByReference, SourceLocation sourceLocation)
 #pragma warning restore CS8618
         {
             Identifier = identifier;
             TypeParameters = typeParameters;
             Properties = properties;
             MessageRecievers = messageRecievers;
+            PassByReference = passByReference;
             SourceLocation = sourceLocation;
         }
 
         public string ToString(int indent)
         {
             StringBuilder builder = new();
-            builder.Append($"{IAstStatement.Indent(indent)}class {Identifier}");
+            builder.Append(IAstStatement.Indent(indent));
+            if (PassByReference)
+                builder.Append("ref ");
+            builder.Append("class ");
+            builder.Append(Identifier);
             if (TypeParameters.Count > 0)
                 builder.Append($"<{string.Join(", ", TypeParameters)}>");
             builder.Append(':');
@@ -329,6 +335,13 @@ namespace NoHoPython.Syntax.Parsing
         {
             SourceLocation location = scanner.CurrentLocation;
 
+            bool passByReference = false;
+            if(scanner.LastToken.Type == TokenType.Reference)
+            {
+                passByReference = true;
+                scanner.ScanToken();
+            }
+
             MatchAndScanToken(TokenType.Record);
             MatchToken(TokenType.Identifier);
             string identifier = scanner.LastToken.Identifier;
@@ -378,7 +391,7 @@ namespace NoHoPython.Syntax.Parsing
                 else
                     return new RecordDeclaration.RecordProperty(type, identifier, isReadonly, null);
             });
-            return new RecordDeclaration(identifier, typeParameters, properties, procedures, location);
+            return new RecordDeclaration(identifier, typeParameters, properties, procedures, passByReference, location);
         }
 
         private ForeignCDeclaration ParseForeignCDeclaration(string identifier, List<TypeParameter> typeParameters, SourceLocation sourceLocation)

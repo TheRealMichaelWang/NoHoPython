@@ -51,6 +51,8 @@ namespace NoHoPython.Typing
 
         public virtual IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder) => ArithmeticCast.CastTo(argument, this, irBuilder);
 
+        public virtual bool ContainsType(IType type) => false;
+
         public override string ToString() => TypeName;
         public override int GetHashCode() => Id;
     }

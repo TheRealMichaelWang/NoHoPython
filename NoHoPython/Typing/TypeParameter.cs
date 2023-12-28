@@ -142,6 +142,8 @@ namespace NoHoPython.Typing
                 return newArgument;
             }
         }
+
+        public bool ContainsType(IType type) => false;
     }
 
     partial class HandleType
@@ -166,6 +168,8 @@ namespace NoHoPython.Typing
             else
                 return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs), irBuilder), irBuilder);
         }
+
+        public override bool ContainsType(IType type) => ValueType.IsCompatibleWith(type) || ValueType.ContainsType(type);
     }
 
     partial class ArrayType
@@ -190,6 +194,8 @@ namespace NoHoPython.Typing
             else
                 return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs), irBuilder), irBuilder);
         }
+
+        public bool ContainsType(IType type) => ElementType.IsCompatibleWith(type) || ElementType.ContainsType(type);
     }
 
     partial class MemorySpan
@@ -214,6 +220,8 @@ namespace NoHoPython.Typing
             else
                 return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs), irBuilder), irBuilder);
         }
+
+        public bool ContainsType(IType type) => ElementType.IsCompatibleWith(type) || ElementType.ContainsType(type);
     }
 
     partial class BooleanType
@@ -247,6 +255,8 @@ namespace NoHoPython.Typing
         }
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder) => ArithmeticCast.CastTo(argument, this, irBuilder);
+
+        public bool ContainsType(IType type) => false;
     }
 
     partial class EmptyEnumOption
@@ -260,6 +270,8 @@ namespace NoHoPython.Typing
         }
 
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder) => ArithmeticCast.CastTo(argument, this, irBuilder);
+
+        public bool ContainsType(IType type) => false;
     }
 
     partial class EnumType
@@ -284,6 +296,8 @@ namespace NoHoPython.Typing
             else
                 return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs), irBuilder), irBuilder);
         }
+
+        public bool ContainsType(IType type) => GetOptions().Any(option => option.IsCompatibleWith(type) || option.ContainsType(type));
     }
 
     partial class RecordType
@@ -308,6 +322,8 @@ namespace NoHoPython.Typing
             else
                 return MatchTypeArgumentWithValue(typeargs, ArithmeticCast.CastTo(argument, SubstituteWithTypearg(typeargs), irBuilder), irBuilder);
         }
+
+        public bool ContainsType(IType type) => GetProperties().Any(property => property.Type.IsCompatibleWith(type) || property.Type.ContainsType(type));
     }
 
     partial class InterfaceType
@@ -332,6 +348,8 @@ namespace NoHoPython.Typing
             else
                 return ArithmeticCast.CastTo(argument, this, irBuilder);
         }
+
+        public bool ContainsType(IType type) => GetProperties().Any(property => property.Type.IsCompatibleWith(type) || property.Type.ContainsType(type));
     }
 
     partial class ForeignCType
@@ -356,6 +374,8 @@ namespace NoHoPython.Typing
             else
                 return ArithmeticCast.CastTo(argument, this, irBuilder);
         }
+
+        public bool ContainsType(IType type) => GetProperties().Any(property => property.Type.IsCompatibleWith(type) || property.Type.ContainsType(type));
     }
 
     partial class ProcedureType
@@ -384,6 +404,8 @@ namespace NoHoPython.Typing
             else
                 return ArithmeticCast.CastTo(argument, this, irBuilder);
         }
+
+        public bool ContainsType(IType type) => false;
     }
 
     partial class TupleType
@@ -408,6 +430,8 @@ namespace NoHoPython.Typing
             else
                 return ArithmeticCast.CastTo(argument, this, irBuilder);
         }
+
+        public bool ContainsType(IType type) => orderedValueTypes.Any(tupleType => tupleType.IsCompatibleWith(type) || tupleType.ContainsType(type));
     }
 }
 

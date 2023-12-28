@@ -29,6 +29,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
     }
 
+    public sealed class CannotImplementRecordCopier : IRGenerationError
+    {
+        public CannotImplementRecordCopier(Syntax.IAstElement errorReportedElement, string recordName) : base(errorReportedElement, $"Cannot implement user-defined record copier for {recordName}, because records that are passed by reference are never copied.")
+        {
+
+        }
+    }
+
     public interface IPropertyContainer
     {
         public static void SanitizePropertyNames(List<Property> properties, Syntax.IAstElement errorReportedElement)
@@ -124,13 +132,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public ProcedureDeclaration? Destructor { get; private set; }
         public ProcedureDeclaration? Copier { get; private set; }
         public List<IType> ConstructorParameterTypes { get; private set; }
+        public bool PassByReference { get; private set; }
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public RecordDeclaration(string name, List<TypeParameter> typeParameters, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement) : base()
+        public RecordDeclaration(string name, List<TypeParameter> typeParameters, bool passByReference, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement) : base()
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             Name = name;
             TypeParameters = typeParameters;
+            PassByReference = passByReference; 
             ErrorReportedElement = errorReportedElement;
             ParentContainer = parentContainer;
             properties = null;
@@ -178,6 +188,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Constructor = constructor;
             Destructor = destructor;
             Copier = copier;
+
+            if (copier != null && PassByReference)
+                throw new CannotImplementRecordCopier(copier.ErrorReportedElement, Name);
         }
 
         public void DelayedLinkSetConstructorParameterTypes(List<IType> constructorParameters)
@@ -294,7 +307,7 @@ namespace NoHoPython.Syntax.Statements
         {
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRRecordDeclaration = new IntermediateRepresentation.Statements.RecordDeclaration(Identifier, typeParameters, irBuilder.SymbolMarshaller.CurrentModule, this);
+            IRRecordDeclaration = new IntermediateRepresentation.Statements.RecordDeclaration(Identifier, typeParameters, PassByReference, irBuilder.SymbolMarshaller.CurrentModule, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRRecordDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRRecordDeclaration);
             irBuilder.ScopeToRecord(IRRecordDeclaration);

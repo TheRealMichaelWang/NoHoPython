@@ -259,7 +259,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     emitter.Append($"void free_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record");
                     AppendFunctionEnd(recordType, "child_agent");
 
-                    if (!recordType.HasCopier)
+                    if (!recordType.HasCopier && !PassByReference)
                     {
                         emitter.Append($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record");
                         AppendFunctionEnd(recordType, "parent_record");
@@ -275,7 +275,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     emitter.Append(", nhp_custom_destructor destructor");
                 AppendFunctionEnd(genericRecordType, "freeing_parent");
 
-                if (!genericRecordType.HasCopier)
+                if (!genericRecordType.HasCopier && !PassByReference)
                 {
                     emitter.Append($"{genericRecordType.GetCName(irProgram)} copy_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record");
                     AppendFunctionEnd(genericRecordType, "parent_record");
@@ -348,8 +348,12 @@ namespace NoHoPython.Typing
             {
                 if (recordType.IsCompatibleWith(this))
                     return false; //inconclusive
-                return recordType.IsCircularDataStructure;
+
+                if (recordType.IsCircularDataStructure)
+                    return true;
             }
+            if (RecordPrototype.PassByReference && property.Type.ContainsType(this))
+                return true;
             return false;
         });
 
@@ -383,12 +387,17 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
         {
+            if (RecordPrototype.PassByReference)
+            {
+                EmitClosureBorrowValue(irProgram, primaryEmitter, valueCSource, responsibleDestroyer);
+                return;
+            }
+
             if (copierCall == null)
             {
-                ITypeComparer comparer = new();
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                copierCall = irProgram.RecordTypeOverloads[RecordPrototype].Find((type) => comparer.Equals(type, this)).copierCall;
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
+                copierCall = irProgram.RecordTypeOverloads[RecordPrototype].Find((type) => IsCompatibleWith(type)).copierCall;
+#pragma warning restore CS8602
             }
             primaryEmitter.Append(copierCall != null ? copierCall.GetStandardIdentifier(irProgram) : $"copy_record{GetStandardIdentifier(irProgram)}");
             primaryEmitter.Append('(');
@@ -568,7 +577,7 @@ namespace NoHoPython.Typing
 
         public void EmitCopier(IRProgram irProgram, Emitter emitter)
         {
-            if (copierCall != null)
+            if (copierCall != null || RecordPrototype.PassByReference)
                 return;
 
             emitter.Append($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record");

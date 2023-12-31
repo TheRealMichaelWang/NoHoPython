@@ -35,6 +35,8 @@ namespace NoHoPython.Typing
             }
         }
         public bool IsEmpty => false;
+        public bool HasMutableChildren => false;
+        public bool IsReferenceType => false;
 
         public readonly Dictionary<IType, int> ValueTypes;
         private readonly List<IType> orderedValueTypes;

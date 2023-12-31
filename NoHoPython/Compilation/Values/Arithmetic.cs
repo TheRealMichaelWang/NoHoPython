@@ -72,6 +72,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
         });
     }
 
+    partial class AutoCast
+    {
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Input.RequiresDisposal(irProgram, typeargs, isTemporaryEval);
+
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => Input.ScopeForUsedTypes(typeargs, irBuilder);
+
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => Input.MustUseDestinationPromise(irProgram, typeargs, isTemporaryEval);
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval) => Input.Emit(irProgram, primaryEmitter, typeargs, destination, responsibleDestroyer, isTemporaryEval);
+    }
+
     partial class ArithmeticOperator
     {
         protected override void EmitExpression(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise left, Emitter.Promise right)

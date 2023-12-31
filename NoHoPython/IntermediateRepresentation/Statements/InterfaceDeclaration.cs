@@ -106,6 +106,8 @@ namespace NoHoPython.Typing
         public string Identifier => IType.GetIdentifier(IScopeSymbol.GetAbsolouteName(InterfaceDeclaration), TypeArguments.ToArray());
         public string PrototypeIdentifier => IType.GetPrototypeIdentifier(IScopeSymbol.GetAbsolouteName(InterfaceDeclaration), InterfaceDeclaration.TypeParameters);
         public bool IsEmpty => false;
+        public bool HasMutableChildren => false;
+        public bool IsReferenceType => GetProperties().Any(property => property.Type.IsReferenceType);
 
         public InterfaceDeclaration InterfaceDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;

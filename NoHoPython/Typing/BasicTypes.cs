@@ -35,6 +35,8 @@ namespace NoHoPython.Typing
         public string Identifier => TypeName;
         public string PrototypeIdentifier => Identifier;
         public bool IsEmpty => false;
+        public virtual bool HasMutableChildren => false;
+        public virtual bool IsReferenceType => false;
 
         public abstract int Id { get; }
 
@@ -113,6 +115,8 @@ namespace NoHoPython.Typing
     {
         public override string TypeName => $"handle<{ValueType.TypeName}>";
         public override int Id => 4;
+        public override bool HasMutableChildren => true;
+        public override bool IsReferenceType => true;
 
         public override IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
@@ -132,6 +136,8 @@ namespace NoHoPython.Typing
         public string Identifier => "nothing";
         public string PrototypeIdentifier => "nothing";
         public bool IsEmpty => true;
+        public bool HasMutableChildren => false;
+        public bool IsReferenceType => false;
 
         public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new EmptyTypeLiteral(Primitive.Nothing, errorReportedElement);
 
@@ -146,6 +152,8 @@ namespace NoHoPython.Typing
         public string Identifier => $"array_{ElementType.Identifier}";
         public string PrototypeIdentifier => $"array_T";
         public bool IsEmpty => false;
+        public bool HasMutableChildren => true;
+        public bool IsReferenceType => ElementType.IsReferenceType;
 
         public IType ElementType { get; private set; }
 
@@ -165,6 +173,8 @@ namespace NoHoPython.Typing
         public string Identifier => $"span_{ElementType.Identifier}_of_{Length}";
         public string PrototypeIdentifier => $"span_T_of_{Length}";
         public bool IsEmpty => false;
+        public bool HasMutableChildren => true;
+        public bool IsReferenceType => ElementType.IsReferenceType;
 
         public IType ElementType { get; private set; }
         public int Length { get; private set; }
@@ -186,12 +196,12 @@ namespace NoHoPython.Typing
         private static string GetPurityName(Purity purity) => purity switch
         {
             Purity.Pure => "pure",
-            Purity.OnlyAffectsArguments => "fn",
-            Purity.OnlyAffectsArgumentsAndCaptured => "affectsArgsOnly"
+            Purity.OnlyAffectsArguments => "affectsArgs",
+            Purity.OnlyAffectsArgumentsAndCaptured => "affectsCaptured"
         };
 #pragma warning restore CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).
 
-        public string TypeName => $"{GetPurityName(Purity)}<{ReturnType.TypeName}{string.Join(", ", ParameterTypes.ConvertAll((type) => type.TypeName))}>";
+        public string TypeName => $"{GetPurityName(Purity)}<{ReturnType.TypeName}{string.Concat(ParameterTypes.ConvertAll((type) => $", {type.TypeName}"))}>";
 
         public string Identifier
         {
@@ -217,6 +227,8 @@ namespace NoHoPython.Typing
         }
 
         public bool IsEmpty => false;
+        public bool HasMutableChildren => false;
+        public bool IsReferenceType => false;
 
         public IType ReturnType { get; private set; }
         public readonly List<IType> ParameterTypes;
@@ -237,16 +249,21 @@ namespace NoHoPython.Typing
             {
                 if (Purity != procedureType.Purity)
                     return false;
-                if (ParameterTypes.Count != procedureType.ParameterTypes.Count)
-                    return false;
-                if (!ReturnType.IsCompatibleWith(procedureType.ReturnType))
-                    return false;
-                for (int i = 0; i < ParameterTypes.Count; i++)
-                    if (!procedureType.ParameterTypes[i].IsCompatibleWith(ParameterTypes[i]))
-                        return false;
-                return true;
+                return IsMostlyCompatibleWith(procedureType);
             }
             return false;
+        }
+
+        public bool IsMostlyCompatibleWith(ProcedureType procedureType)
+        {
+            if (ParameterTypes.Count != procedureType.ParameterTypes.Count)
+                return false;
+            if (!ReturnType.IsCompatibleWith(procedureType.ReturnType))
+                return false;
+            for (int i = 0; i < ParameterTypes.Count; i++)
+                if (!procedureType.ParameterTypes[i].IsCompatibleWith(ParameterTypes[i]))
+                    return false;
+            return true;
         }
     }
 }

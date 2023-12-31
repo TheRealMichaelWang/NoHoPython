@@ -232,6 +232,8 @@ namespace NoHoPython.Typing
         public string Identifier => IScopeSymbol.GetAbsolouteName(this);
         public string PrototypeIdentifier => Identifier;
         public bool IsEmpty => true;
+        public bool HasMutableChildren => false;
+        public bool IsReferenceType => false;
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => new EmptyTypeLiteral(this, errorReportedElement);
 
@@ -278,6 +280,8 @@ namespace NoHoPython.Typing
         public string Identifier => IType.GetIdentifier(IScopeSymbol.GetAbsolouteName(EnumDeclaration), TypeArguments.ToArray());
         public string PrototypeIdentifier => IType.GetPrototypeIdentifier(IScopeSymbol.GetAbsolouteName(EnumDeclaration), EnumDeclaration.TypeParameters);
         public bool IsEmpty => false;
+        public bool HasMutableChildren => GetOptions().Any(option => option.HasMutableChildren);
+        public bool IsReferenceType => GetOptions().Any(option => option.IsReferenceType);
 
         public EnumDeclaration EnumDeclaration { get; private set; }
         public readonly List<IType> TypeArguments;

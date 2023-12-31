@@ -169,7 +169,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     if (willSet)
                         throw new CannotMutateVaraible(variable, false, errorReportedElement);
                     else
-                        return (variable, Purity <= Purity.Pure && IType.HasChildren(variable.Type) || variable.IsReadOnly); //records can still be captured and have their properties mutated
+                        return (variable, (Purity <= Purity.Pure && variable.Type.HasMutableChildren) || variable.IsReadOnly); //records can still be captured and have their properties mutated
                 }
 #pragma warning restore CS8602
             }
@@ -183,7 +183,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 else
                 {
                     (Variable, bool) capturedVar = variable.ParentProcedure.SanitizeVariable(variable, willSet, errorReportedElement);
-                    return (variable, (Purity <= Purity.OnlyAffectsArguments && IType.HasChildren(capturedVar.Item1.Type)) || capturedVar.Item2);//records can still be captured and have their properties mutated
+                    return (variable, (Purity <= Purity.OnlyAffectsArguments && capturedVar.Item1.Type.HasMutableChildren) || capturedVar.Item2);//records can still be captured and have their properties mutated
                 }
             }
             return (variable, false);
@@ -608,7 +608,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     public sealed partial class AnonymizeProcedure : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
-        public IType Type => GetFunctionHandle ? Primitive.Handle : new ProcedureType(Procedure.ReturnType, Procedure.ParameterTypes, Procedure.ProcedureDeclaration.Purity == Purity.OnlyAffectsArgumentsAndCaptured && !Procedure.ProcedureDeclaration.CapturedVariables.Any((variable) => variable.Type is RecordType) ? Purity.OnlyAffectsArguments : Procedure.ProcedureDeclaration.Purity);
+        public IType Type => GetFunctionHandle ? Primitive.Handle : new ProcedureType(Procedure.ReturnType, Procedure.ParameterTypes, Procedure.ProcedureDeclaration.Purity == Purity.OnlyAffectsArgumentsAndCaptured && !Procedure.ProcedureDeclaration.CapturedVariables.Any((variable) => variable.Type.IsReferenceType && variable.Type.HasMutableChildren) ? Purity.OnlyAffectsArguments : Procedure.ProcedureDeclaration.Purity);
         public bool IsTruey => false;
         public bool IsFalsey => false;
 

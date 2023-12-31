@@ -200,7 +200,7 @@ namespace NoHoPython.Typing
 
     partial class ReferenceType
     {
-        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ReferenceType(ElementType.SubstituteWithTypearg(typeargs), IsReleased);
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ReferenceType(ElementType.SubstituteWithTypearg(typeargs), Mode);
 
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
@@ -546,6 +546,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
     partial class HandleCast
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new HandleCast((HandleType)TargetHandleType.SubstituteWithTypearg(typeargs), Input.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
+
+    partial class AutoCast
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AutoCast(Type.SubstituteWithTypearg(typeargs), Input.SubstituteWithTypearg(typeargs));
     }
 
     partial class ArithmeticOperator

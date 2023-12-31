@@ -42,7 +42,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ProcedureCall
     {
-        public IRValue? GetResponsibleDestroyer() => null;
+        public IRValue? GetResponsibleDestroyer() => Type.IsReferenceType ? GetPostEvalPure() : null;
     }
 
     partial class ArithmeticCast
@@ -52,7 +52,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class HandleCast
     {
-        public IRValue? GetResponsibleDestroyer() => null;
+        public IRValue? GetResponsibleDestroyer() => Input.GetResponsibleDestroyer();
+    }
+
+    partial class AutoCast
+    {
+        public IRValue? GetResponsibleDestroyer() => Input.GetResponsibleDestroyer();
     }
 
     partial class ArrayOperator
@@ -102,7 +107,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class GetPropertyValue
     {
-        public IRValue? GetResponsibleDestroyer() => Record.Type is RecordType ? Record : Record.GetResponsibleDestroyer();
+        public IRValue? GetResponsibleDestroyer() => Record.Type.IsReferenceType ? Record : Record.GetResponsibleDestroyer();
     }
 
     partial class SetPropertyValue
@@ -153,17 +158,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class VariableDeclaration
     {
-        public IRValue? GetResponsibleDestroyer() => Variable.Type is RecordType ? GetPostEvalPure() : null;
+        public IRValue? GetResponsibleDestroyer() => Variable.Type.IsReferenceType ? GetPostEvalPure() : null;
     }
 
     partial class SetVariable
     {
-        public IRValue? GetResponsibleDestroyer() => Variable.Type is RecordType ? GetPostEvalPure() : null;
+        public IRValue? GetResponsibleDestroyer() => Variable.Type.IsReferenceType ? GetPostEvalPure() : null;
     }
 
     partial class VariableReference
     {
-        public IRValue? GetResponsibleDestroyer() => Variable.Type is RecordType ? GetPostEvalPure() : null;
+        public IRValue? GetResponsibleDestroyer() => Variable.Type.IsReferenceType ? GetPostEvalPure() : null;
     }
 
     partial class CSymbolReference

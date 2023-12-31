@@ -737,6 +737,8 @@ namespace NoHoPython.Syntax.Statements
 
         public IRStatement GenerateIntermediateRepresentationForStatement(AstIRProgramBuilder irBuilder)
         {
+            irBuilder.PrintVerbose($"Generating IR for procedure {IScopeSymbol.GetAbsolouteName(IRProcedureDeclaration)}...");
+
             irBuilder.NewRefinmentContext();
             irBuilder.SymbolMarshaller.NavigateToScope(IRProcedureDeclaration);
             irBuilder.ScopedProcedures.Push(IRProcedureDeclaration);

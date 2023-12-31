@@ -17,7 +17,7 @@ public static class Program
         else if (args.Contains("-credits"))
         {
             Console.WriteLine("North Hollywood Python Compiler");
-            Console.WriteLine("Written by Michael Wang, 2022, for team 10515K");
+            Console.WriteLine("Written by Michael Wang, 2022-24");
             return 0;
         }
 
@@ -52,10 +52,10 @@ public static class Program
             else if (OperatingSystem.IsLinux())
                 flags.Add("linux");
 
-            for (int i = 2; i < args.Length; i++)
+            for (int i = 1; i < args.Length; i++)
                 flags.Add(args[i]);
 
-            Console.WriteLine("Linking...");
+            Console.WriteLine("Generating IR...");
             AstIRProgramBuilder astIRProgramBuilder = new(statements, flags);
             IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), args.Contains("-noassert"), args.Contains("-callstack") || args.Contains("-stacktrace"), args.Contains("-namert"), args.Contains("-linedir") || args.Contains("-ggdb"), args.Contains("-main"), memoryAnalyzer);
             sourceParser.IncludeCFiles(program);

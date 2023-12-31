@@ -425,7 +425,7 @@ namespace NoHoPython.Syntax.Values
                         break;
                 }
                 IRValue rhs = Right.GenerateIntermediateRepresentationForValue(irBuilder, Primitive.Boolean, willRevaluate);
-                irBuilder.Refinements.Pop();
+                irBuilder.PopAndApplyRefinementContext();
                 return new LogicalOperator(LogicalTokens[Operator], lhs, rhs, irBuilder, this);
             }
 

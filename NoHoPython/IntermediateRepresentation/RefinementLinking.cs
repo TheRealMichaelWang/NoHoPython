@@ -1,4 +1,5 @@
-﻿using NoHoPython.Scoping;
+﻿using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.Scoping;
 using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation.Statements
@@ -12,12 +13,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             public (IType, RefinementEmitter?)? Refinement { get; private set; }
             private Dictionary<string, RefinementEntry> propertyRefinements;
             private RefinementEntry? parentEntry;
+            private RefinementContext context;
 
-            public RefinementEntry((IType, RefinementEmitter?)? refinement, Dictionary<string, RefinementEntry> propertyRefinements, RefinementEntry? parentEntry)
+            public RefinementEntry((IType, RefinementEmitter?)? refinement, Dictionary<string, RefinementEntry> propertyRefinements, RefinementEntry? parentEntry, RefinementContext context)
             {
                 Refinement = refinement;
                 this.propertyRefinements = propertyRefinements;
                 this.parentEntry = parentEntry;
+                this.context = context;
             }
 
             public RefinementEntry? GetSubentry(string propertyName) => propertyRefinements.ContainsKey(propertyName) ? propertyRefinements[propertyName] : null;
@@ -27,7 +30,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (propertyRefinements.ContainsKey(propertyName))
                     return propertyRefinements[propertyName];
 
-                RefinementEntry newEntry = new(null, new(), null);
+                RefinementEntry newEntry = new(null, new(), null, context);
                 propertyRefinements.Add(propertyName, newEntry);
                 return newEntry;
             }
@@ -36,10 +39,17 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             {
                 Refinement = null;
                 ClearSubRefinments();
-                parentEntry?.Clear();
+                
+                if(parentEntry != null)
+                    parentEntry.context.QueueRefinement(parentEntry, null);
             }
 
-            public void ClearSubRefinments() => propertyRefinements.Clear();
+            public void ClearSubRefinments()
+            {
+                foreach(RefinementEntry entry in propertyRefinements.Values)
+                    entry.Clear();
+                propertyRefinements.Clear();
+            }
 
             public void SetRefinement((IType, RefinementEmitter?) refinement)
             {
@@ -54,23 +64,33 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     Refinement = refinement;
             }
 
-            public RefinementEntry Clone()
+            public void SetRefinement((IType, RefinementEmitter?)? refinement)
+            {
+                if (refinement.HasValue)
+                    SetRefinement(refinement.Value);
+                else
+                    Clear();
+            }
+
+            public RefinementEntry Clone(RefinementContext newContext)
             {
                 Dictionary<string, RefinementEntry> newPropertyRefinements = new(propertyRefinements.Count);
                 foreach (KeyValuePair<string, RefinementEntry> pair in propertyRefinements)
-                    newPropertyRefinements.Add(pair.Key, pair.Value.Clone());
+                    newPropertyRefinements.Add(pair.Key, pair.Value.Clone(newContext));
                 if (Refinement.HasValue)
-                    return new RefinementEntry((Refinement.Value.Item1, Refinement.Value.Item2), newPropertyRefinements, parentEntry ?? this);
+                    return new RefinementEntry(Refinement.Value, newPropertyRefinements, this, newContext);
                 else
-                    return new RefinementEntry(null, newPropertyRefinements, parentEntry ?? this);
+                    return new RefinementEntry(null, newPropertyRefinements, this, newContext);
             }
         }
 
         private Dictionary<Variable, RefinementEntry> VariableRefinements;
+        private Queue<(RefinementEntry, (IType, RefinementEmitter?)?)> refinementsToApply;
 
         public RefinementContext(Dictionary<Variable, RefinementEntry> variableRefinements)
         {
             VariableRefinements = variableRefinements;
+            refinementsToApply = new();
         }
 
         public RefinementEntry? GetRefinementEntry(Variable variable)
@@ -80,15 +100,33 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             return null;
         }
 
-        public void NewRefinementEntry(Variable variable, RefinementEntry entry) => VariableRefinements.Add(variable, entry);
+        public RefinementEntry NewRefinementEntry(Variable variable, (IType, RefinementEmitter?)? refinement = null)
+        {
+            RefinementEntry entry = new(refinement, new(), null, this);
+            VariableRefinements.Add(variable, entry);
+            return entry;
+        }
 
         public RefinementContext Clone()
         {
-            Dictionary<Variable, RefinementEntry> newVariableRefinements = new(VariableRefinements.Count);
+            RefinementContext context = new(new(VariableRefinements.Count));
             foreach (KeyValuePair<Variable, RefinementEntry> pair in VariableRefinements)
-                newVariableRefinements.Add(pair.Key, pair.Value.Clone());
-            return new(newVariableRefinements);
+                context.VariableRefinements.Add(pair.Key, pair.Value.Clone(context));
+            return context;
         }
+
+        public void QueueRefinement(RefinementEntry entry, (IType, RefinementEmitter?)? refinement) => refinementsToApply.Enqueue((entry, refinement));
+
+        public void ApplyQueuedRefinements()
+        {
+            while(refinementsToApply.Count > 0)
+            {
+                var toapply = refinementsToApply.Dequeue();
+                toapply.Item1.SetRefinement(toapply.Item2);
+            }
+        }
+
+        public void DiscardQueuedRefinements() => refinementsToApply.Clear();
     }
 }
 
@@ -96,6 +134,26 @@ namespace NoHoPython.Syntax
 {
     partial class AstIRProgramBuilder
     {
-        public void NewRefinmentContext() => Refinements.Push(Refinements.Count > 0 ? Refinements.Peek().Clone() : new(new()));
+        public RefinementContext? NewRefinmentContext(bool noParent = false)
+        {
+            if(Refinements.Count > 0 && !noParent)
+            {
+                RefinementContext oldContext = Refinements.Peek();
+                Refinements.Push(oldContext.Clone());
+                return oldContext;
+            }
+            else
+            {
+                Refinements.Push(new(new()));
+                return null;
+            }
+        }
+
+        public void PopAndApplyRefinementContext()
+        {
+            Refinements.Pop();
+            if(Refinements.Count > 0)
+                Refinements.Peek().ApplyQueuedRefinements();
+        }
     }
 }

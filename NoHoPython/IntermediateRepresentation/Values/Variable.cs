@@ -217,11 +217,7 @@ namespace NoHoPython.Syntax.Values
                         setTo.RefineSet(irBuilder, refinementEntry);
                     }
                     else
-                    {
-                        RefinementContext.RefinementEntry newEntry = new(null, new(), null);
-                        setTo.RefineSet(irBuilder, newEntry);
-                        irBuilder.Refinements.Peek().NewRefinementEntry(variable, newEntry);
-                    }
+                        setTo.RefineSet(irBuilder, irBuilder.Refinements.Peek().NewRefinementEntry(variable));
 
                     return new IntermediateRepresentation.Values.SetVariable(variable, setTo, irBuilder, this);
                 }

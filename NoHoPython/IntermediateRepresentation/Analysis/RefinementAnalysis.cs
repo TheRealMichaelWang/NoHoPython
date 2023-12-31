@@ -353,7 +353,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             RefinementContext.RefinementEntry? entry = irBuilder.Refinements.Peek().GetRefinementEntry(Variable);
             if (entry == null)
-                irBuilder.Refinements.Peek().NewRefinementEntry(Variable, new(assumedRefinement, new(), null));
+                irBuilder.Refinements.Peek().NewRefinementEntry(Variable, assumedRefinement);
             else
                 entry.SetRefinement(assumedRefinement);
         }
@@ -368,9 +368,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (existingEntry != null)
                 return existingEntry;
 
-            RefinementContext.RefinementEntry newEntry = new RefinementContext.RefinementEntry(null, new(), null);
-            irBuilder.Refinements.Peek().NewRefinementEntry(Variable, newEntry);
-            return newEntry;
+            return irBuilder.Refinements.Peek().NewRefinementEntry(Variable);
         }
     }
 

@@ -374,11 +374,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return;
 
             foreach (IRValue argument in Arguments)
-                if (argument.IsReadOnly && IType.HasChildren(argument.Type))
+                if (argument.IsReadOnly && argument.Type.HasMutableChildren)
                     throw new CannotMutateReadonlyValue(argument, ErrorReportedElement);
         }
 
-        public bool IsReadOnly => false;
+        public virtual bool IsReadOnly => Type.IsReferenceType && Type.HasMutableChildren && !(FunctionPurity <= Purity.OnlyAffectsArguments && !Arguments.Any(argument => (argument.Type.IsCompatibleWith(Type) || argument.Type.ContainsType(Type)) && argument.IsReadOnly));
 
         public virtual void NonMessageReceiverAnalysis() 
         {
@@ -440,9 +440,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             Debug.Assert(Arguments.Count >= 1);
-            List<Variable> parameters = ((RecordType)Record.Type).RecordPrototype.GetMessageReceiver(Property.Name).Parameters;
+            List<Variable> parameters = ((RecordType)Record.Type).RecordPrototype.GetMessageReceiver(Property.Name).Procedure.ProcedureDeclaration.Parameters;
             for (int i = 1; i < Arguments.Count; i++)
-                if (!parameters[i - 1].IsReadOnly && Arguments[i].IsReadOnly && IType.HasChildren(Arguments[i].Type))
+                if (!parameters[i - 1].IsReadOnly && Arguments[i].IsReadOnly && Arguments[i].Type.HasMutableChildren)
                     throw new CannotMutateReadonlyValue(Arguments[i], ErrorReportedElement);
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
@@ -468,7 +468,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             for(int i = 0; i < Arguments.Count; i++)
-                if (!Procedure.ProcedureDeclaration.Parameters[i].IsReadOnly && Arguments[i].IsReadOnly && IType.HasChildren(Arguments[i].Type))
+                if (!Procedure.ProcedureDeclaration.Parameters[i].IsReadOnly && Arguments[i].IsReadOnly && Arguments[i].Type.HasMutableChildren)
                     throw new CannotMutateReadonlyValue(Arguments[i], ErrorReportedElement);
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 
@@ -510,7 +510,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void NonConstructorPropertyAnalysis() => Input.NonConstructorPropertyAnalysis();
 
-        public bool IsReadOnly => false;
+        public bool IsReadOnly => Input.IsReadOnly;
+
+        public void NonMessageReceiverAnalysis() => Input.NonMessageReceiverAnalysis();
+    }
+
+    partial class AutoCast
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+
+        public void NonConstructorPropertyAnalysis() => Input.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => Input.IsReadOnly;
 
         public void NonMessageReceiverAnalysis() => Input.NonMessageReceiverAnalysis();
     }
@@ -687,6 +698,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (Array.IsReadOnly)
                 throw new CannotMutateReadonlyValue(Array, ErrorReportedElement);
+            if (Value.Type.IsReferenceType && Value.IsReadOnly)
+                throw new CannotMutateReadonlyValue(Value, ErrorReportedElement);
         }
 
         public bool IsReadOnly => false;
@@ -699,6 +712,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (Array.IsReadOnly)
                 throw new CannotMutateReadonlyValue(Array, ErrorReportedElement);
+            if (Value.Type.IsReferenceType && Value.IsReadOnly && Value.Type.HasMutableChildren)
+                throw new CannotMutateReadonlyValue(Value, ErrorReportedElement);
         }
     }
 
@@ -736,11 +751,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 initializedProperties.Add(Property);
                 IsInitializingProperty = true;
+
+                if (Property.IsReadOnly)
+                    return;
             }
             else if (Property.IsReadOnly)
                 throw new CannotMutateReadonlyProperty(Property, ErrorReportedElement);
             else if (Record.IsReadOnly)
                 throw new CannotMutateReadonlyValue(Record, ErrorReportedElement);
+
+            if (Value.Type.IsReferenceType && Value.IsReadOnly && Value.Type.HasMutableChildren)
+                throw new CannotMutateReadonlyValue(Value, ErrorReportedElement);
         }
 
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
@@ -751,6 +772,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (IsReadOnly)
                 throw new CannotMutateReadonlyValue(Record, ErrorReportedElement);
+
+            if (Value.Type.IsReferenceType && Value.IsReadOnly && Value.Type.HasMutableChildren)
+                throw new CannotMutateReadonlyValue(Value, ErrorReportedElement);
         }
 
         public bool IsReadOnly => Property.IsReadOnly || Record.IsReadOnly;
@@ -761,6 +785,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             if (IsReadOnly)
                 throw new CannotMutateReadonlyValue(Record, ErrorReportedElement);
+
+            if (Value.Type.IsReferenceType && Value.IsReadOnly && Value.Type.HasMutableChildren)
+                throw new CannotMutateReadonlyValue(Value, ErrorReportedElement);
         }
     }
 
@@ -851,27 +878,58 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class VariableDeclaration
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => InitialValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        {
+            InitialValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly && !Variable.IsReadOnly)
+                throw new CannotMutateReadonlyValue(InitialValue, ErrorReportedElement);
+        }
 
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
 
-        public void NonConstructorPropertyAnalysis() => InitialValue.NonConstructorPropertyAnalysis();
+        public void NonConstructorPropertyAnalysis()
+        {
+            InitialValue.NonConstructorPropertyAnalysis();
+            if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly && !Variable.IsReadOnly)
+                throw new CannotMutateReadonlyValue(InitialValue, ErrorReportedElement);
+        }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => InitialValue.NonMessageReceiverAnalysis();
+        public void NonMessageReceiverAnalysis()
+        {
+            InitialValue.NonMessageReceiverAnalysis();
+            if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly && !Variable.IsReadOnly)
+                throw new CannotMutateReadonlyValue(InitialValue, ErrorReportedElement);
+        }
     }
 
     partial class SetVariable
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => SetValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        {
+            SetValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            if (SetValue.Type.IsReferenceType && SetValue.Type.HasMutableChildren && SetValue.IsReadOnly)
+                throw new CannotMutateReadonlyValue(SetValue, ErrorReportedElement);
+        }
+
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
 
-        public void NonConstructorPropertyAnalysis() => SetValue.NonConstructorPropertyAnalysis();
-
+        public void NonConstructorPropertyAnalysis()
+        {
+            SetValue.NonConstructorPropertyAnalysis();
+            if (SetValue.Type.IsReferenceType && SetValue.Type.HasMutableChildren && SetValue.IsReadOnly)
+                throw new CannotMutateReadonlyValue(SetValue, ErrorReportedElement);
+        }
+        
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => SetValue.NonMessageReceiverAnalysis();
+        public void NonMessageReceiverAnalysis()
+        {
+            SetValue.NonMessageReceiverAnalysis();
+            if (SetValue.Type.IsReferenceType && SetValue.Type.HasMutableChildren && SetValue.IsReadOnly)
+                throw new CannotMutateReadonlyValue(SetValue, ErrorReportedElement);
+        }
     }
 
     partial class VariableReference

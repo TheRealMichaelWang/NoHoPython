@@ -210,13 +210,15 @@ namespace NoHoPython.Syntax.Values
                     
                     IRValue setTo = SetValue.GenerateIntermediateRepresentationForValue(irBuilder, variable.Type, willRevaluate);
                     
-                    RefinementContext.RefinementEntry? refinementEntry = irBuilder.Refinements.Peek().GetRefinementEntry(variable, true);
-                    refinementEntry?.Clear();
-                    if(refinementEntry != null)
+                    RefinementContext.RefinementEntry? refinementEntry = irBuilder.Refinements.Peek().GetRefinementEntry(variable);
+                    if (refinementEntry != null)
+                    {
+                        refinementEntry.Clear();
                         setTo.RefineSet(irBuilder, refinementEntry);
+                    }
                     else
                     {
-                        RefinementContext.RefinementEntry newEntry = new(null, new());
+                        RefinementContext.RefinementEntry newEntry = new(null, new(), null);
                         setTo.RefineSet(irBuilder, newEntry);
                         irBuilder.Refinements.Peek().NewRefinementEntry(variable, newEntry);
                     }

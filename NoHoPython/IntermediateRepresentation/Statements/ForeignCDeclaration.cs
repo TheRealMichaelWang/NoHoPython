@@ -80,6 +80,8 @@ namespace NoHoPython.Typing
         public string Identifier => IType.GetIdentifier(IScopeSymbol.GetAbsolouteName(Declaration), TypeArguments.ToArray());
         public string PrototypeIdentifier => IType.GetPrototypeIdentifier(IScopeSymbol.GetAbsolouteName(Declaration), Declaration.TypeParameters);
         public bool IsEmpty => false;
+        public bool HasMutableChildren => GetProperties().Any(property => !property.IsReadOnly || !property.Type.HasMutableChildren);
+        public bool IsReferenceType => GetProperties().Any(property => property.Type.IsReferenceType);
 
         public ForeignCDeclaration Declaration { get; private set; }
         public readonly List<IType> TypeArguments;

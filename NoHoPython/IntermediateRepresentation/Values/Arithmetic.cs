@@ -88,15 +88,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 {
                     if (explicitCast && value.Type is HandleType)
                         return new HandleCast(handleType, value, value.ErrorReportedElement);
-                    else if (value.Type is ArrayType)
-                        return new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, value, value.ErrorReportedElement);
-                    else if (value.Type is MemorySpan)
-                        return new ArrayOperator(ArrayOperator.ArrayOperation.GetSpanHandle, value, value.ErrorReportedElement);
                 }
                 if (typeTarget is ArrayType && value.Type is MemorySpan)
                     return new MarshalMemorySpanIntoArray(value, value.ErrorReportedElement);
-                if (typeTarget is IntegerType && value.Type is ArrayType)
-                    return new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayLength, value, value.ErrorReportedElement);
+                if (typeTarget is ProcedureType procedureType1 && value.Type is ProcedureType procedureType2 && procedureType1.IsMostlyCompatibleWith(procedureType2))
+                    return new AutoCast(typeTarget, value);
                 if (value.Type is EnumType enumType1)
                 { 
                     if(enumType1.SupportsType(typeTarget))
@@ -190,6 +186,23 @@ namespace NoHoPython.IntermediateRepresentation.Values
             TargetHandleType = targetHandleType;
             Input = input;
             ErrorReportedElement = errorReportedElement;
+        }
+    }
+
+    public sealed partial class AutoCast : IRValue
+    {
+        public IAstElement ErrorReportedElement => Input.ErrorReportedElement;
+
+        public bool IsTruey => Input.IsTruey;
+        public bool IsFalsey => Input.IsFalsey;
+
+        public IType Type { get; private set; }
+        public IRValue Input { get; private set; }
+
+        public AutoCast(IType targetType, IRValue input)
+        {
+            Type = targetType;
+            Input = input;
         }
     }
 

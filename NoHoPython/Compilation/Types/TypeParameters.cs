@@ -35,6 +35,8 @@ namespace NoHoPython.Typing
         public bool RequiresDisposal => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public bool MustSetResponsibleDestroyer => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public bool IsTypeDependency => throw new UnexpectedTypeParameterError(TypeParameter, null);
+        public bool HasMutableChildren => false;
+        public bool IsReferenceType => false;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => true;
 

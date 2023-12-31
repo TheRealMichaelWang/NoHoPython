@@ -152,7 +152,11 @@ namespace NoHoPython.Syntax
                     return new HandleType(typeArguments[0]);
                 case "ref":
                     MatchTypeArgCount(1, errorReportedElement);
-                    return new ReferenceType(typeArguments[0], false);
+                    return new ReferenceType(typeArguments[0], ReferenceType.ReferenceMode.UnreleasedCanRelease);
+                case "norelease_ref":
+                case "noReleaseRef":
+                    MatchTypeArgCount(1, errorReportedElement);
+                    return new ReferenceType(typeArguments[0], ReferenceType.ReferenceMode.UnreleasedCannotRelease);
                 case "purefn":
                 case "pure":
                     return typeArguments.Count < 1

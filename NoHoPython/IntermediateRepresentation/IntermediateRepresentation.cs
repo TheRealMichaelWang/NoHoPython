@@ -111,7 +111,7 @@ namespace NoHoPython.Syntax
                     "<string.h>",
                     "<math.h>"
                 },
-                usedArrayTypes.ToList(), usedTupleTypes.ToList(), bufferTypes.ToList(), uniqueProcedureTypes, usedProcedureReferences, procedureOverloads, enumTypeOverloads, interfaceTypeOverloads, recordTypeOverloads, foreignTypeOverloads, typeDependencyTree, memoryAnalyzer);
+                usedArrayTypes.ToList(), usedTupleTypes.ToList(), bufferTypes.ToList(), usedReferenceTypes.ToList(), usedProcedureTypes.ToList(), usedProcedureReferences, procedureOverloads, enumTypeOverloads, interfaceTypeOverloads, recordTypeOverloads, foreignTypeOverloads, typeDependencyTree, memoryAnalyzer);
         }
     }
 }
@@ -169,7 +169,7 @@ namespace NoHoPython.IntermediateRepresentation
 
         public MemoryAnalyzer MemoryAnalyzer { get; private set; }
 
-        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ForeignCDeclaration> foreignCDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<TupleType> usedTupleTypes, List<IType> bufferTypes, List<Tuple<ProcedureType, string>> uniqueProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<ForeignCDeclaration, List<ForeignCType>> foreignTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
+        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ForeignCDeclaration> foreignCDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<TupleType> usedTupleTypes, List<IType> bufferTypes, List<ReferenceType> usedReferenceTypes, List<ProcedureType> usedProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<ForeignCDeclaration, List<ForeignCType>> foreignTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
         {
             DoBoundsChecking = doBoundsChecking;
             EliminateAsserts = eliminateAsserts;
@@ -184,10 +184,11 @@ namespace NoHoPython.IntermediateRepresentation
             ForeignCDeclarations = foreignCDeclarations;
             IncludedCFiles = new(includedCFiles.Count);
 
-            this.uniqueProcedureTypes = uniqueProcedureTypes;
+            this.usedProcedureTypes = usedProcedureTypes;
             this.usedArrayTypes = usedArrayTypes;
             this.usedTupleTypes = usedTupleTypes;
             this.bufferTypes = bufferTypes;
+            this.usedReferenceTypes = usedReferenceTypes;
             this.usedProcedureReferences = usedProcedureReferences;
             ProcedureOverloads = procedureOverloads;
             EnumTypeOverloads = enumTypeOverloads;

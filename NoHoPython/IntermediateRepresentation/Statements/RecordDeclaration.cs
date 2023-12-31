@@ -27,6 +27,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Debug.Assert(value.IsReadOnly);
             Value = value;
         }
+
+        public override void Print()
+        {
+            Console.WriteLine("Please note the following reasons for this error besides directly mutating a read only value:");
+            Console.WriteLine("1. Passing a read-only value with mutable children into a function where the parameter is read only. ");
+            Console.WriteLine("2. Moving a reference-type marked as read only with mutable children.");
+            base.Print();
+        }
     }
 
     public sealed class CannotImplementRecordCopier : IRGenerationError
@@ -214,11 +222,15 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public bool AllPropertiesInitialized(SortedSet<RecordProperty> initializedProperties) => properties.TrueForAll(property => initializedProperties.Contains(property));
 #pragma warning restore CS8602
 
-        public ProcedureDeclaration? GetMessageReceiver(string name)
+        public AnonymizeProcedure? GetMessageReceiver(string name)
         {
             if (!messageReceiverNames.Contains(name))
                 return null;
-            return ((AnonymizeProcedure)defaultValues[name]).Procedure.ProcedureDeclaration;
+
+            IRValue value = defaultValues[name];
+            while (value is AutoCast autoCast)
+                value = autoCast.Input;
+            return (AnonymizeProcedure)value;
         }
     }
 }
@@ -233,6 +245,8 @@ namespace NoHoPython.Typing
         public string PrototypeIdentifier => IType.GetPrototypeIdentifier(IScopeSymbol.GetAbsolouteName(RecordPrototype), RecordPrototype.TypeParameters);
 
         public bool IsEmpty => false;
+        public bool HasMutableChildren => GetProperties().Any(property => !property.IsReadOnly);
+        public bool IsReferenceType => RecordPrototype.PassByReference;
 
         public RecordDeclaration RecordPrototype;
         public readonly List<IType> TypeArguments;

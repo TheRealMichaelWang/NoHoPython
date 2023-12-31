@@ -5,23 +5,22 @@ using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Scoping;
 using NoHoPython.Typing;
 using System.Diagnostics;
+using System.Text;
 
 namespace NoHoPython.Syntax
 {
     partial class AstIRProgramBuilder
     {
-        private List<Tuple<ProcedureType, string>> uniqueProcedureTypes = new();
+        private HashSet<ProcedureType> usedProcedureTypes = new(new ITypeComparer());
         private List<ProcedureReference> usedProcedureReferences = new();
         private Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads = new();
 
         public void ScopeAnonProcedure(ProcedureType procedureType)
         {
-            foreach (var uniqueProcedure in uniqueProcedureTypes)
-                if (IRProgram.ProcedureTypeCCompatible(procedureType, uniqueProcedure.Item1))
-                    return;
+            if (usedProcedureTypes.Contains(procedureType))
+                return;
 
-            string name = $"nhp_anonProcTypeNo{uniqueProcedureTypes.Count}";
-            uniqueProcedureTypes.Add(new(procedureType, name));
+            usedProcedureTypes.Add(procedureType);
 
             List<IType> dependencies = new(procedureType.ParameterTypes.Count + 1) { procedureType.ReturnType };
             dependencies.AddRange(procedureType.ParameterTypes);
@@ -31,13 +30,21 @@ namespace NoHoPython.Syntax
 
         public ProcedureReference? DeclareUsedProcedureReference(ProcedureReference procedureReference)
         {
-            foreach (ProcedureReference usedReference in usedProcedureReferences)
-                if (usedReference.IsCompatibleWith(procedureReference))
-                    return usedReference;
+            //foreach (ProcedureReference usedReference in usedProcedureReferences)
+            //    if (usedReference.IsCompatibleWith(procedureReference))
+            //        return usedReference;
 
-            usedProcedureReferences.Add(procedureReference);
             if (!procedureOverloads.ContainsKey(procedureReference.ProcedureDeclaration))
+            {
                 procedureOverloads.Add(procedureReference.ProcedureDeclaration, new List<ProcedureReference>());
+                usedProcedureReferences.Add(procedureReference);
+            }
+            else
+            {
+                foreach (ProcedureReference overload in procedureOverloads[procedureReference.ProcedureDeclaration])
+                    if (overload.IsCompatibleWith(procedureReference))
+                        return overload;
+            }
             procedureOverloads[procedureReference.ProcedureDeclaration].Add(procedureReference);
 
             return procedureReference;
@@ -55,39 +62,18 @@ namespace NoHoPython.IntermediateRepresentation
 {
     partial class IRProgram
     {
-        public static bool ProcedureTypeCCompatible(ProcedureType a, ProcedureType b)
-        {
-            static bool isCCompatible(IType a, IType b)
-            {
-                if (a.IsCompatibleWith(b))
-                    return true;
-
-                return (a is RecordType || a is ProcedureType || a is HandleType) && (b is RecordType || b is ProcedureType || b is HandleType);
-            }
-
-            if (a.ParameterTypes.Count != b.ParameterTypes.Count)
-                return false;
-            if (!isCCompatible(a.ReturnType, b.ReturnType))
-                return false;
-            for (int i = 0; i < a.ParameterTypes.Count; i++)
-                if (!isCCompatible(a.ParameterTypes[i], b.ParameterTypes[i]))
-                    return false;
-            return true;
-        }
-
-        private List<Tuple<ProcedureType, string>> uniqueProcedureTypes;
+        private List<ProcedureType> usedProcedureTypes;
+        private HashSet<string> compiledProcedureTypes = new();
         private List<ProcedureReference> usedProcedureReferences;
         public readonly Dictionary<ProcedureDeclaration, List<ProcedureReference>> ProcedureOverloads;
 
         public void EmitAnonProcedureTypedefs(Emitter emitter)
         {
-            void EmitProcTypedef(Tuple<ProcedureType, string> procedureInfo)
+            void EmitProcTypedef(ProcedureType procedureInfo)
             {
                 void emitType(IType type)
                 {
-                    if (type is RecordType ||
-                       type is ProcedureType ||
-                       type is HandleType)
+                    if (type.GetCName(this).EndsWith('*'))
                         emitter.Append("void*");
                     else if (type is TypeParameterReference typeParameterReference)
                         throw new UnexpectedTypeParameterError(typeParameterReference.TypeParameter, null);
@@ -95,20 +81,25 @@ namespace NoHoPython.IntermediateRepresentation
                         emitter.Append(type.GetCName(this));
                 }
 
+                string standardId = procedureInfo.GetStandardIdentifier(this);
+                if (compiledProcedureTypes.Contains(standardId))
+                    return;
+                compiledProcedureTypes.Add(standardId);
+
                 emitter.Append("typedef ");
-                emitType(procedureInfo.Item1.ReturnType);
+                emitType(procedureInfo.ReturnType);
                 emitter.Append(" (*");
-                emitter.Append(procedureInfo.Item2);
+                emitter.Append(standardId);
                 emitter.Append("_t)(void* nhp_capture");
 
-                for (int i = 0; i < procedureInfo.Item1.ParameterTypes.Count; i++)
+                for (int i = 0; i < procedureInfo.ParameterTypes.Count; i++)
                 {
                     emitter.Append(", ");
-                    emitType(procedureInfo.Item1.ParameterTypes[i]);
+                    emitType(procedureInfo.ParameterTypes[i]);
                     emitter.Append($" param{i}");
                 }
 
-                if (procedureInfo.Item1.ReturnType.MustSetResponsibleDestroyer)
+                if (procedureInfo.ReturnType.MustSetResponsibleDestroyer)
                     emitter.Append(", void* ret_responsible_dest");
 
                 emitter.AppendLine(");");
@@ -125,16 +116,8 @@ namespace NoHoPython.IntermediateRepresentation
             emitter.AppendLine("\tnhp_anon_proc_copier nhp_record_copier;");
             emitter.AppendLine("};");
 
-            foreach (var uniqueProc in uniqueProcedureTypes)
+            foreach (var uniqueProc in usedProcedureTypes)
                 EmitProcTypedef(uniqueProc);
-        }
-
-        public string GetAnonProcedureStandardIdentifier(ProcedureType procedureType)
-        {
-            foreach (var uniqueProcedure in uniqueProcedureTypes)
-                if (ProcedureTypeCCompatible(procedureType, uniqueProcedure.Item1))
-                    return uniqueProcedure.Item2;
-            throw new InvalidOperationException();
         }
 
         public void EmitAnonProcedureCapturedContecies(Emitter emitter)
@@ -222,7 +205,26 @@ namespace NoHoPython.Typing
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
 
-        public string GetStandardIdentifier(IRProgram irProgram) => irProgram.GetAnonProcedureStandardIdentifier(this);
+        public string GetStandardIdentifier(IRProgram irProgram) //=> irProgram.GetAnonProcedureStandardIdentifier(this);
+        {
+            string GetArgStandardIdentifier(IType type)
+            {
+                if (type.GetCName(irProgram).EndsWith('*'))
+                    return "ptr";
+                else
+                    return type.GetStandardIdentifier(irProgram);
+            }
+
+            StringBuilder builder = new();
+            builder.Append("nhp_anon_proc_");
+            builder.Append(GetArgStandardIdentifier(ReturnType));
+            foreach(IType paramType in ParameterTypes)
+            {
+                builder.Append('_');
+                builder.Append(GetArgStandardIdentifier(paramType));
+            }
+            return builder.ToString();
+        }
 
         public string GetCName(IRProgram irProgram) => StandardProcedureType;
 
@@ -807,11 +809,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             RecordType recordType = (RecordType)Record.Type.SubstituteWithTypearg(typeargs);
-            toCall = ((AnonymizeProcedure)Property.DefaultValue).Procedure.SubstituteWithTypearg(recordType.TypeargMap).SubstituteWithTypearg(typeargs).CreateRegularReference();
+            toCall = recordType.RecordPrototype.GetMessageReceiver(Property.Name).Procedure.SubstituteWithTypearg(recordType.TypeargMap).SubstituteWithTypearg(typeargs).CreateRegularReference();
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
             toCall = toCall.ScopeForUsedTypes(irBuilder);
-
             if (toCall.ProcedureDeclaration.CapturedVariables.Count > 0)
                 Arguments.Add(Record);
 

@@ -285,7 +285,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             RefinementContext.RefinementEntry? entry = GetRefinementEntry(irBuilder) ?? CreateRefinementEntry(irBuilder);
 
             if(entry != null)
-                entry.Refinement = assumedRefinement;
+                entry.SetRefinement(assumedRefinement);
         }
 
         public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => Record.GetRefinementEntry(irBuilder)?.GetSubentry(Property.Name);
@@ -306,22 +306,32 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ArithmeticCast
     {
-        public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
-        public void RefineIfFalse(AstIRProgramBuilder irBuilder) { }
+        public void RefineIfTrue(AstIRProgramBuilder irBuilder) => Input.RefineIfTrue(irBuilder);
+        public void RefineIfFalse(AstIRProgramBuilder irBuilder) => Input.RefineIfFalse(irBuilder);
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement) { }
         public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) { }
-        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
-        public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
+        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => Input.GetRefinementEntry(irBuilder);
+        public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => Input.CreateRefinementEntry(irBuilder);
     }
 
     partial class HandleCast
     {
-        public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
-        public void RefineIfFalse(AstIRProgramBuilder irBuilder) { }
+        public void RefineIfTrue(AstIRProgramBuilder irBuilder) => Input.RefineIfTrue(irBuilder);
+        public void RefineIfFalse(AstIRProgramBuilder irBuilder) => Input.RefineIfFalse(irBuilder);
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement) { }
         public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) { }
-        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
-        public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
+        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => Input.GetRefinementEntry(irBuilder);
+        public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => Input.CreateRefinementEntry(irBuilder);
+    }
+
+    partial class AutoCast
+    {
+        public void RefineIfTrue(AstIRProgramBuilder irBuilder) => Input.RefineIfTrue(irBuilder);
+        public void RefineIfFalse(AstIRProgramBuilder irBuilder) => Input.RefineIfFalse(irBuilder);
+        public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) { }
+        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => Input.GetRefinementEntry(irBuilder);
+        public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => Input.CreateRefinementEntry(irBuilder);
     }
 
     partial class ArrayOperator
@@ -341,24 +351,24 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement)
         {
-            RefinementContext.RefinementEntry? entry = irBuilder.Refinements.Peek().GetRefinementEntry(Variable, true);
+            RefinementContext.RefinementEntry? entry = irBuilder.Refinements.Peek().GetRefinementEntry(Variable);
             if (entry == null)
-                irBuilder.Refinements.Peek().NewRefinementEntry(Variable, new(assumedRefinement, new()));
+                irBuilder.Refinements.Peek().NewRefinementEntry(Variable, new(assumedRefinement, new(), null));
             else
-                entry.Refinement = assumedRefinement;
+                entry.SetRefinement(assumedRefinement);
         }
 
         public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) { }
 
-        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => irBuilder.Refinements.Peek().GetRefinementEntry(Variable, true);
+        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => irBuilder.Refinements.Peek().GetRefinementEntry(Variable);
 
         public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder)
         {
-            RefinementContext.RefinementEntry? existingEntry = irBuilder.Refinements.Peek().GetRefinementEntry(Variable, true);
+            RefinementContext.RefinementEntry? existingEntry = irBuilder.Refinements.Peek().GetRefinementEntry(Variable);
             if (existingEntry != null)
                 return existingEntry;
 
-            RefinementContext.RefinementEntry newEntry = new RefinementContext.RefinementEntry(null, new());
+            RefinementContext.RefinementEntry newEntry = new RefinementContext.RefinementEntry(null, new(), null);
             irBuilder.Refinements.Peek().NewRefinementEntry(Variable, newEntry);
             return newEntry;
         }
@@ -452,7 +462,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
 
-        public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) => destinationEntry.Refinement = (Value.Type, EnumDeclaration.GetRefinedEnumEmitter(TargetType, Value.Type));
+        public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) => destinationEntry.SetRefinement((Value.Type, EnumDeclaration.GetRefinedEnumEmitter(TargetType, Value.Type)));
     }
 
     partial class UnwrapEnumValue

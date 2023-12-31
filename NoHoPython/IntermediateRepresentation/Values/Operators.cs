@@ -269,6 +269,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (HasMessageReceiver(record, $"get_{name}", irBuilder))
                 return AnonymousProcedureCall.SendMessage(record, $"get_{name}", null, new(), irBuilder, errorReportedElement);
 
+            if (record.Type is ArrayType)
+            {
+                if(name == "length" || name == "len")
+                    return new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayLength, record, record.ErrorReportedElement);
+                if(name == "handle" || name == "ptr")
+                    return new ArrayOperator(ArrayOperator.ArrayOperation.GetArrayHandle, record, record.ErrorReportedElement);
+            }
+            if(record.Type is MemorySpan memorySpan)
+            {
+                if (name == "length" || name == "len")
+                    return new IntegerLiteral(memorySpan.Length, record.ErrorReportedElement);
+                if (name == "handle" || name == "ptr")
+                    return new ArrayOperator(ArrayOperator.ArrayOperation.GetSpanHandle, record, record.ErrorReportedElement);
+            }
+
             throw new UnexpectedTypeException(record.Type, $"Type doesn't contain property {name}.", errorReportedElement);
         }
 

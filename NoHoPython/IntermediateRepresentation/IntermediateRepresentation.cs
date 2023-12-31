@@ -22,6 +22,7 @@ namespace NoHoPython.Syntax
         public SymbolContainer CurrentMasterScope => ScopedProcedures.Count > 0 ? ScopedProcedures.Peek() : (ScopedRecordDeclaration != null) ? ScopedRecordDeclaration : SymbolMarshaller.CurrentModule;
 
         public readonly SortedSet<string> Flags;
+        public bool VerboseOutput { get; private set; }
 
         private Dictionary<IType, HashSet<IType>> typeDependencyTree;
 
@@ -36,6 +37,7 @@ namespace NoHoPython.Syntax
             Refinements = new Stack<RefinementContext>();
             Flags = new SortedSet<string>(flags);
             ScopedRecordDeclaration = null;
+            VerboseOutput = flags.Contains("-verbose");
 
             typeDependencyTree = new Dictionary<IType, HashSet<IType>>(new ITypeComparer());
 
@@ -76,8 +78,15 @@ namespace NoHoPython.Syntax
             typeDependencyTree.Add(type, dependencySet);
         }
 
+        public void PrintVerbose(string message)
+        {
+            if (VerboseOutput)
+                Console.WriteLine(message);
+        }
+
         public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, bool mainEntryPoint, MemoryAnalyzer memoryAnalyzer)
         {
+            PrintVerbose("Scoping compile heads...");
             List<ProcedureDeclaration> compileHeads = new();
             foreach (ProcedureDeclaration procedureDeclaration in ProcedureDeclarations.ConvertAll(e => e.Item1))
                 if (mainEntryPoint)
@@ -91,8 +100,10 @@ namespace NoHoPython.Syntax
             foreach (ProcedureDeclaration procedureDeclaration in compileHeads)
                 procedureDeclaration.ScopeAsCompileHead(this);
             ScopeForAllSecondaryProcedures();
-            
-            foreach(var toAnalyze in ProcedureDeclarations)
+
+            PrintVerbose("Analyzing mutability and side effects...");
+            foreach (var toAnalyze in ProcedureDeclarations)
+            {
                 switch (toAnalyze.Item2)
                 {
                     case Statements.ProcedureDeclaration.Type.MessageReceiver:
@@ -102,6 +113,7 @@ namespace NoHoPython.Syntax
                         toAnalyze.Item1.NonMessageReceiverAnalysis();
                         break;
                 }
+            }
 
             return new(doBoundsChecking, eliminateAsserts, doCallStack, nameRuntimeTypes, emitLineDirectives,
                 RecordDeclarations, InterfaceDeclarations, EnumDeclarations, foreignTypeOverloads.Keys.ToList(), ProcedureDeclarations.ConvertAll((p) => p.Item1), new List<string>()

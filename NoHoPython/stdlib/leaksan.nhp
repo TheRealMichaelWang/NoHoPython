@@ -3,7 +3,6 @@
 		cdef report() None "memoryReport()"
 
 		def run(fn<None> action):
-			def leaksan(fn<None> todo):
 			cdef active_allocs int
 			cdef active_memory_usage int
 

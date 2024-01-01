@@ -281,11 +281,11 @@ namespace NoHoPython.Syntax.Statements
                 }
                 else
                 {
-                    if (scopedCodeBlock.CodeBlockAllCodePathsReturn() || scopedCodeBlock.CodeBlockSomeCodePathsBreak())
-                        condition.RefineIfFalse(irBuilder);
-
                     if (scopedCodeBlock.CodeBlockAllCodePathsReturn())
+                    {
+                        condition.RefineIfFalse(irBuilder);
                         parentEntry?.DiscardQueuedRefinements();
+                    }
                     else
                         parentEntry?.ApplyQueuedRefinements();
                     return new IntermediateRepresentation.Statements.IfBlock(condition, scopedCodeBlock, irBuilder, this);
@@ -414,8 +414,7 @@ namespace NoHoPython.Syntax.Statements
                 List<IntermediateRepresentation.Statements.MatchStatement.MatchHandler> matchHandlers = new(MatchHandlers.Count);
                 foreach (MatchHandler handler in MatchHandlers)
                 {
-                    if(parentContext != null)
-                        parentContext = irBuilder.NewRefinmentContext();
+                    parentContext = irBuilder.NewRefinmentContext();
                     
                     matchHandlers.Add(new(matchValue, handler.MatchTypes.ConvertAll((type) => type.ToIRType(irBuilder, this)), handler.MatchIdentifier, handlerCodeBlocks[handler], handler.Statements, irBuilder, this));
                     irBuilder.Refinements.Pop();
@@ -423,8 +422,7 @@ namespace NoHoPython.Syntax.Statements
 
                 if(defaultHandlerCodeBlock != null)
                 {
-                    if (parentContext != null)
-                        parentContext = irBuilder.NewRefinmentContext();
+                    parentContext = irBuilder.NewRefinmentContext();
                     irBuilder.SymbolMarshaller.NavigateToScope(defaultHandlerCodeBlock);
 #pragma warning disable CS8604 // Default handler is not null when defaultHandlerCodeBlock isn't null
                     defaultHandlerCodeBlock.DelayedLinkSetStatements(IAstStatement.GenerateIntermediateRepresentationForBlock(irBuilder, DefaultHandler), irBuilder);
@@ -438,6 +436,7 @@ namespace NoHoPython.Syntax.Statements
                     parentContext?.DiscardQueuedRefinements();
                 else
                     parentContext?.ApplyQueuedRefinements();
+                return toreturn;
             }
             throw new UnexpectedTypeException(matchValue.Type, this);
         }

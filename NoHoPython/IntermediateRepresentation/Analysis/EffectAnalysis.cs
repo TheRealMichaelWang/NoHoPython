@@ -391,6 +391,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Input.GetCoMutatedValues(coMutatedValues);
         }
 
+        public void EnsureMinimumPurity(Purity purity) => Input.EnsureMinimumPurity(purity);
+
+        public void GetMutatedValues(List<IRValue> affectedValues) => Input.GetMutatedValues(affectedValues);
+
         public bool IsAffectedByMutation(IRValue mutatedValue) => Input.IsAffectedByMutation(mutatedValue);
 
         public bool IsAffectedByEvaluation(IRValue evaluatedValue) => Input.IsAffectedByEvaluation(evaluatedValue);

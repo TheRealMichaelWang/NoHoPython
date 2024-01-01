@@ -1,4 +1,5 @@
 ﻿using NoHoPython.IntermediateRepresentation;
+using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Typing;
 using System;
 using System.Collections.Generic;
@@ -63,6 +64,29 @@ namespace NoHoPython.Typing
 {
     partial class ReferenceType
     {
+        public sealed class CannotAccessElement : CodegenError
+        {
+            public CannotAccessElement() : base(null, "Cannot access element from a reference type that has potentially been already released.")
+            {
+
+            }
+        }
+
+        partial class ElementProperty
+        {
+            public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
+
+            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer)
+            {
+                if (ReferenceType.Mode >= ReferenceMode.Released)
+                    throw new CannotAccessElement();
+
+                value(emitter);
+                emitter.Append("->elem");
+                return false;
+            }
+        }
+
         public bool IsNativeCType => false;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;

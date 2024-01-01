@@ -30,6 +30,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue? GetResponsibleDestroyer() => null;
     }
 
+    partial class ReferenceLiteral
+    {
+        public IRValue? GetResponsibleDestroyer() => GetPostEvalPure();
+    }
+
     partial class MarshalIntoLowerTuple
     {
         public IRValue? GetResponsibleDestroyer() => null;

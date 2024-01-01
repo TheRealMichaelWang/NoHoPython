@@ -330,6 +330,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void NonMessageReceiverAnalysis() => Elements.ForEach((element) => element.NonMessageReceiverAnalysis());
     }
 
+    partial class ReferenceLiteral
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, isUsingValue);
+
+        public void NonConstructorPropertyAnalysis() => Input.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => false;
+
+        public void NonMessageReceiverAnalysis() => Input.NonMessageReceiverAnalysis();
+    }
+
     partial class MarshalIntoLowerTuple
     {
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true); 

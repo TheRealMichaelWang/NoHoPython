@@ -128,6 +128,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
 
+    partial class ReferenceLiteral
+    {
+        public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
+        public void RefineIfFalse(AstIRProgramBuilder irBuilder) { }
+        public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) { }
+        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
+        public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
+    }
+
     partial class MarshalIntoLowerTuple
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }

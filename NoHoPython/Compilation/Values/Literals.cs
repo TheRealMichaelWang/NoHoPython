@@ -288,6 +288,47 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    partial class ReferenceLiteral
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            Type.SubstituteWithTypearg(typeargs).ScopeForUsedTypes(irBuilder);
+            Input.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
+
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
+        {
+            ReferenceType referenceType = (ReferenceType)Type.SubstituteWithTypearg(typeargs);
+
+            int indirection = primaryEmitter.AppendStartBlock();
+            primaryEmitter.AppendLine($"{referenceType.GetCName(irProgram)} rc{indirection} = {irProgram.MemoryAnalyzer.Allocate($"sizeof({referenceType.GetStandardIdentifier(irProgram)}_t)")};");
+            if (referenceType.IsCircularDataStructure)
+            {
+                primaryEmitter.AppendLine($"rc{indirection}->trace_unit.nhp_parent_count = 0;");
+                primaryEmitter.AppendLine($"rc{indirection}->trace_unit.nhp_lock = 0;");
+                primaryEmitter.AppendLine($"nhp_trace_add_parent((nhp_trace_obj_t*)rc{indirection}, parent_record);");
+            }
+            else
+                primaryEmitter.AppendLine($"rc{indirection}->rc_unit.nhp_count = 0;");
+            primaryEmitter.AppendLine($"rc{indirection}->is_released = 0;");
+            Input.Emit(irProgram, primaryEmitter, typeargs, promise =>
+            {
+                primaryEmitter.Append($"rc{indirection}->elem = ");
+                if (Input.RequiresDisposal(irProgram, typeargs, false))
+                    promise(primaryEmitter);
+                else
+                    Input.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, promise, e => e.Append($"rc{indirection}->elem"));
+                primaryEmitter.AppendLine(';');
+            }, e => e.Append($"rc{indirection}->elem"), isTemporaryEval);
+            destination(emitter => emitter.Append($"rc{indirection}"));
+            primaryEmitter.AppendEndBlock();
+        }
+    }
+
     partial class AllocArray
     {
         public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)

@@ -46,8 +46,6 @@ namespace NoHoPython.IntermediateRepresentation
         {
             foreach (ReferenceType referenceType in usedReferenceTypes)
             {
-                referenceType.EmitConstructorHeader(this, emitter);
-                emitter.AppendLine(";");
                 referenceType.EmitDestructorHeader(this, emitter);
                 emitter.AppendLine(";");
             }
@@ -56,10 +54,7 @@ namespace NoHoPython.IntermediateRepresentation
         public void EmitReferenceTypeMarshallers(Emitter emitter)
         {
             foreach (ReferenceType referenceType in usedReferenceTypes)
-            {
-                referenceType.EmitConstructor(this, emitter);
                 referenceType.EmitDestructor(this, emitter);
-            }
         }
     }
 }
@@ -132,36 +127,6 @@ namespace NoHoPython.Typing
             if (!irBuilder.DeclareUsedReferenceType(this))
                 return;
             ElementType.ScopeForUsedTypes(irBuilder);
-        }
-
-        public void EmitConstructorHeader(IRProgram irProgram, Emitter emitter)
-        {
-            emitter.Append($"void construct_{GetStandardIdentifier(irProgram)}({ElementType.GetCName(irProgram)} elem");
-            if (IsCircularDataStructure)
-                emitter.Append(", nhp_trace_obj_t* parent_obj");
-            emitter.Append(")");
-        }
-
-        public void EmitConstructor(IRProgram irProgram, Emitter emitter)
-        {
-            EmitConstructorHeader(irProgram, emitter);
-            emitter.AppendStartBlock();
-            emitter.AppendLine($"{GetCName(irProgram)} ref_obj = {irProgram.MemoryAnalyzer.Allocate($"sizeof({GetStandardIdentifier(irProgram)}_t)")};");
-
-            emitter.AppendLine("ref_obj->elem = elem;");
-            emitter.AppendLine("ref_obj->is_released = 0;");
-
-            if (IsCircularDataStructure)
-            {
-                emitter.AppendLine("ref_obj->trace_unit.nhp_parent_count = 0;");
-                emitter.AppendLine("ref_obj->trace_unit.nhp_lock = 0;");
-                emitter.AppendLine($"nhp_trace_add_parent((nhp_trace_obj_t*)ref_obj, parent_record);");
-            }
-            else
-                emitter.AppendLine("ref_obj->rc_unit.nhp_count = 0;");
-
-            emitter.AppendLine("return ref_obj;");
-            emitter.AppendEndBlock();
         }
 
         public void EmitDestructorHeader(IRProgram irProgram, Emitter emitter)

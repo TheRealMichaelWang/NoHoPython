@@ -212,6 +212,23 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
+    public sealed partial class ReferenceLiteral : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+
+        public IType Type => new ReferenceType(Input.Type, ReferenceType.ReferenceMode.UnreleasedCanRelease);
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public IRValue Input { get; private set; }
+
+        public ReferenceLiteral(IRValue input, IAstElement errorReportedElement)
+        {
+            Input = input;
+            ErrorReportedElement = errorReportedElement;
+        }
+    }
+
     public sealed partial class AllocArray : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }

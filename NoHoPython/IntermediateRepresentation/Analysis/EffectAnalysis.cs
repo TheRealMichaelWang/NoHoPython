@@ -378,6 +378,24 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsAffectedByEvaluation(IRValue evaluatedValue) => Elements.Any((element) => element.IsAffectedByEvaluation(evaluatedValue));
     }
 
+    partial class ReferenceLiteral
+    {
+        public bool IsPure => Input.IsPure;
+        public bool IsConstant => Input.IsConstant;
+
+        public IRValue GetPostEvalPure() => new ReferenceLiteral(Input.GetPostEvalPure(), ErrorReportedElement);
+
+        public void GetCoMutatedValues(List<IRValue> coMutatedValues)
+        {
+            coMutatedValues.Add(this);
+            Input.GetCoMutatedValues(coMutatedValues);
+        }
+
+        public bool IsAffectedByMutation(IRValue mutatedValue) => Input.IsAffectedByMutation(mutatedValue);
+
+        public bool IsAffectedByEvaluation(IRValue evaluatedValue) => Input.IsAffectedByEvaluation(evaluatedValue);
+    }
+
     partial class MarshalIntoLowerTuple
     {
         public bool IsPure => Value.IsPure;

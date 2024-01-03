@@ -526,4 +526,25 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
     }
+
+    partial class ReleaseReferenceElement
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) => ReferenceBox.ScopeForUsedTypes(typeargs, irBuilder);
+
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => ReferenceBox.Type.SubstituteWithTypearg(typeargs).RequiresDisposal;
+
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
+        {
+            ReferenceType referenceType = (ReferenceType)ReferenceBox.Type.SubstituteWithTypearg(typeargs);
+
+            int indirection = primaryEmitter.AppendStartBlock();
+            primaryEmitter.AppendLine($"{referenceType.GetCName(irProgram)} rc{indirection}");
+            primaryEmitter.SetArgument(ReferenceBox, $"rc{indirection}", irProgram, typeargs, true);
+            primaryEmitter.AppendLine($"rc{indirection}->is_released = 1;");
+            destination(emitter => emitter.Append($"rc{indirection}->elem"));
+            primaryEmitter.AppendEndBlock();
+        }
+    }
 }

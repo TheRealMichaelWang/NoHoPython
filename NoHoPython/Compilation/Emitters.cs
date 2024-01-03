@@ -182,7 +182,8 @@ namespace NoHoPython.IntermediateRepresentation
             if (!irValue.RequiresDisposal(irProgram, typeargs, isTemporary))
                 return;
 
-            AddResourceDestructor(emitter => irValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (e) => e.Append(location), responsibleDestroyer));
+            if(irValue.RequiresDisposal(irProgram, typeargs, isTemporary))
+                AddResourceDestructor(emitter => irValue.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, (e) => e.Append(location), responsibleDestroyer));
         }
 
         public void ExemptResourceFromDestruction(int exemptionId)

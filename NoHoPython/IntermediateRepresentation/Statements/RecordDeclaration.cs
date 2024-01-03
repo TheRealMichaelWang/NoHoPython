@@ -33,6 +33,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Console.WriteLine("Please note the following reasons for this error besides directly mutating a read only value:");
             Console.WriteLine("1. Passing a read-only value with mutable children into a function where the parameter is read only. ");
             Console.WriteLine("2. Moving a reference-type marked as read only with mutable children.");
+            Console.WriteLine("3. Setting a read only value (ie variable/property) with a reference type with mutable children.");
             base.Print();
         }
     }

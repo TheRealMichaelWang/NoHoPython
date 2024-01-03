@@ -28,7 +28,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             public RefinementEntry? NewSubentry(string propertyName)
             {
                 if (propertyRefinements.ContainsKey(propertyName))
-                    return propertyRefinements[propertyName];
+                    return null;
 
                 RefinementEntry newEntry = new(null, new(), null, context);
                 propertyRefinements.Add(propertyName, newEntry);
@@ -38,13 +38,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             public void Clear()
             {
                 Refinement = null;
-                ClearSubRefinments();
+                ClearSubRefinements();
                 
                 if(parentEntry != null)
                     parentEntry.context.QueueRefinement(parentEntry, null);
             }
 
-            public void ClearSubRefinments()
+            public void ClearSubRefinements()
             {
                 foreach(RefinementEntry entry in propertyRefinements.Values)
                     entry.Clear();

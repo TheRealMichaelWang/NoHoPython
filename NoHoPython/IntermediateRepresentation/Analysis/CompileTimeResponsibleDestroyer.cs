@@ -112,12 +112,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class GetPropertyValue
     {
-        public IRValue? GetResponsibleDestroyer() => Record.Type.IsReferenceType ? Record : Record.GetResponsibleDestroyer();
+        public IRValue? GetResponsibleDestroyer() => Record.Type.IsReferenceType ? Record.GetPostEvalPure() : Record.GetResponsibleDestroyer();
     }
 
     partial class SetPropertyValue
     {
-        public IRValue? GetResponsibleDestroyer() => Record;
+        public IRValue? GetResponsibleDestroyer() => Record.GetPostEvalPure();
+    }
+
+    partial class ReleaseReferenceElement
+    {
+        public IRValue? GetResponsibleDestroyer() => ReferenceBox.GetPostEvalPure();
     }
 
     partial class MarshalIntoEnum

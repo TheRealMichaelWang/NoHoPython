@@ -2,6 +2,17 @@
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Syntax;
 
+namespace NoHoPython.IntermediateRepresentation
+{
+    public sealed class CannotReleaseReadonlyReferenceType : IRGenerationError
+    {
+        public CannotReleaseReadonlyReferenceType(IAstElement errorReportedElement) : base(errorReportedElement, "Cannot release read-only reference type.")
+        {
+
+        }
+    }
+}
+
 namespace NoHoPython.Typing
 {
     public sealed partial class ReferenceType : IType, IPropertyContainer
@@ -24,9 +35,17 @@ namespace NoHoPython.Typing
             Released = 2
         }
 
+        private static string GetModeDescription(ReferenceMode mode) => mode switch
+        {
+            ReferenceMode.UnreleasedCanRelease => "ref",
+            ReferenceMode.UnreleasedCannotRelease => "noReleaseRef",
+            ReferenceMode.Released => "alreadyReleasedRef",
+            _ => throw new InvalidOperationException()
+        };
+
         public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
-        public string TypeName => $"{(Mode == ReferenceMode.UnreleasedCanRelease ? "ref" : "noReleaseRef")}<{ElementType.TypeName}>";
+        public string TypeName => $"{GetModeDescription(Mode)}<{ElementType.TypeName}>";
         public string Identifier => $"ref_{ElementType.Identifier}";
         public string PrototypeIdentifier => $"ref_T";
         public bool IsEmpty => Mode >= ReferenceMode.Released;
@@ -55,22 +74,4 @@ namespace NoHoPython.Typing
 
         public List<Property> GetProperties() => new List<Property>() { new ElementProperty(this) };
     }
-}
-
-namespace NoHoPython.IntermediateRepresentation.Statements
-{
-    //public sealed partial class SetReferenceElement : IRStatement
-    //{
-    //    public IAstElement ErrorReportedElement { get; private set; }
-
-    //    public IRValue ReferenceValue { get; private set; }
-    //    public IRValue NewElementValue { get; private set; }
-
-    //    public SetReferenceElement(IRValue referenceValue, IRValue newElementValue, IAstElement errorReportedElement)
-    //    {
-    //        ReferenceValue = referenceValue;
-    //        NewElementValue = newElementValue;
-    //        ErrorReportedElement = errorReportedElement;
-    //    }
-    //}
 }

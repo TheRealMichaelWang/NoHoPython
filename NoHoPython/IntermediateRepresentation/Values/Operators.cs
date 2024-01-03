@@ -362,6 +362,25 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ErrorReportedElement = errorReportedElement;
         }
     }
+
+    public sealed partial class ReleaseReferenceElement : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public IType Type => ((ReferenceType)ReferenceBox.Type).ElementType;
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public IRValue ReferenceBox { get; private set; }
+
+        public ReleaseReferenceElement(IRValue referenceBox, IAstElement errorReportedElement)
+        {
+            if (referenceBox.Type is not ReferenceType)
+                throw new UnexpectedTypeException(referenceBox.Type, errorReportedElement);
+
+            ReferenceBox = referenceBox;
+            ErrorReportedElement = errorReportedElement;
+        }
+    }
 }
 
 namespace NoHoPython.Syntax.Values

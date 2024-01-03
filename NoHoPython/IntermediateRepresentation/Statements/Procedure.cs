@@ -389,8 +389,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 throw new UnexpectedArgumentsException(arguments.Select((arg) => arg.Type).ToList(), expectedParameters, errorReportedElement);
             for (int i = 0; i < expectedParameters.Count; i++)
             {
-                if(functionPurity <= Purity.Pure)
-                    Arguments[i].GetRefinementEntry(irBuilder)?.ClearSubRefinments();
+                if (functionPurity <= Purity.Pure && !Arguments[i].IsReadOnly)
+                {
+                    if (Arguments[i].Type is ReferenceType referenceType && referenceType.Mode == ReferenceType.ReferenceMode.UnreleasedCanRelease)
+                        Arguments[i].RefineAssumeType(irBuilder, (new ReferenceType(referenceType.ElementType, ReferenceType.ReferenceMode.Released), null));
+                    else
+                        Arguments[i].GetRefinementEntry(irBuilder)?.ClearSubRefinements();
+                }
 
                 Arguments[i] = ArithmeticCast.CastTo(Arguments[i], expectedParameters[i], irBuilder);
             }

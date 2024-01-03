@@ -641,4 +641,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new SetPropertyValue(Record.SubstituteWithTypearg(typeargs), Property.SubstituteWithTypeargs(typeargs), Value.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
+
+    partial class ReleaseReferenceElement
+    {
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ReleaseReferenceElement(ReferenceBox.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+    }
 }

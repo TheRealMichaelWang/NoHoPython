@@ -486,7 +486,13 @@ namespace NoHoPython.IntermediateRepresentation.Values
             });
         }
 
-        public void GetCoMutatedValues(List<IRValue> coMutatedValues) => coMutatedValues.Add(this);
+        public void GetCoMutatedValues(List<IRValue> coMutatedValues)
+        {
+            coMutatedValues.Add(this);
+
+            if (CanMutateArguments)
+                coMutatedValues.AddRange(Arguments.Where(argument => (argument.Type.IsCompatibleWith(Type) || argument.Type.ContainsType(Type)) && !argument.IsReadOnly));
+        }
 
         public virtual bool IsAffectedByMutation(IRValue mutatedValue) => Arguments.Any(arg => arg.IsAffectedByMutation(mutatedValue));
 
@@ -725,7 +731,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Array.GetCoMutatedValues(coMutatedValues);
         }
 
-        public bool IsAffectedByMutation(IRValue mutatedValue) => Array.IsAffectedByMutation(mutatedValue) || Index.IsAffectedByMutation(mutatedValue);
+        public bool IsAffectedByMutation(IRValue mutatedValue) => Array.IsAffectedByMutation(mutatedValue) || Index.IsAffectedByMutation(mutatedValue) || (!IsReadOnly && Type.IsReferenceType && Type.HasMutableChildren && Type.IsCompatibleWith(mutatedValue.Type));
 
         public bool IsAffectedByEvaluation(IRValue evaluatedValue) => Array.IsAffectedByEvaluation(evaluatedValue) || Index.IsAffectedByEvaluation(evaluatedValue);
     }
@@ -748,7 +754,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             Array.GetMutatedValues(affectedValues);
             Index.GetMutatedValues(affectedValues);
-            Value.GetMutatedValues(affectedValues);
+
+            if(Value.Type.IsReferenceType && Value.Type.HasMutableChildren)
+                Value.GetMutatedValues(affectedValues);
 
             new GetValueAtIndex(Type, Array, Index, ErrorReportedElement).GetCoMutatedValues(affectedValues);
         }
@@ -759,7 +767,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Array.GetCoMutatedValues(coMutatedValues);
         }
 
-        public bool IsAffectedByMutation(IRValue mutatedValue) => Array.IsAffectedByMutation(mutatedValue) || Index.IsAffectedByMutation(mutatedValue) || Value.IsAffectedByMutation(mutatedValue);
+        public bool IsAffectedByMutation(IRValue mutatedValue) => Array.IsAffectedByMutation(mutatedValue) || Index.IsAffectedByMutation(mutatedValue) || Value.IsAffectedByMutation(mutatedValue) || (!IsReadOnly && Type.IsReferenceType && Type.HasMutableChildren && Type.IsCompatibleWith(mutatedValue.Type));
 
         public bool IsAffectedByEvaluation(IRValue evaluatedValue) => Array.IsAffectedByEvaluation(evaluatedValue) || Index.IsAffectedByEvaluation(evaluatedValue) || Value.IsAffectedByEvaluation(evaluatedValue);
     }
@@ -781,7 +789,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Record.GetCoMutatedValues(coMutatedValues);
         }
 
-        public bool IsAffectedByMutation(IRValue mutatedValue) => Record.IsAffectedByMutation(mutatedValue);
+        public bool IsAffectedByMutation(IRValue mutatedValue) => Record.IsAffectedByMutation(mutatedValue) || (!IsReadOnly && Type.IsReferenceType && Type.HasMutableChildren && Type.IsCompatibleWith(mutatedValue.Type));
 
         public bool IsAffectedByEvaluation(IRValue evaluatedValue) => Record.IsAffectedByEvaluation(evaluatedValue);
     }
@@ -802,7 +810,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void GetMutatedValues(List<IRValue> affectedValues)
         {
             Record.GetMutatedValues(affectedValues);
-            Value.GetMutatedValues(affectedValues);
+
+            if(Value.Type.IsReferenceType && Value.Type.HasMutableChildren)
+                Value.GetMutatedValues(affectedValues);
 
             new GetPropertyValue(Record, Property.Name, null, ErrorReportedElement).GetMutatedValues(affectedValues);
         }
@@ -813,9 +823,31 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Record.GetCoMutatedValues(coMutatedValues);
         }
 
-        public bool IsAffectedByMutation(IRValue mutatedValue) => Record.IsAffectedByMutation(mutatedValue) || Value.IsAffectedByMutation(mutatedValue);
+        public bool IsAffectedByMutation(IRValue mutatedValue) => Record.IsAffectedByMutation(mutatedValue) || Value.IsAffectedByMutation(mutatedValue) || (!IsReadOnly && Type.IsReferenceType && Type.HasMutableChildren && Type.IsCompatibleWith(mutatedValue.Type));
 
         public bool IsAffectedByEvaluation(IRValue evaluatedValue) => Record.IsAffectedByEvaluation(evaluatedValue) || Value.IsAffectedByEvaluation(evaluatedValue);
+    }
+
+    partial class ReleaseReferenceElement
+    {
+        public bool IsPure => false;
+        public bool IsConstant => ReferenceBox.IsConstant;
+
+        public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
+
+        public void EnsureMinimumPurity(Purity purity) => ReferenceBox.EnsureMinimumPurity(purity);
+
+        public void GetMutatedValues(List<IRValue> affectedValues) => affectedValues.Add(ReferenceBox);
+
+        public void GetCoMutatedValues(List<IRValue> coMutatedValues)
+        {
+            ReferenceBox.GetCoMutatedValues(coMutatedValues);
+            new GetPropertyValue(ReferenceBox, "elem", null, ErrorReportedElement).GetCoMutatedValues(coMutatedValues);
+        }
+
+        public bool IsAffectedByMutation(IRValue mutatedValue) => ReferenceBox.IsAffectedByEvaluation(mutatedValue);
+
+        public bool IsAffectedByEvaluation(IRValue evaluatedValue) => ReferenceBox.IsAffectedByEvaluation(evaluatedValue);
     }
 
     partial class ArithmeticCast
@@ -915,9 +947,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void GetCoMutatedValues(List<IRValue> coMutatedValues) => coMutatedValues.Add(this);
 
-        public bool IsAffectedByMutation(IRValue mutatedValue) => mutatedValue is VariableReference variableReference && Variable == variableReference.Variable;
+        public bool IsAffectedByMutation(IRValue mutatedValue) => (mutatedValue is VariableReference variableReference && Variable == variableReference.Variable) || (!IsReadOnly && Type.IsReferenceType && Type.HasMutableChildren && Type.IsCompatibleWith(mutatedValue.Type));
 
-        public bool IsAffectedByEvaluation(IRValue evaluatedValue) => ((evaluatedValue is AnonymousProcedureCall anonymousProcedureCall && anonymousProcedureCall.FunctionPurity >= Purity.OnlyAffectsArgumentsAndCaptured) || evaluatedValue is ProcedureCall procedureCall && procedureCall.FunctionPurity >= Purity.AffectsGlobals) && Type.IsReferenceType;
+        public bool IsAffectedByEvaluation(IRValue evaluatedValue) => (evaluatedValue is AnonymousProcedureCall anonymousProcedureCall && anonymousProcedureCall.FunctionPurity >= Purity.OnlyAffectsArgumentsAndCaptured && (Type is RecordType || Type.IsReferenceType) && Type.HasMutableChildren) || (evaluatedValue is ProcedureCall procedureCall && procedureCall.FunctionPurity >= Purity.AffectsGlobals);
     }
 
     partial class VariableDeclaration
@@ -953,7 +985,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void GetMutatedValues(List<IRValue> affectedValues)
         {
-            SetValue.GetMutatedValues(affectedValues);
+            if(SetValue.Type.IsReferenceType && SetValue.Type.HasMutableChildren)
+                SetValue.GetMutatedValues(affectedValues);
 
             new VariableReference(Variable, false, null, ErrorReportedElement).GetCoMutatedValues(affectedValues);
         }
@@ -1223,7 +1256,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             Address.GetMutatedValues(affectedValues);
             Index.GetMutatedValues(affectedValues);
-            Value.GetMutatedValues(affectedValues);
+
+            if(Value.Type.IsReferenceType && Value.Type.HasMutableChildren)
+                Value.GetMutatedValues(affectedValues);
         }
 
         public void GetCoMutatedValues(List<IRValue> coMutatedValues)
@@ -1232,7 +1267,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             Address.GetCoMutatedValues(coMutatedValues);
         }
 
-        public bool IsAffectedByMutation(IRValue mutatedValue) => Address.IsAffectedByMutation(mutatedValue) || Index.IsAffectedByMutation(mutatedValue) || Value.IsAffectedByMutation(mutatedValue);
+        public bool IsAffectedByMutation(IRValue mutatedValue) => Address.IsAffectedByMutation(mutatedValue) || Index.IsAffectedByMutation(mutatedValue) || Value.IsAffectedByMutation(mutatedValue) || (!IsReadOnly && Type.IsReferenceType && Type.HasMutableChildren && Type.IsCompatibleWith(mutatedValue.Type));
 
         public bool IsAffectedByEvaluation(IRValue evaluatedValue) => Address.IsAffectedByEvaluation(evaluatedValue) || Index.IsAffectedByEvaluation(evaluatedValue) || Value.IsAffectedByEvaluation(evaluatedValue);
     } 

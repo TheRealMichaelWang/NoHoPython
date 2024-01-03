@@ -172,7 +172,16 @@ namespace NoHoPython.IntermediateRepresentation.Values
     {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineIfFalse(AstIRProgramBuilder irBuilder) { }
-        public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement) { }
+
+        public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement)
+        {
+            if (CanMutateArguments && Type is ReferenceType referenceType && referenceType.Mode == ReferenceType.ReferenceMode.Released)
+            {
+                foreach (IRValue argument in Arguments.Where(argument => (argument.Type.IsCompatibleWith(Type) || argument.Type.ContainsType(Type)) && !argument.IsReadOnly))
+                    argument.RefineAssumeType(irBuilder, assumedRefinement);
+            }
+        }
+        
         public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) { }
         public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
@@ -293,9 +302,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement)
         {
             RefinementContext.RefinementEntry? entry = GetRefinementEntry(irBuilder) ?? CreateRefinementEntry(irBuilder);
-
-            if(entry != null)
-                entry.SetRefinement(assumedRefinement);
+            entry?.SetRefinement(assumedRefinement);
         }
 
         public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => Record.GetRefinementEntry(irBuilder)?.GetSubentry(Property.Name);
@@ -305,12 +312,30 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class SetPropertyValue
     {
+        public void RefineIfTrue(AstIRProgramBuilder irBuilder) => Value.RefineIfTrue(irBuilder);
+        public void RefineIfFalse(AstIRProgramBuilder irBuilder) => Value.RefineIfFalse(irBuilder);
+        
+        public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement) 
+        {
+            RefinementContext.RefinementEntry? recordEntry = (Record.GetRefinementEntry(irBuilder)?.GetSubentry(Property.Name)) ?? (Record.CreateRefinementEntry(irBuilder)?.NewSubentry(Property.Name));
+            recordEntry?.SetRefinement(assumedRefinement);
+            RefinementContext.RefinementEntry? valueEntry = (Record.GetRefinementEntry(irBuilder)?.GetSubentry(Property.Name)) ?? (Record.CreateRefinementEntry(irBuilder)?.NewSubentry(Property.Name));
+            valueEntry?.SetRefinement(assumedRefinement);
+        }
+        
+        public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) { }
+
+        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null; //refinement entry should be cleared immediatley upon IR generation
+        public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
+    }
+
+    partial class ReleaseReferenceElement
+    {
         public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
         public void RefineIfFalse(AstIRProgramBuilder irBuilder) { }
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement) { }
         public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) { }
-
-        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null; //refinement entry should be cleared immediatley upon IR generation
+        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
     }
 

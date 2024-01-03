@@ -175,6 +175,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool SomeCodePathsBreak() => false;
     }
 
+    partial class ReleaseReferenceElement
+    {
+        public bool AllCodePathsReturn() => false;
+        public bool SomeCodePathsBreak() => false;
+    }
+
     partial class VariableDeclaration
     {
         public bool AllCodePathsReturn() => false;

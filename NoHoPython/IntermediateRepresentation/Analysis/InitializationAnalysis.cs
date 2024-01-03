@@ -390,6 +390,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
 
         public virtual bool IsReadOnly => Type.IsReferenceType && Type.HasMutableChildren && !(FunctionPurity <= Purity.OnlyAffectsArguments && !Arguments.Any(argument => (argument.Type.IsCompatibleWith(Type) || argument.Type.ContainsType(Type)) && argument.IsReadOnly));
+        public virtual bool CanMutateArguments => Type.IsReferenceType && Type.HasMutableChildren && !(FunctionPurity <= Purity.OnlyAffectsArguments && Arguments.Any(argument => (argument.Type.IsCompatibleWith(Type) || argument.Type.ContainsType(Type)) && !argument.IsReadOnly));
 
         public virtual void NonMessageReceiverAnalysis() 
         {
@@ -763,6 +764,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 initializedProperties.Add(Property);
                 IsInitializingProperty = true;
 
+                if (Value.Type.IsReferenceType && Value.Type.HasMutableChildren && Value.IsReadOnly != IsReadOnly)
+                    throw new CannotMutateReadonlyValue(this, ErrorReportedElement);
+
                 if (Property.IsReadOnly)
                     return;
             }
@@ -800,6 +804,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
             if (Value.Type.IsReferenceType && Value.IsReadOnly && Value.Type.HasMutableChildren)
                 throw new CannotMutateReadonlyValue(Value, ErrorReportedElement);
         }
+    }
+
+    partial class ReleaseReferenceElement
+    {
+        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => ReferenceBox.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, isUsingValue);
+
+        public void NonConstructorPropertyAnalysis() => ReferenceBox.NonConstructorPropertyAnalysis();
+
+        public bool IsReadOnly => ReferenceBox.IsReadOnly;
+
+        public void NonMessageReceiverAnalysis() => ReferenceBox.NonMessageReceiverAnalysis();
     }
 
     partial class MarshalIntoEnum
@@ -892,7 +907,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
             InitialValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly && !Variable.IsReadOnly)
+            if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly != Variable.IsReadOnly)
                 throw new CannotMutateReadonlyValue(InitialValue, ErrorReportedElement);
         }
 
@@ -901,7 +916,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void NonConstructorPropertyAnalysis()
         {
             InitialValue.NonConstructorPropertyAnalysis();
-            if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly && !Variable.IsReadOnly)
+            if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly != Variable.IsReadOnly)
                 throw new CannotMutateReadonlyValue(InitialValue, ErrorReportedElement);
         }
 
@@ -910,7 +925,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void NonMessageReceiverAnalysis()
         {
             InitialValue.NonMessageReceiverAnalysis();
-            if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly && !Variable.IsReadOnly)
+            if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly != Variable.IsReadOnly)
                 throw new CannotMutateReadonlyValue(InitialValue, ErrorReportedElement);
         }
     }

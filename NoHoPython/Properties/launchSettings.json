@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "tests/linked-list.nhp\r\nout.c\r\n-meman2\r\n-verbose"
+      "commandLineArgs": "tests/reference_box_test.nhp\r\nout.c\r\n-meman2\r\n-verbose"
     }
   }
 }

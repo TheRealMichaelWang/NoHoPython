@@ -221,6 +221,21 @@ namespace NoHoPython.Syntax.Values
 
         public override string ToString() => $"flag {Flag}";
     }
+
+    public sealed partial class ReferenceLiteral : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public IAstValue ToBox { get; private set; }
+
+        public ReferenceLiteral(SourceLocation sourceLocation, IAstValue toBox)
+        {
+            SourceLocation = sourceLocation;
+            ToBox = toBox;
+        }
+
+        public override string ToString() => $"ref({ToBox})";
+    }
 }
 
 namespace NoHoPython.Syntax.Parsing

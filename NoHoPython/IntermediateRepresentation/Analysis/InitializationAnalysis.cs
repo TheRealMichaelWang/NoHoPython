@@ -10,25 +10,25 @@ namespace NoHoPython.IntermediateRepresentation
         public bool IsReadOnly { get; }
 
         //analyzes code, and property initialization, within a constructor
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue);
        
         //analyzes code within message receivers (record methods) that aren't constructors
-        public void NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis();
 
         //analyzes code outside of record methods
-        public void NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis();
     }
 
     partial interface IRStatement
     {
         //analyzes property initialization within a constructor
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration);
 
         //analyzes code within message receivers (record methods) that aren't constructors
-        public void NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis();
 
         //analyzes code outside of record methods
-        public void NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis();
     }
 }
 
@@ -36,88 +36,88 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     partial class EnumDeclaration
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
-        public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
-        public void NonMessageReceiverAnalysis() => throw new InvalidOperationException();
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
+        public void MessageReceiverMutabilityAnalysis() => throw new InvalidOperationException();
+        public void FunctionMutabilityAnalysis() => throw new InvalidOperationException();
     }
 
     partial class InterfaceDeclaration
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
-        public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
-        public void NonMessageReceiverAnalysis() => throw new InvalidOperationException();
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
+        public void MessageReceiverMutabilityAnalysis() => throw new InvalidOperationException();
+        public void FunctionMutabilityAnalysis() => throw new InvalidOperationException();
     }
 
     partial class RecordDeclaration
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
-        public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
-        public void NonMessageReceiverAnalysis() => throw new InvalidOperationException();
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
+        public void MessageReceiverMutabilityAnalysis() => throw new InvalidOperationException();
+        public void FunctionMutabilityAnalysis() => throw new InvalidOperationException();
     }
 
     partial class ForeignCDeclaration
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
-        public void NonConstructorPropertyAnalysis() => throw new InvalidOperationException();
-        public void NonMessageReceiverAnalysis() => throw new InvalidOperationException();
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
+        public void MessageReceiverMutabilityAnalysis() => throw new InvalidOperationException();
+        public void FunctionMutabilityAnalysis() => throw new InvalidOperationException();
     }
 
     partial class ForeignCProcedureDeclaration
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
-        public void NonConstructorPropertyAnalysis() { }
-        public void NonMessageReceiverAnalysis() { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
+        public void MessageReceiverMutabilityAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class CSymbolDeclaration
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
-        public void NonConstructorPropertyAnalysis() { }
-        public void NonMessageReceiverAnalysis() { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
+        public void MessageReceiverMutabilityAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class CodeBlock
     {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Statements.ForEach((statement) => statement.AnalyzePropertyInitialization(initializedProperties, recordDeclaration));
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Statements.ForEach((statement) => statement.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration));
 
-        public void NonConstructorPropertyAnalysis() => Statements.ForEach((statement) => statement.NonConstructorPropertyAnalysis());
+        public void MessageReceiverMutabilityAnalysis() => Statements.ForEach((statement) => statement.MessageReceiverMutabilityAnalysis());
 
-        public void NonMessageReceiverAnalysis() => Statements.ForEach((statement) => statement.NonMessageReceiverAnalysis());
+        public void FunctionMutabilityAnalysis() => Statements.ForEach((statement) => statement.FunctionMutabilityAnalysis());
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
     }
 
     partial class LoopStatement
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
-        public void NonConstructorPropertyAnalysis() { }
-        public void NonMessageReceiverAnalysis() { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
+        public void MessageReceiverMutabilityAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class AssertStatement
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Condition.AnalyzePropertyInitialization(initializedProperties,recordDeclaration, true);
-        public void NonConstructorPropertyAnalysis() => Condition.NonConstructorPropertyAnalysis();
-        public void NonMessageReceiverAnalysis() => Condition.NonMessageReceiverAnalysis();
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Condition.ConstructorMutabilityAnalysis(initializedProperties,recordDeclaration, true);
+        public void MessageReceiverMutabilityAnalysis() => Condition.MessageReceiverMutabilityAnalysis();
+        public void FunctionMutabilityAnalysis() => Condition.FunctionMutabilityAnalysis();
     }
 
     partial class IfBlock
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
-        public void NonConstructorPropertyAnalysis() => IfTrueBlock.NonConstructorPropertyAnalysis();
-        public void NonMessageReceiverAnalysis() => IfTrueBlock.NonMessageReceiverAnalysis();
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) { }
+        public void MessageReceiverMutabilityAnalysis() => IfTrueBlock.MessageReceiverMutabilityAnalysis();
+        public void FunctionMutabilityAnalysis() => IfTrueBlock.FunctionMutabilityAnalysis();
     }
 
     partial class IfElseBlock
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
         {
             SortedSet<RecordDeclaration.RecordProperty> ifTrueInitialized = new(initializedProperties);
             SortedSet<RecordDeclaration.RecordProperty> ifFalseInitialized = new(initializedProperties);
 
-            Condition.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            IfTrueBlock.AnalyzePropertyInitialization(ifTrueInitialized, recordDeclaration);
-            IfFalseBlock.AnalyzePropertyInitialization(ifFalseInitialized, recordDeclaration);
+            Condition.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
+            IfTrueBlock.ConstructorMutabilityAnalysis(ifTrueInitialized, recordDeclaration);
+            IfFalseBlock.ConstructorMutabilityAnalysis(ifFalseInitialized, recordDeclaration);
 
             foreach(RecordDeclaration.RecordProperty property in initializedProperties)
             {
@@ -130,64 +130,64 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     initializedProperties.Add(initializedProperty);
         }
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            Condition.NonConstructorPropertyAnalysis();
-            IfTrueBlock.NonConstructorPropertyAnalysis();
-            IfFalseBlock.NonConstructorPropertyAnalysis();
+            Condition.MessageReceiverMutabilityAnalysis();
+            IfTrueBlock.MessageReceiverMutabilityAnalysis();
+            IfFalseBlock.MessageReceiverMutabilityAnalysis();
         }
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            Condition.NonMessageReceiverAnalysis();
-            IfTrueBlock.NonMessageReceiverAnalysis();
-            IfFalseBlock.NonMessageReceiverAnalysis();
+            Condition.FunctionMutabilityAnalysis();
+            IfTrueBlock.FunctionMutabilityAnalysis();
+            IfFalseBlock.FunctionMutabilityAnalysis();
         }
     }
 
     partial class WhileBlock
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Condition.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Condition.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            Condition.NonConstructorPropertyAnalysis();
-            WhileTrueBlock.NonConstructorPropertyAnalysis();
+            Condition.MessageReceiverMutabilityAnalysis();
+            WhileTrueBlock.MessageReceiverMutabilityAnalysis();
         }
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            Condition.NonMessageReceiverAnalysis();
-            WhileTrueBlock.NonMessageReceiverAnalysis();
+            Condition.FunctionMutabilityAnalysis();
+            WhileTrueBlock.FunctionMutabilityAnalysis();
         }
     }
 
     partial class IterationForLoop
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
         {
-            IteratorVariableDeclaration.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            UpperBound.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            IteratorVariableDeclaration.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
+            UpperBound.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
         }
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            IteratorVariableDeclaration.NonConstructorPropertyAnalysis();
-            UpperBound.NonConstructorPropertyAnalysis();
-            IterationBlock.NonConstructorPropertyAnalysis();
+            IteratorVariableDeclaration.MessageReceiverMutabilityAnalysis();
+            UpperBound.MessageReceiverMutabilityAnalysis();
+            IterationBlock.MessageReceiverMutabilityAnalysis();
         }
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            IteratorVariableDeclaration.NonMessageReceiverAnalysis();
-            UpperBound.NonMessageReceiverAnalysis();
-            IterationBlock.NonMessageReceiverAnalysis();
+            IteratorVariableDeclaration.FunctionMutabilityAnalysis();
+            UpperBound.FunctionMutabilityAnalysis();
+            IterationBlock.FunctionMutabilityAnalysis();
         }
     }
 
     partial class MatchStatement
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
         {
             if (!IsExhaustive)
                 return;
@@ -197,14 +197,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (DefaultHandler != null)
             {
                 SortedSet<RecordDeclaration.RecordProperty> defaultInitialized = new(initializedProperties);
-                DefaultHandler.AnalyzePropertyInitialization(defaultInitialized, recordDeclaration);
+                DefaultHandler.ConstructorMutabilityAnalysis(defaultInitialized, recordDeclaration);
                 handlerInitialized.Add(defaultInitialized);
             }
 
             foreach (MatchHandler handler in MatchHandlers)
             {
                 SortedSet<RecordDeclaration.RecordProperty> handlerInitted = new(initializedProperties);
-                handler.ToExecute.AnalyzePropertyInitialization(handlerInitted, recordDeclaration);
+                handler.ToExecute.ConstructorMutabilityAnalysis(handlerInitted, recordDeclaration);
                 handlerInitialized.Add(handlerInitted);
             }
             if (handlerInitialized.Count > 0)
@@ -231,44 +231,44 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             }
         }
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            DefaultHandler?.NonConstructorPropertyAnalysis();
-            MatchHandlers.ForEach((handler) => handler.ToExecute.NonConstructorPropertyAnalysis());
+            DefaultHandler?.MessageReceiverMutabilityAnalysis();
+            MatchHandlers.ForEach((handler) => handler.ToExecute.MessageReceiverMutabilityAnalysis());
         }
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            DefaultHandler?.NonMessageReceiverAnalysis();
-            MatchHandlers.ForEach((handler) => handler.ToExecute.NonMessageReceiverAnalysis());
+            DefaultHandler?.FunctionMutabilityAnalysis();
+            MatchHandlers.ForEach((handler) => handler.ToExecute.FunctionMutabilityAnalysis());
         }
     }
 
     partial class ReturnStatement
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ToReturn.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ToReturn.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => ToReturn.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => ToReturn.MessageReceiverMutabilityAnalysis();
 
-        public void NonMessageReceiverAnalysis() => ToReturn.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => ToReturn.FunctionMutabilityAnalysis();
     }
 
     partial class AbortStatement
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AbortMessage?.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AbortMessage?.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => AbortMessage?.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => AbortMessage?.MessageReceiverMutabilityAnalysis();
 
-        public void NonMessageReceiverAnalysis() => AbortMessage?.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => AbortMessage?.FunctionMutabilityAnalysis();
     }
 
     partial class MemoryDestroy
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Address.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => Address.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => Address.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => Address.MessageReceiverMutabilityAnalysis();
 
-        public void NonMessageReceiverAnalysis() => Address.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => Address.FunctionMutabilityAnalysis();
     }
 }
 
@@ -276,106 +276,106 @@ namespace NoHoPython.IntermediateRepresentation.Values
 {
     partial class AllocArray
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            Length.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            ProtoValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            Length.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
+            ProtoValue.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
         }
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            Length.NonConstructorPropertyAnalysis();
-            ProtoValue.NonConstructorPropertyAnalysis();
+            Length.MessageReceiverMutabilityAnalysis();
+            ProtoValue.MessageReceiverMutabilityAnalysis();
         }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            Length.NonMessageReceiverAnalysis();
-            ProtoValue.NonMessageReceiverAnalysis();
+            Length.FunctionMutabilityAnalysis();
+            ProtoValue.FunctionMutabilityAnalysis();
         }
     }
 
     partial class AllocMemorySpan
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => ProtoValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => ProtoValue.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => ProtoValue.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => ProtoValue.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => ProtoValue.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => ProtoValue.FunctionMutabilityAnalysis();
     }
 
     partial class ArrayLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Elements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true));
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Elements.ForEach((element) => element.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true));
 
-        public void NonConstructorPropertyAnalysis() => Elements.ForEach((element) => element.NonConstructorPropertyAnalysis());
+        public void MessageReceiverMutabilityAnalysis() => Elements.ForEach((element) => element.MessageReceiverMutabilityAnalysis());
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => Elements.ForEach((element) => element.NonConstructorPropertyAnalysis());
+        public void FunctionMutabilityAnalysis() => Elements.ForEach((element) => element.MessageReceiverMutabilityAnalysis());
     }
 
     partial class TupleLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Elements.ForEach((element) => element.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true));
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Elements.ForEach((element) => element.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true));
 
-        public void NonConstructorPropertyAnalysis() => Elements.ForEach((element) => element.NonConstructorPropertyAnalysis());
+        public void MessageReceiverMutabilityAnalysis() => Elements.ForEach((element) => element.MessageReceiverMutabilityAnalysis());
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => Elements.ForEach((element) => element.NonMessageReceiverAnalysis());
+        public void FunctionMutabilityAnalysis() => Elements.ForEach((element) => element.FunctionMutabilityAnalysis());
     }
 
     partial class ReferenceLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, isUsingValue);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, isUsingValue);
 
-        public void NonConstructorPropertyAnalysis() => Input.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => Input.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => Input.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => Input.FunctionMutabilityAnalysis();
     }
 
     partial class MarshalIntoLowerTuple
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true); 
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Value.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true); 
         
-        public void NonConstructorPropertyAnalysis() => Value.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => Value.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => Value.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => Value.FunctionMutabilityAnalysis();
     }
 
     partial class AnonymizeProcedure
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class ProcedureCall
     {
-        public virtual void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public virtual void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            Arguments.ForEach((arg) => arg.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true));
+            Arguments.ForEach((arg) => arg.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true));
             AnalyzeReadonlyCall();
         }
 
-        public virtual void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
+        public virtual void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
 
-        public virtual void NonConstructorPropertyAnalysis()
+        public virtual void MessageReceiverMutabilityAnalysis()
         {
-            Arguments.ForEach((arg) => arg.NonConstructorPropertyAnalysis());
+            Arguments.ForEach((arg) => arg.MessageReceiverMutabilityAnalysis());
             AnalyzeReadonlyCall();
         }
 
@@ -392,53 +392,53 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public virtual bool IsReadOnly => Type.IsReferenceType && Type.HasMutableChildren && !(FunctionPurity <= Purity.OnlyAffectsArguments && !Arguments.Any(argument => (argument.Type.IsCompatibleWith(Type) || argument.Type.ContainsType(Type)) && argument.IsReadOnly));
         public virtual bool CanMutateArguments => Type.IsReferenceType && Type.HasMutableChildren && !(FunctionPurity <= Purity.OnlyAffectsArguments && Arguments.Any(argument => (argument.Type.IsCompatibleWith(Type) || argument.Type.ContainsType(Type)) && !argument.IsReadOnly));
 
-        public virtual void NonMessageReceiverAnalysis() 
+        public virtual void FunctionMutabilityAnalysis() 
         {
-            Arguments.ForEach((arg) => arg.NonMessageReceiverAnalysis());
+            Arguments.ForEach((arg) => arg.FunctionMutabilityAnalysis());
             AnalyzeReadonlyCall();
         } 
     }
 
     partial class AnonymousProcedureCall
     {
-        public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public override void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            ProcedureValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, isUsingValue);
+            ProcedureValue.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, isUsingValue);
             if(!recordDeclaration.AllPropertiesInitialized(initializedProperties))
                 throw new CannotUseUninitializedSelf(ErrorReportedElement);
         }
 
-        public override void NonConstructorPropertyAnalysis()
+        public override void MessageReceiverMutabilityAnalysis()
         {
-            ProcedureValue.NonConstructorPropertyAnalysis();
-            base.NonConstructorPropertyAnalysis();
+            ProcedureValue.MessageReceiverMutabilityAnalysis();
+            base.MessageReceiverMutabilityAnalysis();
         }
 
-        public override void NonMessageReceiverAnalysis()
+        public override void FunctionMutabilityAnalysis()
         {
-            ProcedureValue.NonMessageReceiverAnalysis();
-            base.NonMessageReceiverAnalysis();
+            ProcedureValue.FunctionMutabilityAnalysis();
+            base.FunctionMutabilityAnalysis();
         }
     }
 
     partial class OptimizedRecordMessageCall
     {
-        public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public override void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            Record.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            base.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, isUsingValue);
+            Record.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
+            base.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, isUsingValue);
         }
 
-        public override void NonConstructorPropertyAnalysis()
+        public override void MessageReceiverMutabilityAnalysis()
         {
-            Record.NonConstructorPropertyAnalysis();
-            base.NonConstructorPropertyAnalysis();
+            Record.MessageReceiverMutabilityAnalysis();
+            base.MessageReceiverMutabilityAnalysis();
         }
 
-        public override void NonMessageReceiverAnalysis()
+        public override void FunctionMutabilityAnalysis()
         {
-            Record.NonMessageReceiverAnalysis();
-            base.NonMessageReceiverAnalysis();
+            Record.FunctionMutabilityAnalysis();
+            base.FunctionMutabilityAnalysis();
         }
 
         protected override void AnalyzeReadonlyCall()
@@ -463,14 +463,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class LinkedProcedureCall
     {
-        public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public override void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
             foreach (Variable variable in Procedure.ProcedureDeclaration.CapturedVariables)
             {
                 if(variable.IsRecordSelf && !recordDeclaration.AllPropertiesInitialized(initializedProperties))
                     throw new CannotUseUninitializedSelf(ErrorReportedElement);
             }
-            base.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, isUsingValue);
+            base.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, isUsingValue);
         }
 
         protected override void AnalyzeReadonlyCall()
@@ -507,78 +507,78 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ArithmeticCast
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => Input.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => Input.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => Input.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => Input.FunctionMutabilityAnalysis();
     }
 
     partial class HandleCast
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => Input.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => Input.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => Input.IsReadOnly;
 
-        public void NonMessageReceiverAnalysis() => Input.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => Input.FunctionMutabilityAnalysis();
     }
 
     partial class AutoCast
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Input.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => Input.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => Input.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => Input.IsReadOnly;
 
-        public void NonMessageReceiverAnalysis() => Input.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => Input.FunctionMutabilityAnalysis();
     }
 
     partial class ArrayOperator
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => ArrayValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => ArrayValue.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => ArrayValue.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => ArrayValue.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => ArrayValue.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => ArrayValue.FunctionMutabilityAnalysis();
     }
 
     partial class SizeofOperator
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class MemorySet
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            Address.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
-            Index.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            Address.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
+            Index.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
+            Value.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
             if (Address.IsReadOnly)
                 throw new CannotMutateReadonlyValue(Address, ErrorReportedElement);
         }
 
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            Address.NonConstructorPropertyAnalysis();
-            Index.NonConstructorPropertyAnalysis();
-            Value.NonConstructorPropertyAnalysis();
+            Address.MessageReceiverMutabilityAnalysis();
+            Index.MessageReceiverMutabilityAnalysis();
+            Value.MessageReceiverMutabilityAnalysis();
 
             if (Address.IsReadOnly)
                 throw new CannotMutateReadonlyValue(Address, ErrorReportedElement);
@@ -586,11 +586,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            Address.NonMessageReceiverAnalysis();
-            Index.NonMessageReceiverAnalysis();
-            Value.NonMessageReceiverAnalysis();
+            Address.FunctionMutabilityAnalysis();
+            Index.FunctionMutabilityAnalysis();
+            Value.FunctionMutabilityAnalysis();
 
             if (Address.IsReadOnly)
                 throw new CannotMutateReadonlyValue(Address, ErrorReportedElement);
@@ -599,65 +599,65 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class MarshalHandleIntoArray
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            Length.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            Address.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            Length.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
+            Address.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
         }
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            Length.NonConstructorPropertyAnalysis();
-            Address.NonConstructorPropertyAnalysis();
+            Length.MessageReceiverMutabilityAnalysis();
+            Address.MessageReceiverMutabilityAnalysis();
         }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            Length.NonMessageReceiverAnalysis();
-            Address.NonMessageReceiverAnalysis();
+            Length.FunctionMutabilityAnalysis();
+            Address.FunctionMutabilityAnalysis();
         }
     }
 
     partial class MarshalMemorySpanIntoArray
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Span.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Span.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => Span.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => Span.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => Span.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => Span.FunctionMutabilityAnalysis();
     }
 
     partial class BinaryOperator
     {
-        public virtual void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public virtual void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            Left.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            Right.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            Left.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
+            Right.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
         }
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            Left.NonConstructorPropertyAnalysis();
-            Right.NonConstructorPropertyAnalysis();
+            Left.MessageReceiverMutabilityAnalysis();
+            Right.MessageReceiverMutabilityAnalysis();
         }
 
         public virtual bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            Left.NonMessageReceiverAnalysis();
-            Right.NonMessageReceiverAnalysis();
+            Left.FunctionMutabilityAnalysis();
+            Right.FunctionMutabilityAnalysis();
         }
     }
 
     partial class LogicalOperator
     {
         //only examine left hand only side because of short circuiting
-        public override void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Left.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public override void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Left.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
     }
 
     partial class MemoryGet
@@ -667,46 +667,46 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class GetValueAtIndex
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            Array.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
-            Index.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            Array.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
+            Index.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
         }
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            Array.NonConstructorPropertyAnalysis();
-            Index.NonConstructorPropertyAnalysis();
+            Array.MessageReceiverMutabilityAnalysis();
+            Index.MessageReceiverMutabilityAnalysis();
         }
 
         public bool IsReadOnly => Array.IsReadOnly;
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            Array.NonMessageReceiverAnalysis();
-            Index.NonMessageReceiverAnalysis();
+            Array.FunctionMutabilityAnalysis();
+            Index.FunctionMutabilityAnalysis();
         }
     }
 
     partial class SetValueAtIndex
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            Array.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
-            Index.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            Array.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
+            Index.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
+            Value.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
             if (Array.IsReadOnly)
                 throw new CannotMutateReadonlyValue(Array, ErrorReportedElement);
         }
 
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            Array.NonConstructorPropertyAnalysis();
-            Index.NonConstructorPropertyAnalysis();
-            Value.NonConstructorPropertyAnalysis();
+            Array.MessageReceiverMutabilityAnalysis();
+            Index.MessageReceiverMutabilityAnalysis();
+            Value.MessageReceiverMutabilityAnalysis();
 
             if (Array.IsReadOnly)
                 throw new CannotMutateReadonlyValue(Array, ErrorReportedElement);
@@ -716,11 +716,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            Array.NonMessageReceiverAnalysis();
-            Index.NonMessageReceiverAnalysis();
-            Value.NonMessageReceiverAnalysis();
+            Array.FunctionMutabilityAnalysis();
+            Index.FunctionMutabilityAnalysis();
+            Value.FunctionMutabilityAnalysis();
 
             if (Array.IsReadOnly)
                 throw new CannotMutateReadonlyValue(Array, ErrorReportedElement);
@@ -731,9 +731,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class GetPropertyValue
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            Record.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
+            Record.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
 
             if(Record is VariableReference variableReference && variableReference.Variable.IsRecordSelf)
             {
@@ -743,21 +743,21 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
         }
 
-        public void NonConstructorPropertyAnalysis() => Record.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => Record.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => Record.IsReadOnly || Property.IsReadOnly;
 
-        public void NonMessageReceiverAnalysis() => Record.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => Record.FunctionMutabilityAnalysis();
     }
 
     partial class SetPropertyValue
     {
         public bool IsInitializingProperty { get; private set; }
 
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            Record.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
-            Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            Record.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
+            Value.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
             if (!Property.HasDefaultValue && Record is VariableReference variableReference && variableReference.Variable.IsRecordSelf && !initializedProperties.Contains(Property))
             {
@@ -779,11 +779,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 throw new CannotMutateReadonlyValue(Value, ErrorReportedElement);
         }
 
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            Record.NonConstructorPropertyAnalysis();
+            Record.MessageReceiverMutabilityAnalysis();
 
             if (IsReadOnly)
                 throw new CannotMutateReadonlyValue(Record, ErrorReportedElement);
@@ -794,9 +794,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public bool IsReadOnly => Property.IsReadOnly || Record.IsReadOnly;
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            Record.NonMessageReceiverAnalysis();
+            Record.FunctionMutabilityAnalysis();
 
             if (IsReadOnly)
                 throw new CannotMutateReadonlyValue(Record, ErrorReportedElement);
@@ -808,71 +808,122 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class ReleaseReferenceElement
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => ReferenceBox.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, isUsingValue);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
+        
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        {
+            ReferenceBox.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
+            if (ReferenceBox.IsReadOnly)
+                throw new CannotReleaseReadonlyReferenceType(ErrorReportedElement);
+        }
 
-        public void NonConstructorPropertyAnalysis() => ReferenceBox.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis()
+        {
+            ReferenceBox.MessageReceiverMutabilityAnalysis();
+            if (ReferenceBox.IsReadOnly)
+                throw new CannotReleaseReadonlyReferenceType(ErrorReportedElement);
+        }
 
         public bool IsReadOnly => ReferenceBox.IsReadOnly;
 
-        public void NonMessageReceiverAnalysis() => ReferenceBox.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis()
+        {
+            ReferenceBox.FunctionMutabilityAnalysis();
+            if (ReferenceBox.IsReadOnly)
+                throw new CannotReleaseReadonlyReferenceType(ErrorReportedElement);
+        }
+    }
+
+    partial class SetReferenceTypeElement
+    {
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
+
+        public bool IsReadOnly => false;
+
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        {
+            ReferenceBox.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
+            NewElement.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
+
+            if (ReferenceBox.IsReadOnly)
+                throw new CannotMutateReadonlyValue(ReferenceBox, ErrorReportedElement);
+        }
+
+        public void MessageReceiverMutabilityAnalysis()
+        {
+            ReferenceBox.MessageReceiverMutabilityAnalysis();
+            NewElement.MessageReceiverMutabilityAnalysis();
+
+            if (ReferenceBox.IsReadOnly)
+                throw new CannotMutateReadonlyValue(ReferenceBox, ErrorReportedElement);
+        }
+
+        public void FunctionMutabilityAnalysis()
+        {
+            ReferenceBox.FunctionMutabilityAnalysis();
+            NewElement.FunctionMutabilityAnalysis();
+
+            if (ReferenceBox.IsReadOnly)
+                throw new CannotMutateReadonlyValue(ReferenceBox, ErrorReportedElement);
+        }
     }
 
     partial class MarshalIntoEnum
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Value.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => Value.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => Value.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => Value.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => Value.FunctionMutabilityAnalysis();
     }
 
     partial class UnwrapEnumValue
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => EnumValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => EnumValue.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => EnumValue.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => EnumValue.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => EnumValue.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => EnumValue.FunctionMutabilityAnalysis();
     }
 
     partial class CheckEnumOption
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => EnumValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => EnumValue.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => EnumValue.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => EnumValue.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => EnumValue.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => EnumValue.FunctionMutabilityAnalysis();
     }
 
     partial class MarshalIntoInterface
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Value.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) => Value.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
-        public void NonConstructorPropertyAnalysis() => Value.NonConstructorPropertyAnalysis();
+        public void MessageReceiverMutabilityAnalysis() => Value.MessageReceiverMutabilityAnalysis();
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() => Value.NonMessageReceiverAnalysis();
+        public void FunctionMutabilityAnalysis() => Value.FunctionMutabilityAnalysis();
     }
 
     partial class IfElseValue
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
             SortedSet<RecordDeclaration.RecordProperty> ifTrueInitialized = new(initializedProperties);
             SortedSet<RecordDeclaration.RecordProperty> ifFalseInitialized = new(initializedProperties);
 
-            Condition.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
-            IfTrueValue.AnalyzePropertyInitialization(ifTrueInitialized, recordDeclaration, isUsingValue);
-            IfTrueValue.AnalyzePropertyInitialization(ifFalseInitialized, recordDeclaration, isUsingValue);
+            Condition.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
+            IfTrueValue.ConstructorMutabilityAnalysis(ifTrueInitialized, recordDeclaration, isUsingValue);
+            IfTrueValue.ConstructorMutabilityAnalysis(ifFalseInitialized, recordDeclaration, isUsingValue);
 
             foreach (RecordDeclaration.RecordProperty property in initializedProperties)
             {
@@ -885,46 +936,46 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     initializedProperties.Add(initializedProperty);
         }
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            Condition.NonConstructorPropertyAnalysis();
-            IfTrueValue.NonConstructorPropertyAnalysis();
-            IfFalseValue.NonConstructorPropertyAnalysis();
+            Condition.MessageReceiverMutabilityAnalysis();
+            IfTrueValue.MessageReceiverMutabilityAnalysis();
+            IfFalseValue.MessageReceiverMutabilityAnalysis();
         }
 
         public bool IsReadOnly => IfTrueValue.IsReadOnly || IfFalseValue.IsReadOnly;
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            Condition.NonConstructorPropertyAnalysis();
-            IfTrueValue.NonConstructorPropertyAnalysis();
-            IfFalseValue.NonConstructorPropertyAnalysis();
+            Condition.MessageReceiverMutabilityAnalysis();
+            IfTrueValue.MessageReceiverMutabilityAnalysis();
+            IfFalseValue.MessageReceiverMutabilityAnalysis();
         }
     }
 
     partial class VariableDeclaration
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            InitialValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            InitialValue.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
             if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly != Variable.IsReadOnly)
                 throw new CannotMutateReadonlyValue(InitialValue, ErrorReportedElement);
         }
 
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            InitialValue.NonConstructorPropertyAnalysis();
+            InitialValue.MessageReceiverMutabilityAnalysis();
             if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly != Variable.IsReadOnly)
                 throw new CannotMutateReadonlyValue(InitialValue, ErrorReportedElement);
         }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            InitialValue.NonMessageReceiverAnalysis();
+            InitialValue.FunctionMutabilityAnalysis();
             if (InitialValue.Type.IsReferenceType && InitialValue.Type.HasMutableChildren && InitialValue.IsReadOnly != Variable.IsReadOnly)
                 throw new CannotMutateReadonlyValue(InitialValue, ErrorReportedElement);
         }
@@ -932,27 +983,27 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class SetVariable
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)
         {
-            SetValue.AnalyzePropertyInitialization(initializedProperties, recordDeclaration, true);
+            SetValue.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
             if (SetValue.Type.IsReferenceType && SetValue.Type.HasMutableChildren && SetValue.IsReadOnly)
                 throw new CannotMutateReadonlyValue(SetValue, ErrorReportedElement);
         }
 
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => AnalyzePropertyInitialization(initializedProperties, recordDeclaration, false);
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, false);
 
-        public void NonConstructorPropertyAnalysis()
+        public void MessageReceiverMutabilityAnalysis()
         {
-            SetValue.NonConstructorPropertyAnalysis();
+            SetValue.MessageReceiverMutabilityAnalysis();
             if (SetValue.Type.IsReferenceType && SetValue.Type.HasMutableChildren && SetValue.IsReadOnly)
                 throw new CannotMutateReadonlyValue(SetValue, ErrorReportedElement);
         }
         
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis()
+        public void FunctionMutabilityAnalysis()
         {
-            SetValue.NonMessageReceiverAnalysis();
+            SetValue.FunctionMutabilityAnalysis();
             if (SetValue.Type.IsReferenceType && SetValue.Type.HasMutableChildren && SetValue.IsReadOnly)
                 throw new CannotMutateReadonlyValue(SetValue, ErrorReportedElement);
         }
@@ -960,115 +1011,115 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class VariableReference
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) 
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) 
         {
             if (isUsingValue && Variable.IsRecordSelf && !recordDeclaration.AllPropertiesInitialized(initializedProperties))
                 throw new CannotUseUninitializedSelf(ErrorReportedElement);
         }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => IsConstant;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class CSymbolReference
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => true;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class CharacterLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class DecimalLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class IntegerLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class TrueLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class FalseLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class NullPointerLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class StaticCStringLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 
     partial class EmptyTypeLiteral
     {
-        public void AnalyzePropertyInitialization(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
 
-        public void NonConstructorPropertyAnalysis() { }
+        public void MessageReceiverMutabilityAnalysis() { }
 
         public bool IsReadOnly => false;
 
-        public void NonMessageReceiverAnalysis() { }
+        public void FunctionMutabilityAnalysis() { }
     }
 }

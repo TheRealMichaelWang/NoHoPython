@@ -363,7 +363,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         }
     }
 
-    public sealed partial class ReleaseReferenceElement : IRValue
+    public sealed partial class ReleaseReferenceElement : IRValue, IRStatement
     {
         public IAstElement ErrorReportedElement { get; private set; }
         public IType Type => ((ReferenceType)ReferenceBox.Type).ElementType;
@@ -374,11 +374,42 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public ReleaseReferenceElement(IRValue referenceBox, IAstElement errorReportedElement)
         {
-            if (referenceBox.Type is not ReferenceType)
+            if (referenceBox.Type is ReferenceType referenceType)
+            {
+                if (referenceType.Mode >= ReferenceType.ReferenceMode.UnreleasedCannotRelease)
+                    throw new CannotReleaseReferenceType(referenceType, errorReportedElement);
+            }
+            else
                 throw new UnexpectedTypeException(referenceBox.Type, errorReportedElement);
 
             ReferenceBox = referenceBox;
             ErrorReportedElement = errorReportedElement;
+        }
+    }
+
+    public sealed partial class SetReferenceTypeElement : IRValue, IRStatement
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public IType Type => NewElement.Type;
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public IRValue ReferenceBox { get; private set; }
+        public IRValue NewElement { get; private set; }
+
+        public SetReferenceTypeElement(IRValue referenceBox, IRValue newElement, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : this(referenceBox, newElement, errorReportedElement)
+        {
+            if (ReferenceBox.Type is ReferenceType referenceType && referenceType.Mode < ReferenceType.ReferenceMode.Released)
+                NewElement = ArithmeticCast.CastTo(NewElement, referenceType.ElementType, irBuilder);
+            else
+                throw new UnexpectedTypeException(ReferenceBox.Type, ReferenceBox.ErrorReportedElement);
+        }
+
+        private SetReferenceTypeElement(IRValue referenceBox, IRValue newElement, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+            ReferenceBox = referenceBox;
+            NewElement = newElement;
         }
     }
 }

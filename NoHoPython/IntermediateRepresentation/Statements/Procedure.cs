@@ -389,12 +389,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 throw new UnexpectedArgumentsException(arguments.Select((arg) => arg.Type).ToList(), expectedParameters, errorReportedElement);
             for (int i = 0; i < expectedParameters.Count; i++)
             {
-                if (functionPurity <= Purity.Pure && !Arguments[i].IsReadOnly)
+                if (functionPurity > Purity.Pure && !Arguments[i].IsReadOnly)
                 {
-                    if (Arguments[i].Type is ReferenceType referenceType && referenceType.Mode == ReferenceType.ReferenceMode.UnreleasedCanRelease)
+                    if (Arguments[i].Type is ReferenceType referenceType && referenceType.Mode == ReferenceType.ReferenceMode.UnreleasedCanRelease && (referenceType.ElementType is TypeParameterReference || referenceType.ElementType.RequiresDisposal))
                         Arguments[i].RefineAssumeType(irBuilder, (new ReferenceType(referenceType.ElementType, ReferenceType.ReferenceMode.Released), null));
-                    else
-                        Arguments[i].GetRefinementEntry(irBuilder)?.ClearSubRefinements();
+                    
+                    Arguments[i].GetRefinementEntry(irBuilder)?.ClearSubRefinements();
                 }
 
                 Arguments[i] = ArithmeticCast.CastTo(Arguments[i], expectedParameters[i], irBuilder);
@@ -479,18 +479,43 @@ namespace NoHoPython.IntermediateRepresentation.Values
             IScopeSymbol? procedure = irBuilder.SymbolMarshaller.FindSymbol($"typeExt:{value.Type.Identifier}_{receiverName}");
             if(procedure == null)
                 procedure = irBuilder.SymbolMarshaller.FindSymbol($"typeExt:{value.Type.PrototypeIdentifier}_{receiverName}");
-            if(procedure == null && value.Type is EnumType enumType)
+            if(procedure == null)
             {
-                foreach(IType option in enumType.GetOptions())
-                    if(GetPropertyValue.HasMessageReceiver(option, receiverName, value.ErrorReportedElement, irBuilder))
-                        return SendMessage(new UnwrapEnumValue(value, option, irBuilder, value.ErrorReportedElement), receiverName, expectedReturnType, arguments, irBuilder, errorReportedElement);
-            }
-            if (procedure == null)
-            {
+                if (value.Type is EnumType enumType)
+                {
+                    foreach (IType option in enumType.GetOptions())
+                        if (GetPropertyValue.HasMessageReceiver(option, receiverName, value.ErrorReportedElement, irBuilder))
+                            return SendMessage(new UnwrapEnumValue(value, option, irBuilder, value.ErrorReportedElement), receiverName, expectedReturnType, arguments, irBuilder, errorReportedElement);
+                }
+                if (value.Type is ReferenceType referenceType)
+                {
+                    if (arguments.Count == 0)
+                    {
+                        if (receiverName == "release")
+                        {
+                            IRValue toret = new ReleaseReferenceElement(value, errorReportedElement);
+                            if (referenceType.ElementType is TypeParameterReference || referenceType.ElementType.RequiresDisposal)
+                                value.RefineAssumeType(irBuilder, (new ReferenceType(referenceType.ElementType, ReferenceType.ReferenceMode.Released), null));
+                            return toret;
+                        }
+                        if (receiverName == "asUnreleasable" && referenceType.Mode == ReferenceType.ReferenceMode.UnreleasedCanRelease)
+                        {
+                            if (!(referenceType.ElementType is TypeParameterReference || referenceType.ElementType.RequiresDisposal))
+                                return value;
+                            
+                            IRValue toret = new AutoCast(new ReferenceType(referenceType.ElementType, ReferenceType.ReferenceMode.UnreleasedCannotRelease), value);
+                            value.RefineAssumeType(irBuilder, (new ReferenceType(referenceType.ElementType, ReferenceType.ReferenceMode.UnreleasedCannotRelease), null));
+                            return toret;
+                        }
+                    }
+                    if (arguments.Count == 1 && receiverName == "setElem")
+                        return new SetReferenceTypeElement(value, arguments[0], irBuilder, errorReportedElement);
+                }
+
                 if (value.Type.IsCompatibleWith(Primitive.GetStringType(irBuilder, value.ErrorReportedElement)))
                     procedure = irBuilder.SymbolMarshaller.FindSymbol($"typeExt:string_{receiverName}", errorReportedElement);
                 else
-                    throw new SymbolNotFoundException($"typeExt:{value.Type.Identifier}_{receiverName}", irBuilder.SymbolMarshaller.CurrentScope, value.ErrorReportedElement);
+                    throw new SymbolNotFoundException($"typeExt:{value.Type.Identifier}_{receiverName}", irBuilder.SymbolMarshaller.CurrentScope, errorReportedElement);
             }
 
             List<IRValue> newArguments = new List<IRValue>(arguments);

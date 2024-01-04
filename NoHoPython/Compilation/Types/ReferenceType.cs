@@ -6,13 +6,13 @@ namespace NoHoPython.Syntax
 {
     partial class AstIRProgramBuilder
     {
-        private HashSet<ReferenceType> usedReferenceTypes = new(new ITypeComparer());
+        private HashSet<IType> usedReferenceTypes = new(new ITypeComparer());
 
         public bool DeclareUsedReferenceType(ReferenceType referenceType)
         {
-            if (usedReferenceTypes.Contains(referenceType))
+            if (usedReferenceTypes.Contains(referenceType.ElementType))
                 return false;
-            usedReferenceTypes.Add(referenceType);
+            usedReferenceTypes.Add(referenceType.ElementType);
 
             DeclareTypeDependencies(referenceType, referenceType.ElementType);
             return true;
@@ -66,6 +66,14 @@ namespace NoHoPython.Typing
 
             }
         }
+        
+        public sealed class CannotMoveReleasableReferenceType : CodegenError
+        {
+            public CannotMoveReleasableReferenceType() : base(null, "Cannot move/copy a releasable reference type.")
+            {
+
+            }
+        }
 
         partial class ElementProperty
         {
@@ -104,9 +112,12 @@ namespace NoHoPython.Typing
                 emitter.AppendLine("nhp_trace_obj_t trace_unit;");
             else
                 emitter.AppendLine("nhp_rc_obj_t rc_unit;");
-            emitter.AppendLine("int is_released;");
+            
+            if(ElementType.RequiresDisposal)
+                emitter.AppendLine("int is_released;");
+            
             emitter.AppendLine($"{ElementType.GetCName(irProgram)} elem;");
-            emitter.AppendEndBlock();
+            emitter.AppendEndBlock(true);
         }
         
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
@@ -123,6 +134,9 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
         {
+            if (Mode == ReferenceMode.UnreleasedCanRelease && ElementType.RequiresDisposal)
+                throw new CannotMoveReleasableReferenceType();
+
             if (IsCircularDataStructure)
             {
                 emitter.Append($"({GetCName(irProgram)})nhp_trace_add_parent((nhp_trace_obj_t*)");
@@ -176,9 +190,13 @@ namespace NoHoPython.Typing
                 emitter.AppendEndBlock();
             }
 
-            emitter.AppendStartBlock("if(ref_obj->is_released)");
-            ElementType.EmitFreeValue(irProgram, emitter, e => e.Append("ref_obj->elem"), e => e.Append("ref_obj"));
-            emitter.AppendEndBlock();
+            if (ElementType.RequiresDisposal)
+            {
+                emitter.AppendStartBlock("if(ref_obj->is_released)");
+                ElementType.EmitFreeValue(irProgram, emitter, e => e.Append("ref_obj->elem"), e => e.Append("ref_obj"));
+                emitter.AppendLine();
+                emitter.AppendEndBlock();
+            }
 
             emitter.AppendLine(irProgram.MemoryAnalyzer.Dealloc("ref_obj", $"sizeof({GetStandardIdentifier(irProgram)}_t)"));
             emitter.AppendEndBlock();

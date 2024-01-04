@@ -107,10 +107,10 @@ namespace NoHoPython.Syntax
                 switch (toAnalyze.Item2)
                 {
                     case Statements.ProcedureDeclaration.Type.MessageReceiver:
-                        toAnalyze.Item1.NonConstructorPropertyAnalysis();
+                        toAnalyze.Item1.MessageReceiverMutabilityAnalysis();
                         break;
                     case Statements.ProcedureDeclaration.Type.Normal:
-                        toAnalyze.Item1.NonMessageReceiverAnalysis();
+                        toAnalyze.Item1.FunctionMutabilityAnalysis();
                         break;
                 }
             }
@@ -123,7 +123,7 @@ namespace NoHoPython.Syntax
                     "<string.h>",
                     "<math.h>"
                 },
-                usedArrayTypes.ToList(), usedTupleTypes.ToList(), bufferTypes.ToList(), usedReferenceTypes.ToList(), usedProcedureTypes.ToList(), usedProcedureReferences, procedureOverloads, enumTypeOverloads, interfaceTypeOverloads, recordTypeOverloads, foreignTypeOverloads, typeDependencyTree, memoryAnalyzer);
+                usedArrayTypes.ToList(), usedTupleTypes.ToList(), bufferTypes.ToList(), usedReferenceTypes.ToList().ConvertAll(elemType => new ReferenceType(elemType, ReferenceType.ReferenceMode.UnreleasedCanRelease)), usedProcedureTypes.ToList(), usedProcedureReferences, procedureOverloads, enumTypeOverloads, interfaceTypeOverloads, recordTypeOverloads, foreignTypeOverloads, typeDependencyTree, memoryAnalyzer);
         }
     }
 }
@@ -286,6 +286,7 @@ namespace NoHoPython.IntermediateRepresentation
                 this.compiledTypes.Clear();
                 EmitArrayTypeTypedefs(headerEmitter);
                 EmitTupleTypeTypedefs(headerEmitter);
+                EmitReferenceTypedefs(headerEmitter);
                 ForwardDeclareEnumTypes(headerEmitter);
                 ForwardDeclareInterfaceTypes(headerEmitter);
                 EmitAnonProcedureTypedefs(headerEmitter);
@@ -297,6 +298,8 @@ namespace NoHoPython.IntermediateRepresentation
                 RecordDeclaration.EmitRecordMaskProto(this, headerEmitter);
                 EmitArrayTypeCStructs(headerEmitter);
                 EmitTupleCStructs(headerEmitter);
+                EmitReferenceTypeCStructs(emitter);
+
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclareType(this, headerEmitter));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclareType(this, headerEmitter));
                 RecordDeclarations.ForEach((record) => record.ForwardDeclareType(this, headerEmitter));
@@ -305,6 +308,8 @@ namespace NoHoPython.IntermediateRepresentation
                 //emit function headers
                 ForwardDeclareArrayTypes(headerEmitter);
                 ForwardDeclareTupleTypes(headerEmitter);
+                ForwardDeclareReferenceTypes(headerEmitter);
+
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.ForwardDeclare(this, headerEmitter));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, headerEmitter));
                 RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, headerEmitter));
@@ -327,6 +332,7 @@ namespace NoHoPython.IntermediateRepresentation
                 EmitBufferCopiers(emitter);
                 EmitArrayTypeMarshallers(emitter);
                 EmitTupleTypeMarshallers(emitter);
+                EmitReferenceTypeMarshallers(emitter);
                 EnumDeclarations.ForEach((enumDecl) => enumDecl.Emit(this, emitter, new()));
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.Emit(this, emitter, new()));
                 RecordDeclarations.ForEach((record) => record.Emit(this, emitter, new()));

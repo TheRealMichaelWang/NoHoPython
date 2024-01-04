@@ -1,12 +1,21 @@
 ﻿using NoHoPython.IntermediateRepresentation;
 using NoHoPython.IntermediateRepresentation.Statements;
 using NoHoPython.Syntax;
+using NoHoPython.Typing;
 
 namespace NoHoPython.IntermediateRepresentation
 {
     public sealed class CannotReleaseReadonlyReferenceType : IRGenerationError
     {
         public CannotReleaseReadonlyReferenceType(IAstElement errorReportedElement) : base(errorReportedElement, "Cannot release read-only reference type.")
+        {
+
+        }
+    }
+
+    public sealed class CannotReleaseReferenceType : IRGenerationError
+    {
+        public CannotReleaseReferenceType(ReferenceType type, IAstElement errorReportedElement) : base(errorReportedElement, $"Cannot release refrence type \"{type.TypeName}\". This indicates that the value has already/potentially been released.")
         {
 
         }

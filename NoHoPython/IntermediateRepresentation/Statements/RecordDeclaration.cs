@@ -208,11 +208,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ConstructorParameterTypes = constructorParameters;
         }
 
-        public void AnalyzePropertyInitialization(ProcedureDeclaration constructor)
+        public void ConstructorMutabilityAnalysis(ProcedureDeclaration constructor)
         {
 #pragma warning disable CS8602 // Only called during IR generation, following linking
             SortedSet<RecordProperty> initializedProperties = new(properties.FindAll((property) => property.HasDefaultValue));
-            constructor.AnalyzePropertyInitialization(initializedProperties, this);
+            constructor.ConstructorMutabilityAnalysis(initializedProperties, this);
             foreach (RecordProperty property in properties)
                 if (!initializedProperties.Contains(property))
                     throw new PropertyNotInitialized(property, ErrorReportedElement);
@@ -428,7 +428,7 @@ namespace NoHoPython.Syntax.Statements
 #pragma warning restore CS8602
             }
 
-            IRRecordDeclaration.AnalyzePropertyInitialization(Constructor);
+            IRRecordDeclaration.ConstructorMutabilityAnalysis(Constructor);
 
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();

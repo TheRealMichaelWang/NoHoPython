@@ -125,6 +125,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue? GetResponsibleDestroyer() => ReferenceBox.GetPostEvalPure();
     }
 
+    partial class SetReferenceTypeElement
+    {
+        public IRValue? GetResponsibleDestroyer() => ReferenceBox.GetPostEvalPure();
+    }
+
     partial class MarshalIntoEnum
     {
         public IRValue? GetResponsibleDestroyer() => null;

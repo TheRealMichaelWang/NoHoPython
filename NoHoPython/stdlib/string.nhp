@@ -60,6 +60,16 @@ mod typeExt:
 
 		return buffer
 
+	pure array_int_to_string(array<int> a) string:
+		buffer = new std::list<char>(10)
+		for i from 0 within a.length:
+			if i != 0:
+				buffer.pushBack(',')
+				buffer.pushBack(' ')
+			buffer.addRange(a[i] as string)
+
+		return buffer
+
 	pure string_get_hash(string str) int:
 		hash = 5381
 		for i from 0 within str:

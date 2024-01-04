@@ -11,7 +11,6 @@ enum option<T>:
 	None
 
 mod typeExt:
-
 	pure int_max(int a, int b) int:
 		return a if a > b else b
 
@@ -24,6 +23,18 @@ mod typeExt:
 	pure dec_min(dec a, dec b) dec:
 		return a if a < b else b
 
+	pure array_int_average(array<int> a) int:
+		accum = 0
+		for i from 0 within a.length:
+			accum = accum + a[i]
+		return accum / a.length
+
+	pure array_dec_average(array<dec> a) dec:
+		accum = 0.0
+		for i from 0 within a.length:
+			accum = accum + a[i]
+		return accum / a.length
+
 	pure array_T_safe_get<T>(array<T> a, int i) option<T>:
 		if i >= 0 and i < a as int:
 			return a[i]
@@ -35,13 +46,13 @@ mod typeExt:
 		return a[i]
 
 	pure array_T_forall<T>(array<T> toiter, pure<None, T> todo):
-		for i from 0 within toiter:
+		for i from 0 within toiter.length:
 			todo(toiter[i])
 		
 	pure array_T_map<T, K>(array<T> toiter, pure<K, T> transform) array<K>:
 		results = new std::list<K>(toiter)
 	
-		for i from 0 within toiter:
+		for i from 0 within toiter.length:
 			results.pushBack(transform(toiter[i]))
 		
 		return results
@@ -49,7 +60,7 @@ mod typeExt:
 	pure array_T_filter<T>(array<T> tofilter, pure<bool, T> shouldKeep) array<T>:
 		results = new std::list<T>(10)
 	
-		for i from 0 within tofilter:
+		for i from 0 within tofilter.length:
 			if shouldKeep(tofilter[i]):
 				results.pushBack(tofilter[i])
 		return results
@@ -58,12 +69,12 @@ mod typeExt:
 		reduce_settings = (initial, 0) if initial is T else ((a.safe_get(0) as option<T>) as T, 1)
 		accum = reduce_settings.T0
 		offset = reduce_settings.int0
-		for i from offset within a:
+		for i from offset within a.length:
 			accum = add(accum, a[i])
 		return accum
 	
 	pure array_T_subArray<T>(array<T> a, int offset, int length) option<array<T>>:
-		if offset < 0 or offset + length > a as int:
+		if offset < 0 or offset + length > a.length:
 			return None
 		
 		results = new std::list<T>(length)
@@ -73,20 +84,20 @@ mod typeExt:
 
 	pure array_T_reverse<T>(array<T> a) array<T>:
 		copied = a
-		for i from 0 within a as int / 2:
+		for i from 0 within a.length / 2:
 			temp = copied[i]
 			copied[i] = copied[a as int - (i + 1)]
 			copied[a as int - (i + 1)] = temp
 		return copied
 	
 	pure array_T_add<T>(array<T> a, array<T> b) array<T>:
-		results = new std::list<T>(a as int + b as int)
+		results = new std::list<T>(a.length + b.length)
 		results.addRange(a)
 		results.addRange(b)
 		return results
 
 	affectsArgs array_T_copyTo<T>(array<T> src, array<T> dest, int offset):
-		for i from 0 within src:
+		for i from 0 within src.length:
 			dest[offset + i] = src[i]
 	
 mod std:
@@ -107,7 +118,7 @@ mod std:
 		sorted = False
 		while sorted == False:
 			sorted = True
-			for i from 1 within copy as int:
+			for i from 1 within copy.length:
 				if compare(copy[i], copy[i - 1]) < 0:
 					swap(i, i - 1)
 					sorted = False
@@ -116,7 +127,7 @@ mod std:
 impure print(readonly array<char> s):
 	cdef impure putchar(char) None
 
-	for i from 0 within s:
+	for i from 0 within s.length:
 		putchar(s[i])
 	putchar('\n')
 

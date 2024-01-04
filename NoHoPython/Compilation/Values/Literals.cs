@@ -314,7 +314,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             else
                 primaryEmitter.AppendLine($"rc{indirection}->rc_unit.nhp_count = 0;");
-            primaryEmitter.AppendLine($"rc{indirection}->is_released = 0;");
+            
+            if(referenceType.ElementType.RequiresDisposal)
+                primaryEmitter.AppendLine($"rc{indirection}->is_released = 0;");
+            
             Input.Emit(irProgram, primaryEmitter, typeargs, promise =>
             {
                 primaryEmitter.Append($"rc{indirection}->elem = ");

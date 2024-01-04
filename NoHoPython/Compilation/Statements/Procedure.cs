@@ -151,7 +151,10 @@ namespace NoHoPython.IntermediateRepresentation
                 return;
 
             if (value.RequiresDisposal(irProgram, typeargs, true))
-                value.Emit(irProgram, emitter, typeargs, (valuePromise) => value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valuePromise, Emitter.NullPromise), Emitter.NullPromise, true);
+                value.Emit(irProgram, emitter, typeargs, (valuePromise) => {
+                    value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, emitter, valuePromise, Emitter.NullPromise);
+                    emitter.AppendLine();
+                }, Emitter.NullPromise, true);
             else
             {
                 value.Emit(irProgram, emitter, typeargs, (valuePromise) =>

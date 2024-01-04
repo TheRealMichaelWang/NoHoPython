@@ -765,6 +765,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             coMutatedValues.Add(this);
             Array.GetCoMutatedValues(coMutatedValues);
+
+            if (Value.Type.IsReferenceType && Value.Type.HasMutableChildren)
+                Value.GetCoMutatedValues(coMutatedValues);
         }
 
         public bool IsAffectedByMutation(IRValue mutatedValue) => Array.IsAffectedByMutation(mutatedValue) || Index.IsAffectedByMutation(mutatedValue) || Value.IsAffectedByMutation(mutatedValue) || (!IsReadOnly && Type.IsReferenceType && Type.HasMutableChildren && Type.IsCompatibleWith(mutatedValue.Type));
@@ -821,6 +824,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
         {
             coMutatedValues.Add(this);
             Record.GetCoMutatedValues(coMutatedValues);
+
+            if (Value.Type.IsReferenceType && Value.Type.HasMutableChildren)
+                Value.GetCoMutatedValues(coMutatedValues);
         }
 
         public bool IsAffectedByMutation(IRValue mutatedValue) => Record.IsAffectedByMutation(mutatedValue) || Value.IsAffectedByMutation(mutatedValue) || (!IsReadOnly && Type.IsReferenceType && Type.HasMutableChildren && Type.IsCompatibleWith(mutatedValue.Type));
@@ -845,9 +851,46 @@ namespace NoHoPython.IntermediateRepresentation.Values
             new GetPropertyValue(ReferenceBox, "elem", null, ErrorReportedElement).GetCoMutatedValues(coMutatedValues);
         }
 
-        public bool IsAffectedByMutation(IRValue mutatedValue) => ReferenceBox.IsAffectedByEvaluation(mutatedValue);
+        public bool IsAffectedByMutation(IRValue mutatedValue) => ReferenceBox.IsAffectedByEvaluation(mutatedValue) || (!IsReadOnly && Type.IsReferenceType && Type.HasMutableChildren && Type.IsCompatibleWith(mutatedValue.Type));
 
         public bool IsAffectedByEvaluation(IRValue evaluatedValue) => ReferenceBox.IsAffectedByEvaluation(evaluatedValue);
+    }
+
+    partial class SetReferenceTypeElement
+    {
+        public bool IsPure => false;
+        public bool IsConstant => true;
+
+        public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
+
+        public void EnsureMinimumPurity(Purity purity)
+        {
+            ReferenceBox.EnsureMinimumPurity(purity);
+            NewElement.EnsureMinimumPurity(purity);
+        }
+
+        public void GetMutatedValues(List<IRValue> affectedValues)
+        {
+            ReferenceBox.GetMutatedValues(affectedValues);
+
+            if (NewElement.Type.IsReferenceType && NewElement.Type.HasMutableChildren)
+                NewElement.GetMutatedValues(affectedValues);
+
+            new GetPropertyValue(ReferenceBox, "elem", null, ErrorReportedElement).GetMutatedValues(affectedValues);
+        }
+
+        public void GetCoMutatedValues(List<IRValue> coMutatedValues)
+        {
+            coMutatedValues.Add(this);
+            ReferenceBox.GetCoMutatedValues(coMutatedValues);
+
+            if (NewElement.Type.IsReferenceType && NewElement.Type.HasMutableChildren)
+                NewElement.GetCoMutatedValues(coMutatedValues);
+        }
+
+        public bool IsAffectedByMutation(IRValue mutatedValue) => ReferenceBox.IsAffectedByEvaluation(mutatedValue) || NewElement.IsAffectedByEvaluation(mutatedValue) || (!IsReadOnly && Type.IsReferenceType && Type.HasMutableChildren && Type.IsCompatibleWith(mutatedValue.Type));
+
+        public bool IsAffectedByEvaluation(IRValue evaluatedValue) => ReferenceBox.IsAffectedByEvaluation(evaluatedValue) || NewElement.IsAffectedByEvaluation(evaluatedValue);
     }
 
     partial class ArithmeticCast

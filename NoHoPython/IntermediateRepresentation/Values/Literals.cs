@@ -421,4 +421,9 @@ namespace NoHoPython.Syntax.Values
     {
         public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => irBuilder.Flags.Contains(Flag) ? new IntermediateRepresentation.Values.TrueLiteral(this) : new IntermediateRepresentation.Values.FalseLiteral(this); 
     }
+
+    partial class ReferenceLiteral
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate) => new IntermediateRepresentation.Values.ReferenceLiteral(ToBox.GenerateIntermediateRepresentationForValue(irBuilder, expectedType is ReferenceType referenceType ? referenceType.ElementType : null, willRevaluate), this);
+    }
 }

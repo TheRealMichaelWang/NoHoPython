@@ -160,12 +160,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ErrorReportedElement = errorReportedElement;
             Condition = ArithmeticCast.CastTo(condition, Primitive.Boolean, irBuilder);
         }
-
-        private AssertStatement(IRValue condition, IAstElement errorReportedElement)
-        {
-            ErrorReportedElement = errorReportedElement;
-            Condition = condition;
-        }
     }
 }
 

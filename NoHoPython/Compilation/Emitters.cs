@@ -127,11 +127,15 @@ namespace NoHoPython.IntermediateRepresentation
             return Indirection;
         }
 
-        public void AppendEndBlock()
+        public void AppendEndBlock(bool endWithSemicolon=false)
         {
-            Debug.Assert(currentLineBuilder.Length == 0);
+            if (currentLineBuilder.Length > 0)
+                AppendLine();
+
             DestroyResources(blockDestructionFrames.Peek(), blockDestructionFrames.Pop());
             currentLineBuilder.Append('}');
+            if (endWithSemicolon)
+                currentLineBuilder.Append(';');
             Indirection--;
             AppendLine();
         }

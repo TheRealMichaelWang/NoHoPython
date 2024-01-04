@@ -352,6 +352,14 @@ namespace NoHoPython.Syntax.Parsing
                         case TokenType.Null:
                             scanner.ScanToken();
                             return new NullPointerLiteral(location);
+                        case TokenType.Reference:
+                            {
+                                scanner.ScanToken();
+                                MatchAndScanToken(TokenType.OpenParen);
+                                IAstValue tobox = ParseValue();
+                                MatchAndScanToken(TokenType.CloseParen);
+                                return new ReferenceLiteral(location, tobox);
+                            }
                         case TokenType.Sizeof:
                             {
                                 scanner.ScanToken();

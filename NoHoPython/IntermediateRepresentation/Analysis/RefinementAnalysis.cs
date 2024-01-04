@@ -317,16 +317,18 @@ namespace NoHoPython.IntermediateRepresentation.Values
         
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement) 
         {
-            RefinementContext.RefinementEntry? recordEntry = (Record.GetRefinementEntry(irBuilder)?.GetSubentry(Property.Name)) ?? (Record.CreateRefinementEntry(irBuilder)?.NewSubentry(Property.Name));
-            recordEntry?.SetRefinement(assumedRefinement);
-            RefinementContext.RefinementEntry? valueEntry = (Record.GetRefinementEntry(irBuilder)?.GetSubentry(Property.Name)) ?? (Record.CreateRefinementEntry(irBuilder)?.NewSubentry(Property.Name));
+            RefinementContext.RefinementEntry? recordPropertyEntry = GetRefinementEntry(irBuilder) ?? CreateRefinementEntry(irBuilder);
+            recordPropertyEntry?.SetRefinement(assumedRefinement);
+            RefinementContext.RefinementEntry? valueEntry = Value.GetRefinementEntry(irBuilder) ?? Value.CreateRefinementEntry(irBuilder);
             valueEntry?.SetRefinement(assumedRefinement);
         }
         
         public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) { }
 
-        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null; //refinement entry should be cleared immediatley upon IR generation
-        public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
+        //refinement entry should be cleared immediatley upon IR generation
+        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => Record.GetRefinementEntry(irBuilder)?.GetSubentry(Property.Name);
+
+        public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => Record.CreateRefinementEntry(irBuilder)?.NewSubentry(Property.Name);
     }
 
     partial class ReleaseReferenceElement
@@ -337,6 +339,25 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) { }
         public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => null;
         public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => null;
+    }
+
+    partial class SetReferenceTypeElement
+    {
+        public void RefineIfTrue(AstIRProgramBuilder irBuilder) { }
+        public void RefineIfFalse(AstIRProgramBuilder irBuilder) { }
+        public void RefineSet(AstIRProgramBuilder irBuilder, RefinementContext.RefinementEntry destinationEntry) { }
+        
+        public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement)
+        {
+            RefinementContext.RefinementEntry? refBoxPropertyEntry = GetRefinementEntry(irBuilder) ?? CreateRefinementEntry(irBuilder);
+            refBoxPropertyEntry?.SetRefinement(assumedRefinement);
+            RefinementContext.RefinementEntry? valueEntry = NewElement.GetRefinementEntry(irBuilder) ?? NewElement.CreateRefinementEntry(irBuilder);
+            valueEntry?.SetRefinement(assumedRefinement);
+        }
+
+        public RefinementContext.RefinementEntry? GetRefinementEntry(AstIRProgramBuilder irBuilder) => ReferenceBox.GetRefinementEntry(irBuilder)?.GetSubentry("elem");
+
+        public RefinementContext.RefinementEntry? CreateRefinementEntry(AstIRProgramBuilder irBuilder) => ReferenceBox.CreateRefinementEntry(irBuilder)?.NewSubentry("elem");
     }
 
     partial class ArithmeticCast

@@ -542,9 +542,54 @@ namespace NoHoPython.IntermediateRepresentation.Values
             int indirection = primaryEmitter.AppendStartBlock();
             primaryEmitter.AppendLine($"{referenceType.GetCName(irProgram)} rc{indirection}");
             primaryEmitter.SetArgument(ReferenceBox, $"rc{indirection}", irProgram, typeargs, true);
-            primaryEmitter.AppendLine($"rc{indirection}->is_released = 1;");
+            
+            if(referenceType.RequiresDisposal)
+                primaryEmitter.AppendLine($"rc{indirection}->is_released = 1;");
+            
             destination(emitter => emitter.Append($"rc{indirection}->elem"));
             primaryEmitter.AppendEndBlock();
         }
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
+    }
+
+    partial class SetReferenceTypeElement
+    {
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            ReferenceBox.ScopeForUsedTypes(typeargs, irBuilder);
+            NewElement.ScopeForUsedTypes(typeargs, irBuilder);
+        }
+
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => false;
+
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
+        {
+            ReferenceType referenceType = (ReferenceType)ReferenceBox.Type.SubstituteWithTypearg(typeargs);
+
+            int indirection = primaryEmitter.AppendStartBlock();
+            primaryEmitter.AppendLine($"{referenceType.GetCName(irProgram)} rc{indirection}; {referenceType.ElementType.GetCName(irProgram)} elem{indirection};");
+            primaryEmitter.SetArgument(ReferenceBox, $"rc{indirection}", irProgram, typeargs, true);
+
+            NewElement.Emit(irProgram, primaryEmitter, typeargs, promise =>
+            {
+                primaryEmitter.Append($"elem{indirection} = ");
+                if (NewElement.RequiresDisposal(irProgram, typeargs, false))
+                    promise(primaryEmitter);
+                else
+                    referenceType.ElementType.EmitCopyValue(irProgram, primaryEmitter, promise, e => e.Append($"rc{indirection}"));
+                primaryEmitter.AppendLine(';');
+            }, e => e.Append($"rc{indirection}"), false);
+
+            if (referenceType.ElementType.RequiresDisposal)
+                referenceType.ElementType.EmitFreeValue(irProgram, primaryEmitter, e => e.Append($"rc{indirection}->elem"), e => e.Append($"rc{indirection}"));
+            primaryEmitter.Append($"rc{indirection}->elem = elem{indirection};");
+            destination(emitter => emitter.Append($"rc{indirection}->elem"));
+            primaryEmitter.AppendEndBlock();
+        }
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
     }
 }

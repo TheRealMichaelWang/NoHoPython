@@ -175,9 +175,4 @@ namespace NoHoPython.Syntax.Values
 
         public override string ToString() => $"{Enum} is {Option}";
     }
-
-    public sealed partial class ReleaseReferenceElement : IAstValue
-    {
-
-    }
 }

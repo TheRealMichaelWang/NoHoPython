@@ -96,7 +96,7 @@ namespace NoHoPython.Typing
 
             for (int i = 0; i < Declaration.TypeParameters.Count; i++)
             {
-                ReplaceFunction(templateSource, irProgram, $"##COPY_{Declaration.TypeParameters[i].Name}", 2, (irProgram, emitter, args) => TypeArguments[i].EmitCopyValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])), Declaration);
+                ReplaceFunction(templateSource, irProgram, $"##COPY_{Declaration.TypeParameters[i].Name}", 2, (irProgram, emitter, args) => TypeArguments[i].EmitCopyValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1]), Declaration), Declaration);
                 ReplaceFunction(templateSource, irProgram, $"##DESTROY_{Declaration.TypeParameters[i].Name}", 2, (irProgram, emitter, args) => TypeArguments[i].EmitFreeValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])), Declaration);
                 ReplaceFunction(templateSource, irProgram, $"##BORROW_{Declaration.TypeParameters[i].Name}", 2, (irProgram, emitter, args) => TypeArguments[i].EmitClosureBorrowValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])), Declaration);
             }
@@ -122,7 +122,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             {
                 templateSource = templateSource.Replace($"##{typeParameter.Name}_ID", typeArguments[typeParameter].GetStandardIdentifier(irProgram));
                 templateSource = templateSource.Replace($"##{typeParameter.Name}_CSRC", typeArguments[typeParameter].GetCName(irProgram));
-                ForeignCType.ReplaceFunction(templateSource, irProgram, $"##COPY_{typeParameter.Name}", 2, (irProgram, emitter, args) => typeArguments[typeParameter].EmitCopyValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])), this);
+                ForeignCType.ReplaceFunction(templateSource, irProgram, $"##COPY_{typeParameter.Name}", 2, (irProgram, emitter, args) => typeArguments[typeParameter].EmitCopyValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1]), this), this);
                 ForeignCType.ReplaceFunction(templateSource, irProgram, $"##DESTROY_{typeParameter.Name}", 2, (irProgram, emitter, args) => typeArguments[typeParameter].EmitFreeValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])), this);
                 ForeignCType.ReplaceFunction(templateSource, irProgram, $"##BORROW_{typeParameter.Name}", 2, (irProgram, emitter, args) => typeArguments[typeParameter].EmitClosureBorrowValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])), this);
             }
@@ -131,7 +131,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 templateSource = templateSource.Replace($"##ARG{i}_TYPE_ID", Arguments[i].Type.GetStandardIdentifier(irProgram));
                 templateSource = templateSource.Replace($"##ARG{i}_TYPE_CSRC", Arguments[i].Type.GetCName(irProgram));
                 templateSource = templateSource.Replace($"##ARG{i}_VALUE_CSRC", Emitter.GetPromiseSource(argPromises[i]));
-                ForeignCType.ReplaceFunction(templateSource, irProgram, $"##COPY_ARG{i}_TYPE", 2, (irProgram, emitter, args) => Arguments[i].Type.EmitCopyValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])), this);
+                ForeignCType.ReplaceFunction(templateSource, irProgram, $"##COPY_ARG{i}_TYPE", 2, (irProgram, emitter, args) => Arguments[i].Type.EmitCopyValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1]), this), this);
                 ForeignCType.ReplaceFunction(templateSource, irProgram, $"##DESTROY_ARG{i}_TYPE", 2, (irProgram, emitter, args) => Arguments[i].Type.EmitFreeValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])), this);
                 ForeignCType.ReplaceFunction(templateSource, irProgram, $"##BORROW_ARG{i}_TYPE", 2, (irProgram, emitter, args) => Arguments[i].Type.EmitClosureBorrowValue(irProgram, emitter, (e) => e.Append(args[0]), (e) => e.Append(args[1])), this);
             }

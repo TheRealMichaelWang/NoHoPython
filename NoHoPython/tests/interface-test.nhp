@@ -7,15 +7,15 @@ class student:
 	int age
 	int grade
 
-	def __init__(string name, int age, int grade):
+	pure __init__(string name, int age, int grade):
 		self.name = name
 		self.age = age
 		self.grade = grade
-
-def comparePerson(person p, person s):
-	assert p.name == s.name
-	assert p.age == s.age
+		
+mod typeExt:
+	pure person_equals(person a, person b) bool:
+		return p.name == s.name and p.age == s.age
 
 def main():
 	michael = new student("Michael", 17, 11)
-	comparePerson(new student("tim", 18, 12), michael)
+	assert michael == new student("tim", 18, 12)

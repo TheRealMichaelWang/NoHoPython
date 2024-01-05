@@ -31,7 +31,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             void EmitCorrectCopy(IRValue irValue, Emitter emitter)
             {
                 if (RequiresDisposal(irProgram, typeargs, isTemporaryEval) && !irValue.RequiresDisposal(irProgram, typeargs, false))
-                    irValue.Emit(irProgram, emitter, typeargs, (valPromise) => irValue.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valPromise, responsibleDestroyer), responsibleDestroyer, isTemporaryEval);
+                    irValue.Emit(irProgram, emitter, typeargs, (valPromise) => irValue.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valPromise, responsibleDestroyer, this), responsibleDestroyer, isTemporaryEval);
                 else
                     IRValue.EmitDirect(irProgram, emitter, irValue, typeargs, responsibleDestroyer, isTemporaryEval);
             }
@@ -362,7 +362,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                         else
                             IRValue.EmitDirect(irProgram, emitter, MatchValue, typeargs, Emitter.NullPromise, true);
                         emitter.Append($".data.{currentOptions[0].GetStandardIdentifier(irProgram)}_set");
-                    }, Emitter.NullPromise);
+                    }, Emitter.NullPromise, MatchValue);
                     primaryEmitter.AppendLine(';');
                 }
 

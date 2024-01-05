@@ -1,20 +1,10 @@
-include "mem.nhp"
-include "io.nhp"
-include "std.nhp"
-include "file.nhp"
+include "leaksan.nhp"
 
 def main():
-	mem::report()
 	def torun():
-		output = io::output()
-		input = io::input()
-		output.writeLine("hello world")
-		n = input.readInt()
-		std::repeat(n, lambda int i: output.writeLine(i))
-		output.writeLine("goodbye world")
-		
-		infile = new io::file("myfile.txt", "w+")
-		output = new io::writer(infile.ptr)
-		std::repeat(n, lambda int i: output.writeLine(-i))
-	torun()
-	mem::report()
+		print("hello world")
+		n = input().parseInt()
+
+		for i from 0 within 10:
+			print(i)
+	std::leaksan::run(torun)

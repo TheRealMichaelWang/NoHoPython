@@ -112,7 +112,7 @@ namespace NoHoPython.IntermediateRepresentation
                     emitter.AppendLine($"\t{elementType.GetCName(this)}* buf = {MemoryAnalyzer.Allocate($"sizeof({elementType.GetCName(this)}) * len")};");
                     emitter.AppendLine("\tfor(int i = 0; i < len; i++) {");
                     emitter.Append("\t\tbuf[i] = ");
-                    elementType.EmitCopyValue(this, emitter, (e) => e.Append("src[i]"), (e) => e.Append("responsible_destroyer"));
+                    elementType.EmitCopyValue(this, emitter, (e) => e.Append("src[i]"), (e) => e.Append("responsible_destroyer"), null);
                     emitter.AppendLine(";");
                     emitter.AppendLine("\t}");
                     emitter.AppendLine("\treturn buf;");
@@ -126,7 +126,7 @@ namespace NoHoPython.IntermediateRepresentation
                 emitter.AppendLine($"\t{elementType.GetCName(this)}* buf = {MemoryAnalyzer.Allocate($"count * sizeof({elementType.GetCName(this)})")};");
                 emitter.AppendLine("\tfor(int i = 0; i < count; i++) {");
                 emitter.Append("\t\tbuf[i] = ");
-                elementType.EmitCopyValue(this, emitter, (e) => e.Append("proto"), (e) => e.Append("responsible_destroyer"));
+                elementType.EmitCopyValue(this, emitter, (e) => e.Append("proto"), (e) => e.Append("responsible_destroyer"), null);
                 emitter.AppendLine(";");
                 emitter.AppendLine("\t}");
 
@@ -171,22 +171,22 @@ namespace NoHoPython.Typing
             emitter.AppendEndBlock();
         }
 
-        public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
-            primaryEmitter.Append($"copy{GetStandardIdentifier(irProgram)}(");
-            valueCSource(primaryEmitter);
+            emitter.Append($"copy{GetStandardIdentifier(irProgram)}(");
+            valueCSource(emitter);
 
             if (MustSetResponsibleDestroyer)
             {
-                primaryEmitter.Append(", ");
-                responsibleDestroyer(primaryEmitter);
+                emitter.Append(", ");
+                responsibleDestroyer(emitter);
             }
 
-            primaryEmitter.Append(')');
+            emitter.Append(')');
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer, null);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord, null);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -313,31 +313,31 @@ namespace NoHoPython.Typing
                 }
         }
 
-        public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
             if (ElementType.RequiresDisposal)
             {
-                primaryEmitter.Append($"buffer_copy_{ElementType.GetStandardIdentifier(irProgram)}(");
-                valueCSource(primaryEmitter);
-                primaryEmitter.Append($", {Length}");
+                emitter.Append($"buffer_copy_{ElementType.GetStandardIdentifier(irProgram)}(");
+                valueCSource(emitter);
+                emitter.Append($", {Length}");
                 if (ElementType.MustSetResponsibleDestroyer)
                 {
-                    primaryEmitter.Append(", ");
-                    responsibleDestroyer(primaryEmitter);
+                    emitter.Append(", ");
+                    responsibleDestroyer(emitter);
                 }
-                primaryEmitter.Append(')');
+                emitter.Append(')');
             }
             else
             {
                 string sizeSrc = $"{Length} * sizeof({ElementType.GetCName(irProgram)})";
-                primaryEmitter.Append($"memcpy({irProgram.MemoryAnalyzer.Allocate(sizeSrc)}, ");
-                valueCSource(primaryEmitter);
-                primaryEmitter.Append($", {sizeSrc})");
+                emitter.Append($"memcpy({irProgram.MemoryAnalyzer.Allocate(sizeSrc)}, ");
+                valueCSource(emitter);
+                emitter.Append($", {sizeSrc})");
             }
         }
          
-        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer, null);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord, null);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {

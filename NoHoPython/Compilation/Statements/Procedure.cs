@@ -240,7 +240,7 @@ namespace NoHoPython.Typing
             emitter.AppendLine(");");
         }
 
-        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) 
+        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement) 
         {
             emitter.Append($"({GetCName(irProgram)})anon_proc_copy(");
             valueCSource(emitter);
@@ -249,7 +249,7 @@ namespace NoHoPython.Typing
             emitter.Append(')');
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer, null);
 
         public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
         {
@@ -580,7 +580,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                         if (ToReturn.RequiresDisposal(irProgram, typeargs, false))
                             toReturnPromise(primaryEmitter);
                         else
-                            ToReturn.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, toReturnPromise, (e) => e.Append("ret_responsible_dest"));
+                            ToReturn.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, toReturnPromise, (e) => e.Append("ret_responsible_dest"), ToReturn);
                         primaryEmitter.AppendLine(';');
                     }, (e) => e.Append("ret_responsible_dest"), false);
             }
@@ -873,7 +873,8 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         emitter.Append(capturedVar.GetStandardIdentifier());
                     emitter.Append(", ");
                 }
-                emitter.Append($"{responsibleDestroyer}, &{toAnonymize.GetStandardIdentifier(irProgram)})");
+                responsibleDestroyer(emitter);
+                emitter.Append($", &{toAnonymize.GetStandardIdentifier(irProgram)})");
             }
             else
                 emitter.Append($"capture_anon_proc(&{Procedure.GetStandardIdentifier(irProgram)})");

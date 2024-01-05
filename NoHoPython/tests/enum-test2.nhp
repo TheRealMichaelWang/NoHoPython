@@ -1,16 +1,14 @@
-﻿include "io.nhp"
-
-class student:
+﻿class student:
 	string name
 	int age
 	int grade
 	
-	def __init__(string name, int age, int grade):
+	pure __init__(string name, int age, int grade):
 		self.name = name
 		self.age = age
 		self.grade = grade
 	
-	def to_string() string:
+	pure to_string() string:
 		return self.name
 
 class faculty:
@@ -18,19 +16,18 @@ class faculty:
 	int age
 	int payment
 	
-	def __init__(string name, int age, int payment):
+	pure __init__(string name, int age, int payment):
 		self.name = name
 		self.age = age
 		self.payment = payment
 
-	def to_string() string:
+	pure to_string() string:
 		return self.name
 
 interface person:
 	string name
 	int age
-	
-	fn<string> to_string
+	pure<string> to_string
 
 enum schoolperson:
 	student
@@ -47,12 +44,16 @@ def enumMatchTest(schoolperson p):
 		default:
 			return
 
+def printPersonInfo<T : person>(T p):
+	print($"Name: {p.name}");
+	print($"Age: {p.age}")
+
 def main():
 	michael = new student("michael", 17, 11)
 	maine = new faculty("maine", 40, 140)
-	print(michael)
+	printPersonInfo(michael)
 	print(maine)
 	enumMatchTest(michael)
 	enumMatchTest(maine)
-	print(michael)
+	printPersonInfo(michael)
 	print(maine)

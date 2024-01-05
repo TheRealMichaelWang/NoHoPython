@@ -2,6 +2,8 @@
 using NoHoPython.IntermediateRepresentation;
 using NoHoPython.Syntax;
 using NoHoPython.Syntax.Parsing;
+using System.Diagnostics;
+using System.Reflection;
 
 public static class Program
 {
@@ -21,12 +23,19 @@ public static class Program
             return 0;
         }
 
+        bool mainFunction = !args.Contains("-nomain");
+        bool runForMe = args.Contains("-runforme");
         try
         {
             DateTime compileStart = DateTime.Now;
 
             Console.WriteLine("Parsing...");
-            AstParser sourceParser = new AstParser(new Scanner(args[0], $"{Environment.CurrentDirectory}/stdlib"));
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+            string execDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+            AstParser sourceParser = new AstParser(new Scanner(args[0], $"{execDir}/stdlib"));
             List<IAstStatement> statements = sourceParser.ParseAll();
 
             List<string> flags = new();
@@ -57,11 +66,13 @@ public static class Program
 
             Console.WriteLine("Generating IR...");
             AstIRProgramBuilder astIRProgramBuilder = new(statements, flags);
-            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), args.Contains("-noassert"), args.Contains("-callstack") || args.Contains("-stacktrace"), args.Contains("-namert"), args.Contains("-linedir") || args.Contains("-ggdb"), !args.Contains("-nomain"), memoryAnalyzer);
+            IRProgram program = astIRProgramBuilder.ToIRProgram(!args.Contains("-nobounds"), args.Contains("-noassert"), args.Contains("-callstack") || args.Contains("-stacktrace"), args.Contains("-namert"), args.Contains("-linedir") || args.Contains("-ggdb"), mainFunction, memoryAnalyzer);
             sourceParser.IncludeCFiles(program);
 
             string outputFile;
-            if (args.Length >= 2)
+            if (runForMe)
+                outputFile = $"{execDir}/out.c";
+            else if (args.Length >= 2)
                 outputFile = args[1];
             else
                 outputFile = "out.c";
@@ -77,7 +88,22 @@ public static class Program
                 program.Emit(outputFile, null);
 
             Console.WriteLine($"Compilation succesfully finished, taking {DateTime.Now - compileStart}. Output is in {outputFile}.");
-            if (program.EmitLineDirectives)
+            if (runForMe)
+            {
+                Console.WriteLine("Invoking gcc...");
+                using (Process gcc = Process.Start("GCC", $"\"{outputFile}\" -o \"{execDir}/nhptempexec\" {(program.EmitLineDirectives ? "-ggdb" : string.Empty)}"))
+                {
+                    gcc.WaitForExit();
+                    if(gcc.ExitCode != 0)
+                        Console.WriteLine("C compilation failed; this indicates either a bug in the compiler, or a bug in the foreign inline C of your code (or another NHP library).");
+                    else
+                    {
+                        Console.Clear();
+                        Process.Start($"{execDir}/nhptempexec").WaitForExit();
+                    }
+                }
+            }
+            else if (program.EmitLineDirectives)
             {
                 Console.WriteLine($"GCC line directives have been enabled; please use the -ggdb flag while compiling {outputFile}, and gdb to debug it. Please not that this feature doesn't work very well at the moment, and is still experimental. In addition, unless you want to debug internal gdb code, type \"skip file {outputFile}\", then run.");
             }
@@ -104,6 +130,9 @@ public static class Program
             Console.WriteLine(e.Message);
             Console.WriteLine(e.StackTrace);
         }
+
+        if (runForMe)
+            Console.ReadKey();
 
         return 0;
     }

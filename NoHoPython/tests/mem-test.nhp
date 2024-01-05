@@ -15,9 +15,16 @@ class cell:
 	def mychild():
 		pass
 
+ref class circularClass:
+	circularClass elem
+
+	def __init__():
+		self.elem = self
+
 affectsCaptured main():
 	affectsCaptured test():
 		std::leaksan::report()
 		testobj = new cell()
 		testobj.stuff()
+		hello = new circularClass()
 	std::leaksan::run(test)

@@ -10,7 +10,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public virtual void ScopeForUse(bool optimizedMessageRecieverCall, Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder) { }
 
-        public abstract bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer);
+        public abstract bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement);
     }
 }
 
@@ -385,7 +385,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (Value.RequiresDisposal(irProgram, typeargs, false))
                         valuePromise(primaryEmitter);
                     else
-                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, arrayResponsibleDestroyer);
+                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, arrayResponsibleDestroyer, Value);
                     primaryEmitter.AppendLine(';');
                 }, arrayResponsibleDestroyer, false);
                 Value.Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, primaryEmitter, (oldValEmitter) =>
@@ -445,7 +445,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 primaryEmitter.AppendLine($"{Record.Type.SubstituteWithTypearg(typeargs).GetCName(irProgram)} record{indirection};");
                 primaryEmitter.SetArgument(Record, $"record{indirection}", irProgram, typeargs, true);
 
-                Emitter.Promise finalEmit = (emitter) => Property.EmitGet(irProgram, emitter, typeargs, propertyContainer, (valueEmitter) => valueEmitter.Append($"record{indirection}"), responsibleDestroyer);
+                Emitter.Promise finalEmit = (emitter) => Property.EmitGet(irProgram, emitter, typeargs, propertyContainer, (valueEmitter) => valueEmitter.Append($"record{indirection}"), responsibleDestroyer, this);
                 if (Refinements.HasValue && Refinements.Value.Item2 != null)
                     destination((emitter) => Refinements.Value.Item2(irProgram, emitter, finalEmit, typeargs));
                 else
@@ -454,7 +454,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
             else
             {
-                Emitter.Promise finalEmit = (emitter) => Property.EmitGet(irProgram, emitter, typeargs, propertyContainer, IRValue.EmitDirectPromise(irProgram, Record, typeargs, Emitter.NullPromise, true), responsibleDestroyer);
+                Emitter.Promise finalEmit = (emitter) => Property.EmitGet(irProgram, emitter, typeargs, propertyContainer, IRValue.EmitDirectPromise(irProgram, Record, typeargs, Emitter.NullPromise, true), responsibleDestroyer, this);
                 if (Refinements.HasValue && Refinements.Value.Item2 != null)
                     destination((emitter) => Refinements.Value.Item2(irProgram, emitter, finalEmit, typeargs));
                 else
@@ -499,7 +499,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (Value.RequiresDisposal(irProgram, typeargs, false))
                         valuePromise(primaryEmitter);
                     else
-                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, recordResponsibleDestroyer);
+                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, recordResponsibleDestroyer, Value);
                     primaryEmitter.AppendLine(';');
                 }, recordResponsibleDestroyer, false);
 
@@ -519,7 +519,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (Value.RequiresDisposal(irProgram, typeargs, false))
                         IRValue.EmitDirect(irProgram, emitter, Value, typeargs, record, false);
                     else
-                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, IRValue.EmitDirectPromise(irProgram, Value, typeargs, record, false), record);
+                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, IRValue.EmitDirectPromise(irProgram, Value, typeargs, record, false), record, Value);
                     emitter.Append(')');
                 });
         }
@@ -540,7 +540,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             ReferenceType referenceType = (ReferenceType)ReferenceBox.Type.SubstituteWithTypearg(typeargs);
 
             int indirection = primaryEmitter.AppendStartBlock();
-            primaryEmitter.AppendLine($"{referenceType.GetCName(irProgram)} rc{indirection}");
+            primaryEmitter.AppendLine($"{referenceType.GetCName(irProgram)} rc{indirection};");
             primaryEmitter.SetArgument(ReferenceBox, $"rc{indirection}", irProgram, typeargs, true);
             
             if(referenceType.RequiresDisposal)
@@ -579,7 +579,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (NewElement.RequiresDisposal(irProgram, typeargs, false))
                     promise(primaryEmitter);
                 else
-                    referenceType.ElementType.EmitCopyValue(irProgram, primaryEmitter, promise, e => e.Append($"rc{indirection}"));
+                    referenceType.ElementType.EmitCopyValue(irProgram, primaryEmitter, promise, e => e.Append($"rc{indirection}"), NewElement);
                 primaryEmitter.AppendLine(';');
             }, e => e.Append($"rc{indirection}"), false);
 

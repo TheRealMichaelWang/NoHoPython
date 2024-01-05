@@ -1,33 +1,37 @@
-﻿include "io.nhp"
-
-enum dayOfWeek:
+﻿enum dayOfWeek:
 	Monday
 	Tuesday
 	Wednessday
 	Thursday
 	Friday
 	Saturday
-	Sunday
+	Saturday
 
-enum result<T>:
-	T
-	error
+mod typeExt:
+	def int_to_dayOfWeek(int dayNo) option<dayOfWeek>:
+		if dayNo < 0 or dayNo >= 7:
+			return None
+		days = [dayOfWeek::Monday, dayOfWeek::Tuesday, dayOfWeek::Wednessday, dayOfWeek::Thursday, dayOfWeek::Friday, dayOfWeek::Saturday, dayOfWeek::Sunday]
+		return days[dayNo]
 
-def getDayOfWeek(int dayNo) result<dayOfWeek>:
-	if dayNo < 0 or dayNo >= 7:
-		return result::error
-	days = [<dayOfWeek> dayOfWeek::Monday, dayOfWeek::Tuesday, dayOfWeek::Wednessday, dayOfWeek::Thursday, dayOfWeek::Friday, dayOfWeek::Saturday, dayOfWeek::Sunday]
-	return days[dayNo]
-
+	def dayOfWeek_to_string(dayOfWeek day) string:
+		match day:
+			dayOfWeek::Monday:
+				return "Monday"
+			dayOfWeek::Tuesday:
+				return "Tuesday"
+			dayOfWeek::Wednessday:
+				return "Wednessday"
+			dayOfWeek::Thursday:
+				return "Thursday"
+			dayOfWeek::Friday:
+				return "Friday"
+			dayOfWeek::Saturday:
+				return "Saturday"
+			dayOfWeek::Saturday:
+				return "Saturday"
+		
 def main():
 	print("Day?>")
-	dayNo = input() as int
-
-	day = getDayOfWeek(dayNo) as dayOfWeek
-	match day:
-		dayOfWeek::Sunday:
-			print("sun")
-		dayOfWeek::Saturday:
-			print("Sat")
-		default:
-			print("Fuck")
+	day = input().parseInt() as dayOfWeek
+	print(day)

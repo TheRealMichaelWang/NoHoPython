@@ -55,7 +55,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer)
+            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
             {
                 ForeignCType foreignCType = (ForeignCType)propertyContainer;
 
@@ -140,16 +140,16 @@ namespace NoHoPython.Typing
                 emitter.Append(GetSource(Declaration.Destructor, irProgram, valuePromise, childAgent));
         }
 
-        public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
             if (Declaration.Copier != null)
-                primaryEmitter.Append(GetSource(Declaration.Copier, irProgram, valueCSource, responsibleDestroyer));
+                emitter.Append(GetSource(Declaration.Copier, irProgram, valueCSource, responsibleDestroyer));
             else
-                valueCSource(primaryEmitter);
+                valueCSource(emitter);
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer, null);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord, null);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {

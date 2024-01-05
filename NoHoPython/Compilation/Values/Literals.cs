@@ -177,7 +177,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         if (Elements[i].RequiresDisposal(irProgram, typeargs, isTemporaryEval) || !RequiresDisposal(irProgram, typeargs, isTemporaryEval))
                             elemPromise(primaryEmitter);
                         else
-                            ElementType.EmitCopyValue(irProgram, primaryEmitter, elemPromise, responsibleDestroyer);
+                            ElementType.EmitCopyValue(irProgram, primaryEmitter, elemPromise, responsibleDestroyer, Elements[i]);
 
                         primaryEmitter.AppendLine(';');
                     }, responsibleDestroyer, isTemporaryEval);
@@ -247,7 +247,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         if (!RequiresDisposal(irProgram, typeargs, isTemporaryEval) || Elements[i].RequiresDisposal(irProgram, typeargs, isTemporaryEval))
                             elemPromise(primaryEmitter);
                         else
-                            initializeProperties[i].Type.EmitCopyValue(irProgram, primaryEmitter, elemPromise, responsibleDestroyer);
+                            initializeProperties[i].Type.EmitCopyValue(irProgram, primaryEmitter, elemPromise, responsibleDestroyer, Elements[i]);
                         primaryEmitter.AppendLine(';');
                     }, responsibleDestroyer, isTemporaryEval);
 
@@ -279,7 +279,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                             if (Elements[i].RequiresDisposal(irProgram, typeargs, false))
                                 IRValue.EmitDirect(irProgram, emitter, Elements[i], typeargs, responsibleDestroyer, false);
                             else
-                                initializeProperties[i].Type.EmitCopyValue(irProgram, emitter, IRValue.EmitDirectPromise(irProgram, Elements[i], typeargs, responsibleDestroyer, false), responsibleDestroyer);
+                                initializeProperties[i].Type.EmitCopyValue(irProgram, emitter, IRValue.EmitDirectPromise(irProgram, Elements[i], typeargs, responsibleDestroyer, false), responsibleDestroyer, Elements[i]);
                         }
                     }
 
@@ -324,7 +324,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (Input.RequiresDisposal(irProgram, typeargs, false))
                     promise(primaryEmitter);
                 else
-                    Input.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, promise, e => e.Append($"rc{indirection}->elem"));
+                    Input.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, promise, e => e.Append($"rc{indirection}->elem"), Input);
                 primaryEmitter.AppendLine(';');
             }, e => e.Append($"rc{indirection}->elem"), isTemporaryEval);
             destination(emitter => emitter.Append($"rc{indirection}"));
@@ -359,7 +359,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (ProtoValue.RequiresDisposal(irProgram, typeargs, true))
                         protoPromise(primaryEmitter);
                     else
-                        ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, protoPromise, Emitter.NullPromise);
+                        ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, protoPromise, Emitter.NullPromise, ProtoValue);
 
                     primaryEmitter.AppendLine(';');
                 }, Emitter.NullPromise, true);
@@ -387,7 +387,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         if (ProtoValue.RequiresDisposal(irProgram, typeargs, true))
                             protoValPromise(primaryEmitter);
                         else
-                            ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, protoValPromise, Emitter.NullPromise);
+                            ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, protoValPromise, Emitter.NullPromise, ProtoValue);
                     }, Emitter.NullPromise, true);
 
                     if (ElementType.SubstituteWithTypearg(typeargs).MustSetResponsibleDestroyer)
@@ -421,7 +421,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 if (ProtoValue.RequiresDisposal(irProgram, typeargs, true))
                     protoValPromise(emitter);
                 else
-                    ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, protoValPromise, Emitter.NullPromise);
+                    ElementType.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, protoValPromise, Emitter.NullPromise, ProtoValue);
             }, Emitter.NullPromise, true);
 
             emitter.Append($", {Length}");

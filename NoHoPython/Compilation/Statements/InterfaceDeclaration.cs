@@ -57,7 +57,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         {
             public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer)
+            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
             {
                 Debug.Assert(propertyContainer is InterfaceType);
                 value(emitter);
@@ -159,19 +159,19 @@ namespace NoHoPython.Typing
             emitter.AppendLine(");");
         }
 
-        public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
-            primaryEmitter.Append($"copy_interface{GetStandardIdentifier(irProgram)}(");
-            valueCSource(primaryEmitter);
+            emitter.Append($"copy_interface{GetStandardIdentifier(irProgram)}(");
+            valueCSource(emitter);
             if (MustSetResponsibleDestroyer) {
-                primaryEmitter.Append(", ");
-                responsibleDestroyer(primaryEmitter);
+                emitter.Append(", ");
+                responsibleDestroyer(emitter);
             }
-            primaryEmitter.Append(')');
+            emitter.Append(')');
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer, null);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord, null);
 
         public void EmitMarshallerHeader(IRProgram irProgram, Emitter emitter) => emitter.Append($"{GetCName(irProgram)} marshal_interface{GetStandardIdentifier(irProgram)}({string.Join(", ", requiredImplementedProperties.Value.ConvertAll((prop) => $"{prop.Type.GetCName(irProgram)} {prop.Name}"))})");
 
@@ -229,7 +229,7 @@ namespace NoHoPython.Typing
             foreach (var property in requiredImplementedProperties.Value)
             {
                 emitter.Append($"\tcopied_interface.{property.Name} = ");
-                property.Type.EmitCopyValue(irProgram, emitter, (e) => e.Append($"interface.{property.Name}"), (e) => e.Append("responsibleDestroyer"));
+                property.Type.EmitCopyValue(irProgram, emitter, (e) => e.Append($"interface.{property.Name}"), (e) => e.Append("responsibleDestroyer"), null);
                 emitter.AppendLine(";");
             }
             emitter.AppendLine("\treturn copied_interface;");
@@ -279,9 +279,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 #pragma warning disable CS8602 // property container set in scope for used types
                     Property accessProperty = propertyContainer.FindProperty(property.Name);
                     if (RequiresDisposal(irProgram, typeargs, isTemporaryEval) && !accessProperty.RequiresDisposal(typeargs))
-                        property.Type.EmitCopyValue(irProgram, primaryEmitter, (emitter) => accessProperty.EmitGet(irProgram, emitter, typeargs, propertyContainer, (e) => e.Append($"value{indirection}"), Emitter.NullPromise), responsibleDestroyer);
+                        property.Type.EmitCopyValue(irProgram, primaryEmitter, (emitter) => accessProperty.EmitGet(irProgram, emitter, typeargs, propertyContainer, (e) => e.Append($"value{indirection}"), Emitter.NullPromise, this), responsibleDestroyer, Value);
                     else
-                        accessProperty.EmitGet(irProgram, primaryEmitter, typeargs, propertyContainer, (emitter) => emitter.Append($"value{indirection}"), responsibleDestroyer);
+                        accessProperty.EmitGet(irProgram, primaryEmitter, typeargs, propertyContainer, (emitter) => emitter.Append($"value{indirection}"), responsibleDestroyer, this);
                     primaryEmitter.AppendLine(';');
 #pragma warning restore CS8602
                 }
@@ -303,7 +303,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
                         emitter.Append($".{property.Name} = ");
 #pragma warning disable CS8604 // Possible null reference argument.
-                        property.EmitGet(irProgram, emitter, typeargs, propertyContainer, valuePromise, responsibleDestroyer);
+                        property.EmitGet(irProgram, emitter, typeargs, propertyContainer, valuePromise, responsibleDestroyer, this);
 #pragma warning restore CS8604 // Possible null reference argument.
                     }
                     emitter.Append('}');

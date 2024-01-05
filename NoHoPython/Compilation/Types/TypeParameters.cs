@@ -23,10 +23,10 @@ namespace NoHoPython.Typing
                 UnderlyingTypeargumentProperty.ScopeForUse(optimizedMessageRecieverCall, typeargs, irBuilder);
             }
 
-            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer)
+            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
             {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                return UnderlyingTypeargumentProperty.EmitGet(irProgram, emitter, typeargs, propertyContainer, value, responsibleDestroyer);
+                return UnderlyingTypeargumentProperty.EmitGet(irProgram, emitter, typeargs, propertyContainer, value, responsibleDestroyer, errorReportedElement);
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
             }
         }
@@ -46,7 +46,7 @@ namespace NoHoPython.Typing
         public string GetStandardIdentifier(IRProgram irProgram) => $"type_param_{TypeParameter.Name}";
 
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent) => throw new UnexpectedTypeParameterError(TypeParameter, null);
-        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)=> throw new UnexpectedTypeParameterError(TypeParameter, null);
+        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)=> throw new UnexpectedTypeParameterError(TypeParameter, null);
         public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public void EmitCStruct(IRProgram irProgram, Emitter emitter) => throw new UnexpectedTypeParameterError(TypeParameter, null);

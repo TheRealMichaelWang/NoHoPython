@@ -97,7 +97,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     DefaultValue.ScopeForUsedTypes(typeargs, irBuilder);
             }
 
-            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer)
+            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
             {
                 if (OptimizeMessageReciever)
                 {
@@ -385,11 +385,11 @@ namespace NoHoPython.Typing
             emitter.AppendLine(");");
         }
 
-        public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
             if (RecordPrototype.PassByReference)
             {
-                EmitClosureBorrowValue(irProgram, primaryEmitter, valueCSource, responsibleDestroyer);
+                EmitClosureBorrowValue(irProgram, emitter, valueCSource, responsibleDestroyer);
                 return;
             }
 
@@ -399,19 +399,19 @@ namespace NoHoPython.Typing
                 copierCall = irProgram.RecordTypeOverloads[RecordPrototype].Find((type) => IsCompatibleWith(type)).copierCall;
 #pragma warning restore CS8602
             }
-            primaryEmitter.Append(copierCall != null ? copierCall.GetStandardIdentifier(irProgram) : $"copy_record{GetStandardIdentifier(irProgram)}");
-            primaryEmitter.Append('(');
-            valueCSource(primaryEmitter);
+            emitter.Append(copierCall != null ? copierCall.GetStandardIdentifier(irProgram) : $"copy_record{GetStandardIdentifier(irProgram)}");
+            emitter.Append('(');
+            valueCSource(emitter);
             if(!IsCircularDataStructure && copierCall == null)
             {
-                primaryEmitter.Append(')');
+                emitter.Append(')');
                 return;
             }
-            primaryEmitter.Append(", ");
+            emitter.Append(", ");
             if (copierCall == null)
-                primaryEmitter.Append($"(nhp_trace_obj_t*)");
-            responsibleDestroyer(primaryEmitter);
-            primaryEmitter.Append(')');
+                emitter.Append($"(nhp_trace_obj_t*)");
+            responsibleDestroyer(emitter);
+            emitter.Append(')');
         }
 
         public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) 
@@ -431,7 +431,7 @@ namespace NoHoPython.Typing
             emitter.Append(')');
         }
 
-        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord, null);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -526,7 +526,7 @@ namespace NoHoPython.Typing
                         if (recordProperty.DefaultValue.RequiresDisposal(irProgram, new(), false))
                             valuePromise(emitter);
                         else
-                            recordProperty.Type.EmitCopyValue(irProgram, emitter, valuePromise, (e) => e.Append("nhp_self"));
+                            recordProperty.Type.EmitCopyValue(irProgram, emitter, valuePromise, (e) => e.Append("nhp_self"), null);
                         emitter.AppendLine(';');
                     }, (e) => e.Append("nhp_self"), false);
 #pragma warning restore CS8602 

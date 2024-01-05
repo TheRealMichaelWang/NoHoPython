@@ -82,7 +82,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (Value.RequiresDisposal(irProgram, typeargs, false))
                         valuePromise(primaryEmitter);
                     else
-                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, responsibleDestroyer);
+                        Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, responsibleDestroyer, this);
                     primaryEmitter.AppendLine(';');
                 }, responsibleDestroyer, false);
 
@@ -104,7 +104,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         if (Value.RequiresDisposal(irProgram, typeargs, false))
                             valuePromise(emitter);
                         else
-                            Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valuePromise, responsibleDestroyer);
+                            Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valuePromise, responsibleDestroyer, Value);
                     }, responsibleDestroyer, false);
                     emitter.Append(')');
                 });
@@ -229,7 +229,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 foreach (Property property in targetProperties)
                 {
                     primaryEmitter.Append($"result{indirection}.{property.Name} = ");
-                    property.Type.EmitCopyValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"upper{indirection}.{property.Name}"), responsibleDestroyer);
+                    property.Type.EmitCopyValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"upper{indirection}.{property.Name}"), responsibleDestroyer, Value);
                     primaryEmitter.AppendLine(';');
                 }
                 destination((emitter) => emitter.Append($"result{indirection}"));
@@ -245,7 +245,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                             emitter.Append(", ");
 
                         emitter.Append($".{property.Name} = ");
-                        property.Type.EmitCopyValue(irProgram, emitter, IRValue.EmitDirectPromise(irProgram, Value, typeargs, responsibleDestroyer, true), responsibleDestroyer);
+                        property.Type.EmitCopyValue(irProgram, emitter, IRValue.EmitDirectPromise(irProgram, Value, typeargs, responsibleDestroyer, true), responsibleDestroyer, Value);
                         emitter.Append($".{property.Name}");
                     }
                     emitter.Append('}');

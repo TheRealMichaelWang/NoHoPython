@@ -64,7 +64,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (InitialValue.RequiresDisposal(irProgram, typeargs, false))
                         valuePromise(primaryEmitter);
                     else
-                        Variable.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, Emitter.NullPromise);
+                        Variable.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, Emitter.NullPromise, this);
                     primaryEmitter.AppendLine(';');
                 }, Emitter.NullPromise, false);
                 destination((emitter) => emitter.Append(Variable.GetStandardIdentifier()));
@@ -78,7 +78,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         if (InitialValue.RequiresDisposal(irProgram, typeargs, false))
                             valuePromise(emitter);
                         else
-                            Variable.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valuePromise, Emitter.NullPromise);
+                            Variable.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, valuePromise, Emitter.NullPromise, InitialValue);
                     }, Emitter.NullPromise, false);
                     emitter.Append(')');
                 });
@@ -129,7 +129,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     if (SetValue.RequiresDisposal(irProgram, typeargs, false))
                         valuePromise(primaryEmitter);
                     else
-                        Variable.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, Emitter.NullPromise);
+                        Variable.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, primaryEmitter, valuePromise, Emitter.NullPromise, SetValue);
                     primaryEmitter.AppendLine(';');
                 }, Emitter.NullPromise, false);
                 if (Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)

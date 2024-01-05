@@ -61,7 +61,7 @@ namespace NoHoPython.Typing
     {
         public sealed class CannotAccessElement : CodegenError
         {
-            public CannotAccessElement() : base(null, "Cannot access element from a reference type that has potentially been already released.")
+            public CannotAccessElement(IRElement? errorReportedElement) : base(errorReportedElement, "Cannot access element from a reference type that has potentially been already released.")
             {
 
             }
@@ -69,7 +69,7 @@ namespace NoHoPython.Typing
         
         public sealed class CannotMoveReleasableReferenceType : CodegenError
         {
-            public CannotMoveReleasableReferenceType() : base(null, "Cannot move/copy a releasable reference type.")
+            public CannotMoveReleasableReferenceType(IRElement? errorReportedElement) : base(errorReportedElement, "Cannot move/copy a releasable reference type.")
             {
 
             }
@@ -79,10 +79,10 @@ namespace NoHoPython.Typing
         {
             public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer)
+            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
             {
                 if (ReferenceType.Mode >= ReferenceMode.Released)
-                    throw new CannotAccessElement();
+                    throw new CannotAccessElement(errorReportedElement);
 
                 value(emitter);
                 emitter.Append("->elem");
@@ -132,10 +132,10 @@ namespace NoHoPython.Typing
             emitter.AppendLine(");");
         }
 
-        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
             if (Mode == ReferenceMode.UnreleasedCanRelease && ElementType.RequiresDisposal)
-                throw new CannotMoveReleasableReferenceType();
+                throw new CannotMoveReleasableReferenceType(errorReportedElement);
 
             if (IsCircularDataStructure)
             {
@@ -152,8 +152,8 @@ namespace NoHoPython.Typing
             emitter.Append(')');
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer, null);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord, null);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -192,7 +192,7 @@ namespace NoHoPython.Typing
 
             if (ElementType.RequiresDisposal)
             {
-                emitter.AppendStartBlock("if(ref_obj->is_released)");
+                emitter.AppendStartBlock("if(!ref_obj->is_released)");
                 ElementType.EmitFreeValue(irProgram, emitter, e => e.Append("ref_obj->elem"), e => e.Append("ref_obj"));
                 emitter.AppendLine();
                 emitter.AppendEndBlock();

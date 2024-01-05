@@ -74,7 +74,7 @@ namespace NoHoPython.Typing
         {
             public override bool RequiresDisposal(Dictionary<TypeParameter, IType> typeargs) => false;
 
-            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer)
+            public override bool EmitGet(IRProgram irProgram, Emitter emitter, Dictionary<TypeParameter, IType> typeargs, IPropertyContainer propertyContainer, Emitter.Promise value, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
             {
                 Debug.Assert(propertyContainer is TupleType);
 
@@ -123,25 +123,25 @@ namespace NoHoPython.Typing
             }
         }
 
-        public void EmitCopyValue(IRProgram irProgram, Emitter primaryEmitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
+        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
             if (RequiresDisposal)
             {
-                primaryEmitter.Append($"copy_{GetStandardIdentifier(irProgram)}(");
-                valueCSource(primaryEmitter);
+                emitter.Append($"copy_{GetStandardIdentifier(irProgram)}(");
+                valueCSource(emitter);
                 if (MustSetResponsibleDestroyer)
                 {
-                    primaryEmitter.Append(", ");
-                    responsibleDestroyer(primaryEmitter);
+                    emitter.Append(", ");
+                    responsibleDestroyer(emitter);
                 }
-                primaryEmitter.Append(')');
+                emitter.Append(')');
             }    
             else
-                valueCSource(primaryEmitter);
+                valueCSource(emitter);
         }
 
-        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord);
+        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer) => EmitCopyValue(irProgram, emitter, valueCSource, responsibleDestroyer, null);
+        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord) => EmitCopyValue(irProgram, emitter, valueCSource, newRecord, null);
 
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -184,7 +184,7 @@ namespace NoHoPython.Typing
                 for (int i = 0; i < valuePair.Value; i++)
                 {
                     emitter.Append($"\tto_ret.{valuePair.Key.Identifier}{i} = ");
-                    valuePair.Key.EmitCopyValue(irProgram, emitter, (e) => e.Append($"to_copy.{valuePair.Key.Identifier}{i}"), (e) => e.Append("responsible_destroyer"));
+                    valuePair.Key.EmitCopyValue(irProgram, emitter, (e) => e.Append($"to_copy.{valuePair.Key.Identifier}{i}"), (e) => e.Append("responsible_destroyer"), null);
                     emitter.AppendLine(";");
                 }
             }

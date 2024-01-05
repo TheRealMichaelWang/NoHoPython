@@ -22,7 +22,7 @@ namespace NoHoPython.Compilation
             if (Mode == AnalysisMode.None && !ProtectAllocFailure)
                 return $"realloc({ptr}, {newSize})";
 
-            if (Mode >= AnalysisMode.LeakSanityCheck)
+            if (Mode >= AnalysisMode.UsageMagnitudeCheck)
                 return $"nhp_realloc({ptr}, {oldSize}, {newSize})";
             return $"nhp_realloc({ptr}, {newSize})";
         }

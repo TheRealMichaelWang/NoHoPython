@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "tests/linked-list.nhp\r\nout.c\r\n-leaksan\r\n-runforme\r\n-verbose\r\n-linedir"
+      "commandLineArgs": "tests/users.nhp\r\nout.c\r\n-verbose"
     }
   }
 }

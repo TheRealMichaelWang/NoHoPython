@@ -44,9 +44,13 @@ namespace NoHoPython.IntermediateRepresentation
 
                 enumDeclaration.EmitOptionsCEnum(this, emitter);
 
+                if (enumDeclaration.IsEmpty)
+                    continue;
+
                 if (enumDeclaration.EmitMultipleCStructs)
                 {
                     foreach (EnumType enumType in EnumTypeOverloads[enumDeclaration])
+                        if(!(enumType.IsOptionEnum && enumType.GetOptions().First(option => !option.IsEmpty).GetInvalidState() != null))
                         emitter.AppendLine($"typedef struct {enumType.GetStandardIdentifier(this)} {enumType.GetCName(this)};");
                 }
                 else
@@ -98,7 +102,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void ForwardDeclareType(IRProgram irProgram, Emitter emitter)
         {
-            if (!irProgram.EnumTypeOverloads.ContainsKey(this) || IsCEnum)
+            if (!irProgram.EnumTypeOverloads.ContainsKey(this) || IsCEnum || IsEmpty)
                 return;
 
             if (EmitMultipleCStructs)
@@ -177,7 +181,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     enumType.EmitDestructor(irProgram, primaryEmitter);
                     enumType.EmitCopier(irProgram, primaryEmitter);
                 }
-                enumType.EmitOptionTypeNames(irProgram, primaryEmitter);
 
                 if (!EmitMultipleCStructs)
                     return;
@@ -199,6 +202,8 @@ namespace NoHoPython.Typing
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_empty_option_{Name}";
         public string GetCName(IRProgram irProgram) => throw new CannotCompileEmptyTypeError(null);
+        public string? GetInvalidState() => null;
+        public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
 
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent) => throw new CannotCompileEmptyTypeError(null);
         public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)=> throw new CannotCompileEmptyTypeError(null);
@@ -268,12 +273,16 @@ namespace NoHoPython.Typing
             }
         }
 
+        public delegate void MatchPromise(Emitter emitter, IType option, Emitter.Promise optionValuePromise);
+        public delegate bool MatchPredicate(IType option);
+
         private static Dictionary<EnumDeclaration, HashSet<EnumProperty>> declarationPropertyInUse = new();
         private static Dictionary<EnumType, HashSet<EnumProperty>> typePropertyInUse = new(new ITypeComparer());
 
         public bool RequiresDisposal => globalSupportedOptions[this].Value.Keys.Any((option) => option.RequiresDisposal);
         public bool MustSetResponsibleDestroyer => globalSupportedOptions[this].Value.Keys.Any((option) => option.MustSetResponsibleDestroyer);
         public bool IsTypeDependency => false;
+        public bool IsOptionEnum => globalSupportedOptions[this].Value.Count == 2 && globalSupportedOptions[this].Value.Any(option => option.Key.IsEmpty) && globalSupportedOptions[this].Value.Any(option => !option.Key.IsEmpty);
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => globalSupportedOptions[this].Value.Keys.Any((option) => option.TypeParameterAffectsCodegen(effectInfo));
 
@@ -287,10 +296,184 @@ namespace NoHoPython.Typing
 #pragma warning restore CS8603
             else if (EnumDeclaration.IsEmpty)
                 return $"{GetStandardIdentifier(irProgram)}_options_t";
+            else if (IsOptionEnum)
+            {
+                IType nonEmptyOption = globalSupportedOptions[this].Value.First(option => !option.Key.IsEmpty).Key;
+                if (nonEmptyOption.GetInvalidState() != null)
+                    return nonEmptyOption.GetCName(irProgram);
+            }
             return $"{GetStandardIdentifier(irProgram)}_t";
         }
 
-        public string GetCEnumOptionForType(IRProgram irProgram, IType type) => EnumDeclaration.GetCEnumOptionForType(irProgram, globalSupportedOptions[this].Value[type]);
+        public string? GetInvalidState()
+        {
+            if (EnumDeclaration.IsCEnum)
+            {
+                if (EnumDeclaration.Attributes.ContainsKey("InvalidState"))
+                    return EnumDeclaration.Attributes["InvalidState"];
+                else if (EnumDeclaration.Attributes.ContainsKey("NullState"))
+                    return EnumDeclaration.Attributes["NullState"];
+            }
+            return null;
+        }
+
+        public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
+
+        private string GetCEnumOptionForType(IRProgram irProgram, IType type) => EnumDeclaration.GetCEnumOptionForType(irProgram, globalSupportedOptions[this].Value[type]);
+
+        public void EmitComposeLiteral(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, IType type)
+        {
+            if (EnumDeclaration.IsEmpty)
+            {
+                emitter.Append(GetCEnumOptionForType(irProgram, type));
+                return;
+            }
+            if (IsOptionEnum)
+            {
+                IType nonEmptyOption = globalSupportedOptions[this].Value.First(option => !option.Key.IsEmpty).Key;
+                string? csrc = nonEmptyOption.GetInvalidState();
+                if (csrc != null)
+                {
+                    if (type.IsCompatibleWith(nonEmptyOption))
+                        valuePromise(emitter);
+                    else
+                        emitter.Append(csrc);
+                    return;
+                }
+            }
+            emitter.Append($"({GetCName(irProgram)}){{ .option = {GetCEnumOptionForType(irProgram, type)}");
+            if (!type.IsEmpty)
+            {
+                emitter.Append($", .data = {{ .{type.GetStandardIdentifier(irProgram)}_set = ");
+                valuePromise(emitter);
+                emitter.Append('}');
+            }
+            emitter.Append('}');
+        }
+
+        public void EmitAccessElement(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, IType type)
+        {
+            if (type.IsEmpty)
+                EmitComposeLiteral(irProgram, emitter, valuePromise, type);
+            else if (IsOptionEnum && type.GetInvalidState() != null)
+                valuePromise(emitter);
+            else
+            {
+                valuePromise(emitter);
+                emitter.Append($".data.{type.GetStandardIdentifier(irProgram)}_set");
+            }
+        }
+
+        public void EmitCheckType(IRProgram irProgram, Emitter emitter, Emitter.Promise enumPromise, IType type, bool checkIfNot = false)
+        {
+            enumPromise(emitter);
+            if (IsOptionEnum)
+            {
+                IType nonEmptyOption = globalSupportedOptions[this].Value.Where(option => !option.Key.IsEmpty).First().Key;
+                string? csrc = nonEmptyOption.GetInvalidState();
+                if (csrc != null)
+                {
+                    bool isValue = type.IsCompatibleWith(nonEmptyOption);
+                    if ((!checkIfNot && isValue) || (checkIfNot && !isValue))
+                        emitter.Append(" != ");
+                    else
+                        emitter.Append(" == ");
+                    emitter.Append(csrc);
+                    return;
+                }
+            }
+            if (!EnumDeclaration.IsEmpty)
+                emitter.Append(".option");
+            emitter.Append(' ');
+            if (checkIfNot)
+                emitter.Append("!=");
+            else
+                emitter.Append("==");
+            emitter.Append($" {GetCEnumOptionForType(irProgram, type)}");
+        }
+
+        public void EmitMatchOptions(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, MatchPromise matchPromise, Emitter.Promise? defaultHandler = null, MatchPredicate? predicate = null, bool allReturnOrBreak = false)
+        {
+            if (predicate != null && !globalSupportedOptions[this].Value.Keys.Any(option => predicate(option)))
+                return;
+
+            if (IsOptionEnum)
+            {
+                IType nonEmptyOption = globalSupportedOptions[this].Value.Where(option => !option.Key.IsEmpty).First().Key;
+                string? csrc = nonEmptyOption.GetInvalidState();
+                if(csrc != null)
+                {
+                    IType emptyOption = globalSupportedOptions[this].Value.Where(option => option.Key.IsEmpty).First().Key;
+
+                    if(predicate != null && (!predicate(emptyOption) || !predicate(nonEmptyOption)))
+                    {
+                        emitter.Append("if(");
+                        valuePromise(emitter);
+                        if (!predicate(emptyOption))
+                        {
+                            emitter.AppendStartBlock($" != {csrc})");
+                            matchPromise(emitter, nonEmptyOption, valuePromise);
+                        }
+                        else if (!predicate(nonEmptyOption))
+                        {
+                            emitter.AppendStartBlock($" == {csrc})");
+                            matchPromise(emitter, emptyOption, valuePromise);
+                        }
+                        emitter.AppendEndBlock();
+                        if(defaultHandler != null)
+                        {
+                            emitter.AppendStartBlock("else");
+                            defaultHandler(emitter);
+                            emitter.AppendEndBlock();
+                        }
+                        return;
+                    }
+
+                    emitter.Append("if(");
+                    valuePromise(emitter);
+                    emitter.AppendStartBlock($" == {csrc})");
+                    matchPromise(emitter, emptyOption, valuePromise);
+                    emitter.AppendEndBlock();
+                    emitter.AppendStartBlock("else");
+                    matchPromise(emitter, nonEmptyOption, valuePromise);
+                    emitter.AppendEndBlock();
+                    return;
+                }
+            }
+            emitter.Append("switch(");
+            valuePromise(emitter);
+            if (!EnumDeclaration.IsEmpty)
+                emitter.Append(".option");
+            emitter.AppendStartBlock(")");
+            bool uncovered = false;
+            foreach (KeyValuePair<IType, int> option in globalSupportedOptions[this].Value) {
+                if (predicate != null && !predicate(option.Key))
+                {
+                    uncovered = true;
+                    continue;
+                }
+                emitter.AppendLine($"case {EnumDeclaration.GetCEnumOptionForType(irProgram, option.Value)}:");
+                matchPromise(emitter, option.Key, e =>
+                {
+                    valuePromise(e);
+                    if (option.Key.IsEmpty)
+                    {
+                        if(!EnumDeclaration.IsEmpty)
+                            e.Append(".option");
+                        return;
+                    }
+                    e.Append($".data.{option.Key.GetStandardIdentifier(irProgram)}_set");
+                });
+                if(!allReturnOrBreak)
+                    emitter.AppendLine("break;");
+            }
+            if(uncovered && defaultHandler != null)
+            {
+                emitter.AppendLine("default:");
+                defaultHandler(emitter);
+            }
+            emitter.AppendEndBlock();
+        }
 
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
         {
@@ -335,7 +518,7 @@ namespace NoHoPython.Typing
 
         public void EmitCStruct(IRProgram irProgram, Emitter emitter)
         {
-            if (!irProgram.DeclareCompiledType(emitter, this) || EnumDeclaration.IsEmpty)
+            if (!irProgram.DeclareCompiledType(emitter, this))
                 return;
 
             if(!EnumDeclaration.EmitMultipleCStructs)
@@ -349,6 +532,9 @@ namespace NoHoPython.Typing
 
         public void EmitCStructImmediatley(IRProgram irProgram, Emitter emitter)
         {
+            if (IsOptionEnum && globalSupportedOptions[this].Value.Where(option => !option.Key.IsEmpty).First().Key.GetInvalidState() != null)
+                return;
+
             emitter.AppendLine("struct " + GetStandardIdentifier(irProgram) + " {");
             emitter.AppendLine($"\tnhp_enum_{IScopeSymbol.GetAbsolouteName(EnumDeclaration)}_options_t option;");
 
@@ -386,53 +572,41 @@ namespace NoHoPython.Typing
                     emitter.Append($"{property.Type.GetCName(irProgram)} get_{property.Name}{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} nhp_enum");
                     if (property.RequiresDisposal(typeargMap.Value))
                         emitter.Append(", void* responsible_destroyer");
-                    emitter.AppendLine(") {");
+                    emitter.AppendStartBlock(")");
 
-                    emitter.AppendLine("\tswitch(nhp_enum.option) {");
-                    foreach (KeyValuePair<IType, int> option in globalSupportedOptions[this].Value)
+                    EmitMatchOptions(irProgram, emitter, e => e.Append("nhp_enum"), (optionEmitter, option, optionValuePromise) =>
                     {
-                        emitter.AppendLine($"\tcase {EnumDeclaration.GetCEnumOptionForType(irProgram, option.Value)}:");
-                        emitter.Append("\t\treturn ");
-
-                        IPropertyContainer propertyContainer = (IPropertyContainer)option.Key;
+                        IPropertyContainer propertyContainer = (IPropertyContainer)option;
                         Property accessProperty = propertyContainer.FindProperty(property.Name);
+                        optionEmitter.Append("return ");
 
                         if (!accessProperty.RequiresDisposal(typeargMap.Value) && property.RequiresDisposal(typeargMap.Value))
                         {
-                            property.Type.EmitCopyValue(irProgram, emitter, (e) =>
+                            property.Type.EmitCopyValue(irProgram, optionEmitter, (e) =>
                             {
-                                accessProperty.EmitGet(irProgram, e, typeargMap.Value, propertyContainer, (k) => k.Append($"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set"), (k) => k.Append("responsible_destroyer"), null);
+                                accessProperty.EmitGet(irProgram, e, typeargMap.Value, propertyContainer, optionValuePromise, (k) => k.Append("responsible_destroyer"), null);
                             }, (k) => k.Append("responsible_destroyer"), null);
                         }
                         else
-                        {
-                            accessProperty.EmitGet(irProgram, emitter, typeargMap.Value, propertyContainer, (e) => e.Append($"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set"), (e) => e.Append("responsible_destroyer"),null);
-                        }
-                        emitter.AppendLine(";");
-                    }
-                    emitter.AppendLine("\t}");
-                    emitter.AppendLine("}");
+                            accessProperty.EmitGet(irProgram, optionEmitter, typeargMap.Value, propertyContainer, optionValuePromise, (e) => e.Append("responsible_destroyer"), null);
+
+                        optionEmitter.AppendLine(";");
+                    }, null, null, true);
+
+                    emitter.AppendEndBlock();
                 }
             }
         }
 
         public void EmitDestructor(IRProgram irProgram, Emitter emitter)
         {
-            emitter.AppendLine($"void free_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} nhp_enum, void* child_agent) {{");
-            emitter.AppendLine("\tswitch(nhp_enum.option) {");
-
-            foreach(KeyValuePair<IType, int> option in globalSupportedOptions[this].Value)
-                if (option.Key.RequiresDisposal)
-                {
-                    emitter.AppendLine($"\tcase {EnumDeclaration.GetCEnumOptionForType(irProgram, option.Value)}:");
-                    emitter.Append("\t\t");
-                    option.Key.EmitFreeValue(irProgram, emitter, (e) => e.Append($"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set"), (e) => e.Append("child_agent"));
-                    emitter.AppendLine();
-                    emitter.AppendLine("\t\tbreak;");
-                }
-
-            emitter.AppendLine("\t}");
-            emitter.AppendLine("}");
+            emitter.AppendStartBlock($"void free_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} nhp_enum, void* child_agent)");
+            EmitMatchOptions(irProgram, emitter, e => e.Append("nhp_enum"), (optionEmitter, option, optionValuePromise) =>
+            {
+                option.EmitFreeValue(irProgram, emitter, optionValuePromise, e => e.Append("child_agent"));
+                emitter.AppendLine();
+            }, null, option => option.RequiresDisposal);
+            emitter.AppendEndBlock();
         }
 
         public void EmitCopier(IRProgram irProgram, Emitter emitter)
@@ -442,41 +616,19 @@ namespace NoHoPython.Typing
             if (MustSetResponsibleDestroyer)
                 emitter.Append(", void* responsible_destroyer");
 
-            emitter.AppendLine(") {");
-            emitter.AppendLine($"\t{GetCName(irProgram)} copied_enum;");
-            emitter.AppendLine("\tcopied_enum.option = nhp_enum.option;");
+            emitter.AppendStartBlock(")");
 
-            emitter.AppendLine("\tswitch(nhp_enum.option) {");
-            foreach (KeyValuePair<IType, int> option in globalSupportedOptions[this].Value)
-                if (!option.Key.IsEmpty)
-                {
-                    emitter.AppendLine($"\tcase {EnumDeclaration.GetCEnumOptionForType(irProgram, option.Value)}:");
-                    emitter.Append($"\t\tcopied_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set = ");
-                    option.Key.EmitCopyValue(irProgram, emitter, (e) => e.Append($"nhp_enum.data.{option.Key.GetStandardIdentifier(irProgram)}_set"), (e) => e.Append("responsible_destroyer"), null);
-                    emitter.AppendLine(";");
-                    emitter.AppendLine("\t\tbreak;");
-                }
-            emitter.AppendLine("\t}");
-            
-            emitter.AppendLine("\treturn copied_enum;");
-            emitter.AppendLine("}");
-        }
-
-        public void EmitOptionTypeNames(IRProgram irProgram, Emitter emitter)
-        {
-            if (!irProgram.NameRuntimeTypes || EnumDeclaration.IsCEnum)
-                return;
-
-            emitter.Append($"static const char* {GetStandardIdentifier(irProgram)}_typenames[] = {{");
-
-            foreach (IType option in globalSupportedOptions[this].Value.Keys)
+            //emitter.AppendLine($"{GetCName(irProgram)} copied_enum;");
+            //emitter.AppendLine("copied_enum.option = nhp_enum.option;");
+            EmitMatchOptions(irProgram, emitter, e => e.Append("nhp_enum"), (optionEmitter, option, optionValuePromise) =>
             {
-                emitter.Append($"\t\"{option.TypeName}\"");
-                if (option != globalSupportedOptions[this].Value.Keys.Last())
-                    emitter.Append(',');
-                emitter.AppendLine();
-            }
-            emitter.AppendLine("};");
+                emitter.Append("return ");
+                EmitComposeLiteral(irProgram, emitter, k => option.EmitCopyValue(irProgram, k, optionValuePromise, e => e.Append("responsible_destroyer"), null), option);
+                emitter.AppendLine(';');
+            }, null, null);
+            
+            //emitter.AppendLine("return copied_enum;");
+            emitter.AppendEndBlock();
         }
     }
 }
@@ -498,18 +650,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
         {
             EnumType realPrototype = (EnumType)TargetType.SubstituteWithTypearg(typeargs);
-
-            if (realPrototype.EnumDeclaration.IsEmpty)
-                destination((emitter) => emitter.Append(realPrototype.GetCEnumOptionForType(irProgram, Value.Type)));
-            else if (Value.Type.IsEmpty)
-                destination((emitter) => emitter.Append($"(({realPrototype.GetCName(irProgram)}) {{.option = {realPrototype.GetCEnumOptionForType(irProgram, Value.Type.SubstituteWithTypearg(typeargs))}}})"));
-            else
-                Value.Emit(irProgram, primaryEmitter, typeargs, (valuePromise) => destination((emitter) => 
-                {
-                    emitter.Append($"(({realPrototype.GetCName(irProgram)}) {{.option = {realPrototype.GetCEnumOptionForType(irProgram, Value.Type.SubstituteWithTypearg(typeargs))}, .data = {{ .{Value.Type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set = ");
-                    valuePromise(emitter);
-                    emitter.Append("}})");
-                }), responsibleDestroyer, isTemporaryEval);
+            Value.Emit(irProgram, primaryEmitter, typeargs, (valuePromise) => destination(emitter =>
+            {
+                realPrototype.EmitComposeLiteral(irProgram, emitter, valuePromise, Value.Type.SubstituteWithTypearg(typeargs));
+            }), responsibleDestroyer, isTemporaryEval);
         }
     }
 
@@ -534,58 +678,40 @@ namespace NoHoPython.IntermediateRepresentation.Values
             primaryEmitter.AppendLine($"{enumType.GetCName(irProgram)} enum{indirection};");
             primaryEmitter.SetArgument(EnumValue, $"enum{indirection}", irProgram, typeargs, isTemporaryEval, responsibleDestroyer);
 
-            primaryEmitter.AppendStartBlock($"if(enum{indirection}.option != {enumType.GetCEnumOptionForType(irProgram, targetType)})");
-            if (ErrorReturnEnum != null)
+            primaryEmitter.Append("if(");
+            enumType.EmitCheckType(irProgram, primaryEmitter, e => e.Append($"enum{indirection}"), targetType, true);
+            primaryEmitter.AppendStartBlock(")");
+            if (ErrorReturnType != null)
             {
-                EnumType errorReturn = (EnumType)ErrorReturnEnum.SubstituteWithTypearg(typeargs);
+                EnumType errorReturn = (EnumType)ErrorReturnType.SubstituteWithTypearg(typeargs);
 
-                if (enumType.GetOptions().Count > 2)
+                enumType.EmitMatchOptions(irProgram, primaryEmitter, e => e.Append($"enum{indirection}"), (optionEmitter, option, optionValuePromise) =>
                 {
-                    primaryEmitter.AppendLine($"{errorReturn.GetCName(irProgram)} toret{indirection};");
-                    primaryEmitter.AppendLine($"switch(enum{indirection}.option) {{");
-                    foreach (IType option in enumType.GetOptions())
-                    {
-                        if (option.IsCompatibleWith(targetType))
-                            continue;
-
-                        primaryEmitter.AppendLine($"case {enumType.GetCEnumOptionForType(irProgram, option)}:");
-                        if (errorReturn.SupportsType(option))
-                        {
-                            primaryEmitter.AppendLine($"\ttoret{indirection}.option = {errorReturn.GetCEnumOptionForType(irProgram, option)}");
-                            if (!option.IsEmpty)
-                            {
-                                primaryEmitter.Append($"\ttoret{indirection}.data.{option.GetStandardIdentifier(irProgram)}_set = ");
-                                option.EmitCopyValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"enum{indirection}.data.{option.GetStandardIdentifier(irProgram)}_set"), (e) => e.Append("ret_responsible_dest"), null);
-                                primaryEmitter.AppendLine(';');
-                            }
-                        }
-                        else
-                            primaryEmitter.AppendLine($"\ttoret{indirection}.option = {errorReturn.GetCEnumOptionForType(irProgram, Primitive.Nothing)}");
-                        primaryEmitter.AppendLine("\tbreak;");
-                    }
-                    primaryEmitter.AppendLine('}');
-                    primaryEmitter.DestroyFunctionResources();
-                    primaryEmitter.AppendLine($"return toret{indirection};");
-                }
-                else
-                {
-                    IType option = enumType.GetOptions()[enumType.GetOptions()[0].IsCompatibleWith(targetType) ? 1 : 0];
-                    if (option.IsEmpty || !errorReturn.SupportsType(option))
+                    if (option.IsEmpty)
                     {
                         primaryEmitter.DestroyFunctionResources();
-                        primaryEmitter.AppendLine($"return ({errorReturn.GetCName(irProgram)}){{.option = {errorReturn.GetCEnumOptionForType(irProgram, option)}}}");
+                        primaryEmitter.Append("return ");
                     }
                     else
+                        primaryEmitter.Append($"{errorReturn.GetCName(irProgram)} toret{indirection} = ");
+
+                    if (errorReturn.SupportsType(option))
+                        errorReturn.EmitComposeLiteral(irProgram, optionEmitter, e =>
+                        {
+                            option.EmitCopyValue(irProgram, e, optionValuePromise, k => k.Append("ret_responsible_det"), null);
+                        }, option);
+                    else
+                        errorReturn.EmitComposeLiteral(irProgram, optionEmitter, Emitter.NullPromise, Primitive.Nothing);
+
+                    if (!option.IsEmpty)
                     {
-                        primaryEmitter.AppendLine($"{errorReturn.GetCName(irProgram)} toret{indirection};");
-                        primaryEmitter.AppendLine($"toret.option = {errorReturn.GetCEnumOptionForType(irProgram, option)}");
-                        primaryEmitter.Append($"toret.data.{option.GetStandardIdentifier(irProgram)}_set = ");
-                        option.EmitCopyValue(irProgram, primaryEmitter, (emitter) => emitter.Append($"enum{indirection}.data.{option.GetStandardIdentifier(irProgram)}_set"), (e) => e.Append("ret_responsible_dest"), null);
                         primaryEmitter.AppendLine(';');
                         primaryEmitter.DestroyFunctionResources();
-                        primaryEmitter.AppendLine($"return toret{indirection};");
+                        primaryEmitter.Append($"return toret{indirection}");
                     }
-                }
+
+                    primaryEmitter.AppendLine(';');
+                }, null, option => !option.IsCompatibleWith(targetType));
             }
             else
             {
@@ -593,41 +719,25 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 {
                     CallStackReporting.EmitErrorLoc(primaryEmitter, ErrorReportedElement);
                     CallStackReporting.EmitPrintStackTrace(primaryEmitter);
-                    if (irProgram.NameRuntimeTypes)
-                    {
-                        primaryEmitter.Append("printf(\"Unwrapping Error: Expected ");
-                        ErrorReportedElement.EmitSrcAsCString(primaryEmitter, true, false);
-                        primaryEmitter.Append($"to be {targetType.TypeName}, but got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{indirection}.option]);");
-                    }
-                    else
-                    {
-                        primaryEmitter.Append("puts(\"Unwrapping Error: ");
-                        ErrorReportedElement.EmitSrcAsCString(primaryEmitter, false, false);
-                        primaryEmitter.Append(" failed.\");");
-                    }
+                    primaryEmitter.Append("puts(\"Unwrapping Error: Expected ");
+                    ErrorReportedElement.EmitSrcAsCString(primaryEmitter, true, false);
+                    primaryEmitter.Append($"to be {targetType.TypeName}\");");
                 }
                 else
                 {
-                    if (irProgram.NameRuntimeTypes)
-                    {
-                        primaryEmitter.Append($"printf(\"Failed to unwrap {targetType.TypeName} from ");
-                        CharacterLiteral.EmitCString(primaryEmitter, ErrorReportedElement.SourceLocation.ToString(), true, false);
-                        primaryEmitter.Append($", got %s instead.\\n\", {enumType.GetStandardIdentifier(irProgram)}_typenames[(int)enum{indirection}.option]); ");
-                    }
-                    else
-                    {
-                        primaryEmitter.Append("puts(\"Failed to unwrap enum from value, ");
-                        CharacterLiteral.EmitCString(primaryEmitter, ErrorReportedElement.SourceLocation.ToString(), false, false);
-                        primaryEmitter.Append(".\\n\\t");
-                        ErrorReportedElement.EmitSrcAsCString(primaryEmitter, true, false);
-                        primaryEmitter.Append("\");");
-                    }
+                    primaryEmitter.Append($"puts(\"Failed to unwrap {targetType.TypeName} from enum, ");
+                    CharacterLiteral.EmitCString(primaryEmitter, ErrorReportedElement.SourceLocation.ToString(), false, false);
+                    primaryEmitter.Append(".\\n\\t");
+                    ErrorReportedElement.EmitSrcAsCString(primaryEmitter, true, false);
+                    primaryEmitter.Append("\");");
                 }
                 primaryEmitter.AppendLine("abort();");
             }
             primaryEmitter.AppendEndBlock();
             primaryEmitter.AssumeBlockResources();
-            destination((emitter) => emitter.Append($"enum{indirection}.data.{targetType.GetStandardIdentifier(irProgram)}_set"));
+
+            destination((emitter) => enumType.EmitAccessElement(irProgram, emitter, e => e.Append($"enum{indirection}"), targetType));
+            
             primaryEmitter.AppendEndBlock();
         }
 
@@ -652,13 +762,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
             EnumValue.Emit(irProgram, primaryEmitter, typeargs, (enumValuePromise) => destination((emitter) =>
             {
-                emitter.Append('(');
-                enumValuePromise(emitter);
-                if (!enumType.EnumDeclaration.IsEmpty)
-                    emitter.Append(".option");
-                emitter.Append(" == ");
-                emitter.Append(enumType.GetCEnumOptionForType(irProgram, Option.SubstituteWithTypearg(typeargs)));
-                emitter.Append(')');
+                enumType.EmitCheckType(irProgram, emitter, enumValuePromise, Option.SubstituteWithTypearg(typeargs));
             }), Emitter.NullPromise, true);
         }
     }

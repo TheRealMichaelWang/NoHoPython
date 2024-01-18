@@ -43,6 +43,8 @@ namespace NoHoPython.Typing
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
         public string GetCName(IRProgram irProgram) => throw new UnexpectedTypeParameterError(TypeParameter, null);
+        public string? GetInvalidState() => throw new UnexpectedTypeParameterError(TypeParameter, null);
+        public Emitter.SetPromise? IsInvalid(Emitter emitter) => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public string GetStandardIdentifier(IRProgram irProgram) => $"type_param_{TypeParameter.Name}";
 
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent) => throw new UnexpectedTypeParameterError(TypeParameter, null);

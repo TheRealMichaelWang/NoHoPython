@@ -8,17 +8,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public sealed partial class EnumDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
-        public static RefinementContext.RefinementEmitter GetRefinedEnumEmitter(EnumType enumType, IType type)
-        {
-            if (type.IsEmpty)
-                return (IRProgram irProgram, Emitter emitter, Emitter.Promise value, Dictionary<TypeParameter, IType> typeargs) => emitter.Append(enumType.GetCEnumOptionForType(irProgram, type));
-
-            return (IRProgram irProgram, Emitter emitter, Emitter.Promise value, Dictionary<TypeParameter, IType> typeargs) =>
-            {
-                value(emitter);
-                emitter.Append($".data.{type.SubstituteWithTypearg(typeargs).GetStandardIdentifier(irProgram)}_set");
-            };
-        }
+        public static RefinementContext.RefinementEmitter GetRefinedEnumEmitter(EnumType enumType, IType type) => (IRProgram irProgram, Emitter emitter, Emitter.Promise value, Dictionary<TypeParameter, IType> typeargs) => enumType.EmitAccessElement(irProgram, emitter, value, type);
 
         public Syntax.IAstElement ErrorReportedElement { get; private set; }
         public SymbolContainer ParentContainer { get; private set; }
@@ -143,7 +133,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         
         public IRValue EnumValue { get; private set; }
         public IType Type { get; private set; }
-        public EnumType? ErrorReturnEnum { get; private set; }
+        public EnumType? ErrorReturnType { get; private set; }
 
         public bool IsTruey => false;
         public bool IsFalsey => false;
@@ -169,7 +159,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                             if (!option.IsCompatibleWith(type) && !errorReturn.SupportsType(option))
                                 throw new UnexpectedTypeException(errorReturn, ErrorReportedElement);
                     }
-                    ErrorReturnEnum = errorReturn;
+                    ErrorReturnType = errorReturn;
                 }
 #pragma warning restore CS8600
             }
@@ -177,15 +167,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 throw new UnexpectedTypeException(EnumValue.Type, errorReportedElement);
         }
 
-        private UnwrapEnumValue(IRValue enumValue, IType type, EnumType? errorReturnEnum, Syntax.IAstElement errorReportedElement)
+        private UnwrapEnumValue(IRValue enumValue, IType type, EnumType? errorReturnType, Syntax.IAstElement errorReportedElement)
         {
             EnumValue = enumValue;
             Type = type;
-            ErrorReturnEnum = errorReturnEnum;
+            ErrorReturnType = errorReturnType;
             ErrorReportedElement = errorReportedElement;
         }
 
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new UnwrapEnumValue(EnumValue.SubstituteWithTypearg(typeargs), Type.SubstituteWithTypearg(typeargs), (EnumType?)ErrorReturnEnum?.SubstituteWithTypearg(typeargs), ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new UnwrapEnumValue(EnumValue.SubstituteWithTypearg(typeargs), Type.SubstituteWithTypearg(typeargs), (EnumType?)ErrorReturnType?.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     public sealed partial class CheckEnumOption : IRValue
@@ -252,6 +242,8 @@ namespace NoHoPython.Typing
             }
             return false;
         }
+        
+        public bool IsSuperType(IType type) => false;
     }
 
     public sealed partial class EnumType : IType, IPropertyContainer
@@ -275,7 +267,7 @@ namespace NoHoPython.Typing
         private static Dictionary<EnumType, Lazy<Dictionary<IType, int>>> globalSupportedOptions = new(new ITypeComparer());
         private Lazy<Dictionary<TypeParameter, IType>> typeargMap;
 
-        public bool IsNativeCType => false;
+        public bool IsNativeCType => IsEmpty || EnumDeclaration.Attributes.ContainsKey("CEnum") || (IsOptionEnum && GetOptions().First(option => !option.IsEmpty).IsNativeCType);
         public string TypeName => $"{EnumDeclaration.Name}{(TypeArguments.Count == 0 ? string.Empty : $"<{string.Join(", ", TypeArguments.ConvertAll((arg) => arg.TypeName))}>")}";
         public string Identifier => IType.GetIdentifier(IScopeSymbol.GetAbsolouteName(EnumDeclaration), TypeArguments.ToArray());
         public string PrototypeIdentifier => IType.GetPrototypeIdentifier(IScopeSymbol.GetAbsolouteName(EnumDeclaration), EnumDeclaration.TypeParameters);
@@ -369,6 +361,8 @@ namespace NoHoPython.Typing
 
             return false;
         }
+
+        public bool IsSuperType(IType type) => GetOptions().Any(option => option.IsCompatibleWith(type));
     }
 }
 

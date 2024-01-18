@@ -84,7 +84,7 @@ namespace NoHoPython.Syntax
                 Console.WriteLine(message);
         }
 
-        public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, bool mainEntryPoint, MemoryAnalyzer memoryAnalyzer)
+        public IRProgram ToIRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool emitLineDirectives, bool mainEntryPoint, MemoryAnalyzer memoryAnalyzer)
         {
             PrintVerbose("Scoping compile heads...");
             List<ProcedureDeclaration> compileHeads = new();
@@ -115,7 +115,7 @@ namespace NoHoPython.Syntax
                 }
             }
 
-            return new(doBoundsChecking, eliminateAsserts, doCallStack, nameRuntimeTypes, emitLineDirectives,
+            return new(doBoundsChecking, eliminateAsserts, doCallStack, emitLineDirectives,
                 RecordDeclarations, InterfaceDeclarations, EnumDeclarations, foreignTypeOverloads.Keys.ToList(), ProcedureDeclarations.ConvertAll((p) => p.Item1), new List<string>()
                 {
                     "<stdio.h>",
@@ -173,7 +173,6 @@ namespace NoHoPython.IntermediateRepresentation
         public bool DoBoundsChecking { get; private set; }
         public bool EliminateAsserts { get; private set; }
         public bool DoCallStack { get; private set; }
-        public bool NameRuntimeTypes { get; private set; }
         public bool EmitLineDirectives { get;private set; } 
 
         private Dictionary<IType, HashSet<IType>> typeDependencyTree;
@@ -181,12 +180,11 @@ namespace NoHoPython.IntermediateRepresentation
 
         public MemoryAnalyzer MemoryAnalyzer { get; private set; }
 
-        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool nameRuntimeTypes, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ForeignCDeclaration> foreignCDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<TupleType> usedTupleTypes, List<IType> bufferTypes, List<ReferenceType> usedReferenceTypes, List<ProcedureType> usedProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<ForeignCDeclaration, List<ForeignCType>> foreignTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
+        public IRProgram(bool doBoundsChecking, bool eliminateAsserts, bool doCallStack, bool emitLineDirectives, List<RecordDeclaration> recordDeclarations, List<InterfaceDeclaration> interfaceDeclarations, List<EnumDeclaration> enumDeclarations, List<ForeignCDeclaration> foreignCDeclarations, List<ProcedureDeclaration> procedureDeclarations, List<string> includedCFiles, List<ArrayType> usedArrayTypes, List<TupleType> usedTupleTypes, List<IType> bufferTypes, List<ReferenceType> usedReferenceTypes, List<ProcedureType> usedProcedureTypes, List<ProcedureReference> usedProcedureReferences, Dictionary<ProcedureDeclaration, List<ProcedureReference>> procedureOverloads, Dictionary<EnumDeclaration, List<EnumType>> enumTypeOverloads, Dictionary<InterfaceDeclaration, List<InterfaceType>> interfaceTypeOverload, Dictionary<RecordDeclaration, List<RecordType>> recordTypeOverloads, Dictionary<ForeignCDeclaration, List<ForeignCType>> foreignTypeOverloads, Dictionary<IType, HashSet<IType>> typeDependencyTree, MemoryAnalyzer memoryAnalyzer)
         {
             DoBoundsChecking = doBoundsChecking;
             EliminateAsserts = eliminateAsserts;
             DoCallStack = doCallStack;
-            NameRuntimeTypes = nameRuntimeTypes;
             EmitLineDirectives = emitLineDirectives;
 
             RecordDeclarations = recordDeclarations;

@@ -159,6 +159,8 @@ namespace NoHoPython.Typing
             return false;
         }
 
+        public bool IsSuperType(IType type) => type is IPropertyContainer propertyContainer && SupportsProperties(propertyContainer.GetProperties());
+
         public bool SupportsProperties(List<Property> properties)
         {
             bool SupportsProperty(InterfaceDeclaration.InterfaceProperty requiredProperty)

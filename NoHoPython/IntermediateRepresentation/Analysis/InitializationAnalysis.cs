@@ -34,6 +34,14 @@ namespace NoHoPython.IntermediateRepresentation
 
 namespace NoHoPython.IntermediateRepresentation.Statements
 {
+    public sealed class AllCodePathsMustInitializeProperty : IRGenerationError
+    {
+        public AllCodePathsMustInitializeProperty(Syntax.IAstElement errorReportedElement, RecordDeclaration.RecordProperty property) : base(errorReportedElement, $"Property {property.Type.TypeName} {property.Name} must be initialized at every code path") 
+        {
+
+        }
+    }
+
     partial class EnumDeclaration
     {
         public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration) => throw new InvalidOperationException();
@@ -110,24 +118,33 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class IfElseBlock
     {
+        public static void AnalyzeBranchedInitializations(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, Syntax.IAstElement errorReportedElement, params SortedSet<RecordDeclaration.RecordProperty>[] branchInitializedProperties)
+        {
+            SortedSet<RecordDeclaration.RecordProperty> common = branchInitializedProperties.First();
+            for(int i = 1; i < branchInitializedProperties.Length; i++)
+            {
+                foreach (RecordDeclaration.RecordProperty property in common) {
+                    if (!branchInitializedProperties[i].Contains(property))
+                        throw new AllCodePathsMustInitializeProperty(errorReportedElement, property);
+                }
+                foreach (RecordDeclaration.RecordProperty property in branchInitializedProperties[i])
+                {
+                    if (!common.Contains(property))
+                        throw new AllCodePathsMustInitializeProperty(errorReportedElement, property);
+                }
+            }
+            foreach (RecordDeclaration.RecordProperty property in common)
+                initializedProperties.Add(property);
+        }
+
         public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration)
         {
             SortedSet<RecordDeclaration.RecordProperty> ifTrueInitialized = new(initializedProperties);
             SortedSet<RecordDeclaration.RecordProperty> ifFalseInitialized = new(initializedProperties);
-
             Condition.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
             IfTrueBlock.ConstructorMutabilityAnalysis(ifTrueInitialized, recordDeclaration);
             IfFalseBlock.ConstructorMutabilityAnalysis(ifFalseInitialized, recordDeclaration);
-
-            foreach(RecordDeclaration.RecordProperty property in initializedProperties)
-            {
-                ifTrueInitialized.Remove(property);
-                ifFalseInitialized.Remove(property);
-            }
-
-            foreach (RecordDeclaration.RecordProperty initializedProperty in ifTrueInitialized)
-                if (ifFalseInitialized.Contains(initializedProperty))
-                    initializedProperties.Add(initializedProperty);
+            AnalyzeBranchedInitializations(initializedProperties, ErrorReportedElement, ifTrueInitialized, ifFalseInitialized);
         }
 
         public void MessageReceiverMutabilityAnalysis()
@@ -192,43 +209,23 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (!IsExhaustive)
                 return;
 
-            List<SortedSet<RecordDeclaration.RecordProperty>> handlerInitialized = new(MatchHandlers.Count);
+            MatchValue.ConstructorMutabilityAnalysis(initializedProperties, recordDeclaration, true);
 
+            List<SortedSet<RecordDeclaration.RecordProperty>> handlerInitialized = new(MatchHandlers.Count);
             if (DefaultHandler != null)
             {
                 SortedSet<RecordDeclaration.RecordProperty> defaultInitialized = new(initializedProperties);
                 DefaultHandler.ConstructorMutabilityAnalysis(defaultInitialized, recordDeclaration);
                 handlerInitialized.Add(defaultInitialized);
             }
-
             foreach (MatchHandler handler in MatchHandlers)
             {
                 SortedSet<RecordDeclaration.RecordProperty> handlerInitted = new(initializedProperties);
                 handler.ToExecute.ConstructorMutabilityAnalysis(handlerInitted, recordDeclaration);
                 handlerInitialized.Add(handlerInitted);
             }
-            if (handlerInitialized.Count > 0)
-            {
-                foreach(SortedSet<RecordDeclaration.RecordProperty> s in handlerInitialized)
-                {
-                    foreach (RecordDeclaration.RecordProperty prop in initializedProperties)
-                        s.Remove(prop);
-                }
 
-                SortedSet<RecordDeclaration.RecordProperty> commonInit = handlerInitialized[0];
-                foreach (RecordDeclaration.RecordProperty common in commonInit)
-                {
-                    bool initFlag = true;
-                    for (int i = 1; i < handlerInitialized.Count; i++)
-                        if (!handlerInitialized[i].Contains(common))
-                        {
-                            initFlag = false;
-                            break;
-                        }
-                    if (initFlag)
-                        initializedProperties.Add(common);
-                }
-            }
+            IfElseBlock.AnalyzeBranchedInitializations(initializedProperties, ErrorReportedElement, handlerInitialized.ToArray());
         }
 
         public void MessageReceiverMutabilityAnalysis()
@@ -925,15 +922,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             IfTrueValue.ConstructorMutabilityAnalysis(ifTrueInitialized, recordDeclaration, isUsingValue);
             IfTrueValue.ConstructorMutabilityAnalysis(ifFalseInitialized, recordDeclaration, isUsingValue);
 
-            foreach (RecordDeclaration.RecordProperty property in initializedProperties)
-            {
-                ifTrueInitialized.Remove(property);
-                ifFalseInitialized.Remove(property);
-            }
-
-            foreach (RecordDeclaration.RecordProperty initializedProperty in ifTrueInitialized)
-                if (ifFalseInitialized.Contains(initializedProperty))
-                    initializedProperties.Add(initializedProperty);
+            IfElseBlock.AnalyzeBranchedInitializations(initializedProperties, ErrorReportedElement, ifTrueInitialized, ifFalseInitialized);
         }
 
         public void MessageReceiverMutabilityAnalysis()

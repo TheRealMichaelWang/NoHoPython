@@ -134,6 +134,9 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => GetSource(Declaration.CReferenceSource, irProgram);
 
+        public string? GetInvalidState() => Declaration.InvalidState;
+        public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
+
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
         {
             if (Declaration.Destructor != null)
@@ -142,6 +145,8 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
+            if(Declaration.IsResource)
+
             if (Declaration.Copier != null)
                 emitter.Append(GetSource(Declaration.Copier, irProgram, valueCSource, responsibleDestroyer));
             else

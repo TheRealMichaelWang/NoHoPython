@@ -89,6 +89,8 @@ namespace NoHoPython.Typing
             }
             return false;
         }
+
+        public bool IsSuperType(IType type) => false;
     }
 }
 

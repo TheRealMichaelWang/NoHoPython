@@ -34,6 +34,9 @@ namespace NoHoPython.IntermediateRepresentation
         private Stack<int> functionDestructorFrames;
         private SortedSet<int> destructionExemptions;
 
+        private Stack<Promise> constructorPropertyDestructors;
+        private bool isInConstructor = false;
+
         public bool BufferMode { get; private set; }
 
         public Emitter(string outputPath, bool emitLineDirectives)
@@ -52,6 +55,7 @@ namespace NoHoPython.IntermediateRepresentation
             loopDestructorFrames = new();
             functionDestructorFrames = new();
             destructionExemptions = new();
+            constructorPropertyDestructors = new();
         }
 
         public Emitter()
@@ -67,6 +71,7 @@ namespace NoHoPython.IntermediateRepresentation
             loopDestructorFrames = new();
             functionDestructorFrames = new();
             destructionExemptions = new();
+            constructorPropertyDestructors = new();
         }
 
         public void Append(string str)
@@ -141,7 +146,13 @@ namespace NoHoPython.IntermediateRepresentation
         }
 
         public void DeclareLoopBlock() => loopDestructorFrames.Push(resourceDestructors.Count);
-        public void DeclareFunctionBlock() => functionDestructorFrames.Push(resourceDestructors.Count);
+        
+        public void DeclareFunctionBlock(bool isConstructor = false)
+        {
+            isInConstructor = isConstructor;
+            functionDestructorFrames.Push(resourceDestructors.Count);
+        }
+        
         public void EndLoopBlock() => DestroyResources(loopDestructorFrames.Peek(), loopDestructorFrames.Pop());
         public void EndFunctionBlock() => DestroyResources(functionDestructorFrames.Peek(), functionDestructorFrames.Pop());
 
@@ -154,15 +165,17 @@ namespace NoHoPython.IntermediateRepresentation
                 resourceDestructors.Pop();
         }
 
+        //all resources not as deep (from top of resource stack) as depth are destroyed
+        //all resources not as deep (from top of resource stack) as frame limit are forgotten
         private void DestroyResources(int depth, int frameLimit)
         {
             Stack<Promise> recoveredPromises = new();
-            int exemption_id;
-            while ((exemption_id = resourceDestructors.Count) > depth)
+            int resource_id;
+            while ((resource_id = resourceDestructors.Count) > depth)
             {
                 Promise p = resourceDestructors.Pop();
-                if (destructionExemptions.Contains(exemption_id))
-                    destructionExemptions.Remove(exemption_id);
+                if (destructionExemptions.Contains(resource_id))
+                    destructionExemptions.Remove(resource_id);
                 else
                     p(this);
                 if (resourceDestructors.Count < frameLimit)
@@ -200,6 +213,34 @@ namespace NoHoPython.IntermediateRepresentation
         {
             resourceDestructors.Push(resourceDestructor);
             return resourceDestructors.Count;
+        }
+
+        public void AddConstructorResourceDestructor(Promise resourceDestructor)
+        {
+            if (!isInConstructor)
+                return;
+
+            constructorPropertyDestructors.Push(resourceDestructor);
+        }
+
+        public void DestroyConstructorResources(Promise? destroyCondition)
+        {
+            if (!isInConstructor || functionDestructorFrames.Count > 1)
+                return;
+            isInConstructor = false;
+
+            if (destroyCondition == null || constructorPropertyDestructors.Count == 0)
+                return;
+
+            Append("if(");
+            destroyCondition(this);
+            AppendStartBlock(")");
+            while (constructorPropertyDestructors.Count > 0)
+            {
+                constructorPropertyDestructors.Pop()(this);
+                AppendLine();
+            }
+            AppendEndBlock();
         }
 
         public string GetBuffered()

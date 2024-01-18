@@ -175,9 +175,9 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void RefineAssumeType(AstIRProgramBuilder irBuilder, (IType, RefinementContext.RefinementEmitter?) assumedRefinement)
         {
-            if (CanMutateArguments && Type is ReferenceType referenceType && referenceType.Mode == ReferenceType.ReferenceMode.Released)
+            if (CanMutateArguments && assumedRefinement.Item1.IsSuperType(Type))
             {
-                foreach (IRValue argument in Arguments.Where(argument => (argument.Type.IsCompatibleWith(Type) || argument.Type.ContainsType(Type)) && !argument.IsReadOnly))
+                foreach (IRValue argument in Arguments.Where(argument => argument.Type.IsCompatibleWith(Type) && !argument.IsReadOnly))
                     argument.RefineAssumeType(irBuilder, assumedRefinement);
             }
         }

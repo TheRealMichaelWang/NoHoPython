@@ -230,6 +230,8 @@ namespace NoHoPython.Typing
         }
 
         public string GetCName(IRProgram irProgram) => StandardProcedureType;
+        public string? GetInvalidState() => "NULL";
+        public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
 
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent) 
         {
@@ -327,6 +329,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 EmitInitialize(irProgram, emitter, typeargs);
                 EmitNoOpen(irProgram, emitter, typeargs, false);
                 emitter.EndFunctionBlock();
+                if (procedureReference.IsOptionalConstructor)
+                    emitter.DestroyConstructorResources(null);
             }
         }
     }
@@ -342,6 +346,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         private ProcedureType anonProcedureType;
         private ProcedureReference? complementaryProcedureReference = null;
         private bool emittedCapturedContextStruct = false;
+
+        public bool IsOptionalConstructor => ProcedureDeclaration.ParentContainer is RecordDeclaration && ProcedureDeclaration.Name == "__init__" && ReturnType is BooleanType;
 
         public ProcedureReference ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder)
         {
@@ -417,7 +423,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public Dictionary<TypeParameter, IType> Emit(IRProgram irProgram, Emitter emitter)
         {
             EmitCFunctionHeader(irProgram, emitter);
-            emitter.DeclareFunctionBlock();
+            emitter.DeclareFunctionBlock(IsOptionalConstructor);
             emitter.AppendStartBlock();
             if (IsAnonymous)
             {
@@ -587,7 +593,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             primaryEmitter.DestroyFunctionResources();
             if (ToReturn.Type is not NothingType)
+            {
+                if (ToReturn.Type is BooleanType)
+                    primaryEmitter.DestroyConstructorResources(e => e.Append("!nhp_toret"));
                 primaryEmitter.AppendLine("return nhp_toret;");
+            }
             else
                 primaryEmitter.AppendLine("return;");
         }

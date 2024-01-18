@@ -92,6 +92,9 @@ namespace NoHoPython.Typing
         public bool MustSetResponsibleDestroyer => ValueTypes.Keys.Any((type) => type.MustSetResponsibleDestroyer);
         public bool IsTypeDependency => true;
 
+        public string? GetInvalidState() => null;
+        public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
+
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo)
         {
             if (effectInfo.ContainsKey(this))

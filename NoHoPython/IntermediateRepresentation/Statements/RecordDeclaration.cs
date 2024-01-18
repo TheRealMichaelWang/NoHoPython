@@ -46,6 +46,16 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         }
     }
 
+    public sealed class RecordConstructorMustBePure : IRGenerationError
+    {
+        public RecordDeclaration RecordDeclaration { get; private set; }
+
+        public RecordConstructorMustBePure(RecordDeclaration recordDeclaration, Syntax.IAstElement? errorReportedElement = null, bool isConstructor = true) : base(errorReportedElement ?? recordDeclaration.ErrorReportedElement, $"Record {recordDeclaration.Name}'s {(isConstructor ? "constructor" : "copier")} must be marked as pure.")
+        {
+            RecordDeclaration = recordDeclaration;
+        }
+    }
+
     public interface IPropertyContainer
     {
         public static void SanitizePropertyNames(List<Property> properties, Syntax.IAstElement errorReportedElement)
@@ -129,6 +139,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public override bool IsGloballyNavigable => false;
 
         public RecordType GetSelfType(Syntax.AstIRProgramBuilder irBuilder) => new(this, TypeParameters.ConvertAll((TypeParameter parameter) => (IType)new TypeParameterReference(irBuilder.ScopedProcedures.Count > 0 ? irBuilder.ScopedProcedures.Peek().SanitizeTypeParameter(parameter) : parameter)), ErrorReportedElement);
+
+#pragma warning disable CS8604 // Possible null reference argument.
+        public bool ConstructorReturnsOptional { get => Primitive.Boolean.IsCompatibleWith(Constructor.ReturnType); }
+#pragma warning restore CS8604 // Possible null reference argument.
 
         public string Name { get; private set; }
         public readonly List<TypeParameter> TypeParameters;
@@ -307,6 +321,8 @@ namespace NoHoPython.Typing
             }
             return false;
         }
+
+        public bool IsSuperType(IType type) => false;
     }
 }
 
@@ -345,12 +361,22 @@ namespace NoHoPython.Syntax.Statements
             IRProperties = Properties.ConvertAll((RecordProperty property) => new IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty(property.Identifier, property.Type.ToIRType(irBuilder, this), property.IsReadOnly, selfType, IRRecordDeclaration));
             messageRecieverPropertyMap = new(MessageRecievers.Count);
 
+            ProcedureDeclaration? constructor = null;
+            ProcedureDeclaration? copier = null;
+            ProcedureDeclaration? destructor = null;
             foreach (ProcedureDeclaration messageReciever in MessageRecievers)
             {
                 messageReciever.ForwardDeclare(irBuilder);
                 if (messageReciever.Name == "__init__")
+                {
                     IRRecordDeclaration.DelayedLinkSetConstructorParameterTypes(messageReciever.Parameters.ConvertAll((parameter) => parameter.Type.ToIRType(irBuilder, messageReciever)));
-                else if (messageReciever.Name != "__copy__" && messageReciever.Name != "__del__")
+                    constructor = messageReciever;
+                }
+                else if (messageReciever.Name == "__copy__")
+                    copier = messageReciever;
+                else if (messageReciever.Name == "__del__")
+                    destructor = messageReciever;
+                else
                 {
                     var recordProperty = messageReciever.GenerateProperty(irBuilder, selfType);
                     IRProperties.Add(recordProperty);
@@ -361,6 +387,8 @@ namespace NoHoPython.Syntax.Statements
 
             //link property definitions
             IRRecordDeclaration.DelayedLinkSetProperties(IRProperties);
+            Debug.Assert(constructor != null);
+            IRRecordDeclaration.DelayedLinkSetConstructor(constructor?.IRProcedureDeclaration, destructor?.IRProcedureDeclaration, copier?.IRProcedureDeclaration);
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();
         }
@@ -394,12 +422,10 @@ namespace NoHoPython.Syntax.Statements
 
             if (Constructor == null)
                 throw new RecordMustDefineConstructorError(IRRecordDeclaration);
-            else if (Constructor.ReturnType is not NothingType)
+            else if (Constructor.ReturnType is not NothingType && Constructor.ReturnType is not BooleanType)
 #pragma warning disable CS8604 // Return type already linked
                 throw new UnexpectedTypeException(Constructor.ReturnType, Primitive.Nothing, Constructor.ErrorReportedElement);
 #pragma warning restore CS8604
-            else if (Constructor.Purity != Purity.Pure)
-                throw new RecordConstructorMustBePure(IRRecordDeclaration, Constructor.ErrorReportedElement);
             if (Destructor != null) 
             {
 #pragma warning disable CS8604 // return type already linked
@@ -410,17 +436,16 @@ namespace NoHoPython.Syntax.Statements
                 else if (Destructor.Parameters.Count != 0)
                     throw new UnexpectedTypeArgumentsException(0, Destructor.Parameters.Count, Destructor.ErrorReportedElement);
 #pragma warning restore CS8602
-                else if (Copier == null)
+                else if (Copier == null && !PassByReference)
                     throw new RecordMustDefineCopierError(IRRecordDeclaration);
             }
-            IRRecordDeclaration.DelayedLinkSetConstructor(Constructor, Destructor, Copier);
 
             RecordType selfType = IRRecordDeclaration.GetSelfType(irBuilder);
             if(Copier != null)
             {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
                 if (!Copier.ReturnType.IsCompatibleWith(selfType))
-                    throw new UnexpectedTypeException(Copier.ReturnType, selfType, Copier.ErrorReportedElement);
+                    throw new UnexpectedTypeException(selfType, Copier.ReturnType, Copier.ErrorReportedElement);
                 else if(Copier.Parameters.Count != 0)
                     throw new UnexpectedTypeArgumentsException(0, Copier.Parameters.Count, Copier.ErrorReportedElement);
                 else if (Copier.Purity != Purity.Pure)

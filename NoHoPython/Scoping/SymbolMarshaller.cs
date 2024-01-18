@@ -69,6 +69,7 @@ namespace NoHoPython.Scoping
             public bool SomeCodePathsBreak() => throw new InvalidOperationException();
             public void FunctionMutabilityAnalysis() => throw new InvalidOperationException();
             public void EnsureMinimumPurity(Purity purity) => throw new InvalidOperationException();
+            public AbortStatement? AllCodePathsAbort() => throw new InvalidOperationException();
         }
 
         public Module CurrentModule => usedModuleStack.Peek();

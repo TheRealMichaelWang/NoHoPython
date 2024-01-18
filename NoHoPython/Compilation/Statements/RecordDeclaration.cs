@@ -40,6 +40,23 @@ namespace NoHoPython.Syntax
 
 namespace NoHoPython.IntermediateRepresentation
 {
+    public sealed class CannotCopyRecord : CodegenError
+    {
+        private AbortStatement abortStatement;
+
+        public CannotCopyRecord(IRElement? errorReportedElement, RecordType recordType, AbortStatement abortStatement) : base(errorReportedElement, $"Cannot copy record {recordType.TypeName}, per user-defined custom copier.")
+        {
+            this.abortStatement = abortStatement;
+        }
+
+        public override void Print()
+        {
+            base.Print();
+            if (abortStatement.AbortMessage != null)
+                Console.WriteLine($"\tMessage From Record: {abortStatement.AbortMessage.ErrorReportedElement}");
+        }
+    }
+
     partial class IRProgram
     {
         public readonly Dictionary<RecordDeclaration, List<RecordType>> RecordTypeOverloads;
@@ -61,7 +78,8 @@ namespace NoHoPython.IntermediateRepresentation
 }
 
 namespace NoHoPython.IntermediateRepresentation.Statements
-{
+{ 
+
     partial class RecordDeclaration
     {
 #pragma warning disable CS8604 // Possible null reference argument.
@@ -361,6 +379,8 @@ namespace NoHoPython.Typing
         public string GetOriginalStandardIdentifer(IRProgram irProgram) => $"nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}{string.Join(string.Empty, TypeArguments.ConvertAll((typearg) => $"_{typearg.GetStandardIdentifier(irProgram)}"))}";
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t*";
+        public string? GetInvalidState() => "NULL";
+        public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
         public string GetCHeapSizer(IRProgram irProgram) => $"sizeof({GetStandardIdentifier(irProgram)}_t)";
 
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
@@ -399,6 +419,11 @@ namespace NoHoPython.Typing
                 copierCall = irProgram.RecordTypeOverloads[RecordPrototype].Find((type) => IsCompatibleWith(type)).copierCall;
 #pragma warning restore CS8602
             }
+
+            AbortStatement? abortStatement;
+            if (copierCall != null && (abortStatement = copierCall.ProcedureDeclaration.CodeBlockAllCodePathsAbort()) != null)
+                throw new CannotCopyRecord(errorReportedElement, this, abortStatement);
+
             emitter.Append(copierCall != null ? copierCall.GetStandardIdentifier(irProgram) : $"copy_record{GetStandardIdentifier(irProgram)}");
             emitter.Append('(');
             valueCSource(emitter);
@@ -446,7 +471,8 @@ namespace NoHoPython.Typing
 
             constructorCall = constructorCall.ScopeForUsedTypes(irBuilder);
             destructorCall = destructorCall?.ScopeForUsedTypes(irBuilder);
-            copierCall = copierCall?.ScopeForUsedTypes(irBuilder);
+            if(copierCall?.ProcedureDeclaration.AllCodePathsAbort() == null)
+                copierCall = copierCall?.ScopeForUsedTypes(irBuilder);
             properties.Value.ForEach((property) => property.ScopeForUsedTypes(irBuilder));
         }
 
@@ -484,6 +510,7 @@ namespace NoHoPython.Typing
 
         public void EmitConstructorCHeader(IRProgram irProgram, Emitter emitter)
         {
+            //doesn't actually emit create enum code directly
             emitter.Append($"{GetCName(irProgram)} construct_{GetOriginalStandardIdentifer(irProgram)}(");
             for (int i = 0; i < constructorParameterTypes.Value.Count; i++)
             {
@@ -532,11 +559,29 @@ namespace NoHoPython.Typing
 #pragma warning restore CS8602 
                 }
 
+
+            if (RecordPrototype.ConstructorReturnsOptional)
+                emitter.Append("if(!");
+            
             emitter.Append($"{constructorCall.GetStandardIdentifier(irProgram)}(");
             for (int i = 0; i < constructorParameterTypes.Value.Count; i++)
                 emitter.Append($"param{i}, ");
-            emitter.AppendLine("nhp_self);");
+            emitter.Append("nhp_self)");
             
+            if (RecordPrototype.ConstructorReturnsOptional) {
+                emitter.AppendStartBlock(")");
+
+                foreach (RecordDeclaration.RecordProperty recordProperty in properties.Value)
+                    if (recordProperty.HasDefaultValue && !recordProperty.OptimizeMessageReciever)
+                        recordProperty.Type.EmitFreeValue(irProgram, emitter, e => e.Append($"nhp_self->{recordProperty.Name}"), e => e.Append("parent_record"));
+
+                emitter.AppendLine(irProgram.MemoryAnalyzer.Dealloc("nhp_self", GetCHeapSizer(irProgram)));
+                emitter.AppendLine("return NULL;");
+                emitter.AppendEndBlock();
+            }
+            else
+                emitter.AppendLine(';');
+
             emitter.AppendLine("return nhp_self;");
             emitter.AppendEndBlock();
         }

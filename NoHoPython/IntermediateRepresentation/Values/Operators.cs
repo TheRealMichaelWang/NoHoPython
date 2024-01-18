@@ -321,7 +321,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 return new SetPropertyValue(record, name, value, irBuilder, errorReportedElement);
             }
             if (GetPropertyValue.HasMessageReceiver(record, $"set_{name}", irBuilder))
-                AnonymousProcedureCall.SendMessage(record, $"set_{name}", null, new(), irBuilder, errorReportedElement);
+                return AnonymousProcedureCall.SendMessage(record, $"set_{name}", null, new() { value }, irBuilder, errorReportedElement);
 
             throw new UnexpectedTypeException(record.Type, $"Type doesn't contain property {name}.", errorReportedElement);
         }

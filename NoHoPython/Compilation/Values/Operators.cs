@@ -522,6 +522,15 @@ namespace NoHoPython.IntermediateRepresentation.Values
                         Value.Type.SubstituteWithTypearg(typeargs).EmitCopyValue(irProgram, emitter, IRValue.EmitDirectPromise(irProgram, Value, typeargs, record, false), record, Value);
                     emitter.Append(')');
                 });
+
+            if (IsInitializingProperty && Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+            {
+                primaryEmitter.AddConstructorResourceDestructor(k => Type.SubstituteWithTypearg(typeargs).EmitFreeValue(irProgram, k, e =>
+                {
+                    IRValue.EmitDirect(irProgram, e, Record, typeargs, Emitter.NullPromise, isTemporaryEval);
+                    e.Append($"->{Property.Name}");
+                }, responsibleDestroyer));
+            }
         }
 
         public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);

@@ -39,6 +39,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public void FunctionMutabilityAnalysis() { }
 
         public void EnsureMinimumPurity(Purity purity) { }
+
+        public AbortStatement? AllCodePathsAbort() => null;
     }
 }
 

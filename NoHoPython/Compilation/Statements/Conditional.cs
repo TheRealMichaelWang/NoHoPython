@@ -1,6 +1,7 @@
 ﻿using NoHoPython.Compilation;
 using NoHoPython.IntermediateRepresentation.Values;
 using NoHoPython.Typing;
+using System.Diagnostics;
 
 namespace NoHoPython.IntermediateRepresentation.Values
 {
@@ -331,51 +332,39 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
             bool bufferedMatchVal = MatchValue.MustUseDestinationPromise(irProgram, typeargs, true) || MatchValue.RequiresDisposal(irProgram, typeargs, true) || !MatchValue.IsPure;
             int indirection = -1;
+
+            Emitter.Promise matchValPromise;
             if (bufferedMatchVal)
             {
                 indirection = primaryEmitter.AppendStartBlock();
                 primaryEmitter.AppendLine($"{enumType.GetCName(irProgram)} matchVal{indirection};");
                 primaryEmitter.SetArgument(MatchValue, $"matchVal{indirection}", irProgram, typeargs, true);
-                primaryEmitter.AppendLine($"switch(matchVal{indirection}.option) {{");
+                matchValPromise = e => e.Append($"matchVal{indirection}");
             }
             else
+                matchValPromise = IRValue.EmitDirectPromise(irProgram, MatchValue, typeargs, Emitter.NullPromise, true);
+
+            enumType.EmitMatchOptions(irProgram, primaryEmitter, matchValPromise, (optionEmitter, option, optionValuePromise) =>
             {
-                primaryEmitter.Append("switch(");
-                IRValue.EmitDirect(irProgram, primaryEmitter, MatchValue, typeargs, Emitter.NullPromise, true);
-                primaryEmitter.AppendLine(".option) {");
-            }
-
-            foreach (MatchHandler handler in MatchHandlers)
-            {
-                List<IType> currentOptions = handler.MatchTypes.ConvertAll((type) => type.SubstituteWithTypearg(typeargs));
-
-                foreach (IType option in currentOptions)
-                    primaryEmitter.AppendStartBlock($"case {enumType.GetCEnumOptionForType(irProgram, option)}:");
-
+                MatchHandler handler = MatchHandlers.First(handler => handler.MatchTypes.Any(matchType => matchType.SubstituteWithTypearg(typeargs).IsCompatibleWith(option)));
+                List<IType> matchTypes = handler.MatchTypes.ConvertAll(matchType => matchType.SubstituteWithTypearg(typeargs));
+                primaryEmitter.AppendStartBlock();
                 if (handler.MatchedVariable != null)
                 {
-                    primaryEmitter.Append($"{currentOptions[0].GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier()} = ");
-                    currentOptions[0].EmitCopyValue(irProgram, primaryEmitter, (emitter) =>
-                    {
-                        if (bufferedMatchVal)
-                            emitter.Append($"matchVal{indirection}");
-                        else
-                            IRValue.EmitDirect(irProgram, emitter, MatchValue, typeargs, Emitter.NullPromise, true);
-                        emitter.Append($".data.{currentOptions[0].GetStandardIdentifier(irProgram)}_set");
-                    }, Emitter.NullPromise, MatchValue);
-                    primaryEmitter.AppendLine(';');
+                    Debug.Assert(matchTypes.Count == 1);
+                    optionEmitter.Append($"{matchTypes[0].GetCName(irProgram)} {handler.MatchedVariable.GetStandardIdentifier()} = ");
+                    option.EmitCopyValue(irProgram, optionEmitter, optionValuePromise, Emitter.NullPromise, MatchValue);
+                    optionEmitter.AppendLine(';');
                 }
-
                 handler.ToExecute.EmitInitialize(irProgram, primaryEmitter, typeargs);
-                handler.ToExecute.EmitNoOpen(irProgram, primaryEmitter, typeargs, true);
-            }
-            if(DefaultHandler != null)
+                handler.ToExecute.EmitNoOpen(irProgram, primaryEmitter, typeargs, false);
+            },
+            DefaultHandler != null ? (emitter =>
             {
                 primaryEmitter.AppendStartBlock("default:");
                 DefaultHandler.EmitInitialize(irProgram, primaryEmitter, typeargs);
                 DefaultHandler.EmitNoOpen(irProgram, primaryEmitter, typeargs, false);
-            }
-            primaryEmitter.AppendLine('}');
+            }) : null, option => MatchHandlers.Any(handler => handler.MatchTypes.Any(matchType => matchType.SubstituteWithTypearg(typeargs).IsCompatibleWith(option))), AllCodePathsReturn());
 
             if (bufferedMatchVal)
                 primaryEmitter.AppendEndBlock();

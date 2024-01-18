@@ -1213,7 +1213,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => false;
         public bool IsConstant => EnumValue.IsConstant;
 
-        public IRValue GetPostEvalPure() => new UnwrapEnumValue(EnumValue.GetPostEvalPure(), Type, ErrorReturnEnum, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new UnwrapEnumValue(EnumValue.GetPostEvalPure(), Type, ErrorReturnType, ErrorReportedElement);
 
         public void EnsureMinimumPurity(Purity purity) => EnumValue.EnsureMinimumPurity(purity);
 

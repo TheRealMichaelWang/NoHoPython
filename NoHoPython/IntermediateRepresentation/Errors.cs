@@ -176,16 +176,6 @@ namespace NoHoPython.IntermediateRepresentation
         }
     }
 
-    public sealed class RecordConstructorMustBePure : IRGenerationError
-    {
-        public RecordDeclaration RecordDeclaration { get; private set; }
-
-        public RecordConstructorMustBePure(RecordDeclaration recordDeclaration, IAstElement? errorReportedElement=null, bool isConstructor=true) : base(errorReportedElement ?? recordDeclaration.ErrorReportedElement, $"Record {recordDeclaration.Name}'s {(isConstructor ? "constructor" : "copier")} must be marked as pure.")
-        {
-            RecordDeclaration = recordDeclaration;
-        }
-    }
-
     public sealed class RecordMustDefineCopierError : IRGenerationError
     {
         public RecordDeclaration RecordDeclaration { get; private set; }

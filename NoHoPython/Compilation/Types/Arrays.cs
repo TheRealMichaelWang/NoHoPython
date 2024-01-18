@@ -195,6 +195,12 @@ namespace NoHoPython.Typing
         }
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
+        public string? GetInvalidState() => "{ .length = -1 }";
+        public Emitter.SetPromise? IsInvalid(Emitter emitter) => promise =>
+        {
+            promise(emitter);
+            emitter.Append(".length == -1");
+        };
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_array_{ElementType.GetStandardIdentifier(irProgram)}";
 
@@ -288,6 +294,8 @@ namespace NoHoPython.Typing
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => ElementType.TypeParameterAffectsCodegen(effectInfo);
 
         public string GetCName(IRProgram irProgram) => $"{ElementType.GetCName(irProgram)}*";
+        public string? GetInvalidState() => "NULL";
+        public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_{Identifier}";
 

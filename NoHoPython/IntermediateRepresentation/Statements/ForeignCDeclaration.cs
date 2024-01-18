@@ -8,6 +8,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 {
     public sealed partial class ForeignCDeclaration : SymbolContainer, IRStatement, IScopeSymbol
     {
+        public sealed class CannotDefineCopierForCResourceType : IRGenerationError
+        {
+            public CannotDefineCopierForCResourceType(Syntax.IAstElement errorReportedElement) : base(errorReportedElement, $"Cannot define a custom copier for a foreign C type that is marked as an un-copy-able resource.")
+            {
+
+            }
+        }
+
         public sealed partial class ForeignCProperty : Property
         {
             public override bool IsReadOnly => false;
@@ -39,13 +47,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public string? Copier { get; private set; }
         public string? Destructor { get; private set; }
         public string? ResponsibleDestroyerSetter { get; private set; }
+        public string? InvalidState { get; private set; }
 
-        public string? FormatSpecifier { get; private set; }
-        public string? Formatter { get; private set; }
+        public bool IsResource { get; private set; }
+        public bool IsReferenceType { get; private set; }
 
         public List<ForeignCProperty>? Properties = null;
 
-        public ForeignCDeclaration(string name, List<TypeParameter> typeParameters, bool pointerPropertyAccess, string? forwardDeclaration, string? cStructDeclaration, string? marshallerHeaders, string? marshallerDeclarations, string cReferenceSource, string? copier, string? destructor, string? responsibleDestroyerSetter, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement)
+        public ForeignCDeclaration(string name, List<TypeParameter> typeParameters, bool pointerPropertyAccess, string? forwardDeclaration, string? cStructDeclaration, string? marshallerHeaders, string? marshallerDeclarations, string cReferenceSource, string? copier, string? destructor, string? responsibleDestroyerSetter, string? invalidState, bool isResource, bool isReferenceType, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement)
         {
             Name = name;
             TypeParameters = typeParameters;
@@ -59,6 +68,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             Copier = copier;
             Destructor = destructor;
             ResponsibleDestroyerSetter = responsibleDestroyerSetter;
+            InvalidState = invalidState;
+            IsResource = isResource;
+            IsReferenceType = isReferenceType;
+
+            if (IsResource && Copier != null)
+                throw new CannotDefineCopierForCResourceType(errorReportedElement);
 
             ParentContainer = parentContainer;
             ErrorReportedElement = errorReportedElement;
@@ -132,6 +147,8 @@ namespace NoHoPython.Typing
             return false;
         }
 
+        public bool IsSuperType(IType type) => false;
+
         public bool HasProperty(string identifier) => identifierPropertyMap.Value.ContainsKey(identifier);
 
         public Property FindProperty(string identifier) => identifierPropertyMap.Value[identifier];
@@ -157,7 +174,7 @@ namespace NoHoPython.Syntax.Statements
 
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRDeclaration = new IntermediateRepresentation.Statements.ForeignCDeclaration(Identifier, typeParameters, Attributes.ContainsKey("ptr") || CSource.EndsWith('*'), GetOption("ForwardDeclaration"), GetOption("CStruct"), GetOption("MarshallerHeaders"), GetOption("Marshallers"), CSource, GetOption("Copy"), GetOption("Destroy"), GetOption("ActorSetter"), irBuilder.SymbolMarshaller.CurrentModule, this);
+            IRDeclaration = new IntermediateRepresentation.Statements.ForeignCDeclaration(Identifier, typeParameters, Attributes.ContainsKey("ptr") || CSource.EndsWith('*'), GetOption("ForwardDeclaration"), GetOption("CStruct"), GetOption("MarshallerHeaders"), GetOption("Marshallers"), CSource, GetOption("Copy"), GetOption("Destroy"), GetOption("ActorSetter"), GetOption("InvalidState") ?? GetOption("NullState"), Attributes.ContainsKey("Resource"), Attributes.ContainsKey("RefType"), irBuilder.SymbolMarshaller.CurrentModule, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRDeclaration);
 

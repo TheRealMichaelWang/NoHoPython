@@ -144,6 +144,8 @@ namespace NoHoPython.Typing
         }
 
         public bool ContainsType(IType type) => false;
+        
+        public bool IsSuperType(IType type) => false;
     }
 
     partial class HandleType
@@ -535,7 +537,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class AllocRecord
     {
-        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AllocRecord((RecordType)RecordPrototype.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), ErrorReportedElement);
+        public override IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new AllocRecord((RecordType)RecordPrototype.SubstituteWithTypearg(typeargs), Arguments.Select((IRValue argument) => argument.SubstituteWithTypearg(typeargs)).ToList(), returnType.SubstituteWithTypearg(typeargs), FunctionPurity, ErrorReportedElement);
     }
 
     partial class IfElseValue

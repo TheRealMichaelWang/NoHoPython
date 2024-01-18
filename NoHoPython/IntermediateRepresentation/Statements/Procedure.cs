@@ -220,9 +220,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (procedureDeclaration.TypeParameters.Count > 0)
             {
                 for (int i = 0; i < procedureDeclaration.Parameters.Count; i++)
-                    arguments[i] = procedureDeclaration.Parameters[i].Type.MatchTypeArgumentWithValue(typeArguments, arguments[i], irBuilder);
+                {
+                    if (procedureDeclaration.TypeParameters.Any(typeParam => !typeArguments.ContainsKey(typeParam)))
+                        arguments[i] = procedureDeclaration.Parameters[i].Type.MatchTypeArgumentWithValue(typeArguments, arguments[i], irBuilder);
+                    else
+                        arguments[i] = ArithmeticCast.CastTo(arguments[i], procedureDeclaration.Parameters[i].Type.SubstituteWithTypearg(typeArguments), irBuilder);
+                }
 
-                if (returnType != null)
+                if (returnType != null && procedureDeclaration.TypeParameters.Any(typeParam => !typeArguments.ContainsKey(typeParam)))
 #pragma warning disable CS8602 // Return types may be linked in after initialization
                     procedureDeclaration.ReturnType.MatchTypeArgumentWithType(typeArguments, returnType, errorReportedElement);
 #pragma warning restore CS8602
@@ -592,9 +597,12 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         private static Dictionary<Typing.TypeParameter, IType> MatchTypeArguments(ForeignCProcedureDeclaration foreignCProcedure, List<IRValue> arguments, IType? returnType, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            if (foreignCProcedure.ParameterTypes.Count != arguments.Count)
+                throw new UnexpectedArgumentsException(arguments.ConvertAll(arg => arg.Type), foreignCProcedure.ParameterTypes, errorReportedElement);
+
             Dictionary<Typing.TypeParameter, IType> typeArguments = new();
 
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
             if (foreignCProcedure.TypeParameters.Count > 0)
             {
                 for (int i = 0; i < foreignCProcedure.ParameterTypes.Count; i++)
@@ -721,7 +729,7 @@ namespace NoHoPython.Syntax.Statements
             public Variable ToIRVariable(AstIRProgramBuilder irBuilder, IntermediateRepresentation.Statements.ProcedureDeclaration IRProcedureDeclaration, IAstElement errorReportedElement) => new Variable(Type.ToIRType(irBuilder, errorReportedElement), Identifier, IsReadOnly, IRProcedureDeclaration, false, errorReportedElement);
         }
 
-        private IntermediateRepresentation.Statements.ProcedureDeclaration IRProcedureDeclaration;
+        public IntermediateRepresentation.Statements.ProcedureDeclaration IRProcedureDeclaration { get; private set; }
 
         public void ForwardTypeDeclare(AstIRProgramBuilder irBuilder) { }
 

@@ -43,6 +43,7 @@ namespace NoHoPython.Typing
         public abstract IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder);
 
         public abstract bool IsCompatibleWith(IType type);
+        public bool IsSuperType(IType type) => false;
         public abstract IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeArgs);
 
         public virtual void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, IAstElement errorReportedElement)
@@ -142,6 +143,7 @@ namespace NoHoPython.Typing
         public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => new EmptyTypeLiteral(Primitive.Nothing, errorReportedElement);
 
         public bool IsCompatibleWith(IType type) => type is NothingType;
+        public bool IsSuperType(IType type) => false;
 
         public override string ToString() => TypeName;
     }
@@ -165,6 +167,7 @@ namespace NoHoPython.Typing
         }
 
         public bool IsCompatibleWith(IType type) => type is ArrayType arrayType && ElementType.IsCompatibleWith(arrayType.ElementType);
+        public bool IsSuperType(IType type) => false;
     }
 
     public sealed partial class MemorySpan : IType
@@ -188,6 +191,8 @@ namespace NoHoPython.Typing
         }
 
         public bool IsCompatibleWith(IType type) => type is MemorySpan memorySpan && ElementType.IsCompatibleWith(memorySpan.ElementType) && memorySpan.Length == Length;
+
+        public bool IsSuperType(IType type) => false;
     }
 
     public sealed partial class ProcedureType : IType
@@ -264,6 +269,17 @@ namespace NoHoPython.Typing
                 if (!procedureType.ParameterTypes[i].IsCompatibleWith(ParameterTypes[i]))
                     return false;
             return true;
+        }
+
+        public bool IsSuperType(IType type)
+        {
+            if (type is ProcedureType procedureType)
+            {
+                if (Purity < procedureType.Purity)
+                    return false;
+                return IsMostlyCompatibleWith(procedureType);
+            }
+            return false;
         }
     }
 }

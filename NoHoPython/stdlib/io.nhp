@@ -1,0 +1,84 @@
+﻿include "std.nhp"
+include "cstring.nhp"
+
+mod std:
+	cdef filePtr "FILE*":
+		int pos "ftell(##VALUE)"
+		bool atEof "feof(##VALUE)"
+	attr:
+		Destroy: "fclose(##VALUE)"
+		NullState: "NULL"
+		Resource
+		isPtr
+
+	cdef fopen(cstring, cstring) option<filePtr>
+
+	ref class fileBox<T>:
+		filePtr inFile
+		pure<option<T>, filePtr> elemReader
+		pure<bool, filePtr, T> elemWriter
+
+		pure __init__(string path, pure<option<T>, filePtr> elemReader, pure<bool, filePtr, T> elemWriter) bool:
+			self.inFile = fopen(path, "w+") as filePtr
+			self.elemReader = elemReader
+			self.elemWriter = elemWriter
+			return true
+
+		pure get_elem(T newElem) option<T>:
+			self.inFile.pos = 0
+			return self.elemReader(self.inFile)
+
+		pure set_elem(T newElem) bool:
+			self.inFile.pos = 0
+			if self.elemWriter(self.inFile, newElem) == False:
+				return false
+			self.inFile.flush()
+			return true
+
+	pure createOrOpenFileBox<T>(string path, pure<option<T>, filePtr> elemReader, pure<bool, filePtr, T> elemWriter, T initialElem) option<fileBox<T>>:
+		res = new fileBox<T>(path, elemReader, elemWriter)
+		if res is None:
+			inFile = fopen(path, "w") as filePtr
+			if elemWriter(inFile, initialElem) == False:
+				return None
+			inFile.flush()
+			return new fileBox<T>(path, elemReader, elemWriter) as fileBox<T>
+		else:
+			return res
+
+	# ref class cachedBox<T>:
+	#	filePtr inFile
+	#	pure<bool, filePtr, T> elemWriter
+	#	T cachedElem
+	#
+	#	pure __init__(string path, pure<bool, filePtr, T> elemWriter, T initialElem) bool:
+	#		self.inFile = fopen(path, "r+")
+
+mod typeExt:
+	cdef std_filePtr_readChar(std::filePtr) char "fgetc(##ARG0_VALUE_CSRC)"
+	cdef std_filePtr_flush(std::filePtr) None "fflush(##ARG0_VALUE_CSRC)"
+	cdef std_filePtr_set_pos(std::filePtr, int) None "fseek(##ARG0_VALUE_CSRC, ##ARG1_VALUE_CSRC, SEEK_SET)"
+
+	def std_filePtr_read(std::filePtr inFile, int count) array<char>:
+		cdef fread(handle<char>, int, int, std::filePtr) None
+		toRead = new char[count]
+		fread(toRead.handle, sizeof(char), count, inFile)
+		return toRead
+
+	def std_filePtr_peekChar(std::filePtr inFile) char:
+		cdef ungetc(char, std::filePtr) None
+		peeked = inFile.readChar()
+		ungetc(peeked, inFile)
+		return peeked
+
+	def std_filePtr_readLine(std::filePtr inFile) array<char>:
+		line = new std::list<char>(10)
+		while (c = inFile.readChar()) != '\n' and c != std::EOF:
+			line.pushBack(c)
+		return line
+
+	def std_filePtr_readToEnd(std::filePtr inFile) array<char>:
+		line = new std::list<char>(10)
+		while (c = inFile.readChar()) != std::EOF:
+			line.pushBack(c)
+		return line

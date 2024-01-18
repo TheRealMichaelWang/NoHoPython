@@ -1,0 +1,21 @@
+﻿mod std:
+	cdef cstring "char*":
+		int length "strlen(##VALUE)"
+	attr:
+		Destroy: "free(##VALUE)"
+		Copy: "strcpy(malloc(strlen(##VALUE) + 1), ##VALUE)"
+		NullState: "NULL"
+		isPtr
+
+mod typeExt:
+	cdef std_cstring_getAtIndex(std::cstring, int) char "##ARG0_VALUE_CSRC[ARG1_VALUE_CSRC]"
+	cdef std_cstring_setAtIndex(std::cstring, int, char) char "##ARG0_VALUE_CSRC[ARG1_VALUE_CSRC] = ##ARG2_VALUE_CSRC"
+
+	pure string_to_std_cstring(string str) std::cstring:
+		cdef malloc_cstring(int length) std::cstring "calloc(##ARG0_VALUE_CSRC + 1, sizeof(char))"
+		
+		cstring = malloc_cstring(str.length)
+		for i from 0 within str.length:
+			cstring[i] = str[i]
+
+		return cstring

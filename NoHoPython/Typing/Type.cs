@@ -45,23 +45,12 @@ namespace NoHoPython.Typing
         public string PrototypeIdentifier {get;}
         public bool IsEmpty { get; }
 
-        public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInformation);
-
-        public string GetCName(IRProgram irProgram);
-        public string GetStandardIdentifier(IRProgram irProgram);
-
-        public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent);
-        public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement);
-        public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer);
-        public void EmitRecordCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise newRecord);
-
-        public void EmitCStruct(IRProgram irProgram, Emitter emitter);
-
         public void ScopeForUsedTypes(Syntax.AstIRProgramBuilder irBuilder);
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder);
 
         public bool IsCompatibleWith(IType type);
+        public bool IsSuperType(IType subType);
         public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs);
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement);
         public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder);

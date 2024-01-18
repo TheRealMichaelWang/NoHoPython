@@ -101,6 +101,7 @@ mod typeExt:
 			dest[offset + i] = src[i]
 	
 mod std:
+	cdef EOF char
 	cdef pure malloc<T>(int size) handle<T>
 	cdef pure realloc<T>(handle<T> buf, int size) handle<T>
 	cdef affectsArgs free<T>(handle<T> ptr) handle<T>
@@ -133,10 +134,9 @@ impure print(readonly array<char> s):
 
 pure input() string:
 	cdef getchar() char
-	cdef EOF char
 
 	line = new std::list<char>(10)
-	while (c = getchar()) != '\n' and c != EOF:
+	while (c = getchar()) != '\n' and c != std::EOF:
 		line.pushBack(c)
 
 	return line

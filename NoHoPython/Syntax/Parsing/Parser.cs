@@ -467,6 +467,7 @@ namespace NoHoPython.Syntax.Parsing
                 case TokenType.Interface:
                     return ParseInterfaceDeclaration();
                 case TokenType.Record:
+                case TokenType.Reference:
                     return ParseRecordDeclaration();
                 case TokenType.Module:
                     return ParseModule();

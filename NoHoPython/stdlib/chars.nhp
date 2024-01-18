@@ -31,3 +31,9 @@ mod typeExt:
 		while stop >= start and str[stop].isBlank:
 			stop = stop - 1
 		return str.subArray(start, (stop - start) + 1)
+
+	pure array_char_allWhitespace(array<char> str) bool:
+		for i from 0 within str.length:
+			if str[i].isBlank == False:
+				return False
+		return True

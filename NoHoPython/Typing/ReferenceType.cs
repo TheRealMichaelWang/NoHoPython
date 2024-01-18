@@ -72,6 +72,8 @@ namespace NoHoPython.Typing
 
         public bool IsCompatibleWith(IType type) => type is ReferenceType referenceType && referenceType.ElementType.IsCompatibleWith(ElementType) && Mode == referenceType.Mode && Mode < ReferenceMode.Released;
 
+        public bool IsSuperType(IType type) => type is ReferenceType referenceType && referenceType.ElementType.IsCompatibleWith(ElementType) && Mode > referenceType.Mode;
+
         public bool HasProperty(string property) => property == "elem";
 
         public Property FindProperty(string property)

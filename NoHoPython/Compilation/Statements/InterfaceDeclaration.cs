@@ -150,6 +150,9 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
+        public string? GetInvalidState() => null;
+        public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
+
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
         {
             emitter.Append($"free_interface{GetStandardIdentifier(irProgram)}(");

@@ -361,8 +361,13 @@ namespace NoHoPython.Syntax.Parsing
                     case TokenType.Define:
                     case TokenType.Pure:
                     case TokenType.Impure:
-                        procedures.Add((ProcedureDeclaration)ParseProcedureDeclaration(true));
-                        return null;
+                        if (scanner.PeekToken().Type == TokenType.Less)
+                            break;
+                        else
+                        {
+                            procedures.Add((ProcedureDeclaration)ParseProcedureDeclaration(true));
+                            return null;
+                        }
                     case TokenType.AffectsArgs:
                     case TokenType.AffectsCaptured:
                         if (scanner.PeekToken().Type == TokenType.Less)

@@ -28,27 +28,27 @@ mod typeExt:
 		return res
 
 mod std:
-	class list<T>:
+	ref class list<T>:
 		handle<T> buffer
 		int capacity
 		int count = 0
 		
-		pure __init__(int capacity):
+		pure __init__(int capacity) bool:
 			self.capacity = capacity
 			self.buffer = malloc(self.capacity * sizeof(T))
-			assert self.buffer != NULL
-			
-		pure __copy__() list<T>:
-			copied = new list<T>(self.count)
-			copied.count = self.count
-			for i from 0 within self.count:
-				copied.buffer[i] = self.buffer[i]
-			return copied
-			
+			return self.buffer != NULL
+
 		pure __del__():
 			for i from 0 within self.count:
 				destroy self.buffer + i
 			free(self.buffer)
+			
+		pure clone() option<list<T>>:
+			copied = new list<T>(self.count) as list<T>
+			copied.count = self.count
+			for i from 0 within self.count:
+				copied.buffer[i] = self.buffer[i]
+			return copied
 		
 		pure getAtIndex(int i) option<T>:
 			if i < 0 or i >= self.count:
@@ -148,8 +148,8 @@ mod std:
 		pure to_array_T() array<T>:
 			return marshal T[self.count](self.buffer)
 
-		pure reverse() list<T>:
-			reversed = new list<T>(self.count)
+		pure reverse() option<list<T>>:
+			reversed = new list<T>(self.count) as list<T>
 			reversed.count = self.count
 			for i from 0 within self.count:
 				reversed.buffer[i] = self.buffer[self.count - (i + 1)]

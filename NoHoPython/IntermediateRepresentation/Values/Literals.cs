@@ -279,18 +279,30 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     public sealed partial class AllocRecord : ProcedureCall
     {
-        public override IType Type { get => RecordPrototype; }
+        public override IType Type { get => returnType; }
+        private IType returnType;
 
         public RecordType RecordPrototype { get; private set; }
 
-        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(recordPrototype.GetConstructorParameterTypes(), constructorArguments, irBuilder, Purity.Pure, errorReportedElement)
+        public AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : base(recordPrototype.GetConstructorParameterTypes(), constructorArguments, irBuilder, recordPrototype.RecordPrototype.Constructor.Purity, errorReportedElement)
         {
             RecordPrototype = recordPrototype;
+            if (recordPrototype.RecordPrototype.ConstructorReturnsOptional)
+            {
+                IScopeSymbol optionalEnumSymbol = irBuilder.SymbolMarshaller.FindSymbol("option", errorReportedElement);
+                if (optionalEnumSymbol is EnumDeclaration enumDeclaration)
+                    returnType = new EnumType(enumDeclaration, new List<IType>() { recordPrototype }, errorReportedElement);
+                else
+                    throw new NotATypeException(optionalEnumSymbol, errorReportedElement);
+            }
+            else
+                returnType = recordPrototype;
         }
 
-        private AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, IAstElement errorReportedElement) : base(constructorArguments, Purity.Pure, errorReportedElement)
+        private AllocRecord(RecordType recordPrototype, List<IRValue> constructorArguments, IType returnType, Purity purity, IAstElement errorReportedElement) : base(constructorArguments, purity, errorReportedElement)
         {
             RecordPrototype = recordPrototype;
+            this.returnType = returnType;
         }
     }
 }

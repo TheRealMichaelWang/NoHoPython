@@ -1,0 +1,133 @@
+include "cstring.nhp"
+include "io.nhp"
+
+cdef system(std::cstring) None
+
+def runCommand(readonly string command) option<string>:
+	system($"{command} > cmdoutput.txt")
+	inFile = std::fopen("cmdoutput.txt", "r")
+	return inFile.readToEnd()
+
+mod ui:
+	def confirm(string action):
+		print($"Confirm {action}. Yes, or Y is acceptable.")
+		while True:
+			resp = input()
+			if resp == "Yes" or resp == "Y":
+				return
+			else:
+				print($"Cannot confirm from response {resp}.")
+
+	def inputList(readonly string prompt) array<string>:
+		print(prompt)
+		print("Type in each ENTRY. When FINISHED enter EMPTY ENTRY or QUIT.")
+		l = new std::list<string>(10)
+		while True:
+			inp = input()
+			if inp.allWhitespace() or inp == "QUIT":
+				return l
+			l.pushBack(inp)
+
+mod windows:
+	class user:
+		readonly string username
+		readonly bool isUser
+		bool isAdmin
+		
+		bool removed = False
+
+		def __init__(readonly string username) bool:
+			output = runCommand($"net user {username}")
+			
+			i = output.searchPattern("Local Group Memberships", 0)
+			if i == -1:
+				return false
+			j = output.searchPattern("Global Group", i)
+			if j == -1:
+				return false
+				
+			#23 is length of "Local Group Memberships"
+			#infoSection is the entry for local group memberships
+			infoSection = output.subArray(i + 23, j - (i +23)) as string
+
+			self.username = username
+			self.isAdmin = infoSection.searchPattern("*Administrators", 0) != -1
+			self.isUser = infoSection.searchPattern("*Users", 0) != -1
+			return true
+
+		def removeUser() bool:
+			if self.removed:
+				return False
+			runCommand($"net user {self.username} /delete")
+			self.removed = True
+			return True
+
+	#uses net user command to produce list of all usernames
+	def getAllUsernames() option<array<string>>:
+		output = runCommand("net users") as string
+		
+		i = output.searchChar('-', 0)
+		if i == -1:
+			return None
+
+		i = output.searchChar('\n', i)
+		if i == -1:
+			return None
+
+		usernames = new std::list<string>(10) as std::list<string>
+		oldOffset = i
+		while True:
+			oldOffset = output.searchTill(pure char c: c.isAlNum, oldOffset) as int
+			newOffset = output.searchTill(pure char c: c.isBlank, oldOffset) as int
+			
+			username = output.subArray(oldOffset, newOffset - oldOffset)
+			
+			# searches for "The command has completed successfully" at end of username list
+			if username == "The":
+				assert output.searchPattern("successfully", newOffset) != -1
+				return usernames
+
+			usernames.pushBack(username)
+			oldOffset = newOffset
+
+	def getAllUsers() option<array<user>>:
+		usernames = getAllUsernames() as array<string>
+		users = new std::list<user>(usernames.length) as std::list<user>
+		for i from 0 within usernames.length:
+			u = new user(usernames[i]) as user
+			if u.isUser == False:
+				users.pushBack(u)
+		return users
+
+mod typeExt:
+	pure array_T_searchTill<T>(array<T> a, pure<bool, T> cond, int offset) option<int>:
+		if offset >= a.length:
+			return None
+
+		for i from offset within a.length:
+			if cond(a[i]):
+				return i
+		return None
+
+def main():
+	users = windows::getAllUsers() as array<windows::user>
+
+	print($"{users.length} user(s) found:")
+	for i from 0 within users.length:
+		print(users[i].username)
+
+	administrators = ui::inputList("Enter a list of all administrators.")
+	otherUsers = ui::inputList("Enter a list of all other authorized users.")
+	authUsers = administrators + otherUsers
+	ui::confirm("Procede and Secure Users?")
+
+	for i from 0 within users.length:
+		userCmp = pure string u: users[i].username == u
+		if authUsers.searchTill(userCmp, 0) is int:
+			print($"Found unauthorized user {users[i].username}!")
+			ui::confirm($"remove user {users[i].username}")
+			users[i].removeUser()
+			continue
+
+		#isAuthAdmin = administrators.searchTill(userCmp, 0) is int
+		

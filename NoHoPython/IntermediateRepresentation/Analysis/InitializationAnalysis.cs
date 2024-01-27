@@ -360,6 +360,17 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public void FunctionMutabilityAnalysis() { }
     }
 
+    partial class StartNewThread
+    {
+        public void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue) { }
+
+        public void MessageReceiverMutabilityAnalysis() { }
+
+        public bool IsReadOnly => false;
+
+        public void FunctionMutabilityAnalysis() { }
+    }
+
     partial class ProcedureCall
     {
         public virtual void ConstructorMutabilityAnalysis(SortedSet<RecordDeclaration.RecordProperty> initializedProperties, RecordDeclaration recordDeclaration, bool isUsingValue)

@@ -199,6 +199,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     public sealed partial class ProcedureReference
     {
+        public enum ReferenceMode
+        {
+            Regular,
+            Anonymized,
+            Multithreading
+        }
+
         public IType ReturnType { get; private set; }
         private IAstElement errorReportedElement;
 
@@ -207,7 +214,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public ProcedureDeclaration ProcedureDeclaration { get; private set; }
 
-        public bool IsAnonymous { get; private set; }
+        public ReferenceMode Mode { get; private set; }
 
         private static Dictionary<Typing.TypeParameter, IType> MatchTypeArguments(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments, IType? returnType, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
         {
@@ -252,20 +259,20 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             return newTypeargs;
         }
 
-        public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments, IType? returnType, bool isAnonymous, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : this(MatchTypeArguments(procedureDeclaration, arguments, returnType, irBuilder, errorReportedElement), procedureDeclaration, isAnonymous, errorReportedElement)
+        public ProcedureReference(ProcedureDeclaration procedureDeclaration, List<IRValue> arguments, IType? returnType, ReferenceMode mode, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : this(MatchTypeArguments(procedureDeclaration, arguments, returnType, irBuilder, errorReportedElement), procedureDeclaration, mode, errorReportedElement)
         {
 
         }
 
-        public ProcedureReference(ProcedureDeclaration procedureDeclaration, bool isAnonymous, IAstElement errorReportedElement) : this(new Dictionary<Typing.TypeParameter, IType>(), procedureDeclaration, isAnonymous, errorReportedElement)
+        public ProcedureReference(ProcedureDeclaration procedureDeclaration, ReferenceMode mode, IAstElement errorReportedElement) : this(new Dictionary<Typing.TypeParameter, IType>(), procedureDeclaration, mode, errorReportedElement)
         {
             this.errorReportedElement = errorReportedElement;
         }
 
-        public ProcedureReference(Dictionary<Typing.TypeParameter, IType> typeArguments, ProcedureDeclaration procedureDeclaration, bool isAnonymous, IAstElement errorReportedElement)
+        public ProcedureReference(Dictionary<Typing.TypeParameter, IType> typeArguments, ProcedureDeclaration procedureDeclaration, ReferenceMode mode, IAstElement errorReportedElement)
         {
             ProcedureDeclaration = procedureDeclaration;
-            IsAnonymous = isAnonymous;
+            Mode = mode;
             this.typeArguments = typeArguments;
             this.errorReportedElement = errorReportedElement;
 
@@ -279,18 +286,18 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 #pragma warning disable CS8602 // Return types may be linked in after initialization
             ReturnType = procedureDeclaration.ReturnType.SubstituteWithTypearg(typeArguments);
 #pragma warning restore CS8602 
-            anonProcedureType = new ProcedureType(ReturnType, ParameterTypes, Purity.Pure);
+            anonProcedureType = new ProcedureType(ReturnType, ParameterTypes, Purity.Pure, ProcedureDeclaration.CapturedVariables.Any(variable => variable.Type.SubstituteWithTypearg(typeArguments).IsReferenceType), ProcedureDeclaration.CapturedVariables.All(variable => variable.Type.SubstituteWithTypearg(typeArguments).IsThreadSafe));
         }
 
-        public ProcedureReference SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new ProcedureReference(SubstituteTypeargsWithTypeargs(typeArguments, typeargs), ProcedureDeclaration, IsAnonymous, errorReportedElement);
+        public ProcedureReference SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new(SubstituteTypeargsWithTypeargs(typeArguments, typeargs), ProcedureDeclaration, Mode, errorReportedElement);
 
-        public ProcedureReference CreateRegularReference() => new ProcedureReference(typeArguments, ProcedureDeclaration, false, errorReportedElement);
+        public ProcedureReference CreateRegularReference() => new(typeArguments, ProcedureDeclaration, ReferenceMode.Regular, errorReportedElement);
 
         public bool IsCompatibleWith(ProcedureReference procedureReference)
         {
             if (ProcedureDeclaration != procedureReference.ProcedureDeclaration)
                 return false;
-            if (IsAnonymous != procedureReference.IsAnonymous)
+            if (Mode != procedureReference.Mode)
                 return false;
 
             return ProcedureDeclaration.UsedTypeParameters.TrueForAll((typeParameter) => typeArguments[typeParameter].IsCompatibleWith(procedureReference.typeArguments[typeParameter]));
@@ -423,7 +430,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public ProcedureReference Procedure { get; private set; }
         private ProcedureDeclaration? parentProcedure;
 
-        public LinkedProcedureCall(ProcedureDeclaration procedure, List<IRValue> arguments, ProcedureDeclaration? parentProcedure, IType? returnType, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : this(new ProcedureReference(procedure, arguments, returnType, false, irBuilder, errorReportedElement), arguments, parentProcedure, irBuilder, errorReportedElement)
+        public LinkedProcedureCall(ProcedureDeclaration procedure, List<IRValue> arguments, ProcedureDeclaration? parentProcedure, IType? returnType, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement) : this(new ProcedureReference(procedure, arguments, returnType, ProcedureReference.ReferenceMode.Regular, irBuilder, errorReportedElement), arguments, parentProcedure, irBuilder, errorReportedElement)
         {
 
         }
@@ -646,7 +653,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
     public sealed partial class AnonymizeProcedure : IRValue
     {
         public IAstElement ErrorReportedElement { get; private set; }
-        public IType Type => GetFunctionHandle ? Primitive.Handle : new ProcedureType(Procedure.ReturnType, Procedure.ParameterTypes, Procedure.ProcedureDeclaration.Purity == Purity.OnlyAffectsArgumentsAndCaptured && !Procedure.ProcedureDeclaration.CapturedVariables.Any((variable) => variable.Type.IsReferenceType && variable.Type.HasMutableChildren) ? Purity.OnlyAffectsArguments : Procedure.ProcedureDeclaration.Purity);
+        public IType Type => GetFunctionHandle ? Primitive.Handle : new ProcedureType(Procedure.ReturnType, Procedure.ParameterTypes, Procedure.ProcedureDeclaration.Purity == Purity.OnlyAffectsArgumentsAndCaptured && !Procedure.ProcedureDeclaration.CapturedVariables.Any((variable) => variable.Type.IsReferenceType && variable.Type.HasMutableChildren) ? Purity.OnlyAffectsArguments : Procedure.ProcedureDeclaration.Purity, Procedure.ProcedureDeclaration.CapturedVariables.Any(capturedVariable => capturedVariable.Type.IsCapturedByReference), Procedure.ProcedureDeclaration.CapturedVariables.All(capturedVariable => capturedVariable.Type.IsThreadSafe));
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
@@ -661,19 +668,54 @@ namespace NoHoPython.IntermediateRepresentation.Values
             GetFunctionHandle = getFunctionHandle;
             this.parentProcedure = parentProcedure;
 
-            if(parentProcedure != null)
-                procedure.ProcedureDeclaration.CallSiteProcedures.Add(parentProcedure);
+            //if(parentProcedure != null)
+            //    procedure.ProcedureDeclaration.CallSiteProcedures.Add(parentProcedure);
 
             if (getFunctionHandle && procedure.ProcedureDeclaration.CapturedVariables.Count > 0)
                 throw new CannotGetFunctionPointer(procedure.ProcedureDeclaration, errorReportedElement);
         }
 
-        public AnonymizeProcedure(ProcedureDeclaration procedure, bool getFunctionHandle, IAstElement errorReportedElement, ProcedureDeclaration? parentDeclaration) : this(new ProcedureReference(procedure, !getFunctionHandle, errorReportedElement), getFunctionHandle, parentDeclaration, errorReportedElement)
+        public AnonymizeProcedure(ProcedureDeclaration procedure, bool getFunctionHandle, IAstElement errorReportedElement, ProcedureDeclaration? parentDeclaration) : this(new ProcedureReference(procedure, getFunctionHandle ? ProcedureReference.ReferenceMode.Regular : ProcedureReference.ReferenceMode.Anonymized, errorReportedElement), getFunctionHandle, parentDeclaration, errorReportedElement)
         {
-            
+            if (parentProcedure != null)
+                procedure.CallSiteProcedures.Add(parentProcedure);
         }
 
         public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new AnonymizeProcedure(Procedure.SubstituteWithTypearg(typeargs), GetFunctionHandle, parentProcedure, ErrorReportedElement);
+    }
+
+    public sealed partial class StartNewThread : IRValue
+    {
+        public IAstElement ErrorReportedElement { get; private set; }
+        public IType Type { get; private set; }
+        public bool IsTruey => false;
+        public bool IsFalsey => false;
+
+        public ProcedureReference ProcedureReference { get; private set; }
+
+        public StartNewThread(ProcedureDeclaration procedure, ProcedureDeclaration? parentProcedure, AstIRProgramBuilder irBuilder, IAstElement errorReportedElement)
+        {
+            ErrorReportedElement = errorReportedElement;
+
+            IScopeSymbol optionalEnumSymbol = irBuilder.SymbolMarshaller.FindSymbol("option", errorReportedElement);
+            if (optionalEnumSymbol is EnumDeclaration enumDeclaration)
+                Type = new EnumType(enumDeclaration, new List<IType>() { new ThreadType() }, errorReportedElement);
+            else
+                throw new NotATypeException(optionalEnumSymbol, errorReportedElement);
+
+            ProcedureReference = new ProcedureReference(procedure, ProcedureReference.ReferenceMode.Multithreading, errorReportedElement);
+            if (parentProcedure != null)
+                procedure.CallSiteProcedures.Add(parentProcedure);
+        }
+
+        private StartNewThread(IAstElement errorReportedElement, IType type, ProcedureReference procedureReference)
+        {
+            ErrorReportedElement = errorReportedElement;
+            Type = type;
+            ProcedureReference = procedureReference;
+        }
+
+        public IRValue SubstituteWithTypearg(Dictionary<Typing.TypeParameter, IType> typeargs) => new StartNewThread(ErrorReportedElement, Type.SubstituteWithTypearg(typeargs), ProcedureReference.SubstituteWithTypearg(typeargs));
     }
 }
 
@@ -769,7 +811,7 @@ namespace NoHoPython.Syntax.Statements
 
 #pragma warning disable CS8602 // Only called after ForwardDeclare, when parameter is initialized
 #pragma warning disable CS8604 // Return type linked after initialization
-        public IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty GenerateProperty(AstIRProgramBuilder irBuilder, RecordType selfType) => new(Name, new ProcedureType(IRProcedureDeclaration.ReturnType, IRProcedureDeclaration.Parameters.ConvertAll((param) => param.Type), Purity), true, selfType, irBuilder.ScopedRecordDeclaration);
+        public IntermediateRepresentation.Statements.RecordDeclaration.RecordProperty GenerateProperty(AstIRProgramBuilder irBuilder, RecordType selfType) => new(Name, new ProcedureType(IRProcedureDeclaration.ReturnType, IRProcedureDeclaration.Parameters.ConvertAll((param) => param.Type), Purity, selfType.IsCapturedByReference, selfType.IsThreadSafe), true, selfType, irBuilder.ScopedRecordDeclaration);
 #pragma warning restore CS8604
 #pragma warning restore CS8602
 

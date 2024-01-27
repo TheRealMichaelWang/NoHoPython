@@ -95,13 +95,16 @@ namespace NoHoPython.Typing
         public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;
         public bool IsTypeDependency => false;
         public bool IsCircularDataStructure => ContainsType(this);
+        public bool IsCapturedByReference => true;
+        public bool IsThreadSafe => false;
+        public bool HasCopier => true;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => ElementType.TypeParameterAffectsCodegen(effectInfo);
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"rc_{ElementType.GetStandardIdentifier(irProgram)}";
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t*";
-        public string? GetInvalidState() => "NULL";
+        public string? GetInvalidState(IRProgram irProgram) => "NULL";
         public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
 
         public void EmitCStruct(IRProgram irProgram, Emitter emitter)

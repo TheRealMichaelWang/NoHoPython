@@ -110,7 +110,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 });
         }
 
-        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs, !MustUseDestinationPromise(irProgram, typeargs, false));
     }
 
     partial class MarshalHandleIntoArray
@@ -158,21 +158,37 @@ namespace NoHoPython.IntermediateRepresentation.Values
             else
                 destination((emitter) =>
                 {
-                    emitter.Append($"({type.GetCName(irProgram)}){{.buffer = memcpy(");
-                    irProgram.MemoryAnalyzer.EmitAllocate(emitter, (e) =>
+                    if (ElementType.SubstituteWithTypearg(typeargs).RequiresDisposal)
                     {
-                        IRValue.EmitDirect(irProgram, e, Length, typeargs, Emitter.NullPromise, true);
-                        e.Append($" * sizeof({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)})");
-                    });
-                    emitter.Append(", ");
-                    IRValue.EmitDirect(irProgram, emitter, Address, typeargs, Emitter.NullPromise, true);
-                    emitter.Append(", ");
-                    IRValue.EmitDirect(irProgram, emitter, Length, typeargs, Emitter.NullPromise, true);
-                    emitter.Append($" * sizeof({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)}))");
+                        emitter.Append($"marshal_foreign{type.GetStandardIdentifier(irProgram)}(");
+                        IRValue.EmitDirect(irProgram, emitter, Address, typeargs, Emitter.NullPromise, true);
+                        emitter.Append(", ");
+                        IRValue.EmitDirect(irProgram, emitter, Length, typeargs, Emitter.NullPromise, true);
+                        if (type.MustSetResponsibleDestroyer)
+                        {
+                            emitter.Append(", ");
+                            responsibleDestroyer(emitter);
+                        }
+                        emitter.Append(')');
+                    }
+                    else
+                    {
+                        emitter.Append($"({type.GetCName(irProgram)}){{.buffer = memcpy(");
+                        irProgram.MemoryAnalyzer.EmitAllocate(emitter, (e) =>
+                        {
+                            IRValue.EmitDirect(irProgram, e, Length, typeargs, Emitter.NullPromise, true);
+                            e.Append($" * sizeof({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)})");
+                        });
+                        emitter.Append(", ");
+                        IRValue.EmitDirect(irProgram, emitter, Address, typeargs, Emitter.NullPromise, true);
+                        emitter.Append(", ");
+                        IRValue.EmitDirect(irProgram, emitter, Length, typeargs, Emitter.NullPromise, true);
+                        emitter.Append($" * sizeof({ElementType.SubstituteWithTypearg(typeargs).GetCName(irProgram)}))");
 
-                    emitter.Append(", .length = ");
-                    IRValue.EmitDirect(irProgram, emitter, Length, typeargs, Emitter.NullPromise, true);
-                    emitter.Append('}');
+                        emitter.Append(", .length = ");
+                        IRValue.EmitDirect(irProgram, emitter, Length, typeargs, Emitter.NullPromise, true);
+                        emitter.Append('}');
+                    }
                 });
         }
     }

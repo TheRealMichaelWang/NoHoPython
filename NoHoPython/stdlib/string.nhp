@@ -155,7 +155,7 @@ mod typeExt:
 	pure string_searchPattern(string str, string pattern, int offset) int:
 		pure matchPattern(int index) bool:
 			for i from 0 within pattern:
-				if pattern[i] != str[offset + i]:
+				if pattern[i] != str[index + i]:
 					return false
 			return true
 

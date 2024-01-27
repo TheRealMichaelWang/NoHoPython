@@ -419,7 +419,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 });
         }
 
-        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs, true);
     }
 
     partial class GetPropertyValue
@@ -533,7 +533,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
         }
 
-        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs, true);
     }
 
     partial class ReleaseReferenceElement
@@ -559,7 +559,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             primaryEmitter.AppendEndBlock();
         }
 
-        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs, false);
     }
 
     partial class SetReferenceTypeElement
@@ -599,6 +599,6 @@ namespace NoHoPython.IntermediateRepresentation.Values
             primaryEmitter.AppendEndBlock();
         }
 
-        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs, false);
     }
 }

@@ -36,6 +36,11 @@ namespace NoHoPython.Typing
         }
     }
 
+    partial class ThreadType
+    {
+        public void ScopeForUsedTypeParameters(AstIRProgramBuilder irBuilder) { }
+    }
+
     partial class RecordType
     {
         public void ScopeForUsedTypeParameters(AstIRProgramBuilder irBuilder) => TypeArguments.ForEach((typearg) => typearg.ScopeForUsedTypeParameters(irBuilder));

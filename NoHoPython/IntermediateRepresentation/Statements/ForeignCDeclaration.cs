@@ -51,10 +51,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public bool IsResource { get; private set; }
         public bool IsReferenceType { get; private set; }
+        public bool IsThreadSafe { get; private set; }
+        public IType? CompatibleType { get; private set; }
 
         public List<ForeignCProperty>? Properties = null;
 
-        public ForeignCDeclaration(string name, List<TypeParameter> typeParameters, bool pointerPropertyAccess, string? forwardDeclaration, string? cStructDeclaration, string? marshallerHeaders, string? marshallerDeclarations, string cReferenceSource, string? copier, string? destructor, string? responsibleDestroyerSetter, string? invalidState, bool isResource, bool isReferenceType, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement)
+        public ForeignCDeclaration(string name, List<TypeParameter> typeParameters, bool pointerPropertyAccess, string? forwardDeclaration, string? cStructDeclaration, string? marshallerHeaders, string? marshallerDeclarations, string cReferenceSource, string? copier, string? destructor, string? responsibleDestroyerSetter, string? invalidState, bool isResource, bool isReferenceType, bool isThreadSafe, IType? compatibleType, SymbolContainer parentContainer, Syntax.IAstElement errorReportedElement)
         {
             Name = name;
             TypeParameters = typeParameters;
@@ -70,7 +72,9 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             ResponsibleDestroyerSetter = responsibleDestroyerSetter;
             InvalidState = invalidState;
             IsResource = isResource;
+            IsThreadSafe = isThreadSafe;
             IsReferenceType = isReferenceType;
+            CompatibleType = compatibleType;
 
             if (IsResource && Copier != null)
                 throw new CannotDefineCopierForCResourceType(errorReportedElement);
@@ -100,6 +104,7 @@ namespace NoHoPython.Typing
 
         public ForeignCDeclaration Declaration { get; private set; }
         public readonly List<IType> TypeArguments;
+        public IType? CompatibleType => Declaration.CompatibleType?.SubstituteWithTypearg(TypeParameter.GetTypeargMap(Declaration.TypeParameters, TypeArguments).Value);
 
         private Lazy<List<ForeignCDeclaration.ForeignCProperty>> properties;
         private Lazy<Dictionary<string, ForeignCDeclaration.ForeignCProperty>> identifierPropertyMap;
@@ -174,7 +179,7 @@ namespace NoHoPython.Syntax.Statements
 
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
-            IRDeclaration = new IntermediateRepresentation.Statements.ForeignCDeclaration(Identifier, typeParameters, Attributes.ContainsKey("ptr") || CSource.EndsWith('*'), GetOption("ForwardDeclaration"), GetOption("CStruct"), GetOption("MarshallerHeaders"), GetOption("Marshallers"), CSource, GetOption("Copy"), GetOption("Destroy"), GetOption("ActorSetter"), GetOption("InvalidState") ?? GetOption("NullState"), Attributes.ContainsKey("Resource"), Attributes.ContainsKey("RefType"), irBuilder.SymbolMarshaller.CurrentModule, this);
+            IRDeclaration = new IntermediateRepresentation.Statements.ForeignCDeclaration(Identifier, typeParameters, Attributes.ContainsKey("ptr") || CSource.EndsWith('*'), GetOption("ForwardDeclaration"), GetOption("CStruct"), GetOption("MarshallerHeaders"), GetOption("Marshallers"), CSource, GetOption("Copy"), GetOption("Destroy"), GetOption("ActorSetter"), GetOption("InvalidState") ?? GetOption("NullState"), Attributes.ContainsKey("Resource"), Attributes.ContainsKey("RefType"), Attributes.ContainsKey("ThreadSafe"), CompatibleType?.ToIRType(irBuilder, this), irBuilder.SymbolMarshaller.CurrentModule, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRDeclaration);
 

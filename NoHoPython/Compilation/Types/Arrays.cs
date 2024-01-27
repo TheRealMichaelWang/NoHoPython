@@ -102,7 +102,7 @@ namespace NoHoPython.IntermediateRepresentation
         {
             foreach(IType elementType in bufferTypes)
             {
-                if (elementType.RequiresDisposal)
+                if (elementType.RequiresDisposal && elementType.HasCopier)
                 {
                     emitter.Append($"{elementType.GetCName(this)}* buffer_copy_{elementType.GetStandardIdentifier(this)}({elementType.GetCName(this)}* src, int len");
                     if (elementType.MustSetResponsibleDestroyer)
@@ -152,6 +152,8 @@ namespace NoHoPython.Typing
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;
         public bool IsTypeDependency => true;
+        public bool IsCapturedByReference => ElementType.IsCapturedByReference;
+        public bool IsThreadSafe => ElementType.IsThreadSafe;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => ElementType.TypeParameterAffectsCodegen(effectInfo);
 
@@ -195,11 +197,13 @@ namespace NoHoPython.Typing
         }
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
-        public string? GetInvalidState() => "{ .length = -1 }";
+        public string? GetInvalidState(IRProgram irProgram) => $"({GetCName(irProgram)}){{ .length = -1 }}";
         public Emitter.SetPromise? IsInvalid(Emitter emitter) => promise =>
         {
+            emitter.Append('(');
             promise(emitter);
             emitter.Append(".length == -1");
+            emitter.Append(')');
         };
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_array_{ElementType.GetStandardIdentifier(irProgram)}";
@@ -291,10 +295,14 @@ namespace NoHoPython.Typing
         public bool MustSetResponsibleDestroyer => ElementType.MustSetResponsibleDestroyer;
         public bool IsTypeDependency => true;
 
+        public bool IsCapturedByReference => ElementType.IsCapturedByReference;
+        public bool IsThreadSafe => ElementType.IsThreadSafe;
+        public bool HasCopier => ElementType.HasCopier;
+
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => ElementType.TypeParameterAffectsCodegen(effectInfo);
 
         public string GetCName(IRProgram irProgram) => $"{ElementType.GetCName(irProgram)}*";
-        public string? GetInvalidState() => "NULL";
+        public string? GetInvalidState(IRProgram irProgram) => "NULL";
         public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
 
         public string GetStandardIdentifier(IRProgram irProgram) => $"nhp_{Identifier}";

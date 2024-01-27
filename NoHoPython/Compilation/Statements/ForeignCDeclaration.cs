@@ -29,6 +29,14 @@ namespace NoHoPython.Syntax
 
 namespace NoHoPython.IntermediateRepresentation
 {
+    public sealed class CannotCopyForeignResourceType : CodegenError
+    {
+        public CannotCopyForeignResourceType(IRElement? errorReportedElement, ForeignCType foreignCType) : base(errorReportedElement, $"Cannot copy foreign type {foreignCType.TypeName} because it is a resource.")
+        {
+
+        }
+    }
+
     partial class IRProgram
     {
         public readonly Dictionary<ForeignCDeclaration, List<ForeignCType>> ForeignTypeOverloads;
@@ -116,7 +124,9 @@ namespace NoHoPython.Typing
         public bool IsNativeCType => true;
         public bool RequiresDisposal => Declaration.Destructor != null;
         public bool MustSetResponsibleDestroyer => Declaration.ResponsibleDestroyerSetter != null;
-        
+        public bool IsCapturedByReference => Declaration.IsReferenceType;
+        public bool IsThreadSafe => Declaration.IsThreadSafe;
+
         public bool IsTypeDependency
         {
             get
@@ -134,7 +144,7 @@ namespace NoHoPython.Typing
 
         public string GetCName(IRProgram irProgram) => GetSource(Declaration.CReferenceSource, irProgram);
 
-        public string? GetInvalidState() => Declaration.InvalidState;
+        public string? GetInvalidState(IRProgram irProgram) => Declaration.InvalidState;
         public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
 
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)
@@ -145,7 +155,8 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
-            if(Declaration.IsResource)
+            if (Declaration.IsResource)
+                throw new CannotCopyForeignResourceType(errorReportedElement, this);
 
             if (Declaration.Copier != null)
                 emitter.Append(GetSource(Declaration.Copier, irProgram, valueCSource, responsibleDestroyer));

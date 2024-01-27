@@ -25,6 +25,7 @@ namespace NoHoPython.Syntax
         public bool VerboseOutput { get; private set; }
 
         private Dictionary<IType, HashSet<IType>> typeDependencyTree;
+        private List<string> includedCFiles;
 
         public AstIRProgramBuilder(List<IAstStatement> statements, List<string> flags)
         {
@@ -38,6 +39,13 @@ namespace NoHoPython.Syntax
             Flags = new SortedSet<string>(flags);
             ScopedRecordDeclaration = null;
             VerboseOutput = flags.Contains("-verbose");
+            includedCFiles = new List<string>()
+            {
+                "<stdio.h>",
+                "<stdlib.h>",
+                "<string.h>",
+                "<math.h>"
+            };
 
             typeDependencyTree = new Dictionary<IType, HashSet<IType>>(new ITypeComparer());
 
@@ -65,6 +73,14 @@ namespace NoHoPython.Syntax
         public void AddInterfaceDeclaration(InterfaceDeclaration interfaceDeclaration) => InterfaceDeclarations.Add(interfaceDeclaration);
         public void AddEnumDeclaration(EnumDeclaration enumDeclaration) => EnumDeclarations.Add(enumDeclaration);
         public void AddProcDeclaration(ProcedureDeclaration procedureDeclaration, Statements.ProcedureDeclaration.Type type) => ProcedureDeclarations.Add((procedureDeclaration, type));
+        
+        public void IncludeCFile(string cFile)
+        {
+            if (includedCFiles.Contains(cFile))
+                return;
+
+            includedCFiles.Add(cFile);
+        }
 
         public void DeclareTypeDependencies(IType type, params IType[] dependencies)
         {
@@ -116,13 +132,7 @@ namespace NoHoPython.Syntax
             }
 
             return new(doBoundsChecking, eliminateAsserts, doCallStack, emitLineDirectives,
-                RecordDeclarations, InterfaceDeclarations, EnumDeclarations, foreignTypeOverloads.Keys.ToList(), ProcedureDeclarations.ConvertAll((p) => p.Item1), new List<string>()
-                {
-                    "<stdio.h>",
-                    "<stdlib.h>",
-                    "<string.h>",
-                    "<math.h>"
-                },
+                RecordDeclarations, InterfaceDeclarations, EnumDeclarations, foreignTypeOverloads.Keys.ToList(), ProcedureDeclarations.ConvertAll((p) => p.Item1), includedCFiles,
                 usedArrayTypes.ToList(), usedTupleTypes.ToList(), bufferTypes.ToList(), usedReferenceTypes.ToList().ConvertAll(elemType => new ReferenceType(elemType, ReferenceType.ReferenceMode.UnreleasedCanRelease)), usedProcedureTypes.ToList(), usedProcedureReferences, procedureOverloads, enumTypeOverloads, interfaceTypeOverloads, recordTypeOverloads, foreignTypeOverloads, typeDependencyTree, memoryAnalyzer);
         }
     }
@@ -312,7 +322,7 @@ namespace NoHoPython.IntermediateRepresentation
                 InterfaceDeclarations.ForEach((interfaceDecl) => interfaceDecl.ForwardDeclare(this, headerEmitter));
                 RecordDeclarations.ForEach((record) => record.ForwardDeclare(this, headerEmitter));
                 ForeignCDeclarations.ForEach((foreign) => foreign.ForwardDeclare(this, headerEmitter));
-                usedProcedureReferences.ForEach((procedure) => procedure.EmitCaptureContextCStruct(this, headerEmitter, usedProcedureReferences.FindAll((procedureReference) => procedureReference.IsAnonymous)));
+                usedProcedureReferences.ForEach((procedure) => procedure.EmitCaptureContextCStruct(this, headerEmitter, usedProcedureReferences.FindAll((procedureReference) => procedureReference.Mode != ProcedureReference.ReferenceMode.Regular)));
                 ProcedureDeclarations.ForEach((procedure) => procedure.ForwardDeclareActual(this, headerEmitter));
 
                 if (headerEmitter != emitter)

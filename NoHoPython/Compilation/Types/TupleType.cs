@@ -48,8 +48,11 @@ namespace NoHoPython.IntermediateRepresentation
                 if (!usedTupleType.RequiresDisposal)
                     continue;
 
-                usedTupleType.EmitCopierHeader(this, emitter);
-                emitter.AppendLine(";");
+                if (usedTupleType.HasCopier)
+                {
+                    usedTupleType.EmitCopierHeader(this, emitter);
+                    emitter.AppendLine(";");
+                }
             }
         }
 
@@ -91,8 +94,11 @@ namespace NoHoPython.Typing
         public bool RequiresDisposal => ValueTypes.Keys.Any((type) => type.RequiresDisposal);
         public bool MustSetResponsibleDestroyer => ValueTypes.Keys.Any((type) => type.MustSetResponsibleDestroyer);
         public bool IsTypeDependency => true;
+        public bool IsCapturedByReference => ValueTypes.Keys.Any(type => type.IsCapturedByReference);
+        public bool IsThreadSafe => ValueTypes.Keys.All(type => type.IsThreadSafe);
+        public bool HasCopier => orderedValueTypes.All(type => type.HasCopier);
 
-        public string? GetInvalidState() => null;
+        public string? GetInvalidState(IRProgram irProgram) => null;
         public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo)
@@ -128,6 +134,9 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
+            if (!HasCopier)
+                throw new CannotCopyType(errorReportedElement, this);
+
             if (RequiresDisposal)
             {
                 emitter.Append($"copy_{GetStandardIdentifier(irProgram)}(");
@@ -179,6 +188,9 @@ namespace NoHoPython.Typing
 
         public void EmitCopier(IRProgram irProgram, Emitter emitter)
         {
+            if (!HasCopier)
+                return; 
+
             EmitCopierHeader(irProgram, emitter);
             emitter.AppendLine(" {");
             emitter.AppendLine($"\t{GetCName(irProgram)} to_ret;");

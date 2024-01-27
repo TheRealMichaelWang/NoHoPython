@@ -6,7 +6,7 @@ mod std:
 		int pos "ftell(##VALUE)"
 		bool atEof "feof(##VALUE)"
 	attr:
-		Destroy: "fclose(##VALUE)"
+		Destroy: "fclose(##VALUE);"
 		NullState: "NULL"
 		Resource
 		isPtr

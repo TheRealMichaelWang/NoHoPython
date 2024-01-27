@@ -184,9 +184,10 @@ namespace NoHoPython.Syntax.Statements
         public readonly List<TypeParameter> TypeParameters;
         public readonly Dictionary<string, string?> Attributes;
         public List<(AstType, string, string?)> Properties;
+        public AstType? CompatibleType { get; private set; }
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        public ForeignCDeclaration(string identifier, string cSource, List<TypeParameter> typeParameters, Dictionary<string, string?> attributes, List<(AstType, string, string?)> properties, SourceLocation sourceLocation)
+        public ForeignCDeclaration(string identifier, string cSource, List<TypeParameter> typeParameters, Dictionary<string, string?> attributes, List<(AstType, string, string?)> properties, AstType? compatibleType, SourceLocation sourceLocation)
 #pragma warning restore CS8618 
         {
             Identifier = identifier;
@@ -194,6 +195,7 @@ namespace NoHoPython.Syntax.Statements
             TypeParameters = typeParameters;
             Attributes = attributes;
             Properties = properties;
+            CompatibleType = compatibleType;
             SourceLocation = sourceLocation;
         }
 
@@ -203,7 +205,10 @@ namespace NoHoPython.Syntax.Statements
             builder.Append($"{IAstStatement.Indent(indent)}cdef {Identifier}");
             if (TypeParameters.Count > 0)
                 builder.Append($"<{string.Join(", ", TypeParameters)}>");
-            builder.Append($" \"{CSource}\":");
+            builder.Append($" \"{CSource}\"");
+            if (CompatibleType != null)
+                builder.Append($" {CompatibleType.ToString()}");
+            builder.Append(':');
 
             foreach ((AstType, string, string?) property in Properties)
             {
@@ -405,6 +410,10 @@ namespace NoHoPython.Syntax.Parsing
             string csource = scanner.LastToken.Identifier;
             scanner.ScanToken();
 
+            AstType? compatibleType = null;
+            if(scanner.LastToken.Type != TokenType.Colon && scanner.LastToken.Type != TokenType.Newline)
+                compatibleType = ParseType();
+
             if (scanner.LastToken.Type == TokenType.Colon)
             {
                 scanner.ScanToken();
@@ -426,11 +435,11 @@ namespace NoHoPython.Syntax.Parsing
                     return (type, identifier, accessSource);
                 });
                 
-                return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), properties, sourceLocation);
+                return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), properties, compatibleType, sourceLocation);
             }
             else
             {
-                return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), new(), sourceLocation);
+                return new ForeignCDeclaration(identifier, csource, typeParameters, ParseAttributesTable(), new(), compatibleType, sourceLocation);
             }
         }
 

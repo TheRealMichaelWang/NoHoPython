@@ -161,25 +161,34 @@ namespace NoHoPython.Syntax
                 case "pure":
                     return typeArguments.Count < 1
                         ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
-                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.Pure);
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.Pure, true, false);
+                case "threadSafePure":
+                    return typeArguments.Count < 1
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.Pure, false, true);
                 case "impure":
                 case "global":
                 case "global_impure":
                     return typeArguments.Count < 1
                         ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
-                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.AffectsGlobals);
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.AffectsGlobals, true, false);
                 case "fn":
                 case "proc":
                 case "affects_args":
                 case "affectsArgs":
                     return typeArguments.Count < 1
                         ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
-                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments);
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArguments, true, false);
+                case "threadSafeFn":
+                case "multithreadResultFn":
+                    return typeArguments.Count < 1
+                        ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.Pure, true, true);
                 case "affects_captured":
                 case "affectsCaptured":
                     return typeArguments.Count < 1
                         ? throw new UnexpectedTypeArgumentsException(typeArguments.Count, errorReportedElement)
-                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArgumentsAndCaptured);
+                        : new ProcedureType(typeArguments[0], typeArguments.GetRange(1, typeArguments.Count - 1), IntermediateRepresentation.Statements.Purity.OnlyAffectsArgumentsAndCaptured, true, false);
                 default:
                     {
                         IScopeSymbol typeSymbol = irBuilder.SymbolMarshaller.FindSymbol(Identifier, errorReportedElement);

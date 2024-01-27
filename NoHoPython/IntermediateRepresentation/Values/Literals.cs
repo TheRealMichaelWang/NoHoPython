@@ -103,13 +103,14 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsTruey => false;
         public bool IsFalsey => false;
 
-        public IType Type => Primitive.CString;
+        public IType Type { get; private set; }
         
         public string String { get; private set; }
 
-        public StaticCStringLiteral(string @string, IAstElement errorReportedElement)
+        public StaticCStringLiteral(string @string, IType type, IAstElement errorReportedElement)
         {
             String = @string;
+            Type = type;
             ErrorReportedElement = errorReportedElement;
         }
     }
@@ -370,13 +371,13 @@ namespace NoHoPython.Syntax.Values
             {
                 return new IntermediateRepresentation.Values.ArrayLiteral(Primitive.Character, String.ToList().ConvertAll((c) => (IRValue)new IntermediateRepresentation.Values.CharacterLiteral(c, this)), irBuilder, this);
             }
-            else if(expectedType is HandleType)
-                return new IntermediateRepresentation.Values.StaticCStringLiteral(String, this);
+            else if(expectedType is HandleType || (expectedType is ForeignCType foreignCType && foreignCType.CompatibleType != null && foreignCType.CompatibleType.IsCompatibleWith(Primitive.CString)))
+                return new IntermediateRepresentation.Values.StaticCStringLiteral(String, expectedType, this);
 
             IScopeSymbol stringMarshaller = irBuilder.SymbolMarshaller.FindSymbol("stringImpl:makeString", this);
             if(stringMarshaller is ProcedureDeclaration procedureDeclaration)
             {
-                return new IntermediateRepresentation.Values.LinkedProcedureCall(procedureDeclaration, new() { new IntermediateRepresentation.Values.StaticCStringLiteral(String, this), new IntermediateRepresentation.Values.IntegerLiteral(String.Length, this) }, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), Primitive.GetStringType(irBuilder, this), irBuilder, this);
+                return new IntermediateRepresentation.Values.LinkedProcedureCall(procedureDeclaration, new() { new IntermediateRepresentation.Values.StaticCStringLiteral(String, Primitive.CString, this), new IntermediateRepresentation.Values.IntegerLiteral(String.Length, this) }, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek(), Primitive.GetStringType(irBuilder, this), irBuilder, this);
             }
             throw new NotAProcedureException(stringMarshaller, this);
         }

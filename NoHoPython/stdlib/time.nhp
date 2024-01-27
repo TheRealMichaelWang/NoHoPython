@@ -1,24 +1,8 @@
 ﻿# North Hollywood Python
 # (C) Michael Wang, 2021-2023
-
-# Standard Time Library
-# This is really a NHP interface for time.h
-
 cinclude "<time.h>"
 
 mod std:
-	cdef time "time_t"
+	cdef time "time_t" int
 
-	cdef calendar "struct tm":
-		int seconds "##VALUE.tm_secs"
-		int minutes "##VALUE.tm_min"
-		int hour "##VALUE.tm_hour"
-		int dayOfMonth "##VALUE.tm_mday"
-		int month "##VALUE.tm_mon"
-		int year "##VALUE.tm_year + 1900"
-		int dayOfWeek "##VALUE.tm_wday"
-		int dayOfYear "##VALUE.tm_yday"
-		bool isDaylightSavings "##VALUE.tm_isdst"
-	
-	pure time_get_localCalendar(time t) option<calendar>:
-		cdef handle<calendar> localtime()
+	cdef currentTime() time "time(NULL)"

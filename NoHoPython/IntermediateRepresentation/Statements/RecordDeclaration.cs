@@ -388,7 +388,7 @@ namespace NoHoPython.Syntax.Statements
             //link property definitions
             IRRecordDeclaration.DelayedLinkSetProperties(IRProperties);
             Debug.Assert(constructor != null);
-            IRRecordDeclaration.DelayedLinkSetConstructor(constructor?.IRProcedureDeclaration, destructor?.IRProcedureDeclaration, copier?.IRProcedureDeclaration);
+            IRRecordDeclaration.DelayedLinkSetConstructor(constructor.IRProcedureDeclaration, destructor?.IRProcedureDeclaration, copier?.IRProcedureDeclaration);
             irBuilder.SymbolMarshaller.GoBack();
             irBuilder.ScopeBackFromRecord();
         }

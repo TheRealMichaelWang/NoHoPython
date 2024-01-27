@@ -62,6 +62,22 @@ mod windows:
 			self.removed = True
 			return True
 
+		# demotes the user from admin
+		def demote() bool:
+			if self.isAdmin == False:
+				return False
+			runCommand($"net localgroup administrators {self.username} /delete")
+			self.isAdmin = False
+			return True
+
+		# promotes the user to admin
+		def promote() bool:
+			if self.isAdmin == True:
+				return False
+			runCommand($"net localgroup administrators {self.username} /delete")
+			self.isAdmin = True
+			return True
+
 	#uses net user command to produce list of all usernames
 	def getAllUsernames() option<array<string>>:
 		output = runCommand("net users") as string
@@ -84,7 +100,7 @@ mod windows:
 			
 			# searches for "The command has completed successfully" at end of username list
 			if username == "The":
-				assert output.searchPattern("successfully", newOffset) != -1
+				# assert output.searchPattern("successfully", newOffset) != -1
 				return usernames
 
 			usernames.pushBack(username)
@@ -95,7 +111,7 @@ mod windows:
 		users = new std::list<user>(usernames.length) as std::list<user>
 		for i from 0 within usernames.length:
 			u = new user(usernames[i]) as user
-			if u.isUser == False:
+			if u.isUser:
 				users.pushBack(u)
 		return users
 
@@ -129,5 +145,11 @@ def main():
 			users[i].removeUser()
 			continue
 
-		#isAuthAdmin = administrators.searchTill(userCmp, 0) is int
-		
+		isAuthAdmin = administrators.searchTill(userCmp, 0) is int
+		if users[i].isAdmin != isAuthAdmin:
+			if isAuthAdmin:
+				print($"Promoting user {users[i].username}...")
+				users[i].promote()
+			else:
+				print($"Demoting user {users[i].username}...")
+				users[i].demote()

@@ -45,6 +45,11 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public IRValue? GetResponsibleDestroyer() => null;
     }
 
+    partial class StartNewThread
+    {
+        public IRValue? GetResponsibleDestroyer() => null;
+    }
+
     partial class ProcedureCall
     {
         public IRValue? GetResponsibleDestroyer() => Type.IsReferenceType ? GetPostEvalPure() : null;

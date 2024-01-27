@@ -408,7 +408,7 @@ namespace NoHoPython.Typing
 
     partial class ProcedureType
     {
-        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureType(ReturnType.SubstituteWithTypearg(typeargs), ParameterTypes.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList(), Purity);
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ProcedureType(ReturnType.SubstituteWithTypearg(typeargs), ParameterTypes.Select((IType type) => type.SubstituteWithTypearg(typeargs)).ToList(), Purity, IsCapturedByReference, IsThreadSafe);
 
         public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
         {
@@ -432,6 +432,21 @@ namespace NoHoPython.Typing
             else
                 return ArithmeticCast.CastTo(argument, this, irBuilder);
         }
+
+        public bool ContainsType(IType type) => false;
+    }
+
+    partial class ThreadType
+    {
+        public IType SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new ThreadType();
+
+        public void MatchTypeArgumentWithType(Dictionary<TypeParameter, IType> typeargs, IType argument, Syntax.IAstElement errorReportedElement)
+        {
+            if (!IsCompatibleWith(argument))
+                throw new UnexpectedTypeException(this, argument, errorReportedElement);
+        }
+
+        public IRValue MatchTypeArgumentWithValue(Dictionary<TypeParameter, IType> typeargs, IRValue argument, Syntax.AstIRProgramBuilder irBuilder) => ArithmeticCast.CastTo(argument, this, irBuilder);
 
         public bool ContainsType(IType type) => false;
     }
@@ -497,7 +512,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
     partial class StaticCStringLiteral
     {
-        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new StaticCStringLiteral(String, ErrorReportedElement);
+        public IRValue SubstituteWithTypearg(Dictionary<TypeParameter, IType> typeargs) => new StaticCStringLiteral(String, Type.SubstituteWithTypearg(typeargs), ErrorReportedElement);
     }
 
     partial class EmptyTypeLiteral

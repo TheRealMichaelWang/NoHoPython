@@ -95,7 +95,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 }));
         }
 
-        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs, !MustUseDestinationPromise(irProgram, typeargs, true));
     }
 
     partial class SetVariable
@@ -150,7 +150,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 }, Emitter.NullPromise, false));
         }
 
-        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs, !MustUseDestinationPromise(irProgram, typeargs, true) && !Variable.Type.SubstituteWithTypearg(typeargs).RequiresDisposal);
     }
 
     partial class CSymbolReference

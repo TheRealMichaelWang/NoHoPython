@@ -277,7 +277,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     emitter.Append($"void free_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record");
                     AppendFunctionEnd(recordType, "child_agent");
 
-                    if (!recordType.HasCopier && !PassByReference)
+                    if (!recordType.HasUserDefinedCopier && !PassByReference && recordType.HasCopier)
                     {
                         emitter.Append($"{recordType.GetCName(irProgram)} copy_record{recordType.GetStandardIdentifier(irProgram)}({recordType.GetCName(irProgram)} record");
                         AppendFunctionEnd(recordType, "parent_record");
@@ -293,7 +293,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     emitter.Append(", nhp_custom_destructor destructor");
                 AppendFunctionEnd(genericRecordType, "freeing_parent");
 
-                if (!genericRecordType.HasCopier && !PassByReference)
+                if (!genericRecordType.HasUserDefinedCopier && !PassByReference)
                 {
                     emitter.Append($"{genericRecordType.GetCName(irProgram)} copy_record{genericRecordType.GetStandardIdentifier(irProgram)}({genericRecordType.GetCName(irProgram)} record");
                     AppendFunctionEnd(genericRecordType, "parent_record");
@@ -338,7 +338,8 @@ namespace NoHoPython.Typing
 {
     partial class RecordType
     {
-        public bool HasCopier => copierCall != null;
+        public bool HasUserDefinedCopier => copierCall != null;
+        public bool HasCopier => properties.Value.All(property => property.Type.HasCopier) || (HasUserDefinedCopier && copierCall?.ProcedureDeclaration.AllCodePathsAbort() == null) || RecordPrototype.PassByReference;
 
         private ProcedureReference constructorCall;
         private ProcedureReference? destructorCall = null;
@@ -349,6 +350,8 @@ namespace NoHoPython.Typing
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
         public bool IsTypeDependency => false;
+        public bool IsCapturedByReference => true;
+        public bool IsThreadSafe => false;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo)
         {
@@ -379,7 +382,7 @@ namespace NoHoPython.Typing
         public string GetOriginalStandardIdentifer(IRProgram irProgram) => $"nhp_record_{IScopeSymbol.GetAbsolouteName(RecordPrototype)}{string.Join(string.Empty, TypeArguments.ConvertAll((typearg) => $"_{typearg.GetStandardIdentifier(irProgram)}"))}";
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t*";
-        public string? GetInvalidState() => "NULL";
+        public string? GetInvalidState(IRProgram irProgram) => "NULL";
         public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
         public string GetCHeapSizer(IRProgram irProgram) => $"sizeof({GetStandardIdentifier(irProgram)}_t)";
 
@@ -407,6 +410,7 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
+
             if (RecordPrototype.PassByReference)
             {
                 EmitClosureBorrowValue(irProgram, emitter, valueCSource, responsibleDestroyer);
@@ -423,6 +427,9 @@ namespace NoHoPython.Typing
             AbortStatement? abortStatement;
             if (copierCall != null && (abortStatement = copierCall.ProcedureDeclaration.CodeBlockAllCodePathsAbort()) != null)
                 throw new CannotCopyRecord(errorReportedElement, this, abortStatement);
+
+            if (!properties.Value.All(prop => prop.Type.HasCopier))
+                throw new CannotCopyType(errorReportedElement, this);
 
             emitter.Append(copierCall != null ? copierCall.GetStandardIdentifier(irProgram) : $"copy_record{GetStandardIdentifier(irProgram)}");
             emitter.Append('(');
@@ -463,11 +470,11 @@ namespace NoHoPython.Typing
             if (!irBuilder.DeclareUsedRecordType(this)) 
                 return;
 
-            constructorCall = new ProcedureReference(typeargMap.Value, RecordPrototype.Constructor, false, RecordPrototype.Constructor.ErrorReportedElement);
+            constructorCall = new ProcedureReference(typeargMap.Value, RecordPrototype.Constructor, ProcedureReference.ReferenceMode.Regular, RecordPrototype.Constructor.ErrorReportedElement);
             if (RecordPrototype.Destructor != null)
-                destructorCall = new ProcedureReference(typeargMap.Value, RecordPrototype.Destructor, false, RecordPrototype.Destructor.ErrorReportedElement);
+                destructorCall = new ProcedureReference(typeargMap.Value, RecordPrototype.Destructor, ProcedureReference.ReferenceMode.Regular, RecordPrototype.Destructor.ErrorReportedElement);
             if(RecordPrototype.Copier != null)
-                copierCall = new ProcedureReference(typeargMap.Value, RecordPrototype.Copier, false, RecordPrototype.Copier.ErrorReportedElement);
+                copierCall = new ProcedureReference(typeargMap.Value, RecordPrototype.Copier, ProcedureReference.ReferenceMode.Regular, RecordPrototype.Copier.ErrorReportedElement);
 
             constructorCall = constructorCall.ScopeForUsedTypes(irBuilder);
             destructorCall = destructorCall?.ScopeForUsedTypes(irBuilder);
@@ -622,7 +629,7 @@ namespace NoHoPython.Typing
 
         public void EmitCopier(IRProgram irProgram, Emitter emitter)
         {
-            if (copierCall != null || RecordPrototype.PassByReference)
+            if (HasUserDefinedCopier || RecordPrototype.PassByReference || !HasCopier)
                 return;
 
             emitter.Append($"{GetCName(irProgram)} copy_record{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} record");

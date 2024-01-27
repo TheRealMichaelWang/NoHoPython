@@ -220,7 +220,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             else if (Condition.MustUseDestinationPromise(irProgram, typeargs, true))
             {
                 int indirection = primaryEmitter.AppendStartBlock();
-                primaryEmitter.AppendLine($"int cond{indirection} = ");
+                primaryEmitter.AppendLine($"int cond{indirection};");
                 primaryEmitter.SetArgument(Condition, $"cond{indirection}", irProgram, typeargs, true);
                 primaryEmitter.Append($"if(cond{indirection})");
                 IfTrueBlock.Emit(irProgram, primaryEmitter, typeargs);

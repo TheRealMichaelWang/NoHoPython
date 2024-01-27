@@ -235,13 +235,16 @@ namespace NoHoPython.Typing
         public bool HasMutableChildren => false;
         public bool IsReferenceType => false;
 
+        public bool IsCapturedByReference { get; private set; }
+        public bool IsThreadSafe { get; private set; }
+
         public IType ReturnType { get; private set; }
         public readonly List<IType> ParameterTypes;
         public Purity Purity { get; private set; }
 
         public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
-        public ProcedureType(IType returnType, List<IType> parameterTypes, Purity purity)
+        public ProcedureType(IType returnType, List<IType> parameterTypes, Purity purity, bool isCapturedByReference, bool isThreadSafe)
         {
             ReturnType = returnType;
             ParameterTypes = parameterTypes;
@@ -252,7 +255,7 @@ namespace NoHoPython.Typing
         {
             if (type is ProcedureType procedureType)
             {
-                if (Purity != procedureType.Purity)
+                if (Purity != procedureType.Purity || IsCapturedByReference != procedureType.IsCapturedByReference || IsThreadSafe != procedureType.IsThreadSafe)
                     return false;
                 return IsMostlyCompatibleWith(procedureType);
             }
@@ -277,9 +280,33 @@ namespace NoHoPython.Typing
             {
                 if (Purity < procedureType.Purity)
                     return false;
+                if (!(IsThreadSafe && !procedureType.IsThreadSafe))
+                    return false;
                 return IsMostlyCompatibleWith(procedureType);
             }
             return false;
         }
+    }
+
+    public sealed partial class ThreadType : IType
+    {
+        public string TypeName => "thread";
+        public string Identifier => "thread";
+        public string PrototypeIdentifier => "thread";
+
+        public bool IsEmpty => false;
+        public bool HasMutableChildren => true;
+        public bool IsReferenceType => true;
+
+        public IRValue GetDefaultValue(IAstElement errorReportedElement, AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
+
+        public ThreadType()
+        {
+
+        }
+
+        public bool IsCompatibleWith(IType type) => type is ThreadType;
+
+        public bool IsSuperType(IType type) => false;
     }
 }

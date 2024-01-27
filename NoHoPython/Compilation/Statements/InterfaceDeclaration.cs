@@ -144,13 +144,16 @@ namespace NoHoPython.Typing
         public bool MustSetResponsibleDestroyer => requiredImplementedProperties.Value.Any((property) => property.Type.MustSetResponsibleDestroyer);
         public bool IsTypeDependency => true;
 
+        public bool IsCapturedByReference => GetProperties().Any(property => property.Type.IsCapturedByReference);
+        public bool IsThreadSafe => GetProperties().All(property => property.Type.IsThreadSafe);
+
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => requiredImplementedProperties.Value.Any((property) => property.Type.TypeParameterAffectsCodegen(effectInfo));
 
         public string GetStandardIdentifier(IRProgram irProgram) => InterfaceDeclaration.EmitMultipleCStructs ? $"nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}_{string.Join('_', TypeArguments.ConvertAll((typearg) => typearg.GetStandardIdentifier(irProgram)))}" : $"nhp_interface_{IScopeSymbol.GetAbsolouteName(InterfaceDeclaration)}";
 
         public string GetCName(IRProgram irProgram) => $"{GetStandardIdentifier(irProgram)}_t";
 
-        public string? GetInvalidState() => null;
+        public string? GetInvalidState(IRProgram irProgram) => null;
         public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
 
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent)

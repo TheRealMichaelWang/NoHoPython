@@ -1,0 +1,8 @@
+﻿cinclude "<stdint.h>"
+
+mod std:
+	cdef int8 "int8_t" int
+	cdef int16 "int16_t" int
+	cdef int32 "int32_t" int
+	cdef uint16 "uint16_t" int
+	cdef uint32 "uint32_t" int

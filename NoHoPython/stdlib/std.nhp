@@ -1,6 +1,7 @@
 include "list.nhp"
 include "string.nhp"
 include "chars.nhp"
+include "stdint.nhp"
 cinclude "<stdio.h>"
 
 def pair<A, B> tuple<A, B>

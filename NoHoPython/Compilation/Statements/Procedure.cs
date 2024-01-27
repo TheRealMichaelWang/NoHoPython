@@ -145,10 +145,10 @@ namespace NoHoPython.IntermediateRepresentation
 
         public static Emitter.Promise EmitDirectPromise(IRProgram irProgram, IRValue value, Dictionary<TypeParameter, IType> typeargs, Emitter.Promise responsibleDestroyer, bool isTemporaryEval) => (emitter) => EmitDirect(irProgram, emitter, value, typeargs, responsibleDestroyer, isTemporaryEval);
 
-        public static void EmitAsStatement(IRProgram irProgram, Emitter emitter, IRValue value, Dictionary<TypeParameter, IType> typeargs)
+        public static void EmitAsStatement(IRProgram irProgram, Emitter emitter, IRValue value, Dictionary<TypeParameter, IType> typeargs, bool mustEmitDestination)
         {
             if (value.IsPure)
-                return;
+                return; 
 
             if (value.RequiresDisposal(irProgram, typeargs, true))
                 value.Emit(irProgram, emitter, typeargs, (valuePromise) => {
@@ -157,12 +157,20 @@ namespace NoHoPython.IntermediateRepresentation
                 }, Emitter.NullPromise, true);
             else
             {
-                value.Emit(irProgram, emitter, typeargs, (valuePromise) =>
+                value.Emit(irProgram, emitter, typeargs, mustEmitDestination ? ((valuePromise) =>
                 {
                     valuePromise(emitter);
                     emitter.AppendLine(';');
-                }, Emitter.NullPromise, true);
+                }) : e => { }, Emitter.NullPromise, true);
             }
+        }
+
+        public static void EmitAsStatement(IRProgram irProgram, Emitter emitter, IRValue value, Dictionary<TypeParameter, IType> typeargs)
+        {
+            if (value is IRStatement statement)
+                statement.Emit(irProgram, emitter, typeargs);
+            else
+                EmitAsStatement(irProgram, emitter, value, typeargs, true);
         }
     }
 }
@@ -205,6 +213,7 @@ namespace NoHoPython.Typing
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => true;
         public bool IsTypeDependency => true;
+        public bool HasCopier => true;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
 
@@ -230,7 +239,7 @@ namespace NoHoPython.Typing
         }
 
         public string GetCName(IRProgram irProgram) => StandardProcedureType;
-        public string? GetInvalidState() => "NULL";
+        public string? GetInvalidState(IRProgram irProgram) => "NULL";
         public Emitter.SetPromise? IsInvalid(Emitter emitter) => null;
 
         public void EmitFreeValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valuePromise, Emitter.Promise childAgent) 
@@ -283,7 +292,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (!IsCompileHead)
                 throw new InvalidOperationException();
 
-            ProcedureReference procedureReference = new ProcedureReference(this, false, ErrorReportedElement);
+            ProcedureReference procedureReference = new ProcedureReference(this, ProcedureReference.ReferenceMode.Regular, ErrorReportedElement);
             procedureReference.ScopeForUsedTypes(irBuilder);
         }
 
@@ -337,7 +346,13 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
     partial class ProcedureReference
     {
-        public string GetStandardIdentifier(IRProgram irProgram) => $"{IScopeSymbol.GetAbsolouteName(ProcedureDeclaration, ProcedureDeclaration.LastMasterScope is IScopeSymbol parentSymbol ? parentSymbol : null)}{string.Join(string.Empty, ProcedureDeclaration.UsedTypeParameters.ToList().ConvertAll((typeParam) => $"_{typeArguments[typeParam].GetStandardIdentifier(irProgram)}_as_{typeParam.Name}"))}" + (IsAnonymous ? "_anon_capture" : string.Empty);
+        public string GetStandardIdentifier(IRProgram irProgram) => $"{IScopeSymbol.GetAbsolouteName(ProcedureDeclaration, ProcedureDeclaration.LastMasterScope is IScopeSymbol parentSymbol ? parentSymbol : null)}{string.Join(string.Empty, ProcedureDeclaration.UsedTypeParameters.ToList().ConvertAll((typeParam) => $"_{typeArguments[typeParam].GetStandardIdentifier(irProgram)}_as_{typeParam.Name}"))}" + (Mode switch
+        {
+            ReferenceMode.Anonymized => "_anon_capture",
+            ReferenceMode.Multithreading => "_multithread",
+            ReferenceMode.Regular => string.Empty,
+            _ => throw new InvalidOperationException()
+        });
 
         public string GetClosureCaptureCType(IRProgram irProgram) => ProcedureDeclaration.CapturedVariables.Count == 0 ? "nhp_anon_proc_info_t" : (complementaryProcedureReference == null ? $"{GetStandardIdentifier(irProgram)}_captured_t" : complementaryProcedureReference.GetClosureCaptureCType(irProgram));
 
@@ -357,18 +372,25 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
                 variable.Type.SubstituteWithTypearg(typeArguments).ScopeForUsedTypes(irBuilder);
             ProcedureDeclaration.SubstitutedScopeForUsedTypes(typeArguments, irBuilder);
-            if (IsAnonymous)
+
+            if (Mode == ReferenceMode.Anonymized)
                 anonProcedureType.ScopeForUsedTypes(irBuilder);
 
             ProcedureReference? procedureReference = irBuilder.DeclareUsedProcedureReference(this);
-            return procedureReference != null ? procedureReference : this;
+            if (procedureReference != null)
+                return procedureReference;
+            else
+            {
+                irBuilder.IncludeCFile("puthread.h");
+                return this;
+            }
         }
 
         private void EmitCFunctionHeader(IRProgram irProgram, Emitter emitter)
         {
 #pragma warning disable CS8604 // Parameters not null when compilation begins
             emitter.Append($"{ReturnType.GetCName(irProgram)} {GetStandardIdentifier(irProgram)}(");
-            if (IsAnonymous)
+            if (Mode == ReferenceMode.Anonymized || Mode == ReferenceMode.Multithreading)
             {
                 //if (ProcedureDeclaration.CapturedVariables.Count > 0)
                 emitter.Append($"{GetClosureCaptureCType(irProgram)}* nhp_captured");
@@ -382,7 +404,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if(ReturnType.MustSetResponsibleDestroyer)
                     emitter.Append(", void* ret_responsible_dest");
             }
-            else
+            else if(Mode == ReferenceMode.Regular)
             {
                 if (ProcedureDeclaration.CapturedVariables.Count > 0)
                     emitter.Append(string.Join(", ", (ProcedureDeclaration.Parameters.Concat(ProcedureDeclaration.CapturedVariables)).Select((parameter) => parameter.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram) + " " + parameter.GetStandardIdentifier())));
@@ -413,7 +435,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             EmitCFunctionHeader(irProgram, emitter);
             emitter.AppendLine(";");
 
-            if (IsAnonymous && ProcedureDeclaration.CapturedVariables.Count > 0 && complementaryProcedureReference == null)
+            if (Mode == ReferenceMode.Anonymized && ProcedureDeclaration.CapturedVariables.Count > 0 && complementaryProcedureReference == null)
             {
                 EmitCaptureCFunctionHeader(irProgram, emitter);
                 emitter.AppendLine(";");
@@ -425,10 +447,20 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             EmitCFunctionHeader(irProgram, emitter);
             emitter.DeclareFunctionBlock(IsOptionalConstructor);
             emitter.AppendStartBlock();
-            if (IsAnonymous)
+            if (Mode == ReferenceMode.Anonymized || Mode == ReferenceMode.Multithreading)
             {
                 foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
+                {
                     emitter.AppendLine($"{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier()} = nhp_captured->{variable.GetStandardIdentifier()};");
+
+                    if (Mode == ReferenceMode.Multithreading && variable.Type.SubstituteWithTypearg(typeArguments).RequiresDisposal)
+                        emitter.AddResourceDestructor(e => variable.Type.SubstituteWithTypearg(typeArguments).EmitFreeValue(irProgram, e, k => k.Append($"nhp_captured->{variable.GetStandardIdentifier()}"), Emitter.NullPromise));
+                }
+                if (Mode == ReferenceMode.Multithreading)
+                {
+                    emitter.AddResourceDestructor(e => e.AppendLine($"{irProgram.MemoryAnalyzer.Dealloc("nhp_captured", $"sizeof({GetClosureCaptureCType(irProgram)})")}"));
+                    emitter.AddResourceDestructor(e => e.AppendLine("p_uthread_exit(0);"));
+                }
             }
             if(ReturnType is not NothingType)
                 emitter.AppendLine($"{ReturnType.GetCName(irProgram)} nhp_toret;");
@@ -449,7 +481,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return ProcedureDeclaration.CapturedVariables.Count == procedureReference.ProcedureDeclaration.CapturedVariables.Count;
             }
 
-            if (!IsAnonymous || ProcedureDeclaration.CapturedVariables.Count == 0)
+            if (Mode == ReferenceMode.Regular || ProcedureDeclaration.CapturedVariables.Count == 0)
                 return;
 
             complementaryProcedureReference = anonProcedureReferences.Find((procedureReference) => HasCompatibleCaptureContextCStruct(procedureReference));
@@ -457,10 +489,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             if (complementaryProcedureReference == null)
             {
                 emitter.AppendLine($"typedef struct {GetStandardIdentifier(irProgram)}_captured {{");
-                emitter.AppendLine("\tnhp_anon_proc_info_t common;");
+                if(Mode == ReferenceMode.Anonymized)
+                    emitter.AppendLine("\tnhp_anon_proc_info_t common;");
                 foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
                     emitter.AppendLine($"\t{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier()};");
-                emitter.AppendLine("\tint nhp_lock;");
                 emitter.AppendLine($"}} {GetStandardIdentifier(irProgram)}_captured_t;");
                 emittedCapturedContextStruct = true;
             }
@@ -468,7 +500,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void EmitAnonymizer(IRProgram irProgram, Emitter emitter)
         {
-            if (!IsAnonymous || ProcedureDeclaration.CapturedVariables.Count == 0 || complementaryProcedureReference != null)
+            if (Mode != ReferenceMode.Anonymized || ProcedureDeclaration.CapturedVariables.Count == 0 || complementaryProcedureReference != null)
                 return;
 
             EmitCaptureCFunctionHeader(irProgram, emitter);
@@ -492,8 +524,6 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             else
                 emitter.AppendLine("closure->common.nhp_copier;");
 
-            emitter.AppendLine("\tclosure->nhp_lock = 0;");
-
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables)
             {
                 emitter.Append($"\tclosure->{capturedVariable.GetStandardIdentifier()} = ");
@@ -506,16 +536,11 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void EmitAnonDestructor(IRProgram irProgram, Emitter emitter)
         {
-            if (!IsAnonymous || !ProcedureDeclaration.CapturedVariables.Any((variable) => variable.Type.RequiresDisposal) || complementaryProcedureReference != null)
+            if (Mode != ReferenceMode.Anonymized || !ProcedureDeclaration.CapturedVariables.Any((variable) => variable.Type.RequiresDisposal) || complementaryProcedureReference != null)
                 return;
 
             emitter.AppendStartBlock($"void free{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_free_anon, void* child_agent)");
             emitter.AppendLine($"{GetClosureCaptureCType(irProgram)}* to_free = ({GetClosureCaptureCType(irProgram)}*)to_free_anon;");
-
-            emitter.AppendStartBlock("if(to_free->nhp_lock)");
-            emitter.AppendLine("return;");
-            emitter.AppendEndBlock();
-            emitter.AppendLine("to_free->nhp_lock = 1;");
 
             foreach (Variable capturedVariable in ProcedureDeclaration.CapturedVariables) 
                 if (capturedVariable.Type.SubstituteWithTypearg(typeArguments).RequiresDisposal)
@@ -530,7 +555,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void EmitAnonCopier(IRProgram irProgram, Emitter emitter)
         {
-            if (!IsAnonymous || ProcedureDeclaration.CapturedVariables.Count == 0 || complementaryProcedureReference != null)
+            if (Mode != ReferenceMode.Anonymized || ProcedureDeclaration.CapturedVariables.Count == 0 || complementaryProcedureReference != null)
                 return;
 
             emitter.AppendLine($"{ProcedureType.StandardProcedureType} copy{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_copy_anon, void* responsible_destroyer) {{");
@@ -544,7 +569,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
 
         public void EmitAnonRecordCopier(IRProgram irProgram, Emitter emitter)
         {
-            if (!IsAnonymous || !ProcedureDeclaration.CapturedVariables.Any((variable) => variable.IsRecordSelf) || complementaryProcedureReference != null)
+            if (Mode != ReferenceMode.Anonymized || !ProcedureDeclaration.CapturedVariables.Any((variable) => variable.IsRecordSelf) || complementaryProcedureReference != null)
                 return;
 
             emitter.AppendLine($"{ProcedureType.StandardProcedureType} record_copy{GetStandardIdentifier(irProgram)}({ProcedureType.StandardProcedureType} to_copy_anon, void* record) {{");
@@ -576,7 +601,8 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 if (ToReturn is VariableReference variableReference && parentProcedure.IsLocalVariable(variableReference.Variable))
                 {
                     localToReturn = variableReference.Variable;
-                    primaryEmitter.ExemptResourceFromDestruction(localToReturn.ResourceDestructorId);
+                    if(ToReturn.Type.SubstituteWithTypearg(typeargs).RequiresDisposal)
+                        primaryEmitter.ExemptResourceFromDestruction(localToReturn.ResourceDestructorId);
                     primaryEmitter.AppendLine($"nhp_toret = {localToReturn.GetStandardIdentifier()};");
                 }
                 else
@@ -750,7 +776,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
             }
         }
 
-        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs);
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs) => IRValue.EmitAsStatement(irProgram, primaryEmitter, this, typeargs, true);
     }
 
     partial class LinkedProcedureCall
@@ -909,6 +935,49 @@ namespace NoHoPython.IntermediateRepresentation.Values
             else
                 emitter.Append($"capture_anon_proc(&{Procedure.GetStandardIdentifier(irProgram)})");
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
+        }
+    }
+
+    partial class StartNewThread
+    {
+        public sealed class CannotBorrowTypeForNewThread : CodegenError
+        {
+            public CannotBorrowTypeForNewThread(Variable variable, IType type, IRElement errorReportedElement) : base(errorReportedElement, $"Cannot capture variable {variable.Name} because its type {type.TypeName} isn't thread safe AND is captured by reference.")
+            {
+
+            }
+        }
+
+        ProcedureReference? toMultiThread;
+
+        public bool RequiresDisposal(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
+
+        public bool MustUseDestinationPromise(IRProgram irProgram, Dictionary<TypeParameter, IType> typeargs, bool isTemporaryEval) => true;
+
+        public void ScopeForUsedTypes(Dictionary<TypeParameter, IType> typeargs, Syntax.AstIRProgramBuilder irBuilder)
+        {
+            toMultiThread = ProcedureReference.SubstituteWithTypearg(typeargs);
+            toMultiThread = toMultiThread.ScopeForUsedTypes(irBuilder);
+        }
+
+        public void Emit(IRProgram irProgram, Emitter primaryEmitter, Dictionary<TypeParameter, IType> typeargs, Emitter.SetPromise destination, Emitter.Promise responsibleDestroyer, bool isTemporaryEval)
+        {
+            int indirection = primaryEmitter.AppendStartBlock();
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            primaryEmitter.AppendLine($"{toMultiThread.GetClosureCaptureCType(irProgram)}* thread_data{indirection} = {irProgram.MemoryAnalyzer.Allocate($"sizeof({toMultiThread.GetClosureCaptureCType(irProgram)})")};");
+
+            foreach (Variable capturedVar in toMultiThread.ProcedureDeclaration.CapturedVariables)
+            {
+                if (capturedVar.Type.SubstituteWithTypearg(typeargs).IsCapturedByReference && !capturedVar.Type.SubstituteWithTypearg(typeargs).IsThreadSafe)
+                    throw new CannotBorrowTypeForNewThread(capturedVar, capturedVar.Type.SubstituteWithTypearg(typeargs), this);
+                primaryEmitter.Append($"thread_data{indirection}->{capturedVar.GetStandardIdentifier()} = ");
+                capturedVar.Type.SubstituteWithTypearg(typeargs).EmitClosureBorrowValue(irProgram, primaryEmitter, e => e.Append(capturedVar.GetStandardIdentifier()), Emitter.NullPromise);
+                primaryEmitter.AppendLine(";");
+            }
+
+            destination((emitter) => emitter.Append($"p_uthread_create(&{toMultiThread.GetStandardIdentifier(irProgram)}, thread_data{indirection}, 1)"));
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+            primaryEmitter.AppendEndBlock();
         }
     }
 

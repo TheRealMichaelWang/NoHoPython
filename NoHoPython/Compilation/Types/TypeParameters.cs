@@ -37,13 +37,16 @@ namespace NoHoPython.Typing
         public bool IsTypeDependency => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public bool HasMutableChildren => false;
         public bool IsReferenceType => false;
+        public bool IsCapturedByReference => TypeParameter.RequiredImplementedInterface != null;
+        public bool IsThreadSafe => TypeParameter.RequiredImplementedInterface != null;
+        public bool HasCopier => throw new UnexpectedTypeParameterError(TypeParameter, null);
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => true;
 
         public IRValue GetDefaultValue(Syntax.IAstElement errorReportedElement, Syntax.AstIRProgramBuilder irBuilder) => throw new NoDefaultValueError(this, errorReportedElement);
 
         public string GetCName(IRProgram irProgram) => throw new UnexpectedTypeParameterError(TypeParameter, null);
-        public string? GetInvalidState() => throw new UnexpectedTypeParameterError(TypeParameter, null);
+        public string? GetInvalidState(IRProgram irProgram) => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public Emitter.SetPromise? IsInvalid(Emitter emitter) => throw new UnexpectedTypeParameterError(TypeParameter, null);
         public string GetStandardIdentifier(IRProgram irProgram) => $"type_param_{TypeParameter.Name}";
 

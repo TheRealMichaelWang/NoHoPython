@@ -93,6 +93,10 @@ namespace NoHoPython.IntermediateRepresentation.Values
                     return new MarshalMemorySpanIntoArray(value, value.ErrorReportedElement);
                 if (typeTarget is ProcedureType procedureType1 && value.Type is ProcedureType procedureType2 && procedureType1.IsMostlyCompatibleWith(procedureType2))
                     return new AutoCast(typeTarget, value);
+                if(typeTarget is ForeignCType foreignCType && foreignCType.CompatibleType != null && value.Type.IsCompatibleWith(foreignCType.CompatibleType))
+                    return new AutoCast(foreignCType, value);
+                if (value.Type is ForeignCType foreignCType1 && foreignCType1.CompatibleType != null && foreignCType1.CompatibleType.IsCompatibleWith(typeTarget))
+                    return new AutoCast(typeTarget, value);
                 if (value.Type is EnumType enumType1)
                 { 
                     if(enumType1.SupportsType(typeTarget))

@@ -313,7 +313,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
         public bool IsPure => true;
         public bool IsConstant => true;
 
-        public IRValue GetPostEvalPure() => new StaticCStringLiteral(String, ErrorReportedElement);
+        public IRValue GetPostEvalPure() => new StaticCStringLiteral(String, Type, ErrorReportedElement);
 
         public void EnsureMinimumPurity(Purity purity) { }
         public void GetMutatedValues(List<IRValue> affectedValues) { }
@@ -1086,7 +1086,25 @@ namespace NoHoPython.IntermediateRepresentation.Values
 
         public void GetCoMutatedValues(List<IRValue> coMutatedValues) { }
 
-        public bool IsAffectedByMutation(IRValue mutatedValue) => false;
+        public bool IsAffectedByMutation(IRValue mutatedValue) => mutatedValue is VariableReference variableReference && Procedure.ProcedureDeclaration.CapturedVariables.Any(capturedVariable => capturedVariable == variableReference.Variable);
+
+        public bool IsAffectedByEvaluation(IRValue evaluatedValue) => false;
+    }
+
+    partial class StartNewThread
+    {
+        public bool IsPure => false;
+        public bool IsConstant => true;
+
+        public IRValue GetPostEvalPure() => throw new NoPostEvalPureValue(this);
+
+        public void EnsureMinimumPurity(Purity purity) { }
+
+        public void GetMutatedValues(List<IRValue> affectedValues) { }
+
+        public void GetCoMutatedValues(List<IRValue> coMutatedValues) { }
+
+        public bool IsAffectedByMutation(IRValue mutatedValue) => mutatedValue is VariableReference variableReference && ProcedureReference.ProcedureDeclaration.CapturedVariables.Any(capturedVariable => capturedVariable == variableReference.Variable);
 
         public bool IsAffectedByEvaluation(IRValue evaluatedValue) => false;
     }

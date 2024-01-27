@@ -1,0 +1,71 @@
+﻿# Socket Bindings
+# Made with plibsys
+
+cinclude "plibsys/psocketaddress.h"
+cinclude "plibsys/psocket.h"
+include "pstd.nhp"
+
+mod plibsys:
+	enum socketFamily:
+		Inet
+		Inet6
+	attr:
+		CEnum: "PSocketFamily"
+		CPrefix: "P_SOCKET_FAMILY_"
+		NullState: "P_SOCKET_FAMILY_UNKNOWN"
+		UPPERCASE
+
+	cdef socketAddress "PSocketAddress*":
+		socketFamily family "p_socket_address_get_family(##VALUE)"
+		uint16 port "p_socket_address_get_port(##VALUE)"
+		bool isAny "p_socket_address_is_any(##VALUE)"
+		bool isLoopback "p_socket_address_is_loopback(##VALUE)"
+	attr:
+		Destroy: "p_socket_address_free(##VALUE);"
+		NullState: "NULL"
+		Resource
+
+	enum socketProtocol:
+		Default
+		TCP
+		UDP
+		SCTCP
+	attr:
+		CEnum: "PSocketProtocol"
+		CPrefix: "P_SOCKET_PROTOCOL_"
+		NullState: "P_SOCKET_PROTOCOL_UNKNOWN"
+		UPPERCASE
+
+	enum socketType:
+		Stream,
+		Datagram,
+		SeqPacket
+	attr:
+		CEnum: "PSocketType"
+		CPrefix: "P_SOCKET_TYPE_"
+		NullState: "P_SOCKET_TYPE_UNKNOWN"
+		UPPERCASE
+
+	cdef socket "PSocket*"
+	attr:
+		Destroy: "p_socket_free(##VALUE)"
+		NullState: "NULL"
+		Resource
+
+	cdef makeSocketAddress(cstring, uint16) socketAddress "p_socket_address_new(##ARG0_VALUE_CSRC, ##ARG1_VALUE_CSRC)"
+
+	cdef makeSocket(socketFamily, socketType, socketProtocol) option<socket> "p_socket_new(##ARG0_VALUE_CSRC, ##ARG1_VALUE_CSRC, ##ARG2_VALUE_CSRC, NULL)"
+mod typeExt:
+	cdef plibsys_socketAddress_get_address(plibsys::socketAddress) option<plibsys::cstring> "p_socket_address_get_address(##ARG0_VALUE_CSRC, NULL)"
+
+	cdef plibsys_socket_connect(plibsys::socket, plibsys::address) bool "p_socket_connect(##ARG0_VALUE_CSRC, ##ARG1_VALUE_CSRC, NULL)":
+
+	cdef plibsys_socket_listen(plibsys::socket) bool "p_socket_listen(##ARG0_VALUE_CSRC, NULL)"
+
+	cdef plibsys_socket_accept(plibsys::socket) option<plibsys::socket> "p_socket_accept(##ARG0_VALUE_CSRC, NULL)"
+
+	cdef plibsys_socket_close(plibsys::socket) None "p_socket_close(##ARG_VALUE_CSRC, NULL)"
+
+	cdef plibsys_socket_send(plibsys::socket, array<plibsys::uint8>) option<size> "p_socket_send(##ARG0_VALUE_CSRC, ##ARG1_VALUE_CSRC.buffer, ##ARG1_VALUE_CSRC.length, NULL)"
+
+	cdef plibsys_socket_recv(plibsys::socket, array<plibsys::uint8>, size) option<size> "p_socket_receive(##ARG0_VALUE_CSRC, ##ARG1_VALUE_CSRC.buffer, ##ARG1_VALUE_CSRC.length, NULL)"

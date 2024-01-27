@@ -107,11 +107,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
             foreach (InterfaceType interfaceType in irProgram.InterfaceTypeOverloads[this])
             {
                 emitter.AppendLine($"void free_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface, void* child_agent);");
-                
-                emitter.Append($"{interfaceType.GetCName(irProgram)} copy_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface");
-                if (interfaceType.MustSetResponsibleDestroyer)
-                    emitter.Append(", void* responsibleDestroyer");
-                emitter.AppendLine(");");
+
+                if (interfaceType.HasCopier)
+                {
+                    emitter.Append($"{interfaceType.GetCName(irProgram)} copy_interface{interfaceType.GetStandardIdentifier(irProgram)}({interfaceType.GetCName(irProgram)} interface");
+                    if (interfaceType.MustSetResponsibleDestroyer)
+                        emitter.Append(", void* responsibleDestroyer");
+                    emitter.AppendLine(");");
+                }
 
                 if (!EmitMultipleCStructs)
                     return;
@@ -146,6 +149,7 @@ namespace NoHoPython.Typing
 
         public bool IsCapturedByReference => GetProperties().Any(property => property.Type.IsCapturedByReference);
         public bool IsThreadSafe => GetProperties().All(property => property.Type.IsThreadSafe);
+        public bool HasCopier => GetProperties().All(property => property.Type.HasCopier);
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => requiredImplementedProperties.Value.Any((property) => property.Type.TypeParameterAffectsCodegen(effectInfo));
 
@@ -167,6 +171,9 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
+            if (!HasCopier)
+                throw new CannotCopyType(errorReportedElement, this);
+
             emitter.Append($"copy_interface{GetStandardIdentifier(irProgram)}(");
             valueCSource(emitter);
             if (MustSetResponsibleDestroyer) {
@@ -225,6 +232,9 @@ namespace NoHoPython.Typing
 
         public void EmitCopier(IRProgram irProgram, Emitter emitter)
         {
+            if (!HasCopier)
+                return;
+
             emitter.Append($"{GetCName(irProgram)} copy_interface{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} interface");
 
             if (MustSetResponsibleDestroyer)

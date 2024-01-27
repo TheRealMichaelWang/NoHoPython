@@ -142,10 +142,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     if (usedEnum.MustSetResponsibleDestroyer)
                         emitter.Append(", void* child_agent");
                     emitter.AppendLine(");");
-                    emitter.Append($"{usedEnum.GetCName(irProgram)} copy_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} nhp_enum");
-                    if (usedEnum.MustSetResponsibleDestroyer)
-                        emitter.Append(", void* responsible_destroyer");
-                    emitter.AppendLine(");");
+
+                    if (usedEnum.HasCopier)
+                    {
+                        emitter.Append($"{usedEnum.GetCName(irProgram)} copy_enum{usedEnum.GetStandardIdentifier(irProgram)}({usedEnum.GetCName(irProgram)} nhp_enum");
+                        if (usedEnum.MustSetResponsibleDestroyer)
+                            emitter.Append(", void* responsible_destroyer");
+                        emitter.AppendLine(");");
+                    }
                 }
 
                 if (!EmitMultipleCStructs)
@@ -205,6 +209,7 @@ namespace NoHoPython.Typing
         public bool IsCapturedByReference => false;
         public bool IsThreadSafe => true;
         public bool IsTypeDependency => throw new InvalidOperationException();
+        public bool HasCopier => true;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
 
@@ -294,6 +299,7 @@ namespace NoHoPython.Typing
 
         public bool IsCapturedByReference => GetOptions().Any(option => option.IsCapturedByReference);
         public bool IsThreadSafe => GetOptions().All(option => option.IsThreadSafe);
+        public bool HasCopier => GetOptions().All(option => option.HasCopier);
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => globalSupportedOptions[this].Value.Keys.Any((option) => option.TypeParameterAffectsCodegen(effectInfo));
 
@@ -543,6 +549,9 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
+            if (!HasCopier)
+                throw new CannotCopyType(errorReportedElement, this);
+
             if (RequiresDisposal)
             {
                 emitter.Append($"copy_enum{GetStandardIdentifier(irProgram)}(");
@@ -668,6 +677,9 @@ namespace NoHoPython.Typing
 
         public void EmitCopier(IRProgram irProgram, Emitter emitter)
         {
+            if (!HasCopier)
+                return;
+
             emitter.Append($"{GetCName(irProgram)} copy_enum{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} nhp_enum");
 
             if (MustSetResponsibleDestroyer)

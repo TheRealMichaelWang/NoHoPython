@@ -126,6 +126,7 @@ namespace NoHoPython.Typing
         public bool MustSetResponsibleDestroyer => Declaration.ResponsibleDestroyerSetter != null;
         public bool IsCapturedByReference => Declaration.IsReferenceType;
         public bool IsThreadSafe => Declaration.IsThreadSafe;
+        public bool HasCopier => !Declaration.IsResource;
 
         public bool IsTypeDependency
         {
@@ -155,7 +156,7 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
-            if (Declaration.IsResource)
+            if (!HasCopier)
                 throw new CannotCopyForeignResourceType(errorReportedElement, this);
 
             if (Declaration.Copier != null)

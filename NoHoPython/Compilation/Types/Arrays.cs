@@ -51,6 +51,9 @@ namespace NoHoPython.IntermediateRepresentation
         {
             foreach (ArrayType arrayType in usedArrayTypes)
             {
+                if (!arrayType.HasCopier)
+                    continue;
+
                 emitter.Append($"{arrayType.GetCName(this)} marshal_proto{arrayType.GetStandardIdentifier(this)}(int length, {arrayType.ElementType.GetCName(this)} proto");
                 if (arrayType.MustSetResponsibleDestroyer)
                     emitter.Append(", void* responsible_destroyer");
@@ -102,7 +105,10 @@ namespace NoHoPython.IntermediateRepresentation
         {
             foreach(IType elementType in bufferTypes)
             {
-                if (elementType.RequiresDisposal && elementType.HasCopier)
+                if (!elementType.HasCopier)
+                    continue;
+
+                if (elementType.RequiresDisposal)
                 {
                     emitter.Append($"{elementType.GetCName(this)}* buffer_copy_{elementType.GetStandardIdentifier(this)}({elementType.GetCName(this)}* src, int len");
                     if (elementType.MustSetResponsibleDestroyer)
@@ -154,6 +160,7 @@ namespace NoHoPython.Typing
         public bool IsTypeDependency => true;
         public bool IsCapturedByReference => ElementType.IsCapturedByReference;
         public bool IsThreadSafe => ElementType.IsThreadSafe;
+        public bool HasCopier => ElementType.HasCopier;
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => ElementType.TypeParameterAffectsCodegen(effectInfo);
 
@@ -175,6 +182,9 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
+            if (!HasCopier)
+                throw new CannotCopyType(errorReportedElement, this);
+
             emitter.Append($"copy{GetStandardIdentifier(irProgram)}(");
             valueCSource(emitter);
 
@@ -221,6 +231,9 @@ namespace NoHoPython.Typing
 
         public void EmitMarshaller(IRProgram irProgram, Emitter emitter)
         {
+            if (!HasCopier)
+                return;
+
             if (ElementType.RequiresDisposal)
             {
                 emitter.Append($"{GetCName(irProgram)} marshal_foreign{GetStandardIdentifier(irProgram)}({ElementType.GetCName(irProgram)}* buffer, int length");
@@ -261,6 +274,9 @@ namespace NoHoPython.Typing
 
         public void EmitCopier(IRProgram irProgram, Emitter emitter)
         {
+            if (!HasCopier)
+                return;
+
             emitter.Append($"{GetCName(irProgram)} copy{GetStandardIdentifier(irProgram)}({GetCName(irProgram)} to_copy");
 
             if (MustSetResponsibleDestroyer)
@@ -312,7 +328,7 @@ namespace NoHoPython.Typing
             if (ElementType.RequiresDisposal)
             {
                 int indirection = emitter.AppendStartBlock();
-                emitter.Append($"\t{GetCName(irProgram)} to_free{indirection} = ");
+                emitter.Append($"{GetCName(irProgram)} to_free{indirection} = ");
                 valuePromise(emitter);
                 emitter.AppendLine(";");
                 emitter.AppendStartBlock($"for(int i = 0; i < to_free{indirection}.length; i++)");
@@ -331,6 +347,9 @@ namespace NoHoPython.Typing
 
         public void EmitCopyValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer, IRElement? errorReportedElement)
         {
+            if (!HasCopier)
+                throw new CannotCopyType(errorReportedElement, this);
+
             if (ElementType.RequiresDisposal)
             {
                 emitter.Append($"buffer_copy_{ElementType.GetStandardIdentifier(irProgram)}(");

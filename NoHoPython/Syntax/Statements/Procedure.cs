@@ -163,6 +163,21 @@ namespace NoHoPython.Syntax.Values
         public override string ToString() => $"{ProcedureValue}({string.Join(", ", Arguments)})";
         public string ToString(int indent) => $"{IAstStatement.Indent(indent)}{this}";
     }
+
+    public sealed partial class StartThread : IAstValue
+    {
+        public SourceLocation SourceLocation { get; private set; }
+
+        public readonly string ToMultiThreadName;
+
+        public StartThread(SourceLocation sourceLocation, string toMultiThreadName)
+        {
+            SourceLocation = sourceLocation;
+            ToMultiThreadName = toMultiThreadName;
+        }
+
+        public override string ToString() => $"start {ToMultiThreadName}";
+    }
 }
 
 namespace NoHoPython.Syntax.Values

@@ -1,0 +1,14 @@
+﻿include "threads.nhp"
+
+def main():
+	myNums = [4, 2, 5, 3, 6, 1, 0]
+
+	for i from 0 within myNums.length:
+		num = myNums[i]
+		
+		#thread code
+		pure numsleep():
+			std::sleep(num * 500)
+			print(num)
+
+		myThread = start numsleep

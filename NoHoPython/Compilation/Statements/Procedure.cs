@@ -381,7 +381,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return procedureReference;
             else
             {
-                irBuilder.IncludeCFile("puthread.h");
+                irBuilder.IncludeCFile("plibsys/puthread.h");
                 return this;
             }
         }

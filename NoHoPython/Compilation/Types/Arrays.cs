@@ -61,10 +61,10 @@ namespace NoHoPython.IntermediateRepresentation
 
                 //if (arrayType.ElementType.RequiresDisposal)
                 //{
-                    emitter.AppendLine($"{arrayType.GetCName(this)} copy{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_copy");
+                    emitter.Append($"{arrayType.GetCName(this)} copy{arrayType.GetStandardIdentifier(this)}({arrayType.GetCName(this)} to_copy");
                     if (arrayType.MustSetResponsibleDestroyer)
                         emitter.Append(", void* responsible_destroyer");
-                    emitter.Append(");");
+                    emitter.AppendLine(");");
                 //}
             }
         }

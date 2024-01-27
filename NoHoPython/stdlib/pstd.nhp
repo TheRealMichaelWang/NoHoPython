@@ -1,29 +1,35 @@
-﻿cinclude "<ptypes.h>"
+﻿cinclude "psyslib/ptypes.h"
 
 mod plibsys:
 	cdef int8 "pint8" int
 	cdef uint8 "puint8" int
+
 	cdef int16 "puint16" int:
 		int16 toBigEndian "PINT16_TO_BE(##VALUE)"
 		int16 fromBigEndian "PINT16_FROM_BE(##VALUE)"
+
 	cdef uint16 "puint16" int:
 		int16 toBigEndian "PUINT16_TO_BE(##VALUE)"
 		int16 fromBigEndian "PUINT16_FROM_BE(##VALUE)"
+
 	cdef int32 "puint32" int:
 		int16 toBigEndian "PINT32_TO_BE(##VALUE)"
 		int16 fromBigEndian "PINT32_FROM_BE(##VALUE)"
-	cdef uint32 "puint32" int
+
+	cdef uint32 "puint32" int:
 		int16 toBigEndian "PUINT32_TO_BE(##VALUE)"
 		int16 fromBigEndian "PUINT32_FROM_BE(##VALUE)"
-	cdef int64 "pint64" int
+
+	cdef int64 "pint64" int:
 		int16 toBigEndian "PINT64_TO_BE(##VALUE)"
 		int16 fromBigEndian "PINT64_FROM_BE(##VALUE)"
-	cdef uint64 "puint64" int
+
+	cdef uint64 "puint64" int:
 		int16 toBbigEndian "PUINT64_TO_BE(##VALUE)"
 		int16 fromBigEndian "PUINT64_FROM_BE(##VALUE)"
 	
 	cdef size "psize" int
-	attr
+	attr:
 		NullState: "-1"
 
 	cdef pptr<T> "ppointer" handle<T>

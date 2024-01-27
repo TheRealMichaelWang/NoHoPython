@@ -179,12 +179,12 @@ namespace NoHoPython.Syntax.Statements
 
             List<Typing.TypeParameter> typeParameters = TypeParameters.ConvertAll((TypeParameter parameter) => parameter.ToIRTypeParameter(irBuilder, this));
 
+            foreach (Typing.TypeParameter parameter in typeParameters)
+                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
+
             IRDeclaration = new IntermediateRepresentation.Statements.ForeignCDeclaration(Identifier, typeParameters, Attributes.ContainsKey("ptr") || CSource.EndsWith('*'), GetOption("ForwardDeclaration"), GetOption("CStruct"), GetOption("MarshallerHeaders"), GetOption("Marshallers"), CSource, GetOption("Copy"), GetOption("Destroy"), GetOption("ActorSetter"), GetOption("InvalidState") ?? GetOption("NullState"), Attributes.ContainsKey("Resource"), Attributes.ContainsKey("RefType"), Attributes.ContainsKey("ThreadSafe"), CompatibleType?.ToIRType(irBuilder, this), irBuilder.SymbolMarshaller.CurrentModule, this);
             irBuilder.SymbolMarshaller.DeclareSymbol(IRDeclaration, this);
             irBuilder.SymbolMarshaller.NavigateToScope(IRDeclaration);
-
-            foreach (Typing.TypeParameter parameter in typeParameters)
-                irBuilder.SymbolMarshaller.DeclareSymbol(parameter, this);
 
             irBuilder.SymbolMarshaller.GoBack();
         }

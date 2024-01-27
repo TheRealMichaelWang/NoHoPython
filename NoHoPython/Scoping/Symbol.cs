@@ -1,4 +1,5 @@
-﻿using NoHoPython.Syntax;
+﻿using NoHoPython.IntermediateRepresentation.Statements;
+using NoHoPython.Syntax;
 using System.Diagnostics;
 using System.Text;
 
@@ -28,6 +29,8 @@ namespace NoHoPython.Scoping
                     id.Insert(0, containerSymbol.Name);
                     current = containerSymbol.ParentContainer;
                 }
+                else if(current is CodeBlock codeBlock)
+                    current = codeBlock.parentContainer;
                 else if (masterScope != null)
                 {
                     Debug.Assert(masterScope.Name != string.Empty);

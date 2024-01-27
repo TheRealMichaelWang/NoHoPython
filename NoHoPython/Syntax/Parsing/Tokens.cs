@@ -40,6 +40,7 @@
         CInclude,
         Assert,
         Destroy,
+        StartThread,
         Is,
         From,
         Within,

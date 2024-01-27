@@ -953,4 +953,19 @@ namespace NoHoPython.Syntax.Values
             return new AnonymizeProcedure(lamdaDeclaration, expectedType == null ? false : expectedType is HandleType, this, irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek());
         }
     }
+
+    partial class StartThread
+    {
+        public IRValue GenerateIntermediateRepresentationForValue(AstIRProgramBuilder irBuilder, IType? expectedType, bool willRevaluate)
+        {
+            IScopeSymbol procedureSymbol = irBuilder.SymbolMarshaller.FindSymbol(ToMultiThreadName, this);
+            if (procedureSymbol is ProcedureDeclaration procedureDeclaration)
+            {
+                ProcedureDeclaration? parentProcedure = irBuilder.ScopedProcedures.Count == 0 ? null : irBuilder.ScopedProcedures.Peek();
+                return new StartNewThread(procedureDeclaration, parentProcedure, irBuilder, this);
+            }
+            else
+                throw new NotAProcedureException(procedureSymbol, this);
+        }
+    }
 }

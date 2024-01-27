@@ -2,7 +2,7 @@
   "profiles": {
     "NoHoPython": {
       "commandName": "Project",
-      "commandLineArgs": "tests/users.nhp\r\nout.c\r\n-verbose"
+      "commandLineArgs": "tests/sleepsort.nhp\r\nout.c\r\n-verbose"
     }
   }
 }

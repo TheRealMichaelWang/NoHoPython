@@ -26,7 +26,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public bool IsLoop { get; private set; }
         public int? BreakLabelId { get; private set; }
 
-        protected SymbolContainer parentContainer;
+        public SymbolContainer parentContainer { get; private set; }
         public SourceLocation BlockBeginLocation { get; private set; }
 
         public CodeBlock(SymbolContainer parentContainer, bool isLoop, SourceLocation blockBeginLocation)

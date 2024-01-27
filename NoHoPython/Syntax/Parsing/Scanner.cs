@@ -397,6 +397,7 @@ namespace NoHoPython.Syntax.Parsing
                     "assert" => TokenType.Assert,
                     "del" => TokenType.Destroy,
                     "destroy" => TokenType.Destroy,
+                    "start" => TokenType.StartThread,
                     "is" => TokenType.Is,
                     "from" => TokenType.From,
                     "to" => TokenType.To,

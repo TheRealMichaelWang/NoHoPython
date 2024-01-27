@@ -175,10 +175,12 @@ namespace NoHoPython.Syntax.Parsing
         {
             if (skipIndentCounting)
             {
-                skipIndentCounting = false;
-                if (matchTok == null)
+                if (matchTok == null || scanner.LastToken.Type == matchTok)
+                {
+                    skipIndentCounting = false;
                     return true;
-                return scanner.LastToken.Type == matchTok;
+                }
+                return false;
             }
             else
             {
@@ -359,6 +361,13 @@ namespace NoHoPython.Syntax.Parsing
                                 IAstValue tobox = ParseValue();
                                 MatchAndScanToken(TokenType.CloseParen);
                                 return new ReferenceLiteral(location, tobox);
+                            }
+                        case TokenType.StartThread:
+                            {
+                                scanner.ScanToken();
+                                string name = scanner.LastToken.Identifier;
+                                MatchAndScanToken(TokenType.Identifier);
+                                return new StartThread(location, name);
                             }
                         case TokenType.Sizeof:
                             {

@@ -128,14 +128,14 @@ namespace NoHoPython.Typing
     partial class ThreadType
     {
         public bool IsNativeCType => true;
-        public bool RequiresDisposal => false;
+        public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => false;
         public bool IsTypeDependency => false;
         public bool IsCapturedByReference => true;
         public bool IsThreadSafe => false;
         public bool HasCopier => true;
 
-        public void ScopeForUsedTypes(AstIRProgramBuilder irBuilder) => irBuilder.IncludeCFile("puthread.h");
+        public void ScopeForUsedTypes(AstIRProgramBuilder irBuilder) => irBuilder.IncludeCFile("plibsys/puthread.h");
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
 

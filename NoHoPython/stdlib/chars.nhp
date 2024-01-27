@@ -24,13 +24,13 @@ mod typeExt:
 		return toret
 		
 	pure array_char_trim(array<char> str) option<array<char>>:
-		start = 0
-		while start < str as int and str[start].isBlank:
-			start = start + 1
+		startIndex = 0
+		while startIndex < str as int and str[startIndex].isBlank:
+			startIndex = startIndex + 1
 		stop = str as int - 1
-		while stop >= start and str[stop].isBlank:
+		while stop >= startIndex and str[stop].isBlank:
 			stop = stop - 1
-		return str.subArray(start, (stop - start) + 1)
+		return str.subArray(startIndex, (stop - startIndex) + 1)
 
 	pure array_char_allWhitespace(array<char> str) bool:
 		for i from 0 within str.length:

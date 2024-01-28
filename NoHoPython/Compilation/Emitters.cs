@@ -31,13 +31,14 @@ namespace NoHoPython.IntermediateRepresentation
         private Stack<Promise> resourceDestructors;
         private Stack<int> blockDestructionFrames;
         private Stack<int> loopDestructorFrames;
-        private Stack<int> functionDestructorFrames;
+        private Stack<(int, bool)> functionFrames;
         private SortedSet<int> destructionExemptions;
 
         private Stack<Promise> constructorPropertyDestructors;
         private bool isInConstructor = false;
 
         public bool BufferMode { get; private set; }
+        public bool IsInMultiThreadedFunction => functionFrames.Peek().Item2;
 
         public Emitter(string outputPath, bool emitLineDirectives)
         {
@@ -53,7 +54,7 @@ namespace NoHoPython.IntermediateRepresentation
             resourceDestructors = new();
             blockDestructionFrames = new();
             loopDestructorFrames = new();
-            functionDestructorFrames = new();
+            functionFrames = new();
             destructionExemptions = new();
             constructorPropertyDestructors = new();
         }
@@ -69,7 +70,7 @@ namespace NoHoPython.IntermediateRepresentation
             resourceDestructors = new();
             blockDestructionFrames = new();
             loopDestructorFrames = new();
-            functionDestructorFrames = new();
+            functionFrames = new();
             destructionExemptions = new();
             constructorPropertyDestructors = new();
         }
@@ -147,18 +148,18 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void DeclareLoopBlock() => loopDestructorFrames.Push(resourceDestructors.Count);
         
-        public void DeclareFunctionBlock(bool isConstructor = false)
+        public void DeclareFunctionBlock(bool isConstructor = false, bool isMultithreaded = false)
         {
             isInConstructor = isConstructor;
-            functionDestructorFrames.Push(resourceDestructors.Count);
+            functionFrames.Push((resourceDestructors.Count, isMultithreaded));
         }
         
         public void EndLoopBlock() => DestroyResources(loopDestructorFrames.Peek(), loopDestructorFrames.Pop());
-        public void EndFunctionBlock() => DestroyResources(functionDestructorFrames.Peek(), functionDestructorFrames.Pop());
+        public void EndFunctionBlock() => DestroyResources(functionFrames.Peek().Item1, functionFrames.Pop().Item1);
 
         public void DestroyBlockResources() => DestroyResources(blockDestructionFrames.Peek(), blockDestructionFrames.Peek());
         public void DestroyLoopResources() => DestroyResources(loopDestructorFrames.Peek(), blockDestructionFrames.Peek());
-        public void DestroyFunctionResources() => DestroyResources(functionDestructorFrames.Peek(), blockDestructionFrames.Peek());
+        public void DestroyFunctionResources() => DestroyResources(functionFrames.Peek().Item1, blockDestructionFrames.Peek());
         public void AssumeBlockResources()
         {
             while(resourceDestructors.Count > blockDestructionFrames.Peek())
@@ -225,7 +226,7 @@ namespace NoHoPython.IntermediateRepresentation
 
         public void DestroyConstructorResources(Promise? destroyCondition)
         {
-            if (!isInConstructor || functionDestructorFrames.Count > 1)
+            if (!isInConstructor || functionFrames.Count > 1)
                 return;
             isInConstructor = false;
 

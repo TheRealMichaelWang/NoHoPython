@@ -381,7 +381,7 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                 return procedureReference;
             else
             {
-                irBuilder.IncludeCFile("plibsys/puthread.h");
+                irBuilder.IncludeCFile("plibsys/plibsys.h");
                 return this;
             }
         }
@@ -389,7 +389,12 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         private void EmitCFunctionHeader(IRProgram irProgram, Emitter emitter)
         {
 #pragma warning disable CS8604 // Parameters not null when compilation begins
-            emitter.Append($"{ReturnType.GetCName(irProgram)} {GetStandardIdentifier(irProgram)}(");
+            if (Mode == ReferenceMode.Multithreading)
+                emitter.Append("void*");
+            else
+                emitter.Append(ReturnType.GetCName(irProgram));
+
+            emitter.Append($" {GetStandardIdentifier(irProgram)}(");
             if (Mode == ReferenceMode.Anonymized || Mode == ReferenceMode.Multithreading)
             {
                 //if (ProcedureDeclaration.CapturedVariables.Count > 0)
@@ -445,10 +450,19 @@ namespace NoHoPython.IntermediateRepresentation.Statements
         public Dictionary<TypeParameter, IType> Emit(IRProgram irProgram, Emitter emitter)
         {
             EmitCFunctionHeader(irProgram, emitter);
-            emitter.DeclareFunctionBlock(IsOptionalConstructor);
+            emitter.DeclareFunctionBlock(IsOptionalConstructor, Mode == ReferenceMode.Multithreading);
             emitter.AppendStartBlock();
-            if (Mode == ReferenceMode.Anonymized || Mode == ReferenceMode.Multithreading)
+
+            if (Mode == ReferenceMode.Regular && ProcedureDeclaration.Name == "main")
+                emitter.AddResourceDestructor(e => e.Append("p_libsys_shutdown();"));
+            else if (Mode == ReferenceMode.Anonymized || Mode == ReferenceMode.Multithreading)
             {
+                if (Mode == ReferenceMode.Multithreading)
+                {
+                    emitter.AddResourceDestructor(e => e.AppendLine("return NULL;"));
+                    emitter.AddResourceDestructor(e => e.AppendLine("p_uthread_exit(0);"));
+                    emitter.AddResourceDestructor(e => e.AppendLine($"{irProgram.MemoryAnalyzer.Dealloc("nhp_captured", $"sizeof({GetClosureCaptureCType(irProgram)})")}"));
+                }
                 foreach (Variable variable in ProcedureDeclaration.CapturedVariables)
                 {
                     emitter.AppendLine($"{variable.Type.SubstituteWithTypearg(typeArguments).GetCName(irProgram)} {variable.GetStandardIdentifier()} = nhp_captured->{variable.GetStandardIdentifier()};");
@@ -456,14 +470,14 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     if (Mode == ReferenceMode.Multithreading && variable.Type.SubstituteWithTypearg(typeArguments).RequiresDisposal)
                         emitter.AddResourceDestructor(e => variable.Type.SubstituteWithTypearg(typeArguments).EmitFreeValue(irProgram, e, k => k.Append($"nhp_captured->{variable.GetStandardIdentifier()}"), Emitter.NullPromise));
                 }
-                if (Mode == ReferenceMode.Multithreading)
-                {
-                    emitter.AddResourceDestructor(e => e.AppendLine($"{irProgram.MemoryAnalyzer.Dealloc("nhp_captured", $"sizeof({GetClosureCaptureCType(irProgram)})")}"));
-                    emitter.AddResourceDestructor(e => e.AppendLine("p_uthread_exit(0);"));
-                }
             }
+
             if(ReturnType is not NothingType)
                 emitter.AppendLine($"{ReturnType.GetCName(irProgram)} nhp_toret;");
+
+            if (Mode == ReferenceMode.Regular && ProcedureDeclaration.Name == "main")
+                emitter.AppendLine("p_libsys_init();");
+
             return typeArguments;
         }
 
@@ -624,8 +638,10 @@ namespace NoHoPython.IntermediateRepresentation.Statements
                     primaryEmitter.DestroyConstructorResources(e => e.Append("!nhp_toret"));
                 primaryEmitter.AppendLine("return nhp_toret;");
             }
-            else
+            else if(!primaryEmitter.IsInMultiThreadedFunction)
+            {
                 primaryEmitter.AppendLine("return;");
+            }
         }
     }
 
@@ -975,7 +991,7 @@ namespace NoHoPython.IntermediateRepresentation.Values
                 primaryEmitter.AppendLine(";");
             }
 
-            destination((emitter) => emitter.Append($"p_uthread_create(&{toMultiThread.GetStandardIdentifier(irProgram)}, thread_data{indirection}, 1)"));
+            destination((emitter) => emitter.Append($"p_uthread_create(&{toMultiThread.GetStandardIdentifier(irProgram)}, thread_data{indirection}, 1, \"{ProcedureReference.ProcedureDeclaration.Name}\")"));
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
             primaryEmitter.AppendEndBlock();
         }

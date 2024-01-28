@@ -330,6 +330,7 @@ namespace NoHoPython.IntermediateRepresentation
 
                 //emit utility functions
                 ProcedureType.EmitStandardAnonymizer(this, emitter);
+                ThreadType.EmitCopier(emitter);
                 if (DoCallStack)
                     CallStackReporting.EmitReporter(emitter);
                 if (!EliminateAsserts)

@@ -127,6 +127,14 @@ namespace NoHoPython.Typing
 
     partial class ThreadType
     {
+        public static void EmitCopier(Emitter emitter) 
+        {
+            emitter.AppendStartBlock("PUThread* copy_thread(PUThread* thread)");
+            emitter.AppendLine("p_uthread_ref(thread);");
+            emitter.AppendLine("return thread;");
+            emitter.AppendEndBlock();
+        }
+
         public bool IsNativeCType => true;
         public bool RequiresDisposal => true;
         public bool MustSetResponsibleDestroyer => false;
@@ -135,7 +143,7 @@ namespace NoHoPython.Typing
         public bool IsThreadSafe => false;
         public bool HasCopier => true;
 
-        public void ScopeForUsedTypes(AstIRProgramBuilder irBuilder) => irBuilder.IncludeCFile("plibsys/puthread.h");
+        public void ScopeForUsedTypes(AstIRProgramBuilder irBuilder) => irBuilder.IncludeCFile("plibsys/plibsys.h");
 
         public bool TypeParameterAffectsCodegen(Dictionary<IType, bool> effectInfo) => false;
 
@@ -157,7 +165,7 @@ namespace NoHoPython.Typing
 
         public void EmitClosureBorrowValue(IRProgram irProgram, Emitter emitter, Emitter.Promise valueCSource, Emitter.Promise responsibleDestroyer)
         {
-            emitter.Append("p_uthread_ref(");
+            emitter.Append("copy_thread(");
             valueCSource(emitter);
             emitter.Append(')');
         }

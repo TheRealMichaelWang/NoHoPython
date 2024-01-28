@@ -1,4 +1,4 @@
-﻿cinclude "psyslib/ptypes.h"
+﻿cinclude "plibsys/plibsys.h"
 
 mod plibsys:
 	cdef int8 "pint8" int
@@ -41,6 +41,8 @@ mod plibsys:
 		Copy: "strdup(##VALUE)"
 		NullState: "NULL"
 		isPtr
+		
+	cdef sleep(plibsys::uint32) None "p_uthread_sleep(##ARG0_VALUE_CSRC);"
 
 mod typeExt:
 	cdef plibsys_cstring_getAtIndex(plibsys::cstring, int) char "##ARG0_VALUE_CSRC[##ARG1_VALUE_CSRC]"

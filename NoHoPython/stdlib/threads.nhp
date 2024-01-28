@@ -1,5 +1,0 @@
-﻿include "pstd.nhp"
-cinclude "plibsys/puthread.h"
-
-mod std:
-	cdef sleep(plibsys::uint32) None "p_uthread_sleep(##ARG0_VALUE_CSRC);"

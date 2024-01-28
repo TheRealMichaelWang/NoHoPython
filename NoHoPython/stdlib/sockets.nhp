@@ -1,8 +1,6 @@
 ﻿# Socket Bindings
 # Made with plibsys
 
-cinclude "plibsys/psocketaddress.h"
-cinclude "plibsys/psocket.h"
 include "pstd.nhp"
 
 mod plibsys:

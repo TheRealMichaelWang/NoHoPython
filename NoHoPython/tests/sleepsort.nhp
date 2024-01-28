@@ -1,4 +1,4 @@
-﻿include "threads.nhp"
+﻿include "pstd.nhp"
 
 def main():
 	myNums = [4, 2, 5, 3, 6, 1, 0]
@@ -8,7 +8,7 @@ def main():
 		
 		#thread code
 		pure numsleep():
-			std::sleep(num * 500)
+			plibsys::sleep(num * 500)
 			print(num)
 
 		myThread = start numsleep
